@@ -11,14 +11,11 @@ Ordered by priority. Frame-level iOS glitches wait on a recording (D-099).
           Amends D-147.
     - [ ] Fit the search bar to its contents: the field sits on the left and the
           close button on the right, with an empty gap between them.
-    - [ ] Find why a glide owing the notes above stops 240–530 px short of the
-          top, where `jump.spec.ts` allows 400: its owing and scroll-to-spare
-          specs fail one run in two or three. Mid-glide, still owing, its scroll
-          fell back some 2,100 px. Possibly the stream's.
-- [ ] `jump.spec.ts`'s flick up from an old date fails on the iPhone, 4 runs of
-      4 on `main`: the glide stops at once. With strokes 3 px lower (D-169) it
-      glides, then the text under the thumb jumps by the whole owed shift (2,954
-      px) for a frame; the iPad showed it once (2,518 px).
+- [ ] On the iPad, a flick up from a jump is sometimes killed at speed:
+      `jump.spec.ts`'s first spec fails about 1 run in 3. Some 120 ms after the
+      lift the stream starts owing a shift as the notes above render; some 100
+      ms later the glide stops dead at 230 px a step, far from the top (D-171).
+      Find what ends it.
 - [ ] Make typing a search mark only a match the reader can see (D-022):
       `isOnScreen` checks the whole pane, so on a phone it marks one under the
       floating header or bottom bar, or under the open keyboard. Enter then

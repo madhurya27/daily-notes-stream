@@ -1,4 +1,5 @@
 import { test as base, expect } from "@playwright/test";
+import { glideEnding, type GlideEnding, type Heard } from "./glide";
 import { keyboardAfterRun } from "./keyboard";
 import { connect, OBSIDIAN } from "./session";
 import { returnToTestersVault, useVault } from "./vault";
@@ -29,11 +30,6 @@ export type SentTouch = { from: { x: number; y: number }; to: { x: number; y: nu
 /** Where the stream is, as it keeps its place: a note, and its top's offset from the pane's. */
 export type Place = { path: string; offset: number };
 
-/**
- * How long after the finger lifts a second stroke lands, sent as the first
- * returns: WebDriverAgent's own cost, measured 540 ms.
- */
-const LIFT_TO_NEXT_STROKE_MS = 500;
 /** How far inside the pane's top a stroke stays, clear of the header above it. */
 const PANE_EDGE = 20;
 
@@ -48,7 +44,8 @@ const SCREENS = 60;
 const TEXT_KINDS = [
     ".daily-note-title",
     ".metadata-property",
-    ".daily-note-content > :not(.daily-note-far-run)",
+    // Not a Base: it redraws its rows as it scrolls, and its text, changed, reads as a blank.
+    ".daily-note-content > :not(.daily-note-far-run, .daily-note-base)",
     ".daily-note-mention",
 ];
 
@@ -355,7 +352,9 @@ export class Phone {
      * reader's eye would; `stopFollowing` reports it. By its place in its
      * note, as `topOf` finds it: a note may render again under the reader.
      * Text that leaves the screen hands the eye to the text then at the
-     * middle; a blank where it was on screen is a drift of NaN.
+     * middle; a blank where it was on screen is a drift of NaN. Also read as
+     * the page hears a scroll, before the stream answers it: iOS glides on
+     * unheard, and a frame's read held that step and the stream's answer as one.
      */
     async followReader(): Promise<void> {
         await this.run(
@@ -372,6 +371,18 @@ export class Phone {
                 // anchor's hand-over (ScrollAnchor), or a leap no one has traced yet.
                 let unseen = 0;
                 let lastScroll = pane.scrollTop;
+                /** The glide's last step, as the page heard it. */
+                let glide = 0;
+                /**
+                 * Written by the stream, not glided: the text stayed, or a write
+                 * against the glide carried it on one step at most, as a stop
+                 * does, iOS having drawn that step already (`ScrollAnchor.stopGlide`).
+                 */
+                const written = (step: number, moved: number) =>
+                    Math.abs(moved) <= 1 ||
+                    (Math.sign(step) === -Math.sign(glide) &&
+                        Math.sign(moved) === -Math.sign(glide) &&
+                        Math.abs(moved) <= Math.abs(glide) + 1);
                 const scrolled = () => pane.scrollTop - unseen;
                 const pick = () => {
                     const at = [...pane.querySelectorAll(blocks)].find(
@@ -399,10 +410,12 @@ export class Phone {
                     unloaded: unloaded(),
                     rendered: 0,
                     on: true,
+                    heard: new AbortController(),
                 };
                 (window as unknown as { streamReader: typeof follow }).streamReader = follow;
-                const frame = () => {
-                    if (!follow.on || !eye) return;
+                /** Reads where the text is; false once there is no text to follow. */
+                const read = (): boolean => {
+                    if (!follow.on || !eye) return false;
                     const scroll = pane.scrollTop;
                     const step = scroll - lastScroll;
                     lastScroll = scroll;
@@ -415,21 +428,27 @@ export class Phone {
                         // Its note on screen without it: a blank where the reader was, until it is back.
                         if (block && onScreen(block)) follow.drifts.push(NaN);
                         else eye = pick();
-                        requestAnimationFrame(frame);
-                        return;
+                        return true;
                     }
                     // Where the text is, against where the scroll alone puts it.
                     const top = text.getBoundingClientRect().top;
                     const moved = top - eye.last;
                     eye.last = top;
-                    if (Math.abs(moved) <= 1 && Math.abs(step) > 1) unseen += step + moved;
+                    if (Math.abs(step) > 1 && written(step, moved)) unseen += step + moved;
+                    else if (Math.abs(step) > 1) glide = step;
                     follow.drifts.push(Math.round(top - eye.start - (eye.from - scrolled())));
                     // Where the text is on screen, as a still reader sees it.
                     follow.moves.push(Math.round(top - eye.start));
                     if (!onScreen(text)) eye = pick();
-                    requestAnimationFrame(frame);
+                    return true;
                 };
+                const frame = () => read() && requestAnimationFrame(frame);
                 requestAnimationFrame(frame);
+                // Captured on the document: before the pane's own listeners, the stream's among them.
+                document.addEventListener("scroll", (event) => event.target === pane && read(), {
+                    capture: true,
+                    signal: follow.heard.signal,
+                });
             },
             STREAM,
             TEXT_KINDS
@@ -437,7 +456,7 @@ export class Phone {
     }
 
     /**
-     * Since `followReader`, each frame: how far the text moved other than
+     * Since `followReader`, each read: how far the text moved other than
      * with the scroll (`drifts`, for a glide), and on screen (`moves`, for a
      * still reader); and how many notes rendered.
      */
@@ -445,10 +464,17 @@ export class Phone {
         return this.run(() => {
             const follow = (
                 window as unknown as {
-                    streamReader: { drifts: number[]; moves: number[]; rendered: number; on: boolean };
+                    streamReader: {
+                        drifts: number[];
+                        moves: number[];
+                        rendered: number;
+                        on: boolean;
+                        heard: AbortController;
+                    };
                 }
             ).streamReader;
             follow.on = false;
+            follow.heard.abort();
             return { drifts: follow.drifts, moves: follow.moves, rendered: follow.rendered };
         });
     }
@@ -596,46 +622,40 @@ export class Phone {
     }
 
     /**
-     * One stroke, and whether the stream still moved `ms` after the finger
-     * lifted. A thumb then catches the glide: the web view runs no script
-     * until a glide ends, and a full one runs 1–3.5 s.
+     * One stroke, and how its glide ended (`glide.ts`), once the pane is
+     * still: a full glide runs 1–3.5 s.
      */
-    async glidesPast(direction: "up" | "down", ms: number): Promise<boolean> {
+    async glideEnding(direction: "up" | "down", { share = 0.7, ms = 60 } = {}): Promise<GlideEnding> {
         await this.run((s: string) => {
-            const pane = document.querySelector(s)!.parentElement!;
-            const glide = { touches: [] as number[], lifts: [] as number[], scrolls: [] as number[] };
-            const done = new AbortController();
-            (window as unknown as { streamGlide: typeof glide & { done: AbortController } }).streamGlide = {
-                ...glide,
-                done,
+            const stream = document.querySelector(s)!;
+            const pane = stream.parentElement!;
+            const glide = { lifted: false, heard: [] as Heard[], done: new AbortController() };
+            (window as unknown as { streamGlide: typeof glide }).streamGlide = glide;
+            const hear = () =>
+                glide.lifted &&
+                glide.heard.push({
+                    at: performance.now(),
+                    top: pane.scrollTop,
+                    owing: stream.classList.contains("is-scroll-shifted"),
+                    bottom: pane.scrollHeight - pane.clientHeight,
+                });
+            const { signal } = glide.done;
+            const lift = () => {
+                glide.lifted = true;
+                hear();
             };
-            const now = (log: number[]) => () => log.push(performance.now());
-            const { signal } = done;
-            document.addEventListener("touchstart", now(glide.touches), { capture: true, signal });
-            document.addEventListener("touchend", now(glide.lifts), { capture: true, signal });
-            pane.addEventListener("scroll", now(glide.scrolls), { passive: true, signal });
+            document.addEventListener("touchend", lift, { capture: true, signal, once: true });
+            pane.addEventListener("scroll", hear, { passive: true, signal });
         }, STREAM);
-        await this.stroke(direction, 0.7, 60);
-        // Caught `ms` and a little after the lift; too soon, and it fails, never passes.
-        await new Promise((resolve) => setTimeout(resolve, Math.max(0, ms + 100 - LIFT_TO_NEXT_STROKE_MS)));
-        // Slow and short: it stops the glide without a flick or a tap of its own.
-        await this.stroke(direction, 0.02, 100);
-        const [moved, failure] = await this.run((wait: number) => {
-            const { touches, lifts, scrolls, done } = (
-                window as unknown as {
-                    streamGlide: { touches: number[]; lifts: number[]; scrolls: number[]; done: AbortController };
-                }
-            ).streamGlide;
-            done.abort();
-            const [lift] = lifts;
-            if (lift === undefined) return [false, "the stroke never lifted"];
-            // A touch that stops a glide stays with iOS: the page sees it only if the stream had stopped.
-            const caught = touches[1] ?? Infinity;
-            if (caught < lift + wait) return [false, `the glide was caught ${Math.round(caught - lift)} ms in`];
-            return [scrolls.some((t) => t > lift + wait && t < caught), ""];
-        }, ms);
-        if (failure) throw new Error(`Cannot tell how far a flick glided: ${failure}.`);
-        return moved;
+        await this.stroke(direction, share, ms);
+        await this.rest();
+        const heard = await this.run(() => {
+            const glide = (window as unknown as { streamGlide: { heard: Heard[]; done: AbortController } }).streamGlide;
+            glide.done.abort();
+            return glide.heard;
+        });
+        if (heard.length === 0) throw new Error("The stroke never lifted.");
+        return glideEnding(heard);
     }
 
     /**

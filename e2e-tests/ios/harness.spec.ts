@@ -55,3 +55,54 @@ test("a stream opened from deep in it is at its top, over a long newest note", a
         await phone.restoreNote(path, original);
     }
 });
+
+// The follower judges every glide spec: a recording showed this jump, and
+// none where an owing glide stops (jump.spec.ts).
+test("the reader's follower reports a note above growing mid-glide, unshifted", async ({ phone }) => {
+    await phone.openStream();
+    await phone.flick("up");
+    await phone.followReader();
+    await phone.run(() => {
+        const pane = document.querySelector(".daily-notes-stream-container")!.parentElement!;
+        let heard = 0;
+        // Pinned, its size goes unobserved: the anchor never hears of it (ADR 0013).
+        const grow = () => {
+            if (++heard < 5) return;
+            pane.removeEventListener("scroll", grow);
+            const paneTop = pane.getBoundingClientRect().top;
+            const above = [...pane.querySelectorAll<HTMLElement>(".daily-note-block.is-pinned")].find(
+                (block) => block.getBoundingClientRect().bottom < paneTop
+            )!;
+            const height = parseFloat(above.style.getPropertyValue("--daily-note-pinned-height"));
+            above.style.setProperty("--daily-note-pinned-height", `${height + 300}px`);
+        };
+        pane.addEventListener("scroll", grow);
+    });
+
+    await phone.flick("up");
+
+    const { drifts } = await phone.stopFollowing();
+    expect(drifts.filter((drift) => Math.abs(drift - 300) <= 1).length, `drifts: ${drifts.join(", ")}`).toBeGreaterThan(
+        0
+    );
+});
+
+// A glide ended at speed, mid-stream, is what a staller does (ADR 0008): the
+// pane frozen for a frame, as the stream's stop freezes it, ends it so.
+test("a glide cut short mid-stream is told from one that slows to its end", async ({ phone }) => {
+    await phone.openStream();
+    await phone.flick("up");
+    await phone.run(() => {
+        const pane = document.querySelector(".daily-notes-stream-container")!.parentElement!;
+        let heard = 0;
+        const freeze = () => {
+            if (++heard < 5) return;
+            pane.removeEventListener("scroll", freeze);
+            pane.classList.add("is-scroll-frozen");
+            requestAnimationFrame(() => pane.classList.remove("is-scroll-frozen"));
+        };
+        pane.addEventListener("scroll", freeze);
+    });
+
+    expect(await phone.glideEnding("up")).toBe("cut short");
+});

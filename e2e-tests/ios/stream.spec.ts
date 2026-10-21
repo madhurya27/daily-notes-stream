@@ -58,7 +58,7 @@ test("flicks to the oldest note and back change a rendered note's height only as
 test("flicks from the top glide on", async ({ phone }) => {
     for (const flick of [1, 2, 3]) {
         await phone.openStream();
-        expect(await phone.glidesPast("up", 500), `flick ${flick}`).toBe(true);
+        expect(await phone.glideEnding("up"), `flick ${flick}`).not.toBe("cut short");
     }
 });
 
@@ -92,7 +92,7 @@ for (const direction of ["up", "down"] as const)
         for (const flick of [1, 2, 3]) {
             await phone.openStream();
             await phone.placeAt('.daily-note-block[data-source-path="Journal/2026-09-13.md"] .daily-note-base', 300);
-            expect(await phone.glidesPast(direction, 500), `flick ${flick}`).toBe(true);
+            expect(await phone.glideEnding(direction), `flick ${flick}`).not.toBe("cut short");
         }
     });
 
@@ -153,7 +153,7 @@ for (const direction of ["up", "down"] as const)
                         }, FRAMED)
                     )
                     .toBe(true);
-                expect(await phone.glidesPast(direction, 500), `flick ${flick}`).toBe(true);
+                expect(await phone.glideEnding(direction), `flick ${flick}`).not.toBe("cut short");
             }
         } finally {
             await phone.runAsync(

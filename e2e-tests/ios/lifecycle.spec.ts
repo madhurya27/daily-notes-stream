@@ -16,7 +16,7 @@ test("back from the Home Screen, the stream is where it was, and a flick still g
         // Rounded either side of a half pixel: not a jump.
         expect(Math.abs(offset - left.offset), `shown at ${offset}, left at ${left.offset}`).toBeLessThanOrEqual(1);
     }
-    expect(await phone.glidesPast("up", 500)).toBe(true);
+    expect(await phone.glideEnding("up")).not.toBe("cut short");
 });
 
 // The glide up ends at the top as the notes above render: the stream must not

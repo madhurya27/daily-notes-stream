@@ -9,7 +9,7 @@ test("a flick up from an old date glides on, the text under the thumb moving onl
     await phone.shortenPlaceholders();
     await phone.followReader();
 
-    expect(await phone.glidesPast("down", 500)).toBe(true);
+    expect(await phone.glideEnding("down")).not.toBe("cut short");
 
     const { drifts, rendered } = await phone.stopFollowing();
     expect(rendered, "no note above rendered during the glide").toBeGreaterThan(0);
@@ -46,23 +46,36 @@ const frames = (phone: Phone) => phone.run(() => (window as unknown as { streamF
 
 // Placeholders far too short leave the glide less scroll than lies above. It
 // bounced at the top owing the rest, and a pull on the bounce opened
-// Obsidian's pull-down action over the stream (D-143).
-test("a glide owing the notes above stops before its scroll runs out, never bouncing", async ({ phone }) => {
+// Obsidian's pull-down action over the stream (D-143). Stopped short, the
+// glide halts mid-speed: the cost of estimates too short (D-092).
+test("a glide owing the notes above stops before its scroll runs out, the text never jumping", async ({ phone }) => {
     await phone.openStream();
     await phone.jumpTo("2026-09-12");
     await phone.shortenPlaceholders();
     await recordFrames(phone);
+    await phone.followReader();
 
     await phone.flick("down", 2);
 
+    const { drifts } = await phone.stopFollowing();
     const seen = await frames(phone);
-    const owing = seen.filter((f) => f.shift !== 0);
-    expect(Math.min(...owing.map((f) => f.top)), "the glide, owing, ran into the top").toBeLessThan(400);
+    // Still owing and gliding up, the scroll leapt back: the stop wrote it.
+    // The page may hear no step for a frame or two before.
+    let gliding = false;
+    let stopped = false;
+    for (const [i, f] of seen.entries()) {
+        const before = seen[i - 1];
+        if (!before || f.top === before.top) continue;
+        if (f.top > before.top && gliding && before.shift !== 0) stopped = true;
+        gliding = f.top < before.top;
+    }
+    expect(stopped, "the glide was stopped owing").toBe(true);
     expect(
         seen.filter((f) => f.shift !== 0 && f.top <= 0),
         "frames at or past the top, owing"
     ).toEqual([]);
     expect(seen.at(-1)!.shift).toBe(0);
+    expect(Math.max(...drifts.map(Math.abs)), `drifts: ${drifts.join(", ")}`).toBeLessThan(5);
 });
 
 // Notes above shorter than their stored heights, as edited on another device,

@@ -2912,3 +2912,45 @@ run.
 - A separate iPadOS suite — the same touches and checks, twice (D-168).
 - One command, the device named by a flag — a command per device is what a
   reader of `package.json` finds.
+
+## D-170 — The reader's follower reads each scroll, and excuses a glide's stop (2026-10-21)
+
+**Decision:** `Phone.followReader` also reads the text as the page hears a
+scroll, before the stream answers it. A scroll step against the glide that
+carries the text on by no more than the glide's last step is the stream's write,
+not drift: `ScrollAnchor.stopGlide` writes one step on, since iOS has drawn it.
+A harness spec grows a note above mid-glide, unshifted, and the follower must
+report it. The owing glide's spec asks that the glide was stopped owing, not
+that it came within 400 px of the top.
+
+**Why:** iOS glides on for frames the page never hears of. Read once a frame,
+that step and the stop's write came as one, and the follower reported the whole
+owed shift as drift; a screen recording showed the text moving on smoothly. The
+recording showed the injected growth as a jump, as the follower does. The 400 px
+bound failed on a 60 Hz iPad, whose steps are twice an iPhone's.
+
+**Rejected:**
+
+- A screen capture in the spec — it must start before Appium connects, so it
+  spans the run; its frames drop and repeat (D-099).
+- A fixed bound on a step — it fits one device's speed and one vault.
+
+## D-171 — A glide is judged by how it ends, not by a time (2026-10-21)
+
+**Decision:** `Phone.glideEnding` lets a flick's glide run out and reads every
+scroll the page heard from the lift on (`e2e-tests/ios/glide.ts`). It passes if
+the glide slowed to under a tenth of its fastest step, as iOS ends one, or ended
+at the top, the stream's end, or the stream's stop. One cut short at speed
+anywhere else fails. Replaces `glidesPast`, which asked whether the stream still
+moved 500 ms after the lift.
+
+**Why:** the stream's own stop (D-143) ended the jump spec's glide 390 ms after
+the lift on an iPhone, every run, and 500–1,100 ms on an iPad: how soon depends
+on the device and the vault. A stall ends a glide at speed; a stop or iOS does
+not, wherever it comes.
+
+**Rejected:**
+
+- Longer placeholders, or a jump with more notes above — ties the spec to the
+  vault's size.
+- A glide that reaches the top — most flicks end mid-stream.
