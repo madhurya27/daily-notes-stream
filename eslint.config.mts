@@ -64,9 +64,16 @@ export default tseslint.config(
                 },
                 // A placeholder's height is measured at runtime, so custom
                 // properties may be set from code (docs/DECISIONS.md, D-003).
+                // An inline overflow-x may be cleared, which only !important
+                // would outrank (D-172).
                 {
                     selector:
-                        "CallExpression[callee.property.name=/^(setProperty|removeProperty)$/][callee.object.property.name='style'][arguments.0.value!=/^--/]",
+                        "CallExpression[callee.property.name='setProperty'][callee.object.property.name='style'][arguments.0.value!=/^--/]",
+                    message: "Style through CSS classes; only custom properties may be set from code.",
+                },
+                {
+                    selector:
+                        "CallExpression[callee.property.name='removeProperty'][callee.object.property.name='style'][arguments.0.value!=/^(--|overflow-x$)/]",
                     message: "Style through CSS classes; only custom properties may be set from code.",
                 },
                 {

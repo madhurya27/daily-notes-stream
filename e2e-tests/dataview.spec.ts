@@ -65,14 +65,15 @@ test("on mobile, draws no scroll box around a query", async ({ obsidian, mobileL
     test.skip(!mobileLayout, "desktop keeps its scroll bars");
     const note = await openQueries(obsidian.page);
 
-    // The guard clips only once the scroll is still: a block it clipped scrolled until then.
+    // The stylesheet must clip a block alone: the guard's own clip comes only
+    // once the scroll is still, unless Obsidian set the overflow inline (D-172).
     const boxes = await note.evaluate((root) =>
         Array.from(root.querySelectorAll(".block-language-dataview, .block-language-dataviewjs"))
-            .filter(
-                (el) =>
-                    el.classList.contains("is-scroll-clipped") ||
-                    /auto|scroll|hidden/.test(getComputedStyle(el).overflowY)
-            )
+            .filter((el) => {
+                el.classList.remove("is-scroll-clipped");
+                const style = getComputedStyle(el);
+                return /auto|scroll|hidden/.test(`${style.overflowX} ${style.overflowY}`);
+            })
             .map((el) => el.className)
     );
 

@@ -42,8 +42,8 @@ free, but the stream stays wrong until the user happens to do something.
 
 **Decision:** `NoteWindowManager` sets `--daily-note-placeholder-height` on an
 unloaded block; `styles.css` decides what to do with it. The compliance rule
-against styling from JavaScript now allows `style.setProperty("--…")` and
-nothing else.
+against styling from JavaScript now allows `style.setProperty("--…")` and, since
+D-172, `style.removeProperty("overflow-x")`.
 
 **Why:** the height is whatever the note measured before it was unloaded, so no
 class can carry it, and the rule is worth keeping for everything else.
@@ -2618,18 +2618,12 @@ reproduces them; with this change, there are none.
 
 ## D-153 — styles.css avoids what the scorecard flags (2026-10-18)
 
-**Decision:** no `:has`, no custom element selected by tag, and only one
-`!important`, on the clip for Dataview's blocks and for the elements the scroll
-box guard finds. `tests/repo/styles.test.ts` holds all three.
+**Decision:** no `:has`, no custom element selected by tag, and no `!important`.
+`tests/repo/styles.test.ts` holds all three.
 
-**Why:** the directory's scorecard warns on each. Dataview and Obsidian set
-`overflow-x` inline, which only `!important` outranks; every other override wins
-on specificity, or, for Bases' sticky summaries, on their inset.
-
-**Rejected:**
-
-- Clearing the inline overflow from code — more code in the scroll path, and an
-  exception to D-003, to drop one warning.
+**Why:** the directory's scorecard warns on each. Every override wins on
+specificity, or, for Bases' sticky summaries, on their inset; the one inline
+style it cannot outrank is cleared from code (D-172).
 
 ## D-154 — A debt under a layout unit is none (2026-10-18)
 
@@ -2954,6 +2948,25 @@ not, wherever it comes.
 - Longer placeholders, or a jump with more notes above — ties the spec to the
   vault's size.
 - A glide that reaches the top — most flicks end mid-stream.
+
+## D-172 — The scroll box guard clears an inline overflow-x at once (2026-10-25)
+
+**Decision:** on mobile, `ScrollBoxGuard` removes an inline `overflow-x` from
+each element as it is added or restyled, outside a Base, and clips it
+(`src/stream/scroll-box-guard.ts`). An exception to D-003, the only one:
+`style.removeProperty("overflow-x")`.
+
+**Why:** Obsidian's reading view sets `overflow-x: auto` inline on a table's
+wrapper, which only `!important` outranks, and the scorecard warns on that
+(D-153). Its style rule flags setting a style, not removing one. Reading the
+inline style costs no recalc, so the box is clipped before it paints, mid-glide
+too, where the check once still left it scrolling.
+
+**Rejected:**
+
+- Keeping `!important` — a scorecard warning.
+- Clearing it in the check once the scroll is still — the box scrolls until then
+  and can end the glide it appeared in (ADR 0008).
 
 ## D-173 — A glide is read frame by frame, so a stall is not a stop (2026-10-25)
 

@@ -40,6 +40,83 @@ afterEach(() => {
     vi.useRealTimers();
 });
 
+/** A table's wrapper, as Obsidian's reading view leaves it: scrolling sideways, inline. */
+function tableWrapper(): HTMLElement {
+    const el = document.createElement("div");
+    el.style.setProperty("overflow-x", "auto");
+    el.appendChild(document.createElement("table"));
+    return el;
+}
+
+const clipped = (el: HTMLElement) => el.style.getPropertyValue("overflow-x") === "" && el.hasClass("is-scroll-clipped");
+
+// An inline overflow-x outranks the stylesheet's clip (D-153), and a box left
+// scrolling until the stream is still ends the glide it appeared in.
+describe("ScrollBoxGuard, an inline overflow-x", () => {
+    it("is cleared and clipped as it is added, mid-scroll", async () => {
+        guard.onScroll();
+        const wrapper = container.appendChild(tableWrapper());
+
+        await Promise.resolve();
+
+        expect(clipped(wrapper)).toBe(true);
+    });
+
+    it("is cleared and clipped when nested in what was added", async () => {
+        const note = document.createElement("div");
+        const wrapper = note.appendChild(tableWrapper());
+        container.appendChild(note);
+
+        await Promise.resolve();
+
+        expect(clipped(wrapper)).toBe(true);
+        expect(note.hasClass("is-scroll-clipped")).toBe(false);
+    });
+
+    it("is cleared and clipped when set on an element already shown", async () => {
+        const section = container.appendChild(document.createElement("div"));
+        await still();
+
+        section.style.setProperty("overflow-x", "scroll");
+        await Promise.resolve();
+
+        expect(clipped(section)).toBe(true);
+    });
+
+    it("leaves the rest of the inline style alone", async () => {
+        const wrapper = tableWrapper();
+        wrapper.style.setProperty("width", "10px");
+        container.appendChild(wrapper);
+
+        await Promise.resolve();
+
+        expect(wrapper.getAttribute("style")).toBe("width: 10px;");
+    });
+
+    it("leaves an element without one unclipped", async () => {
+        const section = container.appendChild(document.createElement("div"));
+        section.style.setProperty("width", "10px");
+
+        await Promise.resolve();
+
+        expect(section.hasClass("is-scroll-clipped")).toBe(false);
+    });
+
+    // The stylesheet clips everything in a Base already.
+    it("is left alone inside a Base", async () => {
+        const embed = document.createElement("div");
+        embed.addClass("bases-embed");
+        const wrapper = embed.appendChild(tableWrapper());
+        container.appendChild(embed);
+        await Promise.resolve();
+
+        wrapper.style.setProperty("overflow-x", "scroll");
+        await Promise.resolve();
+
+        expect(wrapper.style.getPropertyValue("overflow-x")).toBe("scroll");
+    });
+});
+
 describe("ScrollBoxGuard safety net", () => {
     it.each(["auto", "scroll", "hidden"])("clips an added %s box once the scroll is still", async (overflow) => {
         const box = container.appendChild(scrollBox(overflow));

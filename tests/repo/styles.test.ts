@@ -27,9 +27,8 @@ describe("styles.css", () => {
         }
     });
 
-    it("uses !important only to outrank an inline overflow", () => {
-        const important = rules.filter(({ body }) => body.includes("!important"));
-        expect(important.map(({ body }) => body.trim())).toEqual(["overflow: clip !important;"]);
+    it("uses no !important", () => {
+        expect(rules.filter(({ body }) => body.includes("!important"))).toEqual([]);
     });
 
     // WebKit reads only the prefixed property, so on iOS Obsidian's

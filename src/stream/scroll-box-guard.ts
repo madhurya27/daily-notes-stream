@@ -7,8 +7,8 @@ const BASE = ".bases-embed, .block-language-base";
 
 /**
  * Keeps scroll containers out of the stream (ADR 0008): reports each Base as it
- * lays out, for its owner to fit, and clips whatever else the stylesheet
- * missed once the scroll is still.
+ * lays out, for its owner to fit, clips each inline overflow-x as it appears,
+ * and clips whatever else the stylesheet missed once the scroll is still.
  */
 export class ScrollBoxGuard {
     private observer: MutationObserver | null = null;
@@ -48,10 +48,15 @@ export class ScrollBoxGuard {
         for (const record of records) {
             const view = baseViewChangedBy(record);
             if (view) views.add(view);
+            // Both record types observed here, childList and attributes, target an element.
+            clipInlineOverflow(record.target as Element);
             for (const node of Array.from(record.addedNodes)) {
                 if (!node.instanceOf(HTMLElement)) continue;
                 if (node.closest(BASE)) node.querySelectorAll<HTMLElement>(".bases-view").forEach((v) => views.add(v));
-                else this.unchecked.add(node);
+                else {
+                    this.unchecked.add(node);
+                    [node, ...Array.from(node.querySelectorAll("[style*=overflow]"))].forEach(clipInlineOverflow);
+                }
             }
         }
         for (const view of views) this.onBaseLayout(view);
@@ -79,6 +84,16 @@ function baseViewChangedBy(record: MutationRecord): HTMLElement | null {
     const target = record.target as Element;
     if (record.type === "attributes" && !target.matches(LAID_OUT)) return null;
     return target.closest<HTMLElement>(".bases-view");
+}
+
+/**
+ * Obsidian sets overflow-x inline on a table's wrapper, which outranks the
+ * stylesheet's clip (D-172). Read inline, it costs no style recalc mid-glide.
+ */
+function clipInlineOverflow(el: Element): void {
+    if (!el.instanceOf(HTMLElement) || !el.style.getPropertyValue("overflow-x") || el.closest(BASE)) return;
+    el.style.removeProperty("overflow-x");
+    el.addClass("is-scroll-clipped");
 }
 
 /** `hidden` too: no finger scrolls it, but it is a scroll container. */
