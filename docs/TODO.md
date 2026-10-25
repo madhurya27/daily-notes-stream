@@ -11,11 +11,21 @@ Ordered by priority. Frame-level iOS glitches wait on a recording (D-099).
           Amends D-147.
     - [ ] Fit the search bar to its contents: the field sits on the left and the
           close button on the right, with an empty gap between them.
-- [ ] On the iPad, a flick up from a jump is sometimes killed at speed:
-      `jump.spec.ts`'s first spec fails about 1 run in 3. Some 120 ms after the
-      lift the stream starts owing a shift as the notes above render; some 100
-      ms later the glide stops dead at 230 px a step, far from the top (D-171).
-      Find what ends it.
+- [ ] On the iPad, a flick up from a jump is sometimes killed at speed, far from
+      the top (D-171). It comes in bursts minutes long: `jump.spec.ts`'s first
+      spec failed 2 of 4 runs on 2026-10-21, then passed 37 in a row; first
+      flicks after forgetting heights failed up to 5 of 5 on 2026-10-25, then
+      about 180 flicks passed that day. No script writes the scroll at the stop,
+      and the page keeps drawing frames. When a burst comes, compare the stream
+      against a page drawing the same renders and shifts, to find what ends it.
+      A page too busy to hear its scroll reads as cut short: check how far the
+      glide travelled before believing it.
+- [ ] Let `test:ipados` run with the iPad's keyboard attached: the specs that
+      type on iOS's on-screen keyboard (`search`, `jump`, `recording`) fail now.
+      Decide: skip them, naming the keyboard, or type on the hardware keyboard
+      instead. `phone.keyboardShown` already tells: an attached keyboard is
+      reported shown below the screen. Prove it with one run attached, one
+      detached; update `docs/TESTING.md`.
 - [ ] Make typing a search mark only a match the reader can see (D-022):
       `isOnScreen` checks the whole pane, so on a phone it marks one under the
       floating header or bottom bar, or under the open keyboard. Enter then
