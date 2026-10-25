@@ -1,71 +1,137 @@
 import { describe, it, expect } from "vitest";
-import { glideEnding, type Heard } from "../../e2e-tests/ios/glide";
+import { glideEnding, longestStall, type Heard } from "../../e2e-tests/ios/glide";
 
-/** What the page heard from the lift on, every `every` ms: the scroll at each, owing or not. */
-function heard(tops: number[], { every = 8, owing = [] as number[], bottom = 100_000 } = {}): Heard[] {
-    return tops.map((top, i) => ({ at: i * every, top, owing: owing.includes(i), bottom }));
+type Frames = { at: number; top: number; owing?: boolean }[];
+
+/** A frame each `every` ms from `from`, the scroll at each, owing or not. */
+function frames(tops: number[], { from = 0, every = 16, owing = false } = {}): Frames {
+    return tops.map((top, i) => ({ at: from + i * every, top, owing }));
 }
 
-// Shapes measured on an iPhone 16 Pro, scrolling up the stream.
+/** Frames with the scroll held at `top` for `ms` after `from`: the page alive, the glide over. */
+function still(top: number, from: number, ms: number, owing = false): Frames {
+    return frames(Array<number>(Math.floor(ms / 16)).fill(top), { from: from + 16, owing });
+}
+
+function heard(...runs: Frames[]): Heard[] {
+    return runs.flat().map(({ at, top, owing = false }) => ({ at, top, owing, bottom: 100_000 }));
+}
+
+// Shapes measured on an iPhone 16 Pro and an iPad Air, frame by frame from the lift.
 describe("glideEnding", () => {
     it("tells a glide that slows to a crawl, as iOS ends one", () => {
-        expect(glideEnding(heard([5000, 4820, 4650, 4500, 4400, 4340, 4320, 4319, 4318]))).toBe("slowed");
+        const slowed = frames([5000, 4820, 4650, 4500, 4400, 4340, 4320, 4319, 4318]);
+
+        expect(glideEnding(heard(slowed, still(4318, 128, 400)))).toBe("slowed");
     });
 
-    it("tells a glide ended at speed, away from any edge", () => {
-        expect(glideEnding(heard([5000, 4820, 4650, 4500, 4380]))).toBe("cut short");
+    it("tells a glide stopped at speed while the page drew every frame", () => {
+        const cut = frames([5000, 4820, 4650, 4500, 4380]);
+
+        expect(glideEnding(heard(cut, still(4380, 64, 400)))).toBe("cut short");
+    });
+
+    // The page blocked 370 ms by Bases drawn mid-glide: iOS glided on behind it.
+    it("tells a glide that carried on through a stall, then slowed", () => {
+        const before = frames([1000, 1180, 1340, 1480]);
+        const after = frames([2280, 2300, 2316, 2328, 2336, 2340, 2341], { from: 48 + 370 });
+
+        expect(glideEnding(heard(before, after, still(2341, 418 + 96, 400)))).toBe("slowed");
+    });
+
+    it("tells a glide whose end a stall hid", () => {
+        const before = frames([1000, 1180, 1340, 1480]);
+        const across = frames([2280], { from: 48 + 370 });
+
+        expect(glideEnding(heard(before, across, still(2280, 418, 400)))).toBe("ended in a stall");
+    });
+
+    it("tells a glide stopped at speed, the scroll unmoved across a stall", () => {
+        const before = frames([1000, 1180, 1340, 1480]);
+        const after = frames([1480], { from: 48 + 370 });
+
+        expect(glideEnding(heard(before, after, still(1480, 418, 400)))).toBe("cut short");
+    });
+
+    it("judges a glide drawn at 120 Hz by its speed, not its steps", () => {
+        const slowed = frames([1000, 1090, 1170, 1240, 1290, 1320, 1335, 1340, 1342, 1343], { every: 8 });
+
+        expect(glideEnding(heard(slowed, still(1343, 72, 400)))).toBe("slowed");
+    });
+
+    it("ends a glide once still on live frames, before the stream's write at rest", () => {
+        const slowed = frames([1000, 1180, 1340, 1450, 1500, 1501], { owing: true });
+        const rest = still(1501, 80, 320, true);
+        const write = frames([16000], { from: 80 + 336 });
+
+        expect(glideEnding(heard(slowed, rest, write))).toBe("slowed");
+    });
+
+    // The write's own work makes its frame late.
+    it("ends a glide once still on live frames, before a write at rest that stalls", () => {
+        const slowed = frames([1000, 1180, 1340, 1450, 1500, 1501], { owing: true });
+        const rest = still(1501, 80, 320, true);
+        const write = frames([2133], { from: 80 + 320 + 208 });
+
+        expect(glideEnding(heard(slowed, rest, write))).toBe("slowed");
+    });
+
+    // As on an iPad: the stream's wait runs from the last scroll heard, a frame
+    // before the last drawn, so the frame before a late write can fall short of it.
+    it("ends a glide before a late write at rest, still a frame short of the hand-over", () => {
+        const crawl = frames([3000, 3010, 3016, 3019, 3020]);
+        const rest = still(3020, 64, 299);
+        const write = frames([3652], { from: 64 + 288 + 109 });
+
+        expect(glideEnding(heard(crawl, rest, write))).toBe("slowed");
+    });
+
+    it("tells a glide stopped at speed, owing, before the stream's write at rest", () => {
+        const cut = frames([1000, 820, 650], { owing: true });
+        const rest = still(650, 32, 320, true);
+        const write = frames([3650], { from: 32 + 336 });
+
+        expect(glideEnding(heard(cut, rest, write))).toBe("cut short");
     });
 
     it("tells a glide the stream stopped, owing, as its scroll ran out", () => {
-        const stopped = heard([1000, 820, 650, 600, 550, 3550, 3550], { owing: [1, 2, 3, 4] });
+        const stopped = frames([1000, 820, 650, 600, 550], { owing: true });
+        const write = frames([3550, 3550], { from: 80 });
 
-        expect(glideEnding(stopped)).toBe("at an edge");
-    });
-
-    it("tells a glide ended at speed, owing, from the hand-over once the scroll is still", () => {
-        const cut = [
-            ...heard([1000, 820, 650], { owing: [0, 1, 2] }),
-            { at: 16 + 300, top: 3650, owing: false, bottom: 100_000 },
-        ];
-
-        expect(glideEnding(cut)).toBe("cut short");
-    });
-
-    it("ends a glide at the hand-over once the scroll is still, whichever way it moves", () => {
-        const slowed = [
-            ...heard([1000, 1180, 1340, 1450, 1500, 1501], { owing: [0, 1, 2, 3, 4, 5] }),
-            { at: 40 + 300, top: 2100, owing: false, bottom: 100_000 },
-        ];
-
-        expect(glideEnding(slowed)).toBe("slowed");
-    });
-
-    it("ends a glide at a write once the scroll is still, owing nothing before it", () => {
-        const slowed = [
-            ...heard([1000, 1180, 1340, 1450, 1500, 1501]),
-            { at: 40 + 300, top: 16000, owing: false, bottom: 100_000 },
-        ];
-
-        expect(glideEnding(slowed)).toBe("slowed");
+        expect(glideEnding(heard(stopped, write, still(3550, 96, 400)))).toBe("at an edge");
     });
 
     it("tells a glide that ran into the top", () => {
-        expect(glideEnding(heard([600, 400, 200, 0]))).toBe("at an edge");
+        expect(glideEnding(heard(frames([600, 400, 200, 0]), still(0, 48, 400)))).toBe("at an edge");
     });
 
     it("tells a glide that bounced past the top, then settled", () => {
-        expect(glideEnding(heard([600, 300, 50, -40, -10, 0]))).toBe("at an edge");
+        expect(glideEnding(heard(frames([600, 300, 50, -40, -10, 0]), still(0, 80, 400)))).toBe("at an edge");
     });
 
     it("tells a glide that ran into the stream's end", () => {
-        expect(glideEnding(heard([9000, 9200, 9400, 9600], { bottom: 9600 }))).toBe("at an edge");
+        const end = heard(frames([9000, 9200, 9400, 9600]), still(9600, 48, 400)).map((f) => ({ ...f, bottom: 9600 }));
+
+        expect(glideEnding(end)).toBe("at an edge");
     });
 
     it("tells a glide down the stream that slows", () => {
-        expect(glideEnding(heard([1000, 1180, 1340, 1450, 1500, 1501]))).toBe("slowed");
+        expect(glideEnding(heard(frames([1000, 1180, 1340, 1450, 1500, 1501]), still(1501, 80, 400)))).toBe("slowed");
     });
 
     it("calls a stroke that never glided cut short", () => {
-        expect(glideEnding(heard([1000, 1000, 1000]))).toBe("cut short");
+        expect(glideEnding(heard(frames([1000, 1000, 1000])))).toBe("cut short");
+    });
+});
+
+describe("longestStall", () => {
+    it("is the longest wait between frames", () => {
+        const stalled = heard(frames([1000, 1180, 1340]), frames([1900, 1950], { from: 32 + 370 }));
+
+        expect(longestStall(stalled)).toBe(370);
+    });
+
+    it("is none for a single frame", () => {
+        expect(longestStall(heard(frames([1000])))).toBe(0);
     });
 });

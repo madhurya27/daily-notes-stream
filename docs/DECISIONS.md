@@ -2938,11 +2938,11 @@ bound failed on a 60 Hz iPad, whose steps are twice an iPhone's.
 ## D-171 — A glide is judged by how it ends, not by a time (2026-10-21)
 
 **Decision:** `Phone.glideEnding` lets a flick's glide run out and reads every
-scroll the page heard from the lift on (`e2e-tests/ios/glide.ts`). It passes if
-the glide slowed to under a tenth of its fastest step, as iOS ends one, or ended
-at the top, the stream's end, or the stream's stop. One cut short at speed
-anywhere else fails. Replaces `glidesPast`, which asked whether the stream still
-moved 500 ms after the lift.
+frame the page drew from the lift on (`e2e-tests/ios/glide.ts`, D-173). It
+passes if the glide slowed to under a tenth of its fastest speed, as iOS ends
+one, or ended at the top, the stream's end, or the stream's stop. One cut short
+at speed anywhere else fails. Replaces `glidesPast`, which asked whether the
+stream still moved 500 ms after the lift.
 
 **Why:** the stream's own stop (D-143) ended the jump spec's glide 390 ms after
 the lift on an iPhone, every run, and 500–1,100 ms on an iPad: how soon depends
@@ -2954,3 +2954,23 @@ not, wherever it comes.
 - Longer placeholders, or a jump with more notes above — ties the spec to the
   vault's size.
 - A glide that reaches the top — most flicks end mid-stream.
+
+## D-173 — A glide is read frame by frame, so a stall is not a stop (2026-10-25)
+
+**Decision:** `Phone.glideEnding` samples the scroll on every animation frame
+from the lift, not on each scroll event, and judges each step by its speed. A
+frame over 100 ms late is a stall: a glide that moved across one went on, and
+one whose last move spans a stall reads "ended in a stall", which no spec fails.
+The longest stall is noted on the test.
+
+**Why:** on an iPad, `2026-08-30`'s seven Bases block the page 330–410 ms
+mid-glide, every flick up over a Base, while iOS glides on behind it. Heard by
+scroll events, that silence passed the 300 ms hand-over and read as a cut: 6 of
+18 traced flicks, each of which glided 4.6–5.4k px and slowed to 1 px a frame. A
+frame proves the page alive, so a scroll still over frames has stopped.
+
+**Rejected:**
+
+- A longer hand-over wait — a longer stall still reads as a cut, and the
+  stream's write at rest would count as a step.
+- Judging by travel alone — a cut far into a long glide travels far too.

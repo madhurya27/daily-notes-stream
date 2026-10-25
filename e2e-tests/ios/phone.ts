@@ -1,5 +1,5 @@
 import { test as base, expect } from "@playwright/test";
-import { glideEnding, type GlideEnding, type Heard } from "./glide";
+import { glideEnding, longestStall, type GlideEnding, type Heard } from "./glide";
 import { keyboardAfterRun } from "./keyboard";
 import { connect, OBSIDIAN } from "./session";
 import { returnToTestersVault, useVault } from "./vault";
@@ -623,29 +623,26 @@ export class Phone {
 
     /**
      * One stroke, and how its glide ended (`glide.ts`), once the pane is
-     * still: a full glide runs 1–3.5 s.
+     * still: a full glide runs 1–3.5 s. Read every frame from the lift, so a
+     * stall is told from a stop; the longest is noted on the test.
      */
     async glideEnding(direction: "up" | "down", { share = 0.7, ms = 60 } = {}): Promise<GlideEnding> {
         await this.run((s: string) => {
             const stream = document.querySelector(s)!;
             const pane = stream.parentElement!;
-            const glide = { lifted: false, heard: [] as Heard[], done: new AbortController() };
+            const glide = { heard: [] as Heard[], done: new AbortController() };
             (window as unknown as { streamGlide: typeof glide }).streamGlide = glide;
-            const hear = () =>
-                glide.lifted &&
+            const draw = () => {
+                if (glide.done.signal.aborted) return;
                 glide.heard.push({
                     at: performance.now(),
                     top: pane.scrollTop,
                     owing: stream.classList.contains("is-scroll-shifted"),
                     bottom: pane.scrollHeight - pane.clientHeight,
                 });
-            const { signal } = glide.done;
-            const lift = () => {
-                glide.lifted = true;
-                hear();
+                requestAnimationFrame(draw);
             };
-            document.addEventListener("touchend", lift, { capture: true, signal, once: true });
-            pane.addEventListener("scroll", hear, { passive: true, signal });
+            document.addEventListener("touchend", draw, { capture: true, signal: glide.done.signal, once: true });
         }, STREAM);
         await this.stroke(direction, share, ms);
         await this.rest();
@@ -655,6 +652,7 @@ export class Phone {
             return glide.heard;
         });
         if (heard.length === 0) throw new Error("The stroke never lifted.");
+        base.info().annotations.push({ type: "longest stall", description: `${longestStall(heard)} ms` });
         return glideEnding(heard);
     }
 

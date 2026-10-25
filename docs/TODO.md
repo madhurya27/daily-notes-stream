@@ -18,8 +18,7 @@ Ordered by priority. Frame-level iOS glitches wait on a recording (D-099).
       about 180 flicks passed that day. No script writes the scroll at the stop,
       and the page keeps drawing frames. When a burst comes, compare the stream
       against a page drawing the same renders and shifts, to find what ends it.
-      A page too busy to hear its scroll reads as cut short: check how far the
-      glide travelled before believing it.
+      Since D-173 a stall reads as one, not as a cut: a cut is real.
 - [ ] Let `test:ipados` run with the iPad's keyboard attached: the specs that
       type on iOS's on-screen keyboard (`search`, `jump`, `recording`) fail now.
       Decide: skip them, naming the keyboard, or type on the hardware keyboard
