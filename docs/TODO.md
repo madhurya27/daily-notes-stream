@@ -19,6 +19,18 @@ Ordered by priority. Frame-level iOS glitches wait on a recording (D-099).
       and the page keeps drawing frames. When a burst comes, compare the stream
       against a page drawing the same renders and shifts, to find what ends it.
       Since D-173 a stall reads as one, not as a cut: a cut is real.
+- [ ] On the iPad, `far-runs.spec.ts` fails 2 of 5 runs, on `main` too
+      (2026-10-25): a hidden run's spacer stays on screen two frames running,
+      once or twice a run. ADR 0023 measured one frame at most, on an iPhone.
+      Find whether the iPad's taller screen or faster glide outruns the render
+      margin, before changing the margin or the spec.
+- [ ] On the iPad, a flick that scrolls down the stream over a Base stalls the
+      page 330–410 ms, about 0.55 s after the lift, every flick (D-173;
+      `stream.spec.ts`'s "flick up over a Base", named for the finger): the test
+      vault's `2026-08-30`, seven Bases, renders and redraws as cards mid-glide.
+      iOS glides on, but nothing new is drawn meanwhile. Check a real journal's
+      note with one or two Bases first, then spread the drawing across frames or
+      hold the redraw as cards until the scroll is still.
 - [ ] Let `test:ipados` run with the iPad's keyboard attached: the specs that
       type on iOS's on-screen keyboard (`search`, `jump`, `recording`) fail now.
       Decide: skip them, naming the keyboard, or type on the hardware keyboard
