@@ -46,8 +46,10 @@ Unloading still waits for it.
   distance of 3 pane heights reduced this to 0–1, but left the blank time the
   same (1.4–2.5 s either way), and stalls over 80 ms went up from 7–10 to 11–13.
   The screen is blank there anyway, not yet painted instead of showing a spacer.
-  `e2e-tests/ios/far-runs.spec.ts` fails if a spacer is on screen for two frames
-  in a row.
+  `e2e-tests/ios/far-runs.spec.ts` fails if the same run's spacer is on screen
+  for two frames in a row. On an iPad in landscape, the pane is 696 px tall, so
+  the rendering distance is shorter than one frame's move. The next frame then
+  shows the next run's spacer, which is a one-frame blank like the others.
 - On desktop, with 1,825 notes scrolled to the end: 6 notes drawn instead of 4,
   2,654 nodes in the page instead of 2,378, and the heap grows by 7.3 MB instead
   of 5.8 MB.

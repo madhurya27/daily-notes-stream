@@ -7,8 +7,9 @@ const STREAM = ".daily-notes-stream-container";
 // checks what causes one: a hidden part's spacer reaching the screen (ADR
 // 0021). A stall, or a glide that moves further than the rendering distance in
 // one frame, keeps one on screen for a frame, and the next frame shows the part
-// (ADR 0023).
-test("flicks down a long note and back show no hidden run's spacer two frames running", async ({ phone }) => {
+// (ADR 0023). On an iPad in landscape, the next frame can reach the next hidden
+// part, so a part is followed by the element after its spacer.
+test("flicks down a long note and back show no hidden part's spacer two frames running", async ({ phone }) => {
     test.setTimeout(300_000);
     const path = await phone.journalPath(1);
     const original = await phone.writeNote(path, longNote(5000));
@@ -24,17 +25,21 @@ test("flicks down a long note and back show no hidden run's spacer two frames ru
                 const w = window as unknown as { spacerFrames: number; frames: number };
                 w.spacerFrames = 0;
                 w.frames = 0;
-                let onLast = false;
+                let onLast = new Set<Element>();
                 const pane = document.querySelector(s)!.parentElement!;
                 const frame = () => {
                     w.frames++;
                     const { top, bottom } = pane.getBoundingClientRect();
                     const spacers = document.querySelectorAll(`[data-source-path="${p}"] .daily-note-far-run`);
-                    const on = Array.from(spacers).some((spacer) => {
-                        const rect = spacer.getBoundingClientRect();
-                        return rect.bottom > top && rect.top < bottom;
-                    });
-                    if (on && onLast) w.spacerFrames++;
+                    const on = new Set(
+                        Array.from(spacers)
+                            .filter((spacer) => {
+                                const rect = spacer.getBoundingClientRect();
+                                return rect.bottom > top && rect.top < bottom;
+                            })
+                            .map((spacer) => spacer.nextElementSibling!)
+                    );
+                    if ([...on].some((part) => onLast.has(part))) w.spacerFrames++;
                     onLast = on;
                     requestAnimationFrame(frame);
                 };
@@ -51,7 +56,7 @@ test("flicks down a long note and back show no hidden run's spacer two frames ru
             return { spacerFrames, frames };
         });
         expect(frames).toBeGreaterThan(100);
-        expect(spacerFrames, "frames with a spacer on screen since the last").toBe(0);
+        expect(spacerFrames, "frames with a part's spacer on screen since the last").toBe(0);
     } finally {
         await phone.restoreNote(path, original);
     }
