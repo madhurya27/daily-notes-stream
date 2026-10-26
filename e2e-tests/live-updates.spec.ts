@@ -108,8 +108,8 @@ test.describe("a stream following the vault", () => {
         await remove(page, SECOND);
 
         await expect(block(page, SECOND)).toHaveCount(0);
-        // A note left in the stream's count shifts every later batch by one,
-        // skipping the note at a batch's edge.
+        // A note left in the stream's count moves every later batch by one,
+        // which skips the note at the edge of a batch.
         const dailyNotes = await page.evaluate(() =>
             window.app.vault
                 .getMarkdownFiles()
@@ -142,7 +142,8 @@ test.describe("a stream following the vault", () => {
         await expect(container.locator(".daily-note-title").first()).toHaveText("2026-03-14");
 
         await write(page, "Notes/Archive/2026-03-26.md", "## Archived too\n");
-        // Give the vault events time to be wrong, if they are going to be.
+        // Give the vault events time to do the wrong thing, if they are going
+        // to.
         await page.waitForTimeout(1000);
 
         await expect(container.locator(".daily-note-title").first()).toHaveText("2026-03-14");

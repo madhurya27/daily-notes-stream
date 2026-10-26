@@ -1,4 +1,4 @@
-/** A device as `devicectl list devices` lists it, the fields read here. */
+/** A device as `devicectl list devices` lists it, with the fields read here. */
 export interface ListedDevice {
     connectionProperties: { transportType: string };
     deviceProperties: { name: string };
@@ -8,8 +8,8 @@ export interface ListedDevice {
 const TYPES = ["iPhone", "iPad"];
 
 /**
- * The device on the cable of the type `IOS_DEVICE` names, an iPhone unless it
- * names an iPad: `test:ipados` sets it, so both can stay plugged in (D-168).
+ * The device on the cable of the type `IOS_DEVICE` names: an iPhone, unless it
+ * names an iPad. `test:ipados` sets it, so both can stay plugged in (D-168).
  */
 export function deviceToDrive(devices: ListedDevice[], env: NodeJS.ProcessEnv): ListedDevice {
     const type = typeToDrive(env);
@@ -24,7 +24,7 @@ export function deviceToDrive(devices: ListedDevice[], env: NodeJS.ProcessEnv): 
     return found;
 }
 
-/** Whether this run drives an iPad, for a spec that holds only on a phone. */
+/** Whether this run uses an iPad, for a test that is only true on a phone. */
 export function drivesIPad(env: NodeJS.ProcessEnv): boolean {
     return typeToDrive(env) === "iPad";
 }

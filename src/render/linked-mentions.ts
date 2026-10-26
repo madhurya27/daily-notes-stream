@@ -8,9 +8,10 @@ import { fitWideEquations } from "./wide-equations";
 import { stackWideTables } from "./wide-tables";
 
 /**
- * The notes linking to a daily note, under it. The heading and count come
- * from the cache and draw at once; the excerpts need each source read, so
- * they draw after, and only while expanded.
+ * The notes that link to a daily note, shown under it. The heading and count
+ * come from the cache, so they are drawn at once. The excerpts need each other
+ * note to be read, so they are drawn later, and only while the section is
+ * unfolded.
  */
 export class LinkedMentionsFooter {
     constructor(
@@ -19,14 +20,17 @@ export class LinkedMentionsFooter {
         private readonly collapsible: CollapsibleManager,
         private readonly getSettings: () => DailyNotesStreamSettings,
         private readonly widths: WidthWatch,
-        /** What the note's own content gets once drawn: unresolved links faded. */
+        /**
+         * What is done to the note's own content once drawn: links to notes
+         * that don't exist are faded.
+         */
         private readonly decorate: (el: HTMLElement) => void
     ) {}
 
     /**
-     * Appends the footer to `block`; resolves once it is drawn, so its note's
-     * height can be held until then. It redraws itself when the cache resolves
-     * a change it shows, until `note` unloads.
+     * Adds the footer to `block`. Resolves once it is drawn, so its note's
+     * height can be held until then. It draws itself again when the cache
+     * resolves a change it shows, until `note` unloads.
      */
     render(block: HTMLElement, file: TFile, note: Component): Promise<void> {
         if (!this.getSettings().showLinkedMentions) return Promise.resolve();
@@ -39,7 +43,7 @@ export class LinkedMentionsFooter {
 
         const fill = (mentions: Mention[]): Promise<void> => {
             signature = mentionsSignature(mentions);
-            // Stryker disable next-line UpdateOperator: counted down, each fill is as much its own.
+            // Stryker disable next-line UpdateOperator: counting down would also give each fill its own number.
             const current = ++generation;
             el.empty();
             if (mentions.length === 0) return Promise.resolve();
@@ -56,7 +60,7 @@ export class LinkedMentionsFooter {
         return fill(linkedMentions(this.app, this.index, file));
     }
 
-    /** The heading, and the mentions under it once expanded. */
+    /** Draws the heading, and the mentions under it once unfolded. */
     private drawHeaded(
         el: HTMLElement,
         file: TFile,
@@ -87,7 +91,7 @@ export class LinkedMentionsFooter {
         return collapsed ? Promise.resolve() : draw();
     }
 
-    /** Reads every source at once, then draws a group per note. */
+    /** Reads every linking note at once, then draws a group for each note. */
     private async drawMentions(
         el: HTMLElement,
         content: HTMLElement,
@@ -114,7 +118,10 @@ export class LinkedMentionsFooter {
         }
     }
 
-    /** The group's title links to its note; each excerpt resolves its links against that note. */
+    /**
+     * The group's title links to its note. Each excerpt's links are resolved
+     * from that note.
+     */
     private drawMention(content: HTMLElement, mention: Mention, text: string, note: Component): Promise<unknown> {
         const { source, excerpts, properties } = mention;
         const group = content.createDiv({ cls: "daily-note-mention" });

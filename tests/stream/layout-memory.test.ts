@@ -2,7 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LAYOUT_MEMORY_KEY, LayoutMemory, SAVE_DELAY_MS, layoutOf } from "../../src/stream/layout-memory";
 import { asApp } from "../stream-view-fixture";
 
-/** `mtimes` stands in for the vault: a note's mtime, absent once it is gone. */
+/**
+ * `mtimes` stands in for the vault: a note's change time, missing once the note
+ * is gone.
+ */
 function makeApp(saved: unknown = null, mtimes = new Map<string, number>()) {
     return {
         loadLocalStorage: vi.fn((_key: string): unknown => saved),
@@ -37,19 +40,21 @@ describe("LayoutMemory", () => {
         expect(memory.bases.isTooWide({ layout: "600:16px", path: "a.md", base: "b1" })).toBe(true);
     });
 
-    // Version 1 keyed Bases by their whole source; version 2 kept their heights; version 3 had no templates;
-    // version 4 kept no mtimes, and templates.
+    // Version 1 used a Base's whole text as its key. Version 2 saved Bases'
+    // heights. Version 3 had no templates. Version 4 saved no change times, and
+    // saved templates.
     it("starts empty from another version's save", () => {
         const memory = new LayoutMemory(asApp(makeApp({ version: 4, notes: [["600:16px", [["a.md", 300]]]] })));
         expect(memory.notes.toJSON().heights).toEqual([]);
-        // Even one that reads as this version's.
+        // Even one that looks like this version's format.
         const shaped = new LayoutMemory(asApp(makeApp({ version: 4, notes: saved([["600:16px", [["a.md", 300]]]]) })));
         expect(shaped.notes.toJSON().heights).toEqual([]);
         expect(memory.bases.toJSON()).toEqual([]);
         expect(new LayoutMemory(asApp(makeApp())).notes.toJSON().heights).toEqual([]);
     });
 
-    // A scroll measures note after note: one write a second, not one per note.
+    // Scrolling measures one note after another, so it saves once a second, not
+    // once per note.
     it("saves a burst of changes once, a moment after the first", () => {
         const app = makeApp();
         const memory = new LayoutMemory(asApp(app));
@@ -114,7 +119,8 @@ describe("LayoutMemory", () => {
         expect(memory.bases.toJSON()).toEqual([["600:16px", [["new.md\nb1", { tooWide: true }]]]]);
     });
 
-    // Edited while the plugin was off, or on another device: estimated from its text again (ADR 0017).
+    // Edited while the plugin was off, or on another device, so it is estimated
+    // from its text again (ADR 0017).
     it("forgets a note changed since it was measured, by the vault's mtimes", () => {
         const mtimes = new Map([
             ["a.md", 1],
@@ -149,7 +155,7 @@ describe("LayoutMemory", () => {
         expect(saved.notes.heightOf("600:16px", "a.md")).toBeUndefined();
     });
 
-    // localStorage is a few megabytes, shared by every vault in the app.
+    // localStorage holds a few megabytes, shared by every vault in the app.
     it("logs a save refused, once, and keeps measuring", () => {
         const app = makeApp();
         const error = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -185,8 +191,8 @@ describe("LayoutMemory", () => {
 });
 
 describe("layoutOf", () => {
-    // Obsidian's font size and line width both reach the column's width or text size;
-    // on a phone, so does iOS's text size setting.
+    // Obsidian's font size and line width both affect the column's width or
+    // text size. On a phone, so does iOS's text size setting.
     it("names a layout by the stream column's width and the text size notes are drawn at", () => {
         const column = document.createElement("div");
         Object.defineProperty(column, "clientWidth", { value: 612 });
@@ -194,7 +200,7 @@ describe("layoutOf", () => {
         document.body.appendChild(column);
 
         expect(layoutOf(column)).toBe("612:calc(16px * 1.25)");
-        // A Base asks of the width it is checked against.
+        // A Base asks about the width it is checked against.
         expect(layoutOf(column, 500)).toBe("500:calc(16px * 1.25)");
         column.remove();
     });

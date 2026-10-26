@@ -3,7 +3,8 @@ import { blockAt } from "./stream-blocks";
 
 /**
  * Where the stream is scrolled to, in a form Obsidian's history can keep: the
- * first note reaching into the pane, and its top's offset from the pane's.
+ * first note that is at least partly in the pane, and how far its top is from
+ * the pane's top.
  */
 export interface StreamPlace {
     path: string;
@@ -16,30 +17,36 @@ export function isStreamPlace(value: unknown): value is StreamPlace {
     return typeof path === "string" && typeof offset === "number";
 }
 
-/** Where `stream` is scrolled to in `scrollEl`; null when no note reaches into the pane. */
+/**
+ * Where `stream` is scrolled to in `scrollEl`, or null if no note is in the
+ * pane.
+ */
 export function readPlace(stream: HTMLElement, scrollEl: HTMLElement): StreamPlace | null {
     const paneTop = scrollEl.getBoundingClientRect().top;
     const block = blockAt(stream, paneTop);
-    // Past the last note, the infinite-scroll sentinel.
+    // Below the last note is the empty element that loads more notes; it is not
+    // a note.
     const path = block instanceof HTMLElement ? block.dataset.sourcePath : undefined;
     if (path === undefined) return null;
     return { path, offset: block!.getBoundingClientRect().top - paneTop };
 }
 
-/** Scrolls `scrollEl` so `block`'s top sits `offset` below the pane's top. */
+/**
+ * Scrolls `scrollEl` so that `block`'s top is `offset` below the pane's top.
+ */
 export function scrollBlockTo(block: HTMLElement, offset: number, scrollEl: HTMLElement): void {
     scrollEl.scrollTop += block.getBoundingClientRect().top - scrollEl.getBoundingClientRect().top - offset;
 }
 
-/** Passes over a scroll before it is left where it landed. */
+/** How many times to try the scroll before leaving it where it is. */
 const MAX_SCROLL_PASSES = 8;
 
-/** How near its place in the pane counts as arrived. */
+/** How close to its place in the pane counts as arrived. */
 const SCROLL_TOLERANCE_PX = 2;
 
 /**
- * Two frames: the first gives the scroll a rendering opportunity, the second
- * is when the IntersectionObserver's callback for it has been delivered.
+ * Waits two frames. In the first, the scroll is drawn. By the second, the
+ * IntersectionObserver's callback for it has run.
  */
 async function observersDelivered(): Promise<void> {
     for (let frame = 0; frame < 2; frame++) {
@@ -47,21 +54,30 @@ async function observersDelivered(): Promise<void> {
     }
 }
 
-/** What moves a block after it has been scrolled to. */
+/** What can move a block after it has been scrolled to. */
 export interface StreamLayout {
-    /** Renders and unloads so far; unchanged across a pass means settled. */
+    /**
+     * How many notes were drawn or emptied so far. If it does not change during
+     * a try, the stream has stopped changing.
+     */
     layoutChanges(): number;
     /** Resolves once the renders already queued have run. */
     drain(): Promise<void>;
 }
 
-/** Where in the pane an element is brought: its top to the pane's top, or center to center. */
+/**
+ * Where in the pane an element is placed: its top at the pane's top, or its
+ * center at the pane's center.
+ */
 export type Placement = "start" | "center";
 
-/** What a scroll places: a block, or a search match, whose holder may be taller than the pane. */
+/**
+ * What a scroll places: a block, or a search match, whose element may be taller
+ * than the pane.
+ */
 export type Placed = HTMLElement | Range;
 
-/** How far `placed` sits from its place in `scrollEl`. */
+/** How far `placed` is from its place in `scrollEl`. */
 function offsetFromPlace(placed: Placed, placement: Placement, scrollEl: HTMLElement): number {
     const rect = placed.getBoundingClientRect();
     const pane = scrollEl.getBoundingClientRect();
@@ -69,22 +85,26 @@ function offsetFromPlace(placed: Placed, placement: Placement, scrollEl: HTMLEle
     return (rect.top + rect.bottom - pane.top - pane.bottom) / 2;
 }
 
-/** Scrolls `placed` to its place: a range has no `scrollIntoView`, so the pane moves by its offset. */
+/**
+ * Scrolls `placed` to its place. A range has no `scrollIntoView`, so the pane
+ * is moved by the distance instead.
+ */
 function scrollToPlace(placed: Placed, placement: Placement, scrollEl: HTMLElement): void {
     if (placed instanceof Range) scrollEl.scrollTop += offsetFromPlace(placed, placement, scrollEl);
     else placed.scrollIntoView({ block: placement });
 }
 
-/** The element `placed` lies in: a match's text always has one. */
+/** The element `placed` is in. A match's text is always in one. */
 function elementOf(placed: Placed): Element {
     return placed instanceof Range ? placed.startContainer.parentElement! : placed;
 }
 
 /**
- * Brings `placed` to its place in `scrollEl` and keeps it there. Scrolling to
- * it brings the window manager to it, and a note rendering *above* it grows
- * past its placeholder estimate and pushes it down (ADR 0006), so the scroll is
- * re-applied until `placed` is in place in a stream that has stopped rendering.
+ * Moves `placed` to its place in `scrollEl` and keeps it there. Scrolling to it
+ * makes the window manager draw the notes around it. A note drawn *above* it
+ * can grow taller than its estimated height and push it down (ADR 0006). So the
+ * scroll is set again until `placed` is in place and the stream has stopped
+ * drawing.
  */
 export async function scrollIntoPlace(
     placed: Placed,
@@ -92,35 +112,39 @@ export async function scrollIntoPlace(
     scrollEl: HTMLElement,
     layout: StreamLayout
 ): Promise<void> {
-    /** The change count the last pass ended on; nothing yet before the first. */
+    /**
+     * The number of changes when the last try ended. Null before the first try.
+     */
     let settled: number | null = null;
     for (let pass = 0; pass < MAX_SCROLL_PASSES; pass++) {
         const changes = layout.layoutChanges();
         const scrollTop = scrollEl.scrollTop;
         scrollToPlace(placed, placement, scrollEl);
-        // A scroll that moved nothing, on a stream that has not changed since
-        // the last pass, is as far as it goes: no observer has news, and
-        // waiting a frame for one can wait forever where none is drawn.
+        // If the scroll moved nothing, and the stream has not changed since the
+        // last try, it cannot get any closer. No observer will report anything,
+        // and waiting a frame for one could wait forever when no frame is
+        // drawn.
         if (scrollEl.scrollTop === scrollTop && changes === settled) return;
         await observersDelivered();
         await layout.drain();
 
-        // It is in place the instant it is scrolled to; the renders that
-        // will push it down land after. Arrived means in place *and*
-        // nothing rendered or unloaded on this pass.
+        // It is in place the moment it is scrolled to; the renders that will
+        // push it down finish later. So it has only arrived when it is in place
+        // *and* nothing was drawn or emptied during this try.
         const offset = offsetFromPlace(placed, placement, scrollEl);
         settled = layout.layoutChanges();
         if (Math.abs(offset) <= SCROLL_TOLERANCE_PX && settled === changes) return;
     }
-    // Out of passes: something kept pushing it away.
+    // No tries left: something kept pushing it away.
 }
 
 /**
- * Keeps `placed` at its place in `scrollEl` while what lies above it resizes,
- * until it is still for `SETTLE_MS`; returns what lets go sooner, as the
- * reader moving the pane must. A Base fills in after drawing, uncounted by
- * `scrollIntoPlace`, and one above `placed` pushes it off screen. Re-placed in the
- * frame it moved: a resize reports before paint.
+ * Keeps `placed` at its place in `scrollEl` while what is above it changes
+ * size, until nothing changes for `SETTLE_MS`. Returns a function that stops
+ * sooner, which the reader moving the pane must call. A Base fills in after it
+ * is drawn, which `scrollIntoPlace` does not count, and a Base above `placed`
+ * pushes it off screen. It is put back in the same frame it moved, because a
+ * resize is reported before the frame is drawn.
  */
 export function keepInPlace(
     placed: Placed,
@@ -151,9 +175,9 @@ export function keepInPlace(
 }
 
 /**
- * What lies above `el` inside its block: a note held at its height grows
- * nothing outside it as a Base in it fills in. The blocks above resize the
- * stream.
+ * The elements above `el` inside its block. While a note's height is held, a
+ * Base filling in inside it changes nothing outside the note, so these are
+ * watched. The blocks above change the stream's size, which is watched too.
  */
 function aboveInBlock(el: Element, stream: HTMLElement): Element[] {
     const above: Element[] = [];

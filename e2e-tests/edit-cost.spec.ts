@@ -12,15 +12,21 @@ import {
 import { longNote } from "./long-note";
 
 /**
- * What opening a long note costs, and a save while it is on screen, as typing
- * beside the stream autosaves (ADR 0019). Times hold only on a fast machine,
- * so it runs under `pnpm run test:memory`.
+ * What opening a long note costs, and what a save costs while it is on screen,
+ * as when typing next to the stream saves automatically (ADR 0019). The times
+ * are only correct on a fast machine, so it runs with `pnpm run test:memory`.
  */
 
-/** A timer meant to fire this often; how late it comes shows what a render holds up. */
+/**
+ * A timer meant to fire this often. How late it fires shows how much a render
+ * delays.
+ */
 const TICK_MS = 20;
 
-/** Long tasks, render times, and the longest a timer waited, collected in the page. */
+/**
+ * Long tasks, render times, and the longest a timer waited, collected in the
+ * page.
+ */
 async function instrument(page: import("@playwright/test").Page) {
     await page.evaluate((tickMs) => {
         const w = window as unknown as {
@@ -69,23 +75,27 @@ async function collect(page: import("@playwright/test").Page) {
 const fmt = (ms: number[]) =>
     `${ms.length} [${ms.map((m) => m.toFixed(0)).join(", ")}] max ${Math.max(0, ...ms).toFixed(0)} ms`;
 
-/** About twice the longest measured on an M5 (ADR 0019); none at all on desktop. */
+/**
+ * About twice the longest measured on an M5 (ADR 0019). None at all on desktop.
+ */
 const LONGEST_SAVE_TASK_MS = { desktop: 100, mobile: 300 };
 
 /**
- * A note drawn a run of sections at a time leaves no render-long freeze on
- * opening, and timers run between its slices (ADR 0020): about twice the
- * longest measured on an M5.
+ * A note drawn one group of sections at a time causes no long freeze when it
+ * opens, and timers run between its slices (ADR 0020). About twice the longest
+ * measured on an M5.
  */
 const LONGEST_OPEN_TASK_MS = { desktop: 300, mobile: 600 };
 const LONGEST_TIMER_WAIT_MS = { desktop: 300, mobile: 1000 };
 
-// A trace snapshots the DOM after each action: long tasks of its own.
+// A trace saves a copy of the DOM after each action, which makes long tasks of
+// its own.
 test.use({ trace: "off" });
 
 /**
- * Waits in the page until `path` is drawn. Not `expect`: each of its polls
- * walks the whole page, and would land between a long note's slices.
+ * Waits in the page until `path` is drawn. Not `expect`, because each of its
+ * checks goes through the whole page, and would run between a long note's
+ * slices.
  */
 function drawn(page: import("@playwright/test").Page, path: string) {
     return page.evaluate(
@@ -107,7 +117,10 @@ function drawn(page: import("@playwright/test").Page, path: string) {
     );
 }
 
-/** Opens a fresh stream, at phone speed on mobile, and waits until `path` is drawn. */
+/**
+ * Opens a new stream, at phone speed on mobile, and waits until `path` is
+ * drawn.
+ */
 async function openAt(page: import("@playwright/test").Page, path: string, mobileLayout: boolean) {
     await openStream(page);
     await instrument(page);
@@ -129,7 +142,10 @@ test.describe("a save of a note open in the stream", () => {
             const original = await writeNote(page, TODAY, longNote(lines));
             await page.waitForTimeout(2000);
 
-            /** As typing autosaves: a word changed, two seconds apart. */
+            /**
+             * As when typing saves automatically: a word changed, two seconds
+             * apart.
+             */
             const save = async () => {
                 await page.evaluate(
                     (path) =>
@@ -148,7 +164,6 @@ test.describe("a save of a note open in the stream", () => {
                     for (let i = 0; i < 10; i++) await save();
                     const saves = await collect(page);
 
-                    // eslint-disable-next-line no-console -- the numbers this test exists to report
                     console.log(
                         [
                             `[${lines} lines, ${mobileLayout ? "mobile 4x" : "desktop"}]`,
@@ -158,9 +173,11 @@ test.describe("a save of a note open in the stream", () => {
                     );
 
                     const layout = mobileLayout ? "mobile" : "desktop";
-                    // Today's renders by section from the first, and no save renders it again (ADR 0019).
+                    // Today's note is drawn by section from the start, and no
+                    // save draws all of it again (ADR 0019).
                     expect(saves.renders).toHaveLength(0);
-                    // The count holds on any machine; the times only on one as fast as an M5.
+                    // The count is correct on any machine. The times only on
+                    // one as fast as an M5.
                     expect(Math.max(0, ...saves.longTasks)).toBeLessThan(LONGEST_SAVE_TASK_MS[layout]);
                     expect(Math.max(0, ...open.longTasks)).toBeLessThan(LONGEST_OPEN_TASK_MS[layout]);
                     expect(open.timerWait).toBeLessThan(LONGEST_TIMER_WAIT_MS[layout]);
@@ -187,7 +204,6 @@ test.describe("opening a long note", () => {
             const restoreCpu = await openAt(page, NEWEST, mobileLayout);
             try {
                 const open = await collect(page);
-                // eslint-disable-next-line no-console -- the numbers this test exists to report
                 console.log(
                     `[older 10000 lines, ${mobileLayout ? "mobile 4x" : "desktop"}]\n` +
                         `  open        renders ${fmt(open.renders)} | long tasks ${fmt(open.longTasks)} | a timer waited ${open.timerWait.toFixed(0)} ms`

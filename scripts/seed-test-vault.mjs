@@ -1,12 +1,12 @@
 /**
- * Rebuilds `.dev/vault/` — the local vault docs/TESTING.md's checklist is
- * written against — and installs the current build into it.
+ * Builds `.dev/vault/` again, the local vault that docs/TESTING.md's checklist
+ * is written for, and installs the current build in it.
  *
  *   pnpm run seed --test [target-vault] [--days N]
  *
- * Destructive: it removes the vault's notes and rewrites them. Obsidian's own
- * config (.obsidian) is written only when absent, so a vault you have already
- * opened keeps its layout, theme and plugin settings.
+ * This deletes things: it removes the vault's notes and writes them again.
+ * Obsidian's own config (.obsidian) is only written when it is missing, so a
+ * vault you have already opened keeps its layout, theme and plugin settings.
  */
 import { existsSync, mkdirSync, rmSync, writeFileSync } from "fs";
 import { dirname, join, resolve } from "path";
@@ -17,13 +17,20 @@ import { PLUGIN_ID, installBuild, TEST_VAULT } from "./vaults.mjs";
 const NOTES = "Notes";
 const body = (...lines) => lines.join("\n") + "\n";
 
-/** The daily-notes template setting: a path without `.md`, as Obsidian stores it. */
+/**
+ * The daily notes template setting: a path without `.md`, as Obsidian saves it.
+ */
 export const DAILY_TEMPLATE = "Templates/Daily";
 const TEMPLATE = body("---", "mood:", "tags:", "  - daily", "---", "", "# {{date}}", "", "## Morning", "", "- ");
-/** A note made from the template on `date`, as the daily-notes plugin fills it in. */
+/**
+ * A note made from the template on `date`, as the Daily notes plugin fills it
+ * in.
+ */
 const fromTemplate = (date) => TEMPLATE.replace("{{date}}", date);
 
-/** The stream loads 10 at a time, so this is a dozen batches of scrolling. */
+/**
+ * The stream loads 10 notes at a time, so this is twelve batches of scrolling.
+ */
 const DEFAULT_DAYS = 120;
 
 const fillerDate = (index) => {
@@ -34,10 +41,11 @@ const fillerDate = (index) => {
 const frontmatter = (index) => ["---", `mood: day-${index + 1}`, "tags:", "  - daily", "---", ""];
 
 /**
- * Notes of different shapes, cycled through the filler run: a stream of one
- * repeated note tests scrolling and nothing else. Each shape carries something
- * the checklist asks about — wide content that must fit without scrolling, deep
- * heading nesting, a note with no frontmatter (so no properties panel), Bases.
+ * Notes of different kinds, repeated through the filler notes, because a stream
+ * of one repeated note only tests scrolling. Each kind has something the
+ * checklist asks about: wide content that must fit without scrolling, deeply
+ * nested headings, a note with no frontmatter (so no properties panel), and
+ * Bases.
  */
 const SHAPES = [
     (index) => [
@@ -112,7 +120,7 @@ const SHAPES = [
         "",
         "###### Sixth",
     ],
-    // No frontmatter: the properties panel must simply not appear.
+    // No frontmatter, so the properties panel must not appear.
     () => ["A single line, no properties."],
 ];
 
@@ -125,12 +133,18 @@ const tableView = (name, columns, ...extra) => [
     ...columns.map((column) => `      - ${column}`),
 ];
 
-/** Headers alone overrun a phone and a desktop note: straight to cards. */
+/**
+ * The headers alone are wider than a phone and a desktop note, so it goes
+ * straight to cards.
+ */
 const WIDE = ["file.name", "file.path", "file.folder", "file.ext", "file.size", "file.ctime", "file.mtime"];
-/** Fits a tablet's note, not a phone's: rotate to flip it. */
+/**
+ * Fits a tablet's note, but not a phone's. Turn the screen to switch between
+ * the two.
+ */
 const MIDDLE = ["file.name", "file.path", "file.folder", "file.ext", "file.size"];
 
-/** The Bases the notes embed, one of each case docs/TESTING.md lists. */
+/** The Bases the notes embed, one for each case docs/TESTING.md lists. */
 const BASES = {
     "Wide.base": ["views:", ...tableView("Wide", WIDE)],
     "Middle.base": ["views:", ...tableView("Middle", MIDDLE)],
@@ -139,18 +153,20 @@ const BASES = {
         "views:",
         ...tableView("Narrow", ["file.name", "file.size"], "    summaries:", "      file.size: Sum"),
     ],
-    // A hand-sized column: drawn as a table, it is cut at the note's edge.
+    // A column sized by hand. Drawn as a table, it is cut off at the note's
+    // edge.
     "Resized.base": [
         "views:",
         ...tableView("Resized", ["file.name", "file.path"], "    columnSize:", "      file.path: 900"),
     ],
-    // An embed names the second view; `this` is the embedding note.
+    // An embed names the second view. `this` is the note that embeds it.
     "Two.base": [
         "views:",
         ...tableView("First", ["file.name"]),
         ...tableView("This note", WIDE, "    filters: file.path == this.file.path"),
     ],
-    // A column per file extension: wider than a phone either way up (D-107).
+    // One column for each file type, which is wider than a phone in either
+    // orientation (D-107).
     "Kanban.base": [
         "views:",
         "  - type: kanban",
@@ -163,7 +179,10 @@ const BASES = {
     ],
 };
 
-/** Short headers, long values: only a drawn table shows it is too wide. */
+/**
+ * Short headers and long values: only the drawn table shows that it is too
+ * wide.
+ */
 const VALUES_WIDE = [
     "```base",
     "formulas:",
@@ -173,7 +192,9 @@ const VALUES_WIDE = [
     "```",
 ];
 
-/** Bases recur all the way down, for the scroll-stall check. */
+/**
+ * Bases appear all the way down, for the check that scrolling does not pause.
+ */
 SHAPES.push((index) => [
     ...frontmatter(index),
     "## Bases",
@@ -189,7 +210,7 @@ const filler = (index) => body(...SHAPES[index % SHAPES.length](index));
 
 /**
  * The vault as `{ path: contents }`: `days` filler notes ending on 2026-08-29,
- * and the notes, Bases and files docs/TESTING.md names.
+ * and the notes, Bases and files that docs/TESTING.md names.
  * @param {{ days: number }} options
  * @returns {Record<string, string>}
  */
@@ -200,7 +221,8 @@ export function testVault({ days }) {
 
     for (const [name, lines] of Object.entries(BASES)) vault[`Bases/${name}`] = body(...lines);
 
-    // The newest note: one of each embed, each drawn so that nothing scrolls.
+    // The newest note: one of each kind of embed, each drawn so that nothing
+    // scrolls.
     vault[`${NOTES}/2026-08-30.md`] = body(
         "## Bases",
         "",
@@ -269,7 +291,8 @@ export function testVault({ days }) {
         "| a | b | c | d | e | f | g |"
     );
 
-    // The two notes docs/TESTING.md names by date, with the frontmatter it lists.
+    // The two notes docs/TESTING.md names by date, with the frontmatter it
+    // lists.
     vault[`${NOTES}/2026-02-01.md`] = body(
         "---",
         "tags:",
@@ -332,8 +355,9 @@ export function testVault({ days }) {
         "</svg>"
     );
 
-    // What 2026-02-01 links to. Long, so its #Later link has somewhere to scroll;
-    // main() removes Someday.md, so that link stays unresolved even after a click made it.
+    // What 2026-02-01 links to. Long, so its #Later link has somewhere to
+    // scroll to. main() removes Someday.md, so that link has no note, even
+    // after a click created one.
     vault["Attachments/Manual.pdf"] = pdf(3);
     vault["Reading list.md"] = body(
         "# Reading list",
@@ -345,12 +369,13 @@ export function testVault({ days }) {
         "- Middlemarch"
     );
 
-    // Neither of these is a daily note; neither may appear in the stream.
+    // Neither of these is a daily note, so neither may appear in the stream.
     vault[`${NOTES}/2026-01-20.png`] = "not really a png";
     vault["Elsewhere/2026-01-21.md"] = body("Dated, but outside the daily-notes folder.");
 
-    // The newest note's linked mentions, one of each case docs/TESTING.md lists.
-    // Agenda exists twice: Plan's [[Agenda]] must open the one beside Plan.
+    // The newest note's linked mentions, one for each case docs/TESTING.md
+    // lists. There are two Agenda notes: Plan's [[Agenda]] must open the one
+    // next to Plan.
     const newest = `[[${fillerDate(0)}]]`;
     vault["Projects/Plan.md"] = body(
         "# Plan",
@@ -374,7 +399,8 @@ export function testVault({ days }) {
         "Nothing written on [[2026-08-21]] yet."
     );
 
-    // "Empty notes" in the checklist: hidden, but for a property or a link.
+    // "Empty notes" in the checklist: hidden, unless a property or a link keeps
+    // them shown.
     vault[`${DAILY_TEMPLATE}.md`] = TEMPLATE;
     vault[`${NOTES}/2026-08-27.md`] = fromTemplate("2026-08-27");
     vault[`${NOTES}/2026-08-25.md`] = fromTemplate("2026-08-25").replace("mood:", "mood: rested");
@@ -387,7 +413,7 @@ export function testVault({ days }) {
 
 export function main() {
     const args = process.argv.slice(2);
-    /** Reads `--flag value` and `--flag=value` alike. */
+    /** Reads `--flag value` and `--flag=value` the same way. */
     const flagValue = (name) => {
         const inline = args.find((arg) => arg.startsWith(`${name}=`));
         if (inline) return inline.slice(name.length + 1);
@@ -407,7 +433,10 @@ export function main() {
         mkdirSync(dirname(target), { recursive: true });
         writeFileSync(target, contents);
     };
-    /** Writes Obsidian's own config only when it is missing, so a vault in use keeps its state. */
+    /**
+     * Only writes Obsidian's own config when it is missing, so a vault in use
+     * keeps its state.
+     */
     const writeConfigOnce = (relative, contents) => {
         if (!existsSync(join(vault, relative))) write(relative, contents);
     };

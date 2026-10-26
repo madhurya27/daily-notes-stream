@@ -2,21 +2,26 @@ import type { Page } from "@playwright/test";
 import { test, expect, openStream, seededDate } from "./obsidian";
 
 /**
- * How much of the screen a reader's wheel finds undrawn on a slowed desktop.
- * Real wheel input, sent from outside the page: a scroll set from
- * inside it waits whenever the page is busy, and a wheel does not. Runs only
- * when asked: SCROLL_COST=1 pnpm exec playwright test scroll-cost --project=desktop.
- * RATES, SPEEDS, SECONDS, DOWN_UP=1 and SCREEN=4k175 vary it.
+ * How much of the screen is not yet drawn when a reader scrolls with the wheel
+ * on a slowed desktop. Uses real wheel input, sent from outside the page,
+ * because a scroll set from inside the page waits whenever the page is busy,
+ * and a wheel does not. Only runs when asked: SCROLL_COST=1 pnpm exec
+ * playwright test scroll-cost --project=desktop. RATES, SPEEDS, SECONDS,
+ * DOWN_UP=1 and SCREEN=4k175 change the test.
  */
 
-// Tracing copies the page on every wheel event, which fills the frames it measures.
+// Tracing copies the page on every wheel event, which takes up the frames it
+// measures.
 test.use({ trace: "off" });
 
 const RATES = (process.env.RATES ?? "6").split(",").map(Number);
 const SPEEDS = (process.env.SPEEDS ?? "8000").split(",").map(Number);
 const SECONDS = Number(process.env.SECONDS ?? 8);
 
-/** Notes as people write them: prose, a callout, lists, an image, a table, tasks. */
+/**
+ * Notes as people write them: text, a callout, lists, an image, a table, and
+ * tasks.
+ */
 const NOTES = 120;
 
 function journalDay(day: number): string {
@@ -68,18 +73,24 @@ const PHOTO =
     '<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="600"><rect width="1200" height="600" fill="#8ab"/><circle cx="600" cy="300" r="200" fill="#fc6"/></svg>';
 
 interface Measured {
-    /** The share of the screen undrawn, weighted by how long each frame showed it. */
+    /**
+     * The part of the screen not drawn, weighted by how long each frame showed
+     * it.
+     */
     blankShare: number;
     worstBlank: number;
-    /** How long each note that showed undrawn stayed so. */
+    /** How long each note that showed undrawn stayed undrawn. */
     noteBlankMs: number[];
     draws: number[];
-    /** Draws that ended with the note already scrolled past. */
+    /** Draws that finished after the note had already been scrolled past. */
     behind: number;
     longestFrame: number;
 }
 
-/** Starts sampling every frame in the page; `window.stopMeasuring()` hands back what it saw. */
+/**
+ * Starts measuring every frame in the page. `window.stopMeasuring()` returns
+ * what it saw.
+ */
 function startMeasuring(page: Page): Promise<void> {
     return page.evaluate(() => {
         const pane = document.querySelector(".daily-notes-stream-container")!.parentElement!;
@@ -110,7 +121,7 @@ function startMeasuring(page: Page): Promise<void> {
         const sample = () => {
             if (stopped) return;
             const now = performance.now();
-            // A long frame showed what it found for its whole length.
+            // A long frame showed what it found for its whole duration.
             const frame = now - last;
             last = now;
             longestFrame = Math.max(longestFrame, frame);
@@ -145,7 +156,10 @@ function startMeasuring(page: Page): Promise<void> {
     });
 }
 
-/** Turns the wheel over the stream at `speed` px/s for `seconds`; with DOWN_UP=1, down for half, then back up. */
+/**
+ * Turns the wheel over the stream at `speed` px/s for `seconds`. With
+ * DOWN_UP=1, down for half the time, then back up.
+ */
 async function wheel(page: Page, speed: number, seconds: number): Promise<Measured> {
     const box = (await page.locator(".daily-notes-stream-container").boundingBox())!;
     await page.mouse.move(box.x + box.width / 2, box.y + 300);
@@ -156,7 +170,8 @@ async function wheel(page: Page, speed: number, seconds: number): Promise<Measur
     for (let elapsed = 0; elapsed < seconds * 1000; elapsed = Date.now() - t0) {
         const due = ((elapsed < turnAt ? elapsed : 2 * turnAt - elapsed) / 1000) * speed;
         const delta = Math.round(due - sent);
-        // Not awaited: a wheel turns on whether or not the page has caught up.
+        // Not awaited, because a wheel keeps turning whether or not the page
+        // has caught up.
         if (delta !== 0) void page.mouse.wheel(0, delta);
         sent += delta;
         await new Promise((resolve) => setTimeout(resolve, 16));
@@ -193,7 +208,8 @@ test.describe("scroll cost on a slowed desktop", () => {
             test(`a wheel at ${speed} px/s, the CPU slowed ${rate}x, finds the notes drawn`, async ({ obsidian }) => {
                 const { page } = obsidian;
                 const cdp = await page.context().newCDPSession(page);
-                // SCREEN=4k175: a 3840x2160 laptop screen at 175%, the window filling it.
+                // SCREEN=4k175: a 3840x2160 laptop screen at 175%, with the
+                // window filling it.
                 if (process.env.SCREEN === "4k175")
                     await cdp.send("Emulation.setDeviceMetricsOverride", {
                         width: 2194,
@@ -206,7 +222,6 @@ test.describe("scroll cost on a slowed desktop", () => {
                 await cdp.send("Emulation.setCPUThrottlingRate", { rate });
                 try {
                     const r = await wheel(page, speed, SECONDS);
-                    // eslint-disable-next-line no-console -- the numbers this test exists to report
                     console.log(
                         `[scroll] ${rate}x ${speed} px/s: blank ${pct(r.blankShare)} of the screen, worst ${pct(r.worstBlank)}; ` +
                             `${r.noteBlankMs.length} notes blank, p90 ${quantile(r.noteBlankMs, 0.9).toFixed(0)} ms; ` +

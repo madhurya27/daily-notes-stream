@@ -2,7 +2,10 @@ import { describe, it, expect } from "vitest";
 import type { CachedMetadata } from "obsidian";
 import { changedSpan, noteChunks, noteSections } from "../../src/render/note-sections";
 
-/** The cache's sections for `parts`, joined by blank lines, as Obsidian indexes them. */
+/**
+ * The cache's sections for `parts`, joined by blank lines, as Obsidian records
+ * them.
+ */
 function indexed(parts: { type: string; text: string }[], extra: Partial<CachedMetadata> = {}) {
     let offset = 0;
     const sections = parts.map(({ type, text }) => {
@@ -88,7 +91,8 @@ describe("changedSpan", () => {
 describe("noteChunks", () => {
     it("runs consecutive sections together up to the size, cut from the note's own text", () => {
         const { markdown, cache } = indexed(journal(4));
-        // Each paragraph is 16 characters; two and the blank line between are 34.
+        // Each paragraph is 16 characters. Two of them and the blank line
+        // between are 34.
         expect(noteChunks(markdown, cache, 34)).toEqual([
             "Day 0. Ran 5 km.\n\nDay 1. Ran 5 km.",
             "Day 2. Ran 5 km.\n\nDay 3. Ran 5 km.",

@@ -2,12 +2,15 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { Component } from "obsidian";
 import { SearchHighlighter } from "../../src/render/search-highlights";
 
-/** The registered highlight of `name`, as the stylesheet's `::highlight()` reads it. */
+/**
+ * The registered highlight called `name`, which the stylesheet's
+ * `::highlight()` reads.
+ */
 const highlighted = (name: string) => [...(CSS.highlights.get(name) ?? [])].map((r) => (r as Range).toString());
 
 function renderedBlock(html: string): { block: HTMLElement; component: Component } {
     const block = document.createElement("div");
-    // Test fixture markup; the source rule against raw HTML covers src/ only.
+    // Markup for the test. The rule against writing raw HTML only covers src/.
     block.innerHTML = html;
     const component = new Component();
     component.load();
@@ -15,8 +18,8 @@ function renderedBlock(html: string): { block: HTMLElement; component: Component
 }
 
 /**
- * A pop-out window's stand-in: an iframe has a window and document of its own,
- * and here a highlight registry of its own, as each Chromium window does.
+ * Stands in for a pop-out window. An iframe has its own window and document,
+ * and here its own highlight registry, as each Chromium window does.
  */
 function popOutWindow(): { win: Window & typeof globalThis; registry: HighlightRegistry } {
     const frame = document.body.appendChild(document.createElement("iframe"));
@@ -24,7 +27,7 @@ function popOutWindow(): { win: Window & typeof globalThis; registry: HighlightR
     const registry = new Map() as unknown as HighlightRegistry;
     (win as { CSS: unknown }).CSS = { highlights: registry };
     win.Highlight = Highlight;
-    // Obsidian extends each window's nodes, a pop-out's too.
+    // Obsidian adds its helpers to each window's nodes, including a pop-out's.
     const { doc, win: ownWindow } = Object.getOwnPropertyDescriptors(Node.prototype);
     Object.defineProperties(win.Node.prototype, { doc, win: ownWindow });
     return { win, registry };
@@ -63,7 +66,8 @@ describe("SearchHighlighter", () => {
         expect(highlighted("daily-notes-search-match")).toEqual(["km", "km"]);
     });
 
-    // Stream search matches a note's own source; another note's excerpt is not a match in it.
+    // Stream search matches a note's own text. Another note's excerpt is not a
+    // match in it.
     it("highlights nothing in a note's linked mentions", () => {
         const { block, component } = renderedBlock(
             '<p>Ran 5 km.</p><div class="daily-note-mentions"><p>Ran 10 km.</p></div>'
@@ -75,7 +79,8 @@ describe("SearchHighlighter", () => {
         expect(highlighter.rangesIn(block).map((r) => r.toString())).toEqual(["km"]);
     });
 
-    // The heading is the plugin's own label, in no note's source: the count would say "No results".
+    // The heading is the plugin's own label and is in no note's text, so the
+    // count would say "No results".
     it("highlights nothing in the properties heading", () => {
         const { block, component } = renderedBlock(
             '<div class="metadata-properties-heading"><div>Properties</div></div><p>properties of water</p>'
@@ -87,7 +92,8 @@ describe("SearchHighlighter", () => {
         expect(highlighter.rangesIn(block).map((r) => r.toString())).toEqual(["properties"]);
     });
 
-    // A Base lists other notes, and draws its own toolbar: "15 results".
+    // A Base lists other notes, and draws its own toolbar, such as "15
+    // results".
     it("highlights nothing in a Base", () => {
         const { block, component } = renderedBlock(
             '<p>Soup results</p><div class="block-language-base bases-embed"><div>15 results</div><div>Soup</div></div>'
@@ -101,7 +107,8 @@ describe("SearchHighlighter", () => {
 
     it("highlights nothing in an embedded note", () => {
         const { block, component } = renderedBlock(
-            // A <div> in a <p> would close it: the parser is not Obsidian's DOM calls.
+            // A <div> inside a <p> would close the <p>, because the HTML parser
+            // works differently from Obsidian's DOM calls.
             '<div>Ran 5 km.<span class="internal-embed markdown-embed"><div>Ran 10 km.</div></span></div>'
         );
         highlighter.setQuery("km");
@@ -179,7 +186,8 @@ describe("SearchHighlighter", () => {
         expect([...CSS.highlights.get("daily-notes-search-current")!]).toEqual([second]);
     });
 
-    // Overlapping ranges paint by priority: the current match over the rest.
+    // Overlapping ranges are drawn by priority: the current match on top of the
+    // others.
     it("paints the current match over the other matches", () => {
         const { block, component } = renderedBlock("<p>milk</p>");
         highlighter.setQuery("milk");

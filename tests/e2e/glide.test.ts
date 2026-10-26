@@ -3,12 +3,18 @@ import { glideEnding, longestStall, type Heard } from "../../e2e-tests/ios/glide
 
 type Frames = { at: number; top: number; owing?: boolean }[];
 
-/** A frame each `every` ms from `from`, the scroll at each, owing or not. */
+/**
+ * A frame every `every` ms from `from`, with the scroll position at each, and
+ * whether it owes.
+ */
 function frames(tops: number[], { from = 0, every = 16, owing = false } = {}): Frames {
     return tops.map((top, i) => ({ at: from + i * every, top, owing }));
 }
 
-/** Frames with the scroll held at `top` for `ms` after `from`: the page alive, the glide over. */
+/**
+ * Frames with the scroll staying at `top` for `ms` after `from`: the page still
+ * draws, and the scroll is over.
+ */
 function still(top: number, from: number, ms: number, owing = false): Frames {
     return frames(Array<number>(Math.floor(ms / 16)).fill(top), { from: from + 16, owing });
 }
@@ -17,7 +23,8 @@ function heard(...runs: Frames[]): Heard[] {
     return runs.flat().map(({ at, top, owing = false }) => ({ at, top, owing, bottom: 100_000 }));
 }
 
-// Shapes measured on an iPhone 16 Pro and an iPad Air, frame by frame from the lift.
+// Patterns measured on an iPhone 16 Pro and an iPad Air, frame by frame from
+// when the finger lifts.
 describe("glideEnding", () => {
     it("tells a glide that slows to a crawl, as iOS ends one", () => {
         const slowed = frames([5000, 4820, 4650, 4500, 4400, 4340, 4320, 4319, 4318]);
@@ -31,7 +38,8 @@ describe("glideEnding", () => {
         expect(glideEnding(heard(cut, still(4380, 64, 400)))).toBe("cut short");
     });
 
-    // The page blocked 370 ms by Bases drawn mid-glide: iOS glided on behind it.
+    // The page was blocked for 370 ms by Bases drawn while scrolling, and iOS
+    // kept scrolling meanwhile.
     it("tells a glide that carried on through a stall, then slowed", () => {
         const before = frames([1000, 1180, 1340, 1480]);
         const after = frames([2280, 2300, 2316, 2328, 2336, 2340, 2341], { from: 48 + 370 });
@@ -67,7 +75,7 @@ describe("glideEnding", () => {
         expect(glideEnding(heard(slowed, rest, write))).toBe("slowed");
     });
 
-    // The write's own work makes its frame late.
+    // Setting the scroll position takes work, which makes its frame late.
     it("ends a glide once still on live frames, before a write at rest that stalls", () => {
         const slowed = frames([1000, 1180, 1340, 1450, 1500, 1501], { owing: true });
         const rest = still(1501, 80, 320, true);
@@ -76,8 +84,9 @@ describe("glideEnding", () => {
         expect(glideEnding(heard(slowed, rest, write))).toBe("slowed");
     });
 
-    // As on an iPad: the stream's wait runs from the last scroll heard, a frame
-    // before the last drawn, so the frame before a late write can fall short of it.
+    // As on an iPad: the stream's wait starts from the last scroll event, one
+    // frame before the last frame drawn, so the frame before a late write can
+    // come before the wait ends.
     it("ends a glide before a late write at rest, still a frame short of the hand-over", () => {
         const crawl = frames([3000, 3010, 3016, 3019, 3020]);
         const rest = still(3020, 64, 299);

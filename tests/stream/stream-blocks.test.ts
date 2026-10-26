@@ -13,20 +13,23 @@ describe("StreamBlocks", () => {
         blocks.attach(container);
     });
 
-    /** Puts a sentinel last in the container, as the scroll controller does. */
+    /**
+     * Puts the empty element that loads more notes last in the container, as
+     * the scroll controller does.
+     */
     function addSentinel(): HTMLElement {
         sentinel = container.appendChild(document.createElement("div"));
         sentinel.id = "sentinel";
         return sentinel;
     }
 
-    // Each its own: `toEqual` compares elements by their markup.
+    // Each block is separate: `toEqual` compares elements by their markup.
     let made = 0;
     const block = () => Object.assign(document.createElement("div"), { id: `block-${made++}` });
 
     describe("get", () => {
-        // A per-lookup querySelector made reading the place O(n^2) across a
-        // refresh, and the window manager adds another hot caller.
+        // A querySelector on every lookup made reading the place O(n^2) during
+        // a refresh, and the window manager calls it often too.
         it("resolves a block through the index, not a DOM query", () => {
             const querySelector = vi.spyOn(container, "querySelector");
             const el = block();
@@ -180,7 +183,9 @@ describe("StreamBlocks", () => {
 });
 
 describe("blockAt", () => {
-    /** A stream of `count` blocks, each 100px tall, the first starting at `top`. */
+    /**
+     * A stream of `count` blocks, each 100px tall, the first starting at `top`.
+     */
     function stacked(count: number, top = 0) {
         const stream = document.createElement("div");
         const reads = { count: 0 };
@@ -217,7 +222,8 @@ describe("blockAt", () => {
         expect(blockAt(stacked(0).stream, 0)).toBeNull();
     });
 
-    // A stream holds thousands of blocks; the place is read on every refresh and Back.
+    // A stream holds thousands of blocks, and the place is read on every
+    // refresh and Back.
     it("measures a few blocks, not every one above the pane's top", () => {
         const { stream, reads } = stacked(1000);
 

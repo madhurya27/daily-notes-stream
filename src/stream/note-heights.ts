@@ -1,41 +1,47 @@
 import { LayoutTable, type SavedLayoutTable } from "./layout-table";
 
 export interface SavedNoteHeights {
-    /** Heights by path, oldest layout first. */
+    /** Heights by path, the oldest layout first. */
     heights: SavedLayoutTable<number>;
-    /** Each note's mtime as it was measured. */
+    /** Each note's change time when it was measured. */
     mtimes: [path: string, mtime: number][];
 }
 
-/** What a note's estimate reads of its file. */
+/** What a note's estimate reads from its file. */
 export interface NoteStat {
     mtime: number;
     size: number;
 }
 
-/** A layout's estimates, as learned from the heights measured there (D-135). */
+/** A layout's estimates, worked out from the heights measured in it (D-135). */
 interface Learned {
-    /** The 0.9 quantile, below the tallest. */
+    /** The height that 90% of heights are below, and never the tallest one. */
     tail: number;
-    /** The most pixels per byte any note measured; none where no note had bytes. */
+    /**
+     * The most pixels per byte of any note measured. Undefined if no note had
+     * any bytes.
+     */
     densest: number | undefined;
 }
 
 /**
- * Each note's last measured height, per layout: what its placeholder reserves
- * until it renders again. A note changed since it was measured is forgotten,
- * and estimated from its text again (ADR 0017).
+ * Each note's last measured height, for each layout: the height its empty block
+ * keeps until it is drawn again. A note that changed since it was measured is
+ * forgotten, and estimated from its text again (ADR 0017).
  */
 export class NoteHeights {
     private readonly table: LayoutTable<number>;
-    /** What each layout's estimates are learned from, until one of its heights changes. */
+    /**
+     * Each layout's worked-out estimates, kept until one of its heights
+     * changes.
+     */
     private readonly learned = new Map<string, Learned>();
     private changes = 0;
     private mtimes = new Map<string, number>();
 
     constructor(
         changed: () => void = () => {},
-        /** A note's file as it is now; undefined once it is gone. */
+        /** A note's file as it is now. Undefined once it is gone. */
         private readonly statOf: (path: string) => NoteStat | undefined = () => undefined,
         limit?: number
     ) {
@@ -54,27 +60,37 @@ export class NoteHeights {
         return this.table.get(layout, path);
     }
 
-    /** `path`'s height in each layout that measured it; reading is no use of a layout. */
+    /**
+     * `path`'s height in each layout that measured it. Reading this does not
+     * count as using a layout.
+     */
     heightsOf(path: string): [layout: string, height: number][] {
         return this.table.valuesOf(path);
     }
 
-    /** Every layout, the one used longest ago first. */
+    /** Every layout, starting with the one used longest ago. */
     layouts(): string[] {
         return this.table.layoutNames();
     }
 
-    /** Heights by path at `layout`; reading is no use of it. */
+    /** Heights by path in `layout`. Reading this does not count as using it. */
     entries(layout: string): [path: string, height: number][] {
         return this.table.entries(layout);
     }
 
-    /** Changes so far: what was learned from the heights holds while it stays the same. */
+    /**
+     * The number of changes so far. While it stays the same, the estimates
+     * worked out from the heights are still correct.
+     */
     get revision(): number {
         return this.changes;
     }
 
-    /** To the 1/64 pixel the browser lays out in: rounded further, a placeholder is off what renders (D-105). */
+    /**
+     * Saves a height, rounded to the 1/64 pixel the browser lays out in.
+     * Rounding more would make an empty block differ from the drawn note
+     * (D-105).
+     */
     keep(layout: string, path: string, height: number): void {
         const mtime = this.statOf(path)?.mtime;
         if (mtime !== undefined) this.mtimes.set(path, mtime);
@@ -83,12 +99,14 @@ export class NoteHeights {
     }
 
     /**
-     * `path`, not measured at `layout`: the 0.9 quantile of what it measured,
-     * erring tall, as a glide up past notes taller than reserved runs out of
-     * scroll short of the top (D-092), but never the tallest alone. Capped at
-     * its size at the densest rate measured, so no long note sets every
-     * placeholder, but never below `floor`: a title and frame are no bytes
-     * (D-135). Nothing where it measured nothing.
+     * An estimated height for `path`, which was not measured in `layout`: the
+     * height that 90% of the layout's measured heights are below. This leans
+     * tall, because scrolling up past notes taller than their estimate runs out
+     * of scroll before the top (D-092). It is never just the tallest height. It
+     * is limited to the note's file size times the most pixels per byte
+     * measured, so one long note cannot set every estimate. But it is never
+     * below `floor`, because a title and frame take space but no bytes (D-135).
+     * Undefined if the layout measured nothing.
      */
     estimate(layout: string, path: string, floor = 0): number | undefined {
         const learned = this.learn(layout);
@@ -104,7 +122,7 @@ export class NoteHeights {
         const sorted = entries.map(([, height]) => height).sort((a, b) => a - b);
         const belowTallest = Math.min(Math.floor(sorted.length * 0.9), sorted.length - 2);
         const tail = sorted[Math.max(belowTallest, 0)];
-        // Stryker disable next-line ConditionalExpression: with no heights there are no rates, and the estimate is undefined either way.
+        // Stryker disable next-line ConditionalExpression: with no heights, there are no rates, and the estimate is undefined either way.
         if (tail === undefined) return undefined;
         const rates = entries.map(([path, height]) => height / (this.statOf(path)?.size ?? 0)).filter(Number.isFinite);
         const learned = { tail, densest: rates.length > 0 ? Math.max(...rates) : undefined };
@@ -135,7 +153,10 @@ export class NoteHeights {
         return { heights: this.table.toJSON(), mtimes: [...this.mtimes] };
     }
 
-    /** Replaces what it holds with `saved`, or with nothing when `saved` is not what `toJSON` wrote. */
+    /**
+     * Replaces what it holds with `saved`, or with nothing if `saved` is not
+     * what `toJSON` wrote.
+     */
     restore(saved: unknown): void {
         const valid = isSaved(saved);
         this.table.restore(valid ? saved.heights : undefined);

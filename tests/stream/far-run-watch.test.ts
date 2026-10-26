@@ -3,20 +3,25 @@ import { Component } from "obsidian";
 import { FarRunWatch } from "../../src/stream/far-run-watch";
 import { FarRuns, type Box } from "../../src/render/far-runs";
 
-/** jsdom lays nothing out: an element's box is read from its data attributes. */
+/**
+ * jsdom has no layout, so an element's box is read from its data attributes.
+ */
 function boxFromData(el: Element): Box | null {
     const { top, bottom } = (el as HTMLElement).dataset;
     return top === undefined ? null : { top: Number(top), bottom: Number(bottom), marginTop: 0, marginBottom: 0 };
 }
 
-/** The hide margin, in the viewport's coordinates. */
+/** The hiding distance, in the viewport's coordinates. */
 const MARGIN = { top: 0, bottom: 1000 };
 
 function fakeObserver() {
     return { observe: vi.fn(), unobserve: vi.fn() };
 }
 
-/** The elements `fn` was called with: elements alike compare equal, so assertions take these by identity. */
+/**
+ * The elements `fn` was called with. Similar elements compare as equal, so
+ * checks compare these by identity.
+ */
 function calledWith(fn: ReturnType<typeof vi.fn>): unknown[] {
     return fn.mock.calls.map(([el]: unknown[]) => el);
 }
@@ -30,7 +35,7 @@ describe("FarRunWatch", () => {
     let render: ReturnType<typeof fakeObserver>;
     let hide: ReturnType<typeof fakeObserver>;
 
-    /** A run of `count` paragraphs laid out from `top` to `bottom`. */
+    /** A run of `count` paragraphs, laid out from `top` to `bottom`. */
     function run(top: number, bottom: number, count = 2): Element[] {
         const step = (bottom - top) / count;
         return Array.from({ length: count }, (_, i) =>
@@ -38,7 +43,7 @@ describe("FarRunWatch", () => {
         );
     }
 
-    /** The observers reporting `target` laid out at `box`. */
+    /** The observers report that `target` is laid out at `box`. */
     function report(target: Element, box: { top: number; bottom: number; width?: number; height?: number }): void {
         const { top, bottom, width = 600, height = bottom - top } = box;
         const entry = { target, boundingClientRect: { top, bottom, width, height }, rootBounds: MARGIN };

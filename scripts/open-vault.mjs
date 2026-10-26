@@ -1,11 +1,13 @@
 /**
- * Opens the demo vault, or the test vault with --test, in Obsidian, plugin
- * enabled and mobile emulation on, then detaches and leaves the window running.
- * The step of `pnpm run demo` that opens the window; its options are these.
+ * Opens the demo vault, or the test vault with --test, in Obsidian, with the
+ * plugin turned on and mobile emulation on. Then it disconnects and leaves the
+ * window running. This is the step of `pnpm run demo` that opens the window,
+ * and these are its options.
  *
- * Own instance against `.dev/obsidian-userdata`, so your real config and vaults
- * are untouched and both can run at once. That directory persists — settings and
- * the trust prompt stay put; delete it for a clean slate.
+ * It runs its own copy of Obsidian with `.dev/obsidian-userdata`, so your real
+ * settings and vaults are not touched, and both can run at once. That folder is
+ * kept between runs, so settings and the answer to the trust prompt stay.
+ * Delete it to start fresh.
  */
 import { chromium } from "@playwright/test";
 import { spawn } from "child_process";
@@ -51,7 +53,8 @@ if (args.includes("--help") || args.includes("-h")) {
     process.exit(0);
 }
 
-// A silently ignored typo (--ipad2) opens the wrong layout and looks like a bug.
+// A typo (--ipad2) that was quietly ignored would open the wrong layout and
+// look like a bug.
 const KNOWN_FLAGS = new Set(["--test", "--desktop", "--ipad", "--landscape", "--keep-size", "--position"]);
 const unknown = args.filter((arg) => arg.startsWith("--") && !KNOWN_FLAGS.has(arg.split("=")[0]));
 if (unknown.length) {
@@ -59,7 +62,7 @@ if (unknown.length) {
     process.exit(1);
 }
 
-/** Reads `--flag value` and `--flag=value` alike. */
+/** Reads `--flag value` and `--flag=value` the same way. */
 const flagValue = (name) => {
     const inline = args.find((arg) => arg.startsWith(`${name}=`));
     if (inline) return inline.slice(name.length + 1);
@@ -80,7 +83,7 @@ const parsePosition = (value) => {
 const layout = layoutFrom(args);
 const windowSize = layout.size;
 const position = parsePosition(flagValue("--position"));
-// A value consumed by a flag is not the vault path.
+// A value that belongs to an option is not the vault path.
 const consumed = new Set(["--position"]);
 const positional = args.filter((arg, index) => !arg.startsWith("--") && !consumed.has(args[index - 1]));
 const vault = vaultFrom(positional[0], args);
@@ -115,8 +118,8 @@ writeFileSync(
     JSON.stringify({ vaults: { [VAULT_ID]: { path: vault, ts: Date.now(), open: true } }, updateDisabled: true })
 );
 
-// Bounds are per vault and read at startup: writing them here opens the window
-// in place instead of moving it afterwards.
+// Window bounds are saved for each vault and read at startup. Writing them here
+// opens the window in place, instead of moving it afterwards.
 {
     const boundsPath = join(userDataDir, `${VAULT_ID}.json`);
     let saved = {};
@@ -124,11 +127,11 @@ writeFileSync(
         try {
             saved = JSON.parse(readFileSync(boundsPath, "utf8"));
         } catch {
-            // A corrupt bounds file is not worth failing the launch over.
+            // A broken bounds file is not a reason to fail the launch.
         }
     }
-    // Placed every run, not only when asked: bounds persist, so without this a
-    // window opens wherever the last run left it.
+    // Placed on every run, not only when asked, because bounds are saved, so
+    // without this the window opens wherever the last run left it.
     writeFileSync(boundsPath, JSON.stringify(boundsFor({ saved, size: windowSize, position })));
 }
 
@@ -140,16 +143,16 @@ spawn(OBSIDIAN, [`--user-data-dir=${userDataDir}`, `--remote-debugging-port=${po
 
 const browser = await connect(port);
 const page = browser.contexts()[0].pages()[0];
-// Attaching over CDP makes Playwright emulate a light color scheme, so the
-// window opens light and only returns to the system theme when this script
-// detaches. null hands the preference back immediately.
+// Attaching over CDP makes Playwright switch to a light color scheme, so the
+// window opens light and only goes back to the system theme when this script
+// disconnects. null gives the setting back at once.
 await page.emulateMedia({ colorScheme: null });
 await page.waitForFunction(() => window.app?.workspace?.layoutReady === true, null, { timeout: 60_000 });
 
-// A vault that ships plugins raises a one-time trust prompt whose overlay
-// swallows every click until it is answered. A loaded plugin means it was
-// answered already: without that race, every later run waits the full timeout
-// for a modal that never comes.
+// A vault that comes with plugins shows a one-time trust prompt, whose overlay
+// catches every click until it is answered. A loaded plugin means it was
+// already answered. Without this check, every later run would wait the full
+// timeout for a modal that never comes.
 const trust = page.locator(".modal-container button", { hasText: "Trust author and enable plugins" });
 await Promise.race([
     trust.waitFor({ state: "visible", timeout: 10_000 }),
@@ -166,26 +169,26 @@ await page.waitForFunction((pluginId) => Boolean(window.app.plugins.plugins[plug
     timeout: 30_000,
 });
 
-// Enabling plugins leaves the settings pane open, and an open modal keeps the
-// stream leaf deferred — a deferred view never renders.
+// Turning on plugins leaves the settings pane open, and an open modal keeps the
+// stream leaf deferred. A deferred view never draws.
 await page.evaluate(() => window.app.setting?.close?.());
 
-// The reload takes any open leaf with it, so this precedes opening the view.
+// The reload removes any open leaf, so this comes before opening the view.
 await emulateDevice(page, layout.mobile);
 
 // Obsidian restores the previous session's leaves, so reuse a stream view if
-// one came back rather than stacking up a new tab on every run.
+// one came back, instead of adding a new tab on every run.
 await page.evaluate(async (viewType) => {
     const { workspace } = window.app;
     const [existing, ...duplicates] = workspace.getLeavesOfType(viewType);
-    // A run that failed part-way still left its tab behind; keep one.
+    // A run that failed partway still left its tab behind, so keep one.
     for (const duplicate of duplicates) duplicate.detach();
     const leaf = existing ?? workspace.getLeaf(true);
     await leaf.setViewState({ type: viewType, active: true });
     workspace.revealLeaf(leaf);
 }, VIEW_TYPE);
-// A deferred or background leaf keeps its container in the DOM but unrendered;
-// wait for one that is actually on screen.
+// A deferred or background leaf keeps its container in the DOM but does not
+// draw it, so wait for one that is really on screen.
 await page.waitForFunction(
     () => [...document.querySelectorAll(".daily-notes-stream-container")].some((el) => el.offsetParent !== null),
     null,

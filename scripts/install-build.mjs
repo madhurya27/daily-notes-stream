@@ -1,6 +1,7 @@
 /**
- * Installs the build into any vault, leaving its notes and settings alone.
- * `pnpm run install:vault <vault>` builds first, labelled like `build:device`.
+ * Installs the build into any vault, without touching its notes and settings.
+ * `pnpm run install:vault <vault>` builds first, with a name like
+ * `build:device`.
  *
  *   node scripts/install-build.mjs <vault>
  */

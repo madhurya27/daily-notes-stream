@@ -1,14 +1,14 @@
 /**
- * Obsidian bundles moment and re-exports it, so the mock hands back the real
- * one: the plugin reads the vault's own date format, and a stand-in that only
- * understood ISO would pass every test a `DD-MM-YYYY` vault fails.
+ * Obsidian includes moment and exports it, so the mock returns the real one.
+ * The plugin reads the vault's own date format, and a fake that only understood
+ * ISO would pass tests that a `DD-MM-YYYY` vault fails.
  */
 export { default as moment } from "moment";
 import { parse, stringify } from "yaml";
 
-// The real declarations, reached past the `obsidian` alias: the mock's
-// signatures borrow them, so src typechecks against the mock as it would
-// against the app.
+// The real type declarations, imported around the `obsidian` alias. The mock's
+// signatures use them, so src's types are checked against the mock the same way
+// they are against the app.
 import type {
     App,
     Command,
@@ -43,7 +43,10 @@ export type {
     View,
 } from "obsidian/obsidian";
 
-/** A link split into the note it names and its #heading or #^block, hash kept. */
+/**
+ * A link split into the note it names and its #heading or #^block, keeping the
+ * #.
+ */
 export function parseLinktext(linktext: string): { path: string; subpath: string } {
     const hash = linktext.indexOf("#");
     return hash === -1
@@ -51,7 +54,7 @@ export function parseLinktext(linktext: string): { path: string; subpath: string
         : { path: linktext.slice(0, hash), subpath: linktext.slice(hash) };
 }
 
-/** As Obsidian's own: the root, or an empty path, is "/". */
+/** Like Obsidian's own: the root, or an empty path, is "/". */
 export function normalizePath(path: string): string {
     return path.replace(/[\\/]+/g, "/").replace(/^\/+|\/+$/g, "") || "/";
 }
@@ -73,7 +76,7 @@ export class TFile extends TAbstractFile {
     stat: FileStats = { ctime: 0, mtime: 0, size: 0 };
     constructor(path: string) {
         super(path);
-        // split on the last dot; files without one get extension ""
+        // Split on the last dot. Files without a dot get the extension "".
         const dot = this.name.lastIndexOf(".");
         this.basename = dot > 0 ? this.name.slice(0, dot) : this.name;
         this.extension = dot > 0 ? this.name.slice(dot + 1) : "";
@@ -95,15 +98,15 @@ class MockLeaf {
 }
 
 /**
- * Typed as the app's leaf: src also reaches leaves through `app.workspace`,
- * which hands back the real type, so a mock type would split the two.
+ * Uses the app's leaf type. src also gets leaves through `app.workspace`, which
+ * returns the real type, so a separate mock type would not match.
  */
 export const WorkspaceLeaf = MockLeaf as unknown as new (app: App) => AppLeaf;
 export type WorkspaceLeaf = AppLeaf;
 
 /**
- * Obsidian's parent/child lifecycle, which is what frees a note's rendered
- * subtree: `children` and `loaded` are the mock's window onto it.
+ * Obsidian's parent and child lifecycle, which is what frees a note's drawn
+ * content. `children` and `loaded` let tests see it.
  */
 export class Component {
     children: Component[] = [];
@@ -157,16 +160,18 @@ export class Component {
     registerEvent(_ref: EventRef) {}
 }
 
-/** A view is a Component: it owns what its notes register. */
+/** A view is a Component, and owns what its notes register. */
 export class ItemView extends Component {
     /** Obsidian's default: a view the workspace never navigates. */
     navigation = false;
     contentEl: HTMLElement;
-    /** Obsidian hands a view's scope the keys pressed while its leaf is active. */
+    /**
+     * Obsidian passes a view's scope the keys pressed while its leaf is active.
+     */
     scope: Scope | null = null;
     containerEl: HTMLElement;
     app: App;
-    /** View actions, recorded so tests can invoke what onOpen() wired up. */
+    /** View actions, recorded so tests can call what onOpen() set up. */
     actions: { icon: string; title: string; callback: (evt: MouseEvent) => unknown }[] = [];
     constructor(leaf: WorkspaceLeaf) {
         super();
@@ -185,7 +190,7 @@ export class ItemView extends Component {
     }
 }
 
-/** Records every notice raised, so tests can assert on the message. */
+/** Records every notice shown, so tests can check the message. */
 export class Notice {
     static shown: string[] = [];
     static reset() {
@@ -198,7 +203,7 @@ export class Notice {
 
 type KeyHandler = (evt: KeyboardEvent, ctx: KeymapContext) => unknown;
 
-/** Obsidian's keymap scope: the modal owns it, so it needs no teardown. */
+/** Obsidian's keymap scope. The modal owns it, so it needs no cleanup. */
 export class Scope {
     registered: { modifiers: string[] | null; key: string | null; callback: KeyHandler }[] = [];
     constructor(readonly parent?: AppScope | Scope) {}
@@ -231,15 +236,15 @@ export class Modal {
 }
 
 /**
- * Obsidian's suggester: a prompt input whose every keystroke re-runs
- * `getSuggestions` and redraws the list. The real one owns the keyboard and the
- * scrolling; what a test needs is the query-in, choice-out loop, so `type` and
- * `choose` stand in for the reader.
+ * Obsidian's suggester: a prompt input where every key runs `getSuggestions`
+ * again and draws the list again. The real one handles the keyboard and the
+ * scrolling. A test only needs to type a query and get a choice, so `type` and
+ * `choose` act as the reader.
  */
 export abstract class SuggestModal<T> extends Modal {
     inputEl: HTMLInputElement = document.createElement("input");
     resultContainerEl: HTMLElement = document.createElement("div");
-    /** How many suggestions the list holds; the subclass lowers it. */
+    /** How many suggestions the list holds. The subclass lowers it. */
     limit = 100;
     emptyStateText = "No results";
     private suggestions: T[] = [];
@@ -260,7 +265,10 @@ export abstract class SuggestModal<T> extends Modal {
     abstract renderSuggestion(value: T, el: HTMLElement): void;
     abstract onChooseSuggestion(item: T, evt: MouseEvent | KeyboardEvent): void;
 
-    /** Obsidian's own: on screen, the query focused, the unfiltered list drawn. */
+    /**
+     * Like Obsidian's own: shown, with the search field focused and the full
+     * list drawn.
+     */
     open() {
         document.body.appendChild(this.contentEl);
         super.open();
@@ -276,7 +284,7 @@ export abstract class SuggestModal<T> extends Modal {
         this.type("");
     }
 
-    /** Runs the query the reader typed and redraws the list. */
+    /** Runs the query the reader typed and draws the list again. */
     type(query: string) {
         this.inputEl.value = query;
         this.suggestions = this.getSuggestions(query).slice(0, this.limit);
@@ -286,7 +294,9 @@ export abstract class SuggestModal<T> extends Modal {
         }
     }
 
-    /** Picks the nth suggestion, as clicking or pressing Enter on it would. */
+    /**
+     * Chooses the nth suggestion, as clicking it or pressing Enter on it would.
+     */
     choose(index = 0) {
         const suggestion = this.suggestions[index];
         if (suggestion === undefined) return;
@@ -300,7 +310,7 @@ export const MarkdownRenderer = {
 };
 
 export const setIcon = (el: HTMLElement, iconName: string) => {
-    // Record the icon so tests can assert on it; the real setIcon injects SVG.
+    // Record the icon so tests can check it. The real setIcon adds an SVG.
     el.dataset.icon = iconName;
 };
 
@@ -308,7 +318,7 @@ export class MarkdownView {
     file: TFile | null = null;
 }
 
-/** A menu item as the page would show it; `click` runs its handler. */
+/** A menu item as the page would show it. `click` runs its handler. */
 export class MenuItem {
     title = "";
     icon = "";
@@ -351,7 +361,10 @@ export class Menu {
     }
 }
 
-/** Obsidian's own modifier reading: Cmd/Ctrl or middle-click opens a tab. */
+/**
+ * Reads modifier keys the way Obsidian does: Cmd/Ctrl-click or a middle click
+ * opens a tab.
+ */
 export class Keymap {
     static isModEvent(evt?: UserEvent | null): "tab" | "split" | "window" | boolean {
         if (!evt) return false;
@@ -409,7 +422,7 @@ export class PluginSettingTab {
 export class Plugin extends Component {
     app: App;
     manifest: PluginManifest;
-    /** Registrations recorded so tests can invoke what onload() wired up. */
+    /** Registrations, recorded so tests can call what onload() set up. */
     views: Record<string, (leaf: AppLeaf) => ItemView> = {};
     ribbonIcons: { icon: string; title: string; callback: (evt: MouseEvent) => unknown }[] = [];
     commands: Command[] = [];
@@ -448,10 +461,12 @@ export class Plugin extends Component {
     }
 }
 
-/** Mutable, so a test can stand in for either platform. */
+/** Can be changed, so a test can act as either platform. */
 export const Platform = { isMacOS: true, isMobile: false, isPhone: false, isIosApp: false };
 
-/** Obsidian's own YAML, as the real one parses and prints it. */
+/**
+ * Obsidian's own YAML functions, which read and write YAML like the real ones.
+ */
 export function parseYaml(text: string): unknown {
     return parse(text);
 }

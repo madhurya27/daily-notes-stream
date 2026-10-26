@@ -12,7 +12,10 @@ import {
     removeLocalStorageKeys,
 } from "../src/obsidian-internals";
 
-/** Builds an App-shaped object; `config` is the internal vault config under test. */
+/**
+ * Builds an object shaped like App. `config` is the internal vault config being
+ * tested.
+ */
 const makeApp = (config?: unknown): App => ({ vault: { config } }) as unknown as App;
 
 describe("getReadableLineLength", () => {
@@ -34,7 +37,7 @@ describe("getReadableLineLength", () => {
 });
 
 describe("onVaultConfigChange", () => {
-    /** Captures the "raw" subscription so a test can fire paths at it. */
+    /** Keeps the "raw" listener, so a test can send paths to it. */
     function makeVaultApp(configDir: string) {
         let raw: ((path: string) => void) | null = null;
         const ref = {};
@@ -89,7 +92,10 @@ describe("onPostProcessorChange", () => {
 });
 
 describe("openTagSearch", () => {
-    /** An App whose global-search plugin is present, absent, or instance-less. */
+    /**
+     * An App whose global search plugin is present, missing, or has no
+     * instance.
+     */
     function makeSearchApp(plugin: unknown) {
         const getPluginById = vi.fn().mockReturnValue(plugin);
         return { app: { internalPlugins: { getPluginById } } as unknown as App, getPluginById };
@@ -174,7 +180,10 @@ describe("openTagSearch", () => {
 });
 
 describe("getPropertyIcon", () => {
-    /** The type manager's shape: `expected` is the assigned type, `inferred` the value's. */
+    /**
+     * The type manager's shape. `expected` is the type set for the property,
+     * `inferred` the type its value suggests.
+     */
     const makeTypeApp = (getTypeInfo?: unknown): App =>
         ({ metadataTypeManager: getTypeInfo ? { getTypeInfo } : {} }) as unknown as App;
 
@@ -217,7 +226,10 @@ describe("getPropertyIcon", () => {
 });
 
 describe("getSearchHotkeys", () => {
-    /** An app whose hotkey manager holds `custom` and `defaults` for every command. */
+    /**
+     * An app whose hotkey manager holds `custom` and `defaults` for every
+     * command.
+     */
     const withHotkeys = (custom: unknown, defaults: unknown) =>
         ({
             hotkeyManager: {
@@ -261,7 +273,10 @@ describe("getViewTitle", () => {
 });
 
 describe("removeLocalStorageKeys", () => {
-    /** Storage holding `keys`, as several vaults' saveLocalStorage would leave it. */
+    /**
+     * Storage holding `keys`, as several vaults' saveLocalStorage calls would
+     * leave it.
+     */
     function storageOf(...keys: string[]): Storage {
         const storage = new Map(keys.map((key) => [key, "true"]));
         return {
@@ -294,7 +309,10 @@ describe("removeLocalStorageKeys", () => {
 
 describe("getDailyNoteSettings", () => {
     const daily = { format: "YYYY/MM/DD", folder: "Journal", template: "Templates/Day" };
-    /** An app whose core daily-notes plugin holds `core`, and Periodic Notes `periodic`. */
+    /**
+     * An app whose core Daily notes plugin holds `core`, and whose Periodic
+     * Notes holds `periodic`.
+     */
     const appWith = (core?: unknown, periodic?: unknown): App =>
         ({
             internalPlugins: {
@@ -325,7 +343,7 @@ describe("getDailyNoteSettings", () => {
         expect(getDailyNoteSettings(appWith(daily, periodic))).toEqual(daily);
     });
 
-    // Loaded before its settings, as at launch.
+    // Loaded before its settings, as at startup.
     it("keeps the core options while Periodic Notes has no settings yet", () => {
         expect(getDailyNoteSettings(appWith(daily, {}))).toEqual(daily);
     });

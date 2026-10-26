@@ -21,7 +21,7 @@ describe("readDateFormat", () => {
         expect(readDateFormat({ format: "YYYY/MM/", folder: "Notes" }).basename).toBe("YYYY-MM-DD");
     });
 
-    // Obsidian normalizes an unset folder to "/".
+    // normalizePath turns an unset folder into "/".
     it.each([
         ["Notes/", "Notes"],
         ["/Notes", "Notes"],

@@ -1,9 +1,10 @@
 /**
- * The name a phone build shows in its notice on load: two words, easier to
- * match at a glance than a commit and a time. The same code gets the same name.
+ * The name a phone build shows in its notice when it loads: two words, which
+ * are easier to compare at a glance than a commit and a time. The same code
+ * always gets the same name.
  *
  * Run directly, it prints the name of the working tree: the commit, plus any
- * uncommitted change to a tracked file.
+ * changes to tracked files that are not committed.
  */
 import { createHash } from "crypto";
 import { execFileSync } from "child_process";
@@ -95,7 +96,7 @@ const ANIMALS = [
     "zebra",
 ];
 
-/** Two words picked by `seed`'s hash. */
+/** Two words chosen by `seed`'s hash. */
 export function buildName(seed) {
     const hash = createHash("sha256").update(seed).digest();
     return `${ADJECTIVES[hash.readUInt16BE(0) % ADJECTIVES.length]} ${ANIMALS[hash.readUInt16BE(2) % ANIMALS.length]}`;

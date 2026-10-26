@@ -1,21 +1,27 @@
 /**
  * Which notes link to each path: the metadata cache's `resolvedLinks`, turned
- * around. One per plugin, shared by every view. It inverts on first use and
- * again only after `invalidate()`, so a footer looks its note up without
- * scanning every source.
+ * around. There is one for the plugin, shared by every view. It is built on
+ * first use, and again only after `invalidate()`, so a footer can look up its
+ * note without going through every note.
  */
 export class BacklinkIndex {
     private bySource: Map<string, string[]> | null = null;
 
     constructor(private readonly resolvedLinks: () => Record<string, Record<string, number>>) {}
 
-    /** The paths of the notes linking to `path`, sorted; a note's links to itself left out. */
+    /**
+     * The paths of the notes that link to `path`, sorted. A note's links to
+     * itself are left out.
+     */
     sourcesOf(path: string): readonly string[] {
         this.bySource ??= this.invert();
         return this.bySource.get(path) ?? [];
     }
 
-    /** The cache resolved again: the next lookup inverts afresh. */
+    /**
+     * The cache resolved links again, so the next lookup builds the index
+     * again.
+     */
     invalidate(): void {
         this.bySource = null;
     }

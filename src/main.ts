@@ -11,15 +11,21 @@ import { LinkChanges } from "./notes/link-changes";
 import { readDateFormat } from "./notes/daily-note-format";
 import { getDailyNoteSettings, removeLocalStorageKeys } from "./obsidian-internals";
 
-/** Set by esbuild from the environment: the build put on a device to test. Empty in a release. */
+/**
+ * Set by esbuild from the environment: names a build put on a device for
+ * testing. Empty in a release.
+ */
 declare const BUILD_LABEL: string;
 
-/** Unit tests run the source unbundled, where nothing defines it. */
+/** Unit tests run the source without bundling it, where nothing defines it. */
 function buildLabel(): string {
     return typeof BUILD_LABEL === "string" ? BUILD_LABEL : "";
 }
 
-/** A ribbon click or command has no caller to reject to, so a failure is logged. */
+/**
+ * A ribbon click or command has no caller to pass an error to, so a failure is
+ * logged.
+ */
 function logActivationFailure(activation: Promise<unknown>): void {
     activation.catch((error) => console.error("DailyNotesStream: Failed to activate view", error));
 }
@@ -42,7 +48,8 @@ export default class DailyNotesStreamPlugin extends Plugin {
         this.indexEmptyNotes();
         this.followLinkChanges();
 
-        // Each view owns its service (.claude/rules/invariants.md); they share only the parsed dates and verdicts.
+        // Each view has its own service (.claude/rules/invariants.md). They
+        // only share the dates read from file names, and which notes are empty.
         const parsedDates = new ParsedDates();
         const markdownFiles = () => this.app.vault.getMarkdownFiles();
         const dailyNoteSettings = () => getDailyNoteSettings(this.app);
@@ -89,7 +96,8 @@ export default class DailyNotesStreamPlugin extends Plugin {
             },
         });
 
-        // A testing aid, to start from no stored heights: only on a device build.
+        // A help for testing, to start with no saved heights. Only in a device
+        // build.
         if (buildLabel()) {
             this.addCommand({
                 id: "forget-note-heights",
@@ -106,7 +114,10 @@ export default class DailyNotesStreamPlugin extends Plugin {
         this.addSettingTab(new DailyNotesStreamSettingTab(this.app, this));
     }
 
-    /** Collapsed sections follow a note across a rename, and out with a delete, whether or not a stream is open. */
+    /**
+     * Folded sections move with a note when it is renamed, and are removed when
+     * it is deleted, whether or not a stream is open.
+     */
     private rememberCollapse(): void {
         const store = (this.collapseStore = new CollapsibleStateStore(this.app));
         const { vault, workspace } = this.app;
@@ -116,9 +127,10 @@ export default class DailyNotesStreamPlugin extends Plugin {
     }
 
     /**
-     * What the stream measured; a note's measurements follow it across a
-     * rename, and out with a delete. An edit outdates its heights (ADR 0017):
-     * registered before any view opens, so a view hearing of it reads none.
+     * What the stream measured. A note's measurements move with it when it is
+     * renamed, and are removed when it is deleted. An edit makes its heights
+     * out of date (ADR 0017). Registered before any view opens, so a view that
+     * hears about the edit finds no old heights.
      */
     private rememberLayout(): void {
         const memory = (this.layoutMemory = new LayoutMemory(this.app));
@@ -130,7 +142,10 @@ export default class DailyNotesStreamPlugin extends Plugin {
         workspace.onLayoutReady(() => memory.retainOnly(new Set(vault.getMarkdownFiles().map((file) => file.path))));
     }
 
-    /** Every open stream estimates its notes afresh, as on a device that never measured them. */
+    /**
+     * Every open stream estimates its notes' heights again, as on a device that
+     * never measured them.
+     */
     private forgetNoteHeights(): void {
         this.layoutMemory.forgetAll();
         for (const leaf of this.app.workspace.getLeavesOfType(VIEW_TYPE_DAILY_NOTES_STREAM)) {
@@ -138,7 +153,10 @@ export default class DailyNotesStreamPlugin extends Plugin {
         }
     }
 
-    /** Every open stream redraws with nothing folded; the keys builds before D-121 saved go too. */
+    /**
+     * Every open stream draws again with nothing folded. The keys saved by
+     * builds before D-121 are removed too.
+     */
     private forgetCollapseState(): void {
         this.collapseStore.forgetAll();
         removeLocalStorageKeys(this.app, isOldCollapseKey);
@@ -152,8 +170,8 @@ export default class DailyNotesStreamPlugin extends Plugin {
     }
 
     /**
-     * Registered before any view opens, so a view's own `resolved` handler
-     * always looks up an index already told the links changed.
+     * Registered before any view opens, so when a view's own `resolved` handler
+     * runs, the index already knows the links changed.
      */
     private indexBacklinks(): void {
         const { metadataCache } = this.app;
@@ -161,7 +179,10 @@ export default class DailyNotesStreamPlugin extends Plugin {
         this.registerEvent(metadataCache.on("resolved", () => this.backlinks.invalidate()));
     }
 
-    /** Registered after `indexBacklinks`, so a view told of a change reads a current index. */
+    /**
+     * Registered after `indexBacklinks`, so a view told about a change reads an
+     * up-to-date index.
+     */
     private followLinkChanges(): void {
         const { vault, metadataCache } = this.app;
         const changes = (this.linkChanges = new LinkChanges(
@@ -174,7 +195,10 @@ export default class DailyNotesStreamPlugin extends Plugin {
         this.registerEvent(vault.on("rename", (file, oldPath) => changes.onRename(oldPath, file.path)));
     }
 
-    /** Registered before any view opens, so a renamed note's verdict has moved by the time a view looks. */
+    /**
+     * Registered before any view opens, so a renamed note's empty-or-not result
+     * has moved by the time a view checks.
+     */
     private indexEmptyNotes(): void {
         const { vault, metadataCache } = this.app;
         const notes = (this.emptyNotes = new EmptyNotes(
@@ -193,13 +217,16 @@ export default class DailyNotesStreamPlugin extends Plugin {
         this.registerEvent(vault.on("delete", (file) => notes.forget(file.path)));
     }
 
-    /** The stream is the only place a jump means anything, so open it first. */
+    /** A jump only makes sense in the stream, so open it first. */
     private async promptJumpToDate() {
         const leaf = await this.activateView();
         if (leaf.view instanceof DailyNotesStreamView) leaf.view.promptJumpToDate();
     }
 
-    /** Opens the stream as the graph opens: in the current tab, or the pane a mod-click asks for. */
+    /**
+     * Opens the stream the way the graph opens: in the current tab, or in the
+     * pane a Ctrl/Cmd-click asks for.
+     */
     async activateView(pane: PaneType | boolean = false): Promise<WorkspaceLeaf> {
         const { workspace } = this.app;
         const leaf = workspace.getLeaf(pane);
@@ -219,7 +246,7 @@ export default class DailyNotesStreamPlugin extends Plugin {
     async saveSettings() {
         await this.saveData(this.settings);
 
-        // Refresh all stream views
+        // Refresh every stream view.
         const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_DAILY_NOTES_STREAM);
         for (const leaf of leaves) {
             if (leaf.view instanceof DailyNotesStreamView) {

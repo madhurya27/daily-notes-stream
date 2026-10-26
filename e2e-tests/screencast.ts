@@ -5,9 +5,10 @@ import { join } from "path";
 import { writeWebp } from "../scripts/recording.mjs";
 
 /**
- * Records the page while `scene` plays and writes it to `output` as a lossless
- * animated WebP. Frames come from Chromium's screencast, at the display's scale only
- * with the window shown (E2E_SHOW_WINDOW=1), as for screenshots.
+ * Records the page while `scene` plays, and writes it to `output` as a lossless
+ * animated WebP. Frames come from Chromium's screencast. They are only at the
+ * display's scale when the window is shown (E2E_SHOW_WINDOW=1), as for
+ * screenshots.
  */
 export async function record(page: Page, output: string, scene: () => Promise<void>): Promise<void> {
     const cdp = await page.context().newCDPSession(page);
@@ -39,10 +40,11 @@ export async function record(page: Page, output: string, scene: () => Promise<vo
 }
 
 /**
- * Scrolls `distance` pixels over `area` as a trackpad flick does: a burst of
- * wheel events, large at first and easing off, with the unevenness of a real
- * hand. It scrolls from wherever the pointer rests; only a pointer off `area`
- * moves, to the nearest spot inside it. Fixed, so a retake scrolls the same way.
+ * Scrolls `distance` pixels over `area` as a trackpad flick does: a quick
+ * series of wheel events, large at first and then smaller, as uneven as a real
+ * hand. It scrolls from wherever the pointer is. The pointer only moves if it
+ * is outside `area`, to the nearest point inside it. The pattern is fixed, so a
+ * new recording scrolls the same way.
  */
 export async function flick(page: Page, distance: number, area: Locator): Promise<void> {
     const box = await area.boundingBox();
@@ -63,8 +65,9 @@ export async function flick(page: Page, distance: number, area: Locator): Promis
 }
 
 /**
- * Types `text` at a person's pace: each key 90–180 ms apart, a longer beat
- * after a space or punctuation. Fixed, so a retake types the same way.
+ * Types `text` at a person's speed: keys 90–180 ms apart, with a longer pause
+ * after a space or punctuation. The pattern is fixed, so a new recording types
+ * the same way.
  */
 export async function typeLikeAPerson(page: Page, text: string): Promise<void> {
     for (const [i, key] of [...text].entries()) {
@@ -75,10 +78,10 @@ export async function typeLikeAPerson(page: Page, text: string): Promise<void> {
 }
 
 /**
- * Draws what a recording otherwise lacks: the pointer, shaped as macOS shapes
- * it for what is under it and hidden while typing, and each click, as a ring
- * that swells and fades. Without them a tab closing on a click looks like it
- * closed itself.
+ * Draws what a recording would otherwise not show: the pointer, shaped as macOS
+ * shapes it for what is under it and hidden while typing, and each click, as a
+ * ring that grows and fades. Without them, a tab that closes on a click looks
+ * like it closed by itself.
  */
 async function showPointer(page: Page, resting?: { x: number; y: number }): Promise<void> {
     await page.evaluate((resting) => {
@@ -104,7 +107,7 @@ async function showPointer(page: Page, resting?: { x: number; y: number }): Prom
             window.setTimeout(() => el.remove(), ms + 100);
         };
 
-        // The shapes macOS draws, each with the point that is its hotspot.
+        // The shapes macOS draws, each with the point that is its tip.
         const outline = 'stroke="#fff" stroke-width="3.5" stroke-linecap="round" fill="none"';
         const ink = 'stroke="#111" stroke-width="1.4" stroke-linecap="round" fill="none"';
         const beam = "M8 3.5c1.5 0 2.5.5 3 1.5.5-1 1.5-1.5 3-1.5M11 5v12M8 18.5c1.5 0 2.5-.5 3-1.5.5 1 1.5 1.5 3 1.5";
@@ -126,7 +129,10 @@ async function showPointer(page: Page, resting?: { x: number; y: number }): Prom
         };
         type Shape = keyof typeof shapes;
 
-        /** What macOS shows at (x, y): CSS `auto` is an I-beam over text or anything editable. */
+        /**
+         * What macOS shows at (x, y). CSS `auto` is a text cursor over text or
+         * anything editable.
+         */
         const shapeAt = (x: number, y: number): Shape => {
             const el = document.elementFromPoint(x, y) as HTMLElement | null;
             if (!el) return "arrow";
@@ -156,7 +162,8 @@ async function showPointer(page: Page, resting?: { x: number; y: number }): Prom
             pointer.style.transform = `translate(${x - hx}px, ${y - hy}px)`;
             pointer.style.visibility = "visible";
         };
-        // Where the hand already rests; off screen until it moves when nothing says.
+        // Where the hand already is. Off screen until it moves, if nothing sets
+        // it.
         if (resting) place(resting.x, resting.y);
         else pointer.style.visibility = "hidden";
         document.addEventListener("mousemove", (event) => place(event.clientX, event.clientY), true);
@@ -175,13 +182,14 @@ async function showPointer(page: Page, resting?: { x: number; y: number }): Prom
     }, resting);
 }
 
-/** Where each page's pointer last went, and how many glides it has made. */
+/** Where each page's pointer last went, and how many moves it has made. */
 const pointers = new WeakMap<Page, { x: number; y: number; glides: number }>();
 
 /**
- * Moves the pointer to (x, y) as a hand does: along a slight arc, speeding up
- * then slowing down, longer trips taking longer, and landing a few pixels past
- * the target before settling on it. Fixed, so a retake moves the same way.
+ * Moves the pointer to (x, y) as a hand does: along a slight curve, speeding up
+ * then slowing down, taking longer for longer moves, and going a few pixels
+ * past the target before coming back to it. The pattern is fixed, so a new
+ * recording moves the same way.
  */
 export async function glideTo(page: Page, x: number, y: number): Promise<void> {
     const from = pointers.get(page) ?? { x: x + 160, y: y + 120, glides: 0 };
@@ -189,10 +197,11 @@ export async function glideTo(page: Page, x: number, y: number): Promise<void> {
     const dy = y - from.y;
     const distance = Math.hypot(dx, dy);
     if (distance < 1) return;
-    // The arc bows to alternate sides, as a wrist pivots one way then the other.
+    // The curve bends to one side, then the other, as a wrist turns one way
+    // then the other.
     const bow = (from.glides % 2 === 0 ? 1 : -1) * Math.min(60, distance * 0.12);
     const control = { x: from.x + dx / 2 - (dy / distance) * bow, y: from.y + dy / 2 + (dx / distance) * bow };
-    // Overshoot along the direction of travel, then come back.
+    // Go a little past, in the direction of the move, then come back.
     const past = Math.min(6, distance * 0.03);
     const end = { x: x + (dx / distance) * past, y: y + (dy / distance) * past };
     const steps = Math.round(Math.min(40, 14 + distance / 25));
@@ -213,26 +222,35 @@ export async function glideTo(page: Page, x: number, y: number): Promise<void> {
     pointers.set(page, { x, y, glides: from.glides + 1 });
 }
 
-/** Puts the pointer at (x, y) at once: where a hand rests before the recording starts. */
+/**
+ * Puts the pointer at (x, y) at once: where a hand is before the recording
+ * starts.
+ */
 export async function restAt(page: Page, x: number, y: number): Promise<void> {
     await page.mouse.move(x, y);
     pointers.set(page, { x, y, glides: 0 });
 }
 
-/** Drifts the pointer a short way down and left, as a hand eases off a button it clicked. */
+/**
+ * Moves the pointer a little down and left, as a hand moves away from a button
+ * it clicked.
+ */
 export async function driftOff(page: Page): Promise<void> {
     const at = pointers.get(page);
     if (at) await glideTo(page, at.x - 46, at.y + 58);
 }
 
-/** Glides to the middle of `target` and clicks it, holding `modifiers` as it does. */
+/**
+ * Moves to the middle of `target` and clicks it, holding `modifiers` while it
+ * does.
+ */
 export async function clickLikeAPerson(page: Page, target: Locator, modifiers: string[] = []): Promise<void> {
     const box = await target.boundingBox();
     if (!box) throw new Error("nothing on screen to click");
     await clickAt(page, box.x + box.width / 2, box.y + box.height / 2, modifiers);
 }
 
-/** Glides to (x, y) and clicks there, holding `modifiers` as it does. */
+/** Moves to (x, y) and clicks there, holding `modifiers` while it does. */
 export async function clickAt(page: Page, x: number, y: number, modifiers: string[] = []): Promise<void> {
     await glideTo(page, x, y);
     await page.waitForTimeout(180);

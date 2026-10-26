@@ -44,8 +44,8 @@ describe("release workflow", () => {
         for (const asset of RELEASE_ASSETS) expect(script()).toContain(asset);
     });
 
-    // Lets anyone check, with `gh attestation verify`, that an asset was built
-    // here from this repo; the directory's review recommends it.
+    // Lets anyone check, with `gh attestation verify`, that a release file was
+    // built here from this repo. The directory's review recommends it.
     it("attests each release asset's provenance before it releases them", () => {
         const all = steps();
         const attest = all.findIndex((step) => step.uses?.startsWith("actions/attest-build-provenance@"));
@@ -58,8 +58,8 @@ describe("release workflow", () => {
     });
 
     it("refuses a tag that does not match the manifest version", () => {
-        // A mismatched tag is the failure Obsidian's review bot catches for us
-        // only after submission; the release itself should catch it first.
+        // Obsidian's review bot only catches a tag that does not match after
+        // submission. The release itself should catch it first.
         expect(script()).toMatch(/manifest\.json/);
         expect(script()).toMatch(/exit 1/);
     });
@@ -81,8 +81,8 @@ describe("release workflow", () => {
     });
 
     it("pins the pnpm version the setup action resolves", () => {
-        // pnpm/action-setup takes no version input here, so it reads
-        // package.json#packageManager; without it the job fails outright.
+        // pnpm/action-setup gets no version here, so it reads
+        // package.json#packageManager. Without that, the job fails at once.
         const pkg = JSON.parse(readFileSync(resolve(repoRoot, "package.json"), "utf8")) as {
             packageManager?: string;
         };
@@ -90,9 +90,9 @@ describe("release workflow", () => {
     });
 
     it("runs a Node version the pinned pnpm can start under", () => {
-        // setup-node's `cache: pnpm` shells out to pnpm before anything else
-        // runs, so a Node older than pnpm's floor fails the job at setup.
-        // pnpm 11 requires Node >= 22.13; jsdom and vitest rule out 21 and 23.
+        // setup-node's `cache: pnpm` runs pnpm before anything else, so a Node
+        // older than pnpm's minimum fails the job at setup. pnpm 11 needs Node
+        // 22.13 or later, and jsdom and vitest do not support 21 and 23.
         const PNPM_NODE_FLOOR: Record<string, number> = { "11": 22 };
         const pkg = JSON.parse(readFileSync(resolve(repoRoot, "package.json"), "utf8")) as {
             packageManager: string;

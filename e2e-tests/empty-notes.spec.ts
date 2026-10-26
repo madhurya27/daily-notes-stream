@@ -17,17 +17,20 @@ import {
 const TEMPLATE_PATH = "Templates/Daily.md";
 const OTHER_TEMPLATE_PATH = "Templates/Other.md";
 const TEMPLATE = "---\ntags: daily\n---\n# {{date:dddd, MMMM D}}\n\n## Log\n- \n";
-/** A day after the newest seeded note, holding only its template. */
+/** A day after the newest test note, holding only its template. */
 const EMPTY_DAY = "2026-03-15";
 const EMPTY_NOTE = `Notes/${EMPTY_DAY}.md`;
-/** The only note in a folder of its own: every daily note there is empty. */
+/** The only note in a folder of its own, so every daily note there is empty. */
 const ONLY_EMPTY_NOTE = `Empty/${EMPTY_DAY}.md`;
-/** Not a daily note: it links to the empty one. */
+/** Not a daily note. It links to the empty one. */
 const MENTIONING_NOTE = "Meeting.md";
-/** Not a daily note: embedded in one. */
+/** Not a daily note. It is embedded in one. */
 const EMBEDDED_NOTE = "Embedded.md";
 const EMPTY_TEXT = "---\ntags: daily\n---\n# Sunday, March 15\n\n## Log\n- \n";
-/** Empty notes older than every other, together taller than the pane: the stream's whole end. */
+/**
+ * Empty notes older than all the others, together taller than the pane. They
+ * make up the whole end of the stream.
+ */
 const OLD_EMPTY_NOTES = ["01", "02", "03", "04", "05", "06"].map((day) => `Notes/2020-01-${day}.md`);
 
 async function setShowLinkedMentions(page: Page, on: boolean) {
@@ -251,7 +254,8 @@ test.describe("empty daily notes", () => {
             } finally {
                 vault.cachedRead = cachedRead;
             }
-            // What the stream drew reads each note too; only the check is under test.
+            // Drawing the stream also reads each note. Only the check is being
+            // tested.
             const drawn = new Set(
                 [...document.querySelectorAll<HTMLElement>(".daily-note-block:not(.is-unloaded)")].map(
                     (el) => el.dataset.sourcePath
@@ -292,14 +296,15 @@ test.describe("empty daily notes", () => {
         test("keeps the note being read at the top right after scrolling to it", async ({ obsidian }) => {
             const { page } = obsidian;
             const reading = `Notes/${seededDate(10)}.md`;
-            // Above the reader, far taller than its text: its estimate is short.
+            // Above the reader, much taller than its text, so its estimate is
+            // too short.
             const tall = `Notes/${seededDate(8)}.md`;
             const text = await page.evaluate((path) => window.app.vault.adapter.read(path), tall);
             await writeNote(page, EMBEDDED_NOTE, Array.from({ length: 80 }, (_, i) => `Line ${i}`).join("\n\n"));
             await writeNote(page, tall, `${text}\n![[Embedded]]\n`);
             try {
                 const pane = (await openStream(page)).locator("xpath=..");
-                // Its batch loads as the end comes into view.
+                // Its batch loads when the end comes into view.
                 await pane.evaluate((el) => el.scrollTo({ top: el.scrollHeight, behavior: "instant" }));
                 await readAt(page, reading);
                 const before = await offsetOf(page, reading);
@@ -307,7 +312,8 @@ test.describe("empty daily notes", () => {
                 await setHideEmptyNotes(page, false);
 
                 await expect(block(page, EMPTY_NOTE)).toHaveCount(1);
-                // Mobile scrolls in half pixels: each correction of the scroll may land a quarter off.
+                // Mobile scrolls in half pixels, so each correction of the
+                // scroll may be a quarter of a pixel off.
                 await expect.poll(async () => Math.abs((await offsetOf(page, reading)) - before)).toBeLessThan(1);
             } finally {
                 await writeNote(page, tall, text);
@@ -326,7 +332,10 @@ test.describe("empty daily notes", () => {
             await expect.poll(() => offsetOf(page, `Notes/${seededDate(0)}.md`)).toBeCloseTo(0, 0);
         });
 
-        /** Hides the empty notes at the stream's end with the pane scrolled to it: the pane ends at the stream's new end. */
+        /**
+         * Hides the empty notes at the stream's end while the pane is scrolled
+         * there. The pane then ends at the stream's new end.
+         */
         async function hideAtTheEnd(page: Page) {
             for (const path of OLD_EMPTY_NOTES) await writeNote(page, path, EMPTY_TEXT);
             await setHideEmptyNotes(page, false);
@@ -334,7 +343,7 @@ test.describe("empty daily notes", () => {
             await scrollThroughStream(container);
             const pane = container.locator("xpath=..");
             const oldest = OLD_EMPTY_NOTES[0]!;
-            // Each batch loads as the end comes into view.
+            // Each batch loads when the end comes into view.
             await expect
                 .poll(async () => {
                     await pane.evaluate((el) => el.scrollTo({ top: el.scrollHeight, behavior: "instant" }));

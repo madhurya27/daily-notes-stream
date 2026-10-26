@@ -1,12 +1,13 @@
-// Captures a USB-connected iPhone's screen, as QuickTime does, until stopped
-// by SIGTERM or SIGINT: every frame the phone sends, scaled to `width`, as a
-// PNG named by the Unix time in ms it arrived. Prints "capturing" with the
-// first frame. iOS draws a clean status bar while captured.
+// Records the screen of an iPhone connected by USB, as QuickTime does, until
+// stopped by SIGTERM or SIGINT. Saves every frame the phone sends, scaled to
+// `width`, as a PNG named by the Unix time in ms when it arrived. Prints
+// "capturing" with the first frame. iOS draws a clean status bar while it is
+// recorded.
 //
 //   swift -O scripts/capture-iphone.swift <frames dir> <width>
 //
-// Started after a WebDriverAgent session, it drops that session's connection:
-// start it first.
+// If started after a WebDriverAgent session, it drops that session's
+// connection, so start it first.
 import AVFoundation
 import CoreImage
 import CoreMediaIO
@@ -26,7 +27,7 @@ guard arguments.count == 3, let width = Double(arguments[2]) else {
 let directory = URL(fileURLWithPath: arguments[1])
 try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
 
-// Off by default: without it, no iPhone is listed as a capture device.
+// Off by default. Without it, no iPhone is listed as a recording device.
 var allow = CMIOObjectPropertyAddress(
     mSelector: CMIOObjectPropertySelector(kCMIOHardwarePropertyAllowScreenCaptureDevices),
     mScope: CMIOObjectPropertyScope(kCMIOObjectPropertyScopeGlobal),
@@ -35,7 +36,10 @@ var on: UInt32 = 1
 CMIOObjectSetPropertyData(
     CMIOObjectID(kCMIOObjectSystemObject), &allow, 0, nil, UInt32(MemoryLayout<UInt32>.size), &on)
 
-/** The phone's screen, listed some seconds after capture devices are allowed. */
+/**
+ * The phone's screen, which is listed a few seconds after recording devices are
+ * allowed.
+ */
 func iPhoneScreen() -> AVCaptureDevice? {
     for _ in 0..<100 {
         let found = AVCaptureDevice.DiscoverySession(
@@ -99,7 +103,7 @@ for signalNumber in [SIGTERM, SIGINT] {
     let stop = DispatchSource.makeSignalSource(signal: signalNumber, queue: .main)
     stop.setEventHandler {
         session.stopRunning()
-        // The last frame handed over, then every write finished.
+        // The last frame has arrived, then every write has finished.
         frames.sync {}
         writer.pending.wait()
         exit(0)

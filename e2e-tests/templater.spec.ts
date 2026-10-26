@@ -2,7 +2,7 @@ import { installPinned, TEMPLATER } from "./pinned-plugin";
 import { test, expect, openStream, setHideEmptyNotes, writeDailyNotesConfig, DAILY_NOTES_CONFIG } from "./obsidian";
 
 const TEMPLATE_PATH = "Templates/Daily.md";
-/** A journal's daily-notes template, filled in only by Templater. */
+/** A journal's daily notes template, filled in only by Templater. */
 const TEMPLATE = [
     "---",
     "type: Journal",
@@ -18,7 +18,7 @@ const TEMPLATE = [
     "- ",
     "",
 ].join("\n");
-/** Newer than every seeded note: it would head the stream if shown. */
+/** Newer than every test note, so it would be first in the stream if shown. */
 const NOTE = "Notes/2026-03-20.md";
 
 let uninstall: () => Promise<void>;
@@ -29,7 +29,8 @@ const read = (page: Parameters<typeof openStream>[0]) =>
 test.beforeEach(async ({ obsidian }) => {
     const { page, vaultPath } = obsidian;
     await setHideEmptyNotes(page, true);
-    // Device-local, where Templater's own switch saves it: the setting runs code on a file's creation.
+    // Saved on this device only, where Templater's own switch saves it, because
+    // the setting runs code when a file is created.
     await page.evaluate(() =>
         window.app.saveLocalStorage("templater-local-settings", { trigger_on_file_creation: true })
     );
@@ -47,7 +48,8 @@ test.beforeEach(async ({ obsidian }) => {
             page.evaluate(() => window.app.internalPlugins.getPluginById("daily-notes").instance.options.template)
         )
         .toBe("Templates/Daily");
-    // Core Daily notes creates the note with its template's text; Templater then fills it in.
+    // The core Daily notes plugin creates the note with its template's text,
+    // and Templater then fills it in.
     await page.evaluate(
         async ({ path, text }) => {
             await window.app.vault.create(path, text);

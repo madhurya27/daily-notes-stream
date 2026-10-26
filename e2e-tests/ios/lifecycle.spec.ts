@@ -13,20 +13,22 @@ test("back from the Home Screen, the stream is where it was, and a flick still g
     expect(shown, "the stream drew no frame on return").not.toEqual([]);
     for (const { path, offset } of shown) {
         expect(path).toBe(left.path);
-        // Rounded either side of a half pixel: not a jump.
+        // Rounded to either side of a half pixel, which is not a jump.
         expect(Math.abs(offset - left.offset), `shown at ${offset}, left at ${left.offset}`).toBeLessThanOrEqual(1);
     }
     expect(await phone.glideEnding("up")).not.toBe("cut short");
 });
 
-// The glide up ends at the top as the notes above render: the stream must not
-// hold the reader's place short of it once the glide stops (ADR 0013).
+// The scroll up ends at the top while the notes above are drawn. Once the
+// scroll stops, the stream must not keep the reader's place below the top (ADR
+// 0013).
 test("after a quit and a jump to an old date, flicks up stop on the newest note, and it stays", async ({ phone }) => {
     await phone.openStream();
     const top = await phone.newestOffset();
     await phone.flick("up", 3);
     await phone.relaunch();
-    // As on a first open, or after a change of width: every note above is an estimate.
+    // As on a first open, or after a change of width: every note above has an
+    // estimated height.
     await phone.forgetHeights();
     await phone.openStream();
     await phone.jumpTo("2026-09-12");

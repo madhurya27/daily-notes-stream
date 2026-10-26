@@ -3,7 +3,10 @@ import { test, expect, openStream } from "./obsidian";
 
 const STREAM = "daily-notes-stream-view";
 
-/** A note open in the active tab, alone: nothing an earlier test left behind. */
+/**
+ * A note open on its own in the active tab, with nothing left behind by an
+ * earlier test.
+ */
 async function openNoteAlone(page: Page) {
     await page.evaluate(async (type) => {
         window.app.workspace.detachLeavesOfType(type);
@@ -73,7 +76,8 @@ test.describe("opening the stream", () => {
         const { page } = obsidian;
         await openStream(page);
 
-        // A name missing from Obsidian's icon set draws nothing, silently.
+        // A name missing from Obsidian's icon set draws nothing, without any
+        // error.
         const ribbon = page.locator('.side-dock-ribbon-action[aria-label="Open daily notes stream"] svg');
         const tab = page.locator(".mod-root .workspace-tab-header.is-active .workspace-tab-header-inner-icon svg");
         await expect(ribbon).toHaveClass(/lucide-gallery-vertical-end/);

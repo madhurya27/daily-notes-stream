@@ -1,16 +1,19 @@
 /**
- * Lays the community listing's raw captures out as cards: a headline above
- * the stream's pane or a pair of phones for its desktop screenshots, above one
- * phone for its mobile ones. Run by `pnpm run
- * capture:listing` once `e2e-tests/listing.spec.ts` has taken the captures.
- * Avenir Next ships with macOS; elsewhere the headline falls back to sans-serif.
+ * Lays out the raw screenshots for the plugin directory as images with a
+ * headline: above the stream's pane or a pair of phones for the desktop images,
+ * and above one phone for the mobile images. `pnpm run capture:listing` runs it
+ * once `e2e-tests/listing.spec.ts` has taken the screenshots. Avenir Next comes
+ * with macOS; on other systems the headline uses sans-serif.
  */
 import { webkit } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "fs";
 import { join, resolve } from "path";
 import { isMain } from "./reload-plugin.mjs";
 
-/** Each layout's size in CSS pixels; rendered at twice it, the listing's 2400x1600 and 900x1600. */
+/**
+ * Each layout's size in CSS pixels. Drawn at twice this size, to give the
+ * directory's 2400x1600 and 900x1600.
+ */
 const SIZES = {
     pane: { width: 1200, height: 800 },
     phones: { width: 1200, height: 800 },
@@ -19,10 +22,10 @@ const SIZES = {
 
 /**
  * @typedef {{ name: string, headline: string, subtitle: string, layout: keyof SIZES, shots: string[] }} Card
- * A headline's words between asterisks show in the accent colour.
+ * Words in a headline between asterisks are shown in the accent color.
  */
 
-/** What each feature's cards say, on desktop and phone alike. */
+/** What each feature's images say, the same on desktop and phone. */
 const COPY = {
     stream: {
         headline: "Your journal,\nas *one long page*.",
@@ -44,7 +47,7 @@ const COPY = {
 
 const FEATURES = /** @type {(keyof COPY)[]} */ (Object.keys(COPY));
 
-/** The listing's desktop screenshots: the stream's pane, then a pair of phones. */
+/** The directory's desktop images: the stream's pane, then a pair of phones. */
 /** @type {Card[]} */
 export const DESKTOP_CARDS = [
     ...FEATURES.map((feature, index) => ({
@@ -62,7 +65,10 @@ export const DESKTOP_CARDS = [
     },
 ];
 
-/** The listing's mobile screenshots: one phone each, the last in the dark theme. */
+/**
+ * The directory's mobile images: one phone each, the last one in the dark
+ * theme.
+ */
 /** @type {Card[]} */
 export const PHONE_CARDS = [
     ...FEATURES.map((feature, index) => ({
@@ -86,8 +92,8 @@ function escape(text) {
 }
 
 /**
- * A headline or subtitle as HTML, its words between asterisks in `<em>`, and a newline a
- * break that only the narrow phone cards take.
+ * A headline or subtitle as HTML, with words between asterisks in `<em>`, and a
+ * newline as a line break that only the narrow phone images use.
  * @param {string} text
  */
 export function cardTextHtml(text) {
@@ -131,7 +137,7 @@ br.narrow { display: none; }
 `;
 
 /**
- * The card as a page, its screenshots named relative to it.
+ * The image as a page, with its screenshots' paths relative to it.
  * @param {Card} card
  */
 export function cardHtml({ headline, subtitle, layout, shots }) {
@@ -151,7 +157,8 @@ ${shown}
 }
 
 /**
- * Renders `cards` from the captures in `rawDir` to `outDir`, at twice their size.
+ * Draws `cards` from the screenshots in `rawDir` into `outDir`, at twice their
+ * size.
  * @param {Card[]} cards
  * @param {string} rawDir
  * @param {string} outDir
@@ -165,7 +172,8 @@ export async function renderCards(cards, rawDir, outDir) {
             const html = join(rawDir, `${card.layout}-${card.name}.html`);
             writeFileSync(html, cardHtml(card));
             await page.goto(`file://${html}`);
-            // Loaded is not yet drawn: a screenshot can catch an image before it decodes.
+            // Loaded does not mean drawn: a screenshot can catch an image
+            // before it is decoded.
             await page.evaluate(() =>
                 Promise.all([document.fonts.ready, ...[...document.images].map((img) => img.decode())])
             );

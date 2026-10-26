@@ -1,23 +1,29 @@
 import { test, expect, openStream } from "./obsidian";
 
-/** Newer than every seeded note, so it renders as the stream opens. */
+/** Newer than every test note, so it is drawn as the stream opens. */
 const NOTE = "Notes/2026-03-16.md";
 const PAGE = "about:blank#video";
-/** What happened to one frame: each page it was given, and its shade each time it was held. */
+/**
+ * What happened to one frame: each page it was given, and its background color
+ * each time it was held.
+ */
 type FrameLog = { srcs: (string | null)[]; shades: string[] };
 
-// A frame starting its page mid-glide ends an iOS glide (D-087): on mobile
-// the page waits for the scroll to be still, then loads; desktop loads it at once.
+// A frame that starts loading its page while scrolling stops iOS's scrolling
+// (D-087). On mobile, the page waits for scrolling to stop, then loads. Desktop
+// loads it at once.
 test("a frame in a note gets its page, on mobile once the stream is still, shaded until then", async ({
     obsidian,
     mobileLayout,
 }) => {
     const { page } = obsidian;
-    // As an earlier spec leaves it: a stream open, which renders the note too.
+    // As an earlier test leaves it: with a stream open, which draws the note
+    // too.
     await openStream(page);
     await page.evaluate(
         async ({ note, src }) => {
-            // By frame: a stream left open holds its own copy of the note's frame.
+            // For each frame, because a stream left open holds its own copy of
+            // the note's frame.
             const logs = new WeakMap<HTMLIFrameElement, FrameLog>();
             Object.assign(window, { frameLogs: logs });
             new MutationObserver((records) => {
@@ -49,7 +55,8 @@ test("a frame in a note gets its page, on mobile once the stream is still, shade
                 ) ?? { srcs: [], shades: [] }
         );
         expect(log.srcs).toEqual(mobileLayout ? [null, PAGE] : []);
-        // Meanwhile a placeholder: Obsidian's secondary background.
+        // Meanwhile a placeholder is shown, in Obsidian's secondary background
+        // color.
         const secondary = await page.evaluate(() => {
             const probe = document.body.appendChild(document.createElement("div"));
             probe.style.backgroundColor = "var(--background-secondary)";
@@ -66,11 +73,12 @@ test("a frame in a note gets its page, on mobile once the stream is still, shade
     }
 });
 
-// The player fails inside the app, and its page would end a glide (D-088).
+// The player does not work inside the app, and its page would stop scrolling
+// (D-088).
 test("on mobile a YouTube embed is its thumbnail, a link to the video", async ({ obsidian, mobileLayout }) => {
     const { page } = obsidian;
     await page.evaluate(
-        // Returning the TFile would serialize the whole app.
+        // Returning the TFile would try to send the whole app.
         async (note) => {
             await window.app.vault.create(
                 note,
@@ -90,7 +98,8 @@ test("on mobile a YouTube embed is its thumbnail, a link to the video", async ({
         await expect(block.locator("iframe")).toHaveCount(0);
         const link = block.locator("a.daily-note-video");
         await expect(link).toHaveAttribute("href", "https://www.youtube.com/watch?v=aqz-KE-bpKQ&t=30");
-        // The player's shape, across the note, the play button at its middle.
+        // The player's shape, as wide as the note, with the play button in the
+        // middle.
         const [box, play, content] = await Promise.all([
             link.boundingBox(),
             link.locator(".daily-note-video-play").boundingBox(),
@@ -100,7 +109,7 @@ test("on mobile a YouTube embed is its thumbnail, a link to the video", async ({
         expect(box!.height).toBeCloseTo((box!.width * 315) / 560, 0);
         expect(play!.x + play!.width / 2).toBeCloseTo(box!.x + box!.width / 2, 0);
         expect(play!.y + play!.height / 2).toBeCloseTo(box!.y + box!.height / 2, 0);
-        // Spaced as a paragraph is, where the player sat in a line of its own.
+        // Spaced like a paragraph, where the player was on a line of its own.
         const [margins, paragraph] = await link.evaluate((el) => {
             const probe = document.body.appendChild(document.createElement("p"));
             probe.style.marginBlock = "var(--p-spacing)";
@@ -110,7 +119,7 @@ test("on mobile a YouTube embed is its thumbnail, a link to the video", async ({
             return [[style.marginTop, style.marginBottom], spacing];
         });
         expect(margins).toEqual([paragraph, paragraph]);
-        // No arrow after it, as Obsidian draws after a web link.
+        // No arrow after it, unlike the one Obsidian draws after a web link.
         expect(await link.evaluate((el) => getComputedStyle(el).backgroundImage)).toBe("none");
     } finally {
         await page.evaluate(async (note) => {
@@ -120,8 +129,9 @@ test("on mobile a YouTube embed is its thumbnail, a link to the video", async ({
     }
 });
 
-// A page in a frame would scroll inside it, ending the flick that should
-// scroll the stream: on mobile it is a preview, a link to the page.
+// A page in a frame would scroll inside it, which ends the flick that should
+// scroll the stream. On mobile, it is shown as a preview that links to the
+// page.
 test("on mobile a web page in a frame is a preview, a tap on it the link's", async ({ obsidian, mobileLayout }) => {
     const { page } = obsidian;
     const site = "https://example.com/map";
@@ -142,7 +152,8 @@ test("on mobile a web page in a frame is a preview, a tap on it the link's", asy
             return;
         }
         await expect(link).toHaveAttribute("href", site);
-        // What a finger lands on at the frame's middle, and the link's box against the frame's.
+        // What a finger lands on in the middle of the frame, and the link's box
+        // compared with the frame's.
         const [tapped, linkBox, frameBox] = await Promise.all([
             frame.evaluate((el) => {
                 const box = el.getBoundingClientRect();

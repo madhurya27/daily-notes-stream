@@ -1,164 +1,174 @@
 # Architecture
 
-An Obsidian plugin that shows every daily note, newest first, as one read-only
-infinite scroll. Invariants that span files are in
-[.claude/rules/invariants.md](../.claude/rules/invariants.md); rationale is in
-[adr/](adr/) and [DECISIONS.md](DECISIONS.md). Files are kebab-case, grouped by
-job (D-023).
+An Obsidian plugin that shows every daily note, newest first, on one read-only
+page that loads more as you scroll. Rules that involve more than one file are in
+[.claude/rules/invariants.md](../.claude/rules/invariants.md). The reasons for
+the design are in [adr/](adr/) and [DECISIONS.md](DECISIONS.md). File names are
+kebab-case, and files are grouped by what they do (D-023).
 
 ## Layers
 
 ```
-main.ts               plugin: shared indexes and stores, one per plugin
-└─ ui/stream-view     one per open tab: Obsidian events → the stream
-   ├─ notes/          which files are daily notes, in what order, which hidden
-   ├─ stream/         what is loaded, where blocks sit, what is rendered, scroll
-   └─ render/         one note's DOM: markdown, properties, Bases, footer
+main.ts               the plugin: indexes and stores shared by all views, one of each
+└─ ui/stream-view     one for each open tab: passes Obsidian's events to the stream
+   ├─ notes/          which files are daily notes, in what order, and which are hidden
+   ├─ stream/         what is loaded, where blocks are, what is drawn, and scrolling
+   └─ render/         one note's DOM: Markdown, properties, Bases and the footer
 ```
 
-`stream/` knows notes as `TFile`s and hands a block to `render/` to fill. The
-one crossing back is Bases: `render/bases/` shares the height hold and layout
-memory with `stream/`, which in turn finds Base placeholders by their class.
+`stream/` knows notes as `TFile`s, and gives a block to `render/` to fill. Bases
+are the one exception to this direction: `render/bases/` uses the same height
+hold and layout memory as `stream/`, and `stream/` finds Base placeholders by
+their CSS class.
 
 ## Ownership
 
-Per plugin, shared by views:
+One for the plugin, shared by all views:
 
-- `ParsedDates` — each path's date, so a later open parses only what is new.
-- `BacklinkIndex` — inverted `resolvedLinks`.
-- `EmptyNotes` — template-only verdicts; `template-match.ts` reads the template
-  as a pattern.
+- `ParsedDates` — the date of each path, so opening a view again only reads the
+  dates of new files.
+- `BacklinkIndex` — `resolvedLinks` turned around: for each note, the notes that
+  link to it.
+- `EmptyNotes` — which notes hold only their template. `template-match.ts` reads
+  the template as a pattern.
 - `LinkChanges` — which daily notes gained or lost a link.
-- `LayoutMemory` — heights (`note-heights.ts`), too-wide Bases
-  (`layout-table.ts`) and the template's height, per layout.
-- `CollapsibleStateStore` — collapsed sections.
+- `LayoutMemory` — for each layout: note heights (`note-heights.ts`), Bases that
+  are too wide (`layout-table.ts`) and the template's height.
+- `CollapsibleStateStore` — which sections are collapsed.
 
-Per view: `DailyNoteService` (daily notes, nested folders included, newest
-first), `NoteStream` with its window, blocks and state, `NoteRenderer`,
-`CollapsibleManager`, `StreamSearch`, `SearchBar`.
+One for each view: `DailyNoteService` (the daily notes, including those in
+nested folders, newest first), `NoteStream` with its window, blocks and state,
+`NoteRenderer`, `CollapsibleManager`, `StreamSearch` and `SearchBar`.
 
-The plugin registers its `vault`/`metadataCache` listeners before any view
-opens, so a view's own handler always reads an index already updated.
+The plugin adds its `vault` and `metadataCache` listeners before any view opens.
+So when a view's own handler runs, the shared indexes are already up to date.
 
 ## Flow
 
-1. **Open.** The view listens for vault changes, then awaits
-   `service.initialize()`, which lists the vault's daily notes through the
-   empty-notes filter ([ADR 0011](adr/0011-hide-template-only-notes.md)), then
-   `stream.open()`. Vault events heard meanwhile wait in the view's queue until
-   then.
-2. **Load.** A sentinel after the last block (`infinite-scroll.ts`) comes into
-   view; `NoteStream` appends the next batch of 10 as empty blocks, placed and
-   indexed by path in `stream-blocks.ts`. The service counts how many it has
-   loaded, its `streamLength` (D-118).
-3. **Render.** `NoteWindowManager` (`note-window.ts`) works with three margins,
-   measured in pane heights from the screen: it renders blocks within 1.5 panes,
-   hides blocks past 4, and, once the scroll is still, empties blocks past 12,
-   keeping every block's height
+1. **Open.** The view starts listening for vault changes. Then it waits for
+   `service.initialize()`, which lists the vault's daily notes and leaves out
+   the empty ones ([ADR 0011](adr/0011-hide-template-only-notes.md)). Then it
+   waits for `stream.open()`. Vault events that arrive in the meantime wait in
+   the view's queue until then.
+2. **Load.** An empty element after the last block (`infinite-scroll.ts`)
+   scrolls into view. `NoteStream` then adds the next batch of 10 notes as empty
+   blocks. `stream-blocks.ts` places them and indexes them by path. The service
+   counts how many notes it has loaded: its `streamLength` (D-118).
+3. **Render.** `NoteWindowManager` (`note-window.ts`) uses three distances from
+   the screen, measured in heights of the pane. It draws blocks within 1.5
+   panes, hides blocks further than 4, and, once scrolling stops, empties blocks
+   further than 12. Every block keeps its height
    ([ADR 0006](adr/0006-unload-off-screen-notes.md),
    [ADR 0023](adr/0023-hide-far-content-as-it-leaves.md)). A hidden note's
-   content leaves the layout while its block keeps its pinned height. A long
-   note's runs hide behind spacers (`far-runs.ts`,
-   [ADR 0021](adr/0021-hide-far-runs-of-long-notes.md)), watched by
-   `far-run-watch.ts`. Both show again as they come back near the screen. Each
-   rendered note owns a child `Component`, discarded on unload. A long note the
-   reader comes up into draws from its end
+   content is taken out of the layout, while its block keeps its fixed height.
+   Parts of a long note far from the screen are replaced by empty spacers
+   (`far-runs.ts`, [ADR 0021](adr/0021-hide-far-runs-of-long-notes.md)), and
+   `far-run-watch.ts` watches them. Hidden notes and hidden parts show again
+   when they come back near the screen. Each drawn note owns a child
+   `Component`, which is thrown away when the note is emptied. When the reader
+   scrolls up into a long note, it is drawn from its end
    ([ADR 0022](adr/0022-draw-long-notes-from-the-end-met.md)).
-4. **Change.** Vault and metadata events become `NoteStream` mutations: insert,
-   remove, re-render, reconsider whether a note is hidden. Saves are debounced
-   per path. An open search re-reads once the stream says its notes changed.
+4. **Change.** Vault and metadata events become changes to `NoteStream`: add a
+   note, remove one, draw one again, or check again whether a note is hidden.
+   Saves to the same path are grouped, with a short delay. An open search
+   searches again once the stream says its notes changed.
 
-Every mutation of the stream — batches, events, renders, jumps, rebuilds — runs
-through one promise queue, so none interleaves at an `await`
+Every change to the stream, whether a batch, an event, a render, a jump or a
+rebuild, runs through one promise queue. So no two changes mix at an `await`
 ([ADR 0004](adr/0004-serialize-view-mutations.md)).
 
 ## Rendering
 
-- `note-renderer.ts` renders a note through Obsidian's `MarkdownRenderer` into
-  `.markdown-rendered`, re-rendering on `metadataCache` "changed"
-  ([ADR 0003](adr/0003-metadata-cache-rerender.md)). A note saved since it
-  opened renders section by section (`note-sections.ts`), and a save re-renders
-  only the sections it changed
+- `note-renderer.ts` draws a note with Obsidian's `MarkdownRenderer` into
+  `.markdown-rendered`, and draws it again on the `metadataCache` "changed"
+  event ([ADR 0003](adr/0003-metadata-cache-rerender.md)). A note that was saved
+  after it was opened is drawn one section at a time (`note-sections.ts`), and a
+  save draws again only the sections it changed
   ([ADR 0019](adr/0019-re-render-only-changed-sections.md)). Any other note of
-  6,000 characters or more renders as runs of sections, and a shorter one
-  renders whole. Either way, the renderer yields the thread between sections or
-  runs once a slice of time is spent (`time-slice.ts`), and a note off the
-  screen lets a note waiting on the screen draw first
+  6,000 characters or more is drawn in groups of sections, and a shorter one is
+  drawn all at once. Either way, after each section or group, the renderer gives
+  the thread back once it has used up its slice of time (`time-slice.ts`). A
+  note off the screen lets a note waiting on the screen be drawn first
   ([ADR 0020](adr/0020-render-long-notes-in-slices.md)).
-- Gestures on titles, links and chevrons are delegated: one listener per gesture
-  on the stream container. The view is the hover parent that the Page preview
-  plugin attaches its popovers to.
+- Taps and clicks on titles, links and fold arrows are handled by one listener
+  for each kind of gesture, on the stream's container. The view is the hover
+  parent that the Page preview plugin attaches its popups to.
 - Wide content: tables become cards, including Dataview's as they fill in
-  (D-084); equations shrink; and each Base draws in its own placeholder, as
-  cards when too wide (D-033; a kanban, D-107). `ScrollBoxGuard` reports Base
-  layouts to the renderer. Each of these refits when its note's width changes,
-  which one observer per view reports (`note-widths.ts`).
-- On mobile nothing inside a note scrolls: `ScrollBoxGuard` clips stray scroll
-  boxes ([ADR 0008](adr/0008-nothing-scrolls-on-mobile.md)), and a PDF shows as
-  its first page, which opens the PDF when tapped (D-083). Desktop keeps
+  (D-084). Equations shrink. Each Base draws in its own placeholder, as cards
+  when it is too wide (D-033; for a kanban, D-107). `ScrollBoxGuard` tells the
+  renderer about Base layouts. Each of these fits itself again when its note's
+  width changes. One observer for each view reports width changes
+  (`note-widths.ts`).
+- On mobile, nothing inside a note scrolls. `ScrollBoxGuard` stops any box from
+  scrolling ([ADR 0008](adr/0008-nothing-scrolls-on-mobile.md)), and a PDF shows
+  only its first page, which opens the PDF when tapped (D-083). Desktop keeps
   Obsidian's scroll boxes.
-- Nothing in the stream carries Obsidian's `.clickable-icon`: on an iPhone, a
-  flick begun on one never scrolls (D-113).
-- On mobile, `FrameDeferral` delays loading the page in a frame until the scroll
-  is still (D-087), puts a YouTube embed's thumbnail in its place (D-088), and
-  makes a web page's frame a preview linking to the page (D-098).
-- The linked mentions footer draws after the note and redraws itself on the
-  metadata cache's `resolved` event; `notes/linked-mentions.ts` finds each
-  link's list item or section.
+- Nothing in the stream uses Obsidian's `.clickable-icon` class: on an iPhone, a
+  flick that starts on one never scrolls (D-113).
+- On mobile, `FrameDeferral` waits until scrolling stops before it loads the
+  page in a frame (D-087). It shows a YouTube video's thumbnail instead of the
+  video (D-088), and turns a web page's frame into a preview that links to the
+  page (D-098).
+- The linked mentions footer is drawn after the note, and draws itself again on
+  the metadata cache's `resolved` event. `notes/linked-mentions.ts` finds the
+  list item or section that holds each link.
 
 ## Scroll position
 
-Heights change constantly: a placeholder guess becomes a real note, a Base fills
-in, an image loads. Three mechanisms keep the reader's place.
+Heights change all the time: a placeholder's guessed height becomes a real note,
+a Base fills in, an image loads. These parts keep the reader's place:
 
-- `LayoutMemory` remembers each note's measured height per layout, across
+- `LayoutMemory` remembers each note's measured height for each layout, between
   sessions, so placeholders start at the right size
-  ([ADR 0010](adr/0010-layout-memory.md)); an edit forgets a note's
-  ([ADR 0017](adr/0017-forget-heights-of-edited-notes.md)). A note not measured
-  at the layout reserves the 0.9 quantile of the heights measured there (D-092),
-  capped at its size at the densest rate measured (D-135).
-- `HeightHold` holds a note at its earlier height while it refills; a Base's box
-  has a fixed height, the tallest it has been, until it settles (D-095, D-159).
-- `NoteWindowManager` pins each rendered note's height and changes it only in
-  the task that tells `ScrollAnchor`
-  ([ADR 0013](adr/0013-pin-rendered-note-heights.md)). Once the scroll is still,
-  it re-reserves unloaded notes at the heights they are now expected to have
-  (`reservations.ts`, [ADR 0014](adr/0014-re-reserve-placeholders-at-rest.md)),
-  first drawing the move of the notes above as a shift
-  ([ADR 0015](adr/0015-shift-before-shrinking-above.md)). After a turn, it waits
-  until the anchor has handed the turn over (D-160).
-- `ScrollAnchor` undoes shifts caused above the reader, on platforms that don't
-  do it themselves: Chromium anchors the scroll natively, iOS WebKit does not.
+  ([ADR 0010](adr/0010-layout-memory.md)). Editing a note forgets its height
+  ([ADR 0017](adr/0017-forget-heights-of-edited-notes.md)). A note not yet
+  measured in a layout gets a height that 90% of the heights measured there are
+  below (D-092). It never gets more than its file size times the most pixels per
+  byte of any note measured there (D-135).
+- `HeightHold` keeps a note at its earlier height while it is drawn again. A
+  Base's box keeps a fixed height, the tallest it has been, until the Base stops
+  changing (D-095, D-159).
+- `NoteWindowManager` fixes the height of each drawn note, and only changes it
+  in the same task in which it tells `ScrollAnchor`
+  ([ADR 0013](adr/0013-pin-rendered-note-heights.md)). Once scrolling stops, it
+  gives unloaded notes the heights they are now expected to have
+  (`reservations.ts`, [ADR 0014](adr/0014-re-reserve-placeholders-at-rest.md)).
+  Before that, it moves the notes above as one shift
+  ([ADR 0015](adr/0015-shift-before-shrinking-above.md)). After the screen is
+  turned, it waits until the anchor has finished handling the turn (D-160).
+- `ScrollAnchor` undoes changes in height above the reader, on platforms that
+  don't do this themselves. Chromium does it itself; iOS's WebKit does not.
 
 Jumps, search steps and Back (`getEphemeralState`) go through
-`scroll-position.ts`: `scrollIntoPlace` re-applies the scroll until the stream
-stops rendering, and `keepInPlace` holds a centered match while Bases fill in. A
-jump or step first draws its note whole, with its Bases filled in (D-082). A
-jump starts in `jump-to-date-modal.ts`, which offers the vault's note dates in
-the vault's own format.
+`scroll-position.ts`. `scrollIntoPlace` sets the scroll again and again until
+the stream stops drawing, and `keepInPlace` keeps a centered match in place
+while Bases fill in. A jump or search step first draws its whole note, with its
+Bases filled in (D-082). A jump starts in `jump-to-date-modal.ts`, which lists
+the dates of the vault's notes in the vault's own date format.
 
 ## Search
 
-`note-search.ts` finds notes whose title or source match; `stream-search.ts`
-steps note to note; `search-highlights.ts` paints CSS highlight ranges, and
-`text-beside-blocks.ts` wraps bare text in elements so WebKit paints the
-highlights. The bar opens on the vault's "Search current file" hotkey
-(`hotkey.ts`).
+`note-search.ts` finds notes whose title or text matches. `stream-search.ts`
+moves from note to note. `search-highlights.ts` marks matches with CSS
+highlights, and `text-beside-blocks.ts` wraps loose text in elements so that
+WebKit shows the highlights. The search bar opens with the vault's hotkey for
+"Search current file" (`hotkey.ts`).
 
 ## Persistence
 
-| What                 | Where                          | Why there                  |
-| -------------------- | ------------------------------ | -------------------------- |
-| Settings             | plugin data (`data.json`)      | syncs with the vault       |
-| Heights, Base widths | vault localStorage, per device | device-specific (ADR 0010) |
-| Empty-note verdicts  | vault localStorage, per device | a cache (D-072)            |
-| Collapsed sections   | vault localStorage             | `collapse-store.ts`, D-121 |
+| What                  | Where                              | Why there                    |
+| --------------------- | ---------------------------------- | ---------------------------- |
+| Settings              | plugin data (`data.json`)          | it syncs with the vault      |
+| Heights, Base widths  | vault localStorage, on each device | differs by device (ADR 0010) |
+| Which notes are empty | vault localStorage, on each device | it is only a cache (D-072)   |
+| Collapsed sections    | vault localStorage                 | `collapse-store.ts`, D-121   |
 
-Every localStorage store saves through `saveLoggingOnce`: a refused save is
-logged once, never thrown (D-071).
+Every localStorage store saves through `saveLoggingOnce`. If a save is refused,
+the error is logged once and never thrown (D-071).
 
 ## Obsidian internals
 
-Unsupported APIs are read only in `obsidian-internals.ts`: the daily-notes
-settings (D-127), readable line length, the vault config "raw" event, global
-search's `setQuery`, property icons, hotkeys, a view's title element.
+Obsidian APIs that are not officially supported are only used in
+`obsidian-internals.ts`: the daily notes settings (D-127), readable line length,
+the vault config "raw" event, global search's `setQuery`, property icons,
+hotkeys, and a view's title element.

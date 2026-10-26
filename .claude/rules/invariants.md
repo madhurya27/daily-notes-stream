@@ -7,37 +7,39 @@ paths:
 
 # Invariants
 
-Traps that span files, so no single file's comments can hold them.
+Rules that must always hold. Each one involves more than one file, so no single
+file's comments can explain it.
 
-- **The blocks are `service.streamedNotes()`, in order** (D-118). Load through
-  `service.extendStream`; `create`/`delete`/`rename` through
-  `service.insertSorted`/`removeSorted`, which keep `streamLength`. A block is
-  placed only when `insertSorted` reports the note `inStream`.
-- **Each view owns its `DailyNoteService`.** Its list must change in step with
-  its DOM, inside its queue
-  ([ADR 0004](../../docs/adr/0004-serialize-view-mutations.md)). A list shared
-  by views would shift under one that is mid-load, and pagination would skip or
-  repeat notes.
-- **`rename` gets `(file, oldPath)`.** Obsidian mutates `TFile` in place, so the
-  DOM's `data-source-path` is the _old_ path: look the element up by `oldPath`,
-  remove from the service by `file.path`.
-- **A note re-renders on `metadataCache.on("changed")`, not
-  `vault.on("modify")`**: the cache lags the write, and the renderer reads the
-  cache. `modify` only redraws cards copied from a `.base` file, which has no
-  metadata.
-- **A block may hold no content.** Only notes near the viewport are rendered
-  ([ADR 0006](../../docs/adr/0006-unload-off-screen-notes.md)); the rest are
-  empty `.daily-note-block`s reserving their height. Never assume or key
-  anything off a block's children: `data-source-path` is on the block, and
-  `StreamBlocks`' path→block index is the only lookup.
-- **A rendered block's height changes only in `NoteWindowManager.repin`**
-  ([ADR 0013](../../docs/adr/0013-pin-rendered-note-heights.md)), which tells
-  the anchor in the same task. Anything that changes a block's height another
-  way makes the screen jump for a frame on iOS. A Base sets its own height only
-  where it dispatches `BASE_RESIZED`, whose handler re-pins its note in the same
-  task (D-108).
-- **No scroll containers inside a note on mobile**
-  ([ADR 0008](../../docs/adr/0008-nothing-scrolls-on-mobile.md)): a scroll
-  container inside a note ends iOS glides early. Under `.is-mobile`, clip with
-  `overflow: clip`, never `hidden` or `auto`; `e2e-tests/scroll-boxes.spec.ts`
-  enforces it. Desktop keeps Obsidian's scroll bars.
+- **The blocks are `service.streamedNotes()`, in the same order** (D-118). Load
+  notes with `service.extendStream`. Handle `create`, `delete` and `rename` with
+  `service.insertSorted` and `removeSorted`, which keep `streamLength` correct.
+  Add a block only when `insertSorted` says the note is `inStream`.
+- **Each view has its own `DailyNoteService`.** Its list must change together
+  with its DOM, inside the view's queue
+  ([ADR 0004](../../docs/adr/0004-serialize-view-mutations.md)). If views shared
+  one list, it could change while one view is loading, and that view would skip
+  or repeat notes.
+- **`rename` gets `(file, oldPath)`.** Obsidian changes the `TFile` object
+  itself, so the DOM's `data-source-path` still holds the _old_ path. Find the
+  element by `oldPath`, and remove the note from the service by `file.path`.
+- **A note is drawn again on `metadataCache.on("changed")`, not on
+  `vault.on("modify")`.** The cache is updated after the file is written, and
+  the renderer reads the cache. `modify` only redraws cards copied from a
+  `.base` file, because a `.base` file has no metadata.
+- **A block may be empty.** Only notes near the screen are drawn
+  ([ADR 0006](../../docs/adr/0006-unload-off-screen-notes.md)). The others are
+  empty `.daily-note-block` elements that keep their height. Never rely on a
+  block's children: `data-source-path` is on the block itself, and the
+  path-to-block index in `StreamBlocks` is the only way to find a block.
+- **Only `NoteWindowManager.repin` changes the height of a drawn block**
+  ([ADR 0013](../../docs/adr/0013-pin-rendered-note-heights.md)). It tells the
+  scroll anchor in the same task. Changing a block's height any other way makes
+  the screen jump for one frame on iOS. A Base sets its own height only where it
+  sends `BASE_RESIZED`, and the handler for that event pins its note's height
+  again in the same task (D-108).
+- **On mobile, nothing inside a note may scroll**
+  ([ADR 0008](../../docs/adr/0008-nothing-scrolls-on-mobile.md)). A scrolling
+  box inside a note stops iOS's scrolling early. Under `.is-mobile`, cut off
+  overflow with `overflow: clip`, never `hidden` or `auto`.
+  `e2e-tests/scroll-boxes.spec.ts` checks this. Desktop keeps Obsidian's scroll
+  bars.

@@ -1,51 +1,53 @@
-# 0019. A saved note re-renders only the sections a save changed
+# 0019. A saved note only draws again the sections a save changed
 
 - **Status:** Accepted
 - **Date:** 2026-10-13
 
 ## Context
 
-A save re-rendered the whole note. With an editor beside the stream, a
-10,000-line note froze desktop ~0.4 s every 2 s autosave even after D-129, and a
-phone (CPU slowed 4x) ~1.8 s per synced save (`e2e-tests/edit-cost.spec.ts`).
+A save drew the whole note again. With an editor next to the stream, a
+10,000-line note froze desktop for about 0.4 s on every automatic save, every 2
+s, even after D-129, and froze a phone (CPU slowed 4x) for about 1.8 s on each
+synced save (`e2e-tests/edit-cost.spec.ts`).
 
 ## Decision
 
-Today's note, the one being written in, renders section by section from the
-start. Any other note, whatever its length, switches to rendering by section at
-its first save while it is rendered (D-130). Each section of the metadata cache
-gets one `MarkdownRenderer` call and one child `Component`, and its nodes sit
-flat in the note's content, as a whole render leaves them. A later save renders
-only the sections between the first and last that changed and swaps their nodes
-in place; the block stays pinned until `NoteWindowManager.repin` (ADR 0013). A
-kept heading or list item whose collapse key moved takes the new key and its
-saved state.
+Today's note, the one being written in, is drawn section by section from the
+start. Any other note, whatever its length, switches to being drawn by section
+at its first save while it is drawn (D-130). Each section of the metadata cache
+gets one `MarkdownRenderer` call and one child `Component`, and its nodes are at
+the same level in the note's content, as when the whole note is drawn. A later
+save only draws the sections between the first and the last one that changed,
+and replaces their nodes in place. The block keeps its fixed height until
+`NoteWindowManager.repin` (ADR 0013). A heading or list item that is kept, but
+whose fold key changed, takes the new key and that key's saved state.
 
-The note renders whole instead when its sections cannot stand alone (footnotes,
-inline footnotes, reference links), or when, on mobile, a save changed a section
-that holds a Base. A frontmatter change draws the properties again (D-133).
+The whole note is drawn instead when its sections cannot stand on their own
+(footnotes, inline footnotes, reference links), or when, on mobile, a save
+changed a section that has a Base. A frontmatter change draws the properties
+again (D-133).
 
 ## Consequences
 
-- A save of today's note re-renders only what changed: no save over 50 ms on
-  desktop, and under 160 ms at phone speed for 10,000 lines.
-- Opening today's note costs one render by section, about twice a whole render's
-  JavaScript for a long note: a 200-line note takes 95 ms at phone speed,
-  against 68 ms rendered whole.
-- Another note opens as it did; its first save pays that render once.
-- `e2e-tests/saved-note.spec.ts` checks a note saved in place against a fresh
-  render.
+- A save of today's note only draws again what changed: no save takes over 50 ms
+  on desktop, and under 160 ms at phone speed for 10,000 lines.
+- Opening today's note costs one drawing by section, which is about twice the
+  JavaScript of drawing a long note all at once: a 200-line note takes 95 ms at
+  phone speed, against 68 ms drawn all at once.
+- Other notes open as they did, and their first save pays for that drawing once.
+- `e2e-tests/saved-note.spec.ts` checks a note saved in place against a note
+  drawn from scratch.
 
 ## Rejected alternatives
 
-- **Every note by section from the first render** — an old note opened costs up
-  to twice as much, for saves that rarely come.
-- **Rendering whole, then mapping elements to sections by position** — a section
-  that renders no element, or two, shifts the map silently.
-- **A wrapper element per section** — collapsible headings, Obsidian's
-  stylesheet and the specs all expect headings to be siblings of the content
+- **Every note by section from the first drawing** — opening an old note costs
+  up to twice as much, for saves that rarely happen.
+- **Drawing the whole note, then matching elements to sections by position** — a
+  section that draws no element, or two, moves the matching without any sign.
+- **A wrapper element for each section** — foldable headings, Obsidian's
+  stylesheet and the tests all expect headings to be siblings of the content
   around them.
-- **A whole render when a kept collapse key moves** — a journal repeats its
-  items, so deleting one day re-rendered the note.
-- **Waiting for edits to stop before re-rendering** — a long note still froze,
+- **Drawing the whole note when a kept fold key changes** — a journal repeats
+  its items, so deleting one day drew the whole note again.
+- **Waiting for edits to stop before drawing again** — a long note still froze,
   only later.

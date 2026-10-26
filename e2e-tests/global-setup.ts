@@ -4,7 +4,7 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { fetchPinned, PINNED_PLUGINS } from "./pinned-plugin";
 
-/** True when some running process still references this directory. */
+/** True when a running process still uses this folder. */
 function inUse(dir: string): boolean {
     try {
         execFileSync("pgrep", ["-f", dir], { stdio: "ignore" });
@@ -15,9 +15,9 @@ function inUse(dir: string): boolean {
 }
 
 /**
- * Fixture vaults and profiles are removed on teardown, which covers a normal
- * exit, Ctrl-C and a killed run alike. A crashed worker can still strand one,
- * so sweep anything left over that no live process is using.
+ * Test vaults and profiles are removed at the end of a run, whether it exits
+ * normally, with Ctrl-C, or is killed. A worker that crashes can still leave
+ * one behind, so remove anything left over that no running process uses.
  */
 export default async function globalSetup(): Promise<void> {
     killStrandedInstances();
@@ -33,9 +33,9 @@ export default async function globalSetup(): Promise<void> {
 }
 
 /**
- * Kills Obsidian instances left behind by an earlier run. Every fixture profile
- * lives in a fresh dns-userdata- directory, so anything matching one before this
- * run launches is stale — and killing it also frees its directory for the sweep.
+ * Kills copies of Obsidian left behind by an earlier run. Every test profile is
+ * in a new dns-userdata- folder, so anything that matches one before this run
+ * starts is left over. Killing it also frees its folder to be removed.
  */
 function killStrandedInstances(): void {
     for (const signal of ["-TERM", "-KILL"]) {
@@ -43,7 +43,8 @@ function killStrandedInstances(): void {
             execFileSync("pkill", [signal, "-f", join(tmpdir(), "dns-userdata-")], { stdio: "ignore" });
             console.log("[e2e] killed a stranded Obsidian instance");
         } catch {
-            // pkill exits non-zero when nothing matched — nothing was stranded.
+            // pkill exits with an error when nothing matched, which means
+            // nothing was left behind.
         }
     }
 }

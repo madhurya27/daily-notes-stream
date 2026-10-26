@@ -3,10 +3,11 @@ import { longNote } from "../long-note";
 
 const STREAM = ".daily-notes-stream-container";
 
-// A blank screen shows only in a capture (scripts/capture-iphone.swift): this
-// checks what makes one, a hidden run's spacer reaching the screen (ADR 0021).
-// A stall, or a glide faster than the render margin a frame, carries one on
-// for a frame; the next shows the run (ADR 0023).
+// A blank screen only shows in a recording (scripts/capture-iphone.swift). This
+// checks what causes one: a hidden part's spacer reaching the screen (ADR
+// 0021). A pause, or a scroll that moves further than the drawing distance in
+// one frame, keeps one on screen for a frame, and the next frame shows the part
+// (ADR 0023).
 test("flicks down a long note and back show no hidden run's spacer two frames running", async ({ phone }) => {
     test.setTimeout(300_000);
     const path = await phone.journalPath(1);

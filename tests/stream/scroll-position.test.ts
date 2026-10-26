@@ -7,7 +7,10 @@ import {
     scrollIntoPlace,
 } from "../../src/stream/scroll-position";
 import { SETTLE_MS } from "../../src/stream/height-hold";
-/** Creates a minimal HTMLElement stub with controllable getBoundingClientRect. */
+/**
+ * Creates a minimal fake HTMLElement whose getBoundingClientRect the test
+ * controls.
+ */
 function makeEl(rect: { top: number; bottom: number }): HTMLElement {
     return {
         getBoundingClientRect: () => ({ top: rect.top, bottom: rect.bottom, left: 0, right: 0, width: 0, height: 0 }),
@@ -15,7 +18,10 @@ function makeEl(rect: { top: number; bottom: number }): HTMLElement {
 }
 
 describe("readPlace", () => {
-    /** A pane from `top` to 800, holding blocks at `rects` and a sentinel after them. */
+    /**
+     * A pane from `top` to 800, holding blocks at `rects`, and the empty
+     * element that loads more after them.
+     */
     function streamIn(top: number, ...rects: [path: string, top: number, bottom: number][]) {
         const pane = makeEl({ top, bottom: 800 });
         const stream = document.createElement("div");
@@ -75,16 +81,16 @@ describe("scrollBlockTo", () => {
 });
 
 describe("scrollIntoPlace", () => {
-    /** The pane the block is scrolled onto, its top at 0. */
+    /** The pane the block is scrolled into, with its top at 0. */
     const pane = Object.assign(makeEl({ top: 0, bottom: 800 }), { scrollTop: 0 });
 
-    /** Scrolls the pane, unless it is `stuck` as far as it goes. */
+    /** Scrolls the pane, unless it is `stuck`, already as far as it can go. */
     const scrolling = (stuck: boolean) =>
         vi.fn(() => {
             if (!stuck) pane.scrollTop += 100;
         });
 
-    /** A block whose top follows `tops`, holding the last value afterwards. */
+    /** A block whose top follows `tops`, then keeps the last value. */
     function blockMoving(tops: number[], { stuck = false } = {}) {
         const block = document.createElement("div");
         block.scrollIntoView = scrolling(stuck);
@@ -93,7 +99,9 @@ describe("scrollIntoPlace", () => {
         return block;
     }
 
-    /** A layout whose change count follows `counts`, read twice per pass. */
+    /**
+     * A layout whose number of changes follows `counts`, read twice per try.
+     */
     function layoutCounting(counts: number[] = [0]) {
         let read = 0;
         return {
@@ -141,7 +149,7 @@ describe("scrollIntoPlace", () => {
     });
 
     it("scrolls again while renders above the block keep pushing it down", async () => {
-        // Each render above it moves the block; the third pass lands it.
+        // Each render above it moves the block. The third try puts it in place.
         const block = blockMoving([300, 80, 1]);
 
         await scrollIntoPlace(block, "start", pane, layoutCounting());
@@ -150,9 +158,9 @@ describe("scrollIntoPlace", () => {
     });
 
     it("keeps scrolling while the stream is still rendering, top or not", async () => {
-        // At the top from the first pass — but notes are still being rendered,
-        // and each one above the block will move it again. Three passes see
-        // the count move, the fourth sees it hold.
+        // It is at the top from the first try, but notes are still being drawn,
+        // and each one above the block will move it again. Three tries see the
+        // count change, and the fourth sees it stay the same.
         const block = blockMoving([0]);
 
         await scrollIntoPlace(block, "start", pane, layoutCounting([0, 1, 1, 2, 2, 3, 3, 3]));
@@ -161,7 +169,7 @@ describe("scrollIntoPlace", () => {
     });
 
     it("gives up rather than chase a block that never arrives", async () => {
-        // Scrolled every pass, and pushed away again every pass.
+        // Scrolled on every try, and pushed away again on every try.
         const block = blockMoving([500]);
 
         await scrollIntoPlace(block, "start", pane, layoutCounting());
@@ -219,7 +227,7 @@ describe("scrollIntoPlace", () => {
         expect(scrolled.scrollTop).toBe(900);
     });
 
-    // A note too short to reach the top of a tall pane: the scroll moves
+    // A note too short to reach the top of a tall pane. The scroll moves
     // nothing, so no observer has anything new to report.
     it("stops once a scroll moves nothing on a quiet stream", async () => {
         const block = blockMoving([500], { stuck: true });
@@ -230,7 +238,8 @@ describe("scrollIntoPlace", () => {
     });
 
     it("keeps waiting on a stuck scroll while renders are still landing", async () => {
-        // A render lands between the first two passes; the third sees none.
+        // A render finishes between the first two tries, and the third sees
+        // none.
         const block = blockMoving([500], { stuck: true });
 
         await scrollIntoPlace(block, "start", pane, layoutCounting([0, 1, 2, 2, 2, 2]));
@@ -255,7 +264,8 @@ describe("keepInPlace", () => {
             this.observed.clear();
         }
     }
-    // A real observer reports only what it observes, and nothing once disconnected.
+    // A real observer only reports what it observes, and nothing once it is
+    // disconnected.
     const resized = (el: Element = stream) =>
         FakeResizeObserver.last.observed.has(el) && FakeResizeObserver.last.callback();
 
@@ -265,7 +275,7 @@ describe("keepInPlace", () => {
     pane.appendChild(stream);
     document.body.appendChild(pane);
 
-    /** A match 20px tall, centered at `center.at`, which a test moves. */
+    /** A match 20px tall, centered at `center.at`, which a test can move. */
     function match(center: { at: number }) {
         const el = document.createElement("span");
         stream.appendChild(el);
@@ -283,7 +293,7 @@ describe("keepInPlace", () => {
         vi.unstubAllGlobals();
     });
 
-    // A Base above the match fills in after it was centered.
+    // A Base above the match fills in after the match was centered.
     it("centers it again when the stream grows above it", () => {
         const center = { at: 400 };
         const el = match(center);
@@ -295,8 +305,9 @@ describe("keepInPlace", () => {
         expect(el.scrollIntoView).toHaveBeenCalledWith({ block: "center" });
     });
 
-    // A remembered note is held at its full height: a Base filling in inside
-    // it moves the match, and resizes nothing outside the note.
+    // A note with a remembered height is held at its full height. A Base
+    // filling in inside it moves the match, but changes the size of nothing
+    // outside the note.
     it("centers it again when a Base above it in its note fills in", () => {
         const center = { at: 400 };
         const block = stream.createDiv({ cls: "daily-note-block" });

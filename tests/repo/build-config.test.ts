@@ -7,17 +7,19 @@ const read = (file: string) => readFileSync(resolve(repoRoot, file), "utf8");
 
 describe("build configuration", () => {
     it('keeps "type": "module" even though the bundle is CommonJS', () => {
-        // The two are unrelated: esbuild's format is an output setting Obsidian
-        // consumes, while the field tells Node — and so Playwright's TypeScript
-        // loader — how to read this repo's own sources. e2e-tests/obsidian.ts uses
-        // import.meta.url, which fails to parse without it.
+        // The two are unrelated. esbuild's format is an output setting for
+        // Obsidian, while this field tells Node, and so Playwright's TypeScript
+        // loader, how to read this repo's own source files.
+        // e2e-tests/obsidian.ts uses import.meta.url, which cannot be parsed
+        // without it.
         const pkg = JSON.parse(read("package.json")) as { type?: string };
         expect(read("esbuild.config.mjs")).toContain('format: "cjs"');
         expect(pkg.type).toBe("module");
         expect(read("e2e-tests/obsidian.ts")).toContain("import.meta.url");
     });
 
-    // Release builds run without BUILD_LABEL, so they carry an empty label and show no notice.
+    // Release builds run without BUILD_LABEL, so they have an empty label and
+    // show no notice.
     it("bakes BUILD_LABEL in from the environment, empty when unset", () => {
         expect(read("esbuild.config.mjs")).toContain('BUILD_LABEL: JSON.stringify(process.env.BUILD_LABEL ?? "")');
     });

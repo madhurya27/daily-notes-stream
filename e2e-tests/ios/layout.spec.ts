@@ -5,8 +5,9 @@ import { EMBEDS_NOTE, FREE_DAYS, KANBAN } from "./vault";
 const NOTE = `.daily-note-block[data-source-path="${EMBEDS_NOTE}"]`;
 
 /**
- * What in the note of every embed shows past its text's right edge, as far
- * as the boxes clipping it let it, and whether the pane scrolls sideways.
+ * What in the note with every kind of embed shows past its text's right edge,
+ * as far as the boxes that cut it off allow, and whether the pane scrolls
+ * sideways.
  */
 const overflow = (phone: Phone) =>
     phone.run((note: string) => {
@@ -18,8 +19,8 @@ const overflow = (phone: Phone) =>
             .filter((el) => {
                 const box = el.getBoundingClientRect();
                 let shown = box.right;
-                // Clipped inside the text, as a Base's table cell clips its header;
-                // the text's own clip is what this looks past.
+                // Cut off inside the text, as a Base's table cell cuts off its
+                // header. This looks past the text's own clip.
                 for (let clip = el.parentElement; clip && clip !== content; clip = clip.parentElement)
                     if (getComputedStyle(clip).overflowX !== "visible")
                         shown = Math.min(shown, clip.getBoundingClientRect().right);
@@ -30,12 +31,16 @@ const overflow = (phone: Phone) =>
         return over.slice(0, 10);
     }, NOTE);
 
-/** The items of each Base's toolbar in the note that its toolbar clips: Obsidian shrinks the view name and count to fit. */
+/**
+ * The items of each Base's toolbar in the note that the toolbar cuts off.
+ * Obsidian shrinks the view name and count to fit.
+ */
 const toolbarCut = (phone: Phone) =>
     phone.run((note: string) => {
         const cut = [...document.querySelectorAll(`${note} .bases-toolbar`)].flatMap((bar) => {
             const right = bar.getBoundingClientRect().right;
-            // An item's margin overhangs its button: the button, as the item clips it.
+            // An item's margin goes past its button, so use the button, as the
+            // item cuts it off.
             return [...bar.children].filter((item) => {
                 const button = item.firstElementChild!.getBoundingClientRect().right;
                 return Math.min(button, item.getBoundingClientRect().right) > right + 1;
@@ -45,14 +50,14 @@ const toolbarCut = (phone: Phone) =>
     }, NOTE);
 
 /**
- * Narrow.base, the note's second Base: wider than a phone held upright, it
- * fits one on its side. Middle.base, which the note says flips, stays cards
- * on a phone either way: it flips on a tablet.
+ * Narrow.base, the note's second Base: it is wider than a phone held upright,
+ * and fits one on its side. Middle.base, which the note says switches, stays as
+ * cards on a phone either way. It switches on a tablet.
  */
 const FLIPPING = `${NOTE} .daily-note-content > .daily-note-base:nth-child(2 of .daily-note-base)`;
 const MATH = `${NOTE} .daily-note-content > h2:nth-of-type(4)`;
 
-/** How `FLIPPING` draws now: as cards, or a table. */
+/** How `FLIPPING` is drawn now: as cards, or as a table. */
 const form = (phone: Phone) =>
     phone.run((base: string) => {
         const el = document.querySelector(base)!;
@@ -60,14 +65,14 @@ const form = (phone: Phone) =>
         return el.querySelector(".bases-table") ? "table" : "nothing";
     }, FLIPPING);
 
-/** Whether the kanban draws as cards, once it is near the screen. */
+/** Whether the kanban is drawn as cards, once it is near the screen. */
 const kanbanAsCards = async (phone: Phone) => {
     await phone.placeAt(KANBAN, -40);
     await expect.poll(() => phone.has(`${KANBAN} .bases-cards-item`)).toBe(true);
     return !(await phone.has(`${KANBAN} .bases-kanban-card`));
 };
 
-/** How wide the note's equation draws, and the note's text. */
+/** How wide the note's equation is drawn, and how wide the note's text is. */
 const widths = (phone: Phone) =>
     phone.run((note: string) => {
         const block = document.querySelector(note)!;
@@ -83,12 +88,15 @@ const mathTop = (phone: Phone) =>
         return Math.round(el.getBoundingClientRect().top - pane.getBoundingClientRect().top);
     }, MATH);
 
-/** How far a turn may move the place: the text above it re-wraps at the new width. */
+/**
+ * How far a turn may move the place, because the text above it wraps again at
+ * the new width.
+ */
 const REWRAP_PX = 100;
 
 /**
- * The Base's form and the equation's width in the orientation the phone is
- * in, once nothing reaches past the note. Ends placed at the equation.
+ * The Base's form and the equation's width in the phone's current orientation,
+ * once nothing goes past the note. Ends with the equation in view.
  */
 async function drawn(phone: Phone) {
     await phone.placeAt(FLIPPING, -100);
@@ -100,7 +108,7 @@ async function drawn(phone: Phone) {
 
 test("nothing in the note of every embed scrolls sideways, reaches past its text or is cut off", async ({ phone }) => {
     await phone.openStream();
-    // Section by section: Bases draw only what is near the screen.
+    // Section by section, because Bases only draw what is near the screen.
     for (let section = 1; section <= 6; section++) {
         await phone.placeAt(`${NOTE} .daily-note-content > h2:nth-of-type(${section})`, -20);
         expect(await overflow(phone), `section ${section}`).toEqual([]);
@@ -108,8 +116,9 @@ test("nothing in the note of every embed scrolls sideways, reaches past its text
     }
 });
 
-// An iPad's note is the readable line length either way up, narrower than
-// a phone on its side: the Base stays a table, the equation as wide.
+// On an iPad, the note is the readable line length in either orientation, which
+// is narrower than a phone on its side. So the Base stays a table, and the
+// equation keeps its width.
 const DEVICE = drivesIPad(process.env) ? { upright: "table", widens: false } : { upright: "cards", widens: true };
 
 test("a turn flips a wide Base between cards and a table on a phone, and fits the equation to the note", async ({
@@ -147,7 +156,10 @@ const setTextSize = (phone: Phone, size: number | null) =>
         window.app.updateFontSize();
     }, size);
 
-/** How far the checkbox of the first task in the pane sits below its words' center. */
+/**
+ * How far below its words' center the checkbox of the first task in the pane
+ * is.
+ */
 const checkboxOffset = (phone: Phone) =>
     phone.run(() => {
         const pane = document.querySelector(".daily-notes-stream-container")!.parentElement!.getBoundingClientRect();
@@ -163,7 +175,7 @@ const checkboxOffset = (phone: Phone) =>
         return check.top + check.height / 2 - (text.top + text.height / 2);
     });
 
-// iOS draws its own system font: Obsidian's fixed nudge left the box 5px high
+// iOS uses its own system font. Obsidian's fixed move left the box 5px too high
 // at 28px here, three times what Chromium's phone layout shows (D-104).
 test("centers a task's checkbox on its words at the default and a large text size", async ({ phone }) => {
     await phone.openStream();
@@ -178,8 +190,9 @@ test("centers a task's checkbox on its words at the default and a large text siz
     }
 });
 
-// iOS's system font draws the box larger than Chromium's phone layout: Obsidian's
-// hang left the first line 10px left of the rest at 28px here (D-106).
+// iOS's system font draws the box bigger than Chromium's phone layout.
+// Obsidian's margin left the first line 10px left of the rest at 28px here
+// (D-106).
 test("lines a wrapped task's words up under its first line at the default and a large text size", async ({ phone }) => {
     const note = FREE_DAYS[0];
     const task = `.daily-note-block[data-source-path="${note}"] li.task-list-item`;

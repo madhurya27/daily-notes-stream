@@ -28,7 +28,8 @@ describe("debugPort", () => {
         expect(debugPort(obsidian(DEV), DEV)).toBeNull();
     });
 
-    // A save during an e2e run must not reload the plugin inside a test's window.
+    // A save during an e2e run must not reload the plugin inside a test's
+    // window.
     it("passes over e2e instances, whatever order ps lists them in", () => {
         const ps = [obsidian("/tmp/dns-userdata-a1", 1000), obsidian(DEV, 2000)].join("\n");
         expect(debugPort(ps, DEV)).toBe(2000);
@@ -151,8 +152,8 @@ describe("createChangeFilter", () => {
     });
 
     it("drops an event that left the file as it was", () => {
-        // Reloading makes Obsidian re-read the linked files, and macOS reports
-        // that read as a change — which would reload again, for ever.
+        // Reloading makes Obsidian read the linked files again, and macOS
+        // reports that read as a change, which would reload again, forever.
         const changed = createChangeFilter(() => 100);
 
         expect(changed("main.js")).toBe(true);
@@ -182,7 +183,8 @@ describe("createChangeFilter", () => {
 });
 
 describe("stepsFor", () => {
-    // The vaults are disposable: a fresh seed each run keeps their notes current with the script and the date.
+    // The vaults are thrown away each time. Filling them again on each run
+    // keeps their notes up to date with the script and the date.
     it("builds only when there is no build, and always seeds, links, opens and watches", () => {
         expect(stepsFor({ built: true })).toEqual(["seed", "link", "open", "watch"]);
         expect(stepsFor({ built: false })).toEqual(["build", "seed", "link", "open", "watch"]);

@@ -5,7 +5,10 @@ interface Measurement {
     tooWide: true;
 }
 
-/** A Base in a note, at a layout: its width checked against and text size. */
+/**
+ * A Base in a note, in a layout: the width it was checked against, and the text
+ * size.
+ */
 export interface BaseKey {
     layout: string;
     path: string;
@@ -13,12 +16,13 @@ export interface BaseKey {
     base: string;
 }
 
-/** Measurements by note path and digest, per layout. */
+/** Measurements by note path and digest, for each layout. */
 export type SavedMeasurements = SavedLayoutTable<Measurement>;
 
 /**
- * Which Bases were too wide for a table, kept with the notes' heights (ADR 0010),
- * so a Base comes back straight as cards. Its height is its note's to hold.
+ * Which Bases were too wide for a table, kept with the notes' heights (ADR
+ * 0010), so a Base that comes back is drawn as cards straight away. Its height
+ * is kept by its note.
  */
 export class BaseMeasurements {
     private readonly table: LayoutTable<Measurement>;
@@ -66,16 +70,16 @@ function isMeasurement(value: unknown): value is Measurement {
 }
 
 /**
- * A few characters standing for the Base a note embeds: its markdown and
- * definition, which can run to kilobytes. cyrb53, 53 bits: a note holds a
- * handful of Bases, so a collision is out of reach.
+ * A short string that stands for the Base a note embeds: its Markdown and
+ * definition, which can be kilobytes long. It uses cyrb53, a 53-bit hash. A
+ * note holds only a few Bases, so two giving the same hash is very unlikely.
  */
 export function baseDigest(markdown: string, definition: string | null): string {
-    // Stryker disable next-line StringLiteral: what stands for no definition need only stay the same.
+    // Stryker disable next-line StringLiteral: the text used for no definition only needs to stay the same.
     const text = `${markdown}\n${definition ?? ""}`;
     let h1 = 0xdeadbeef;
     let h2 = 0x41c6ce57;
-    // Stryker disable next-line EqualityOperator: any fixed mix of the text is a digest of it.
+    // Stryker disable next-line EqualityOperator: any fixed way of mixing the text gives a valid digest.
     for (let i = 0; i < text.length; i++) {
         const code = text.charCodeAt(i);
         h1 = Math.imul(h1 ^ code, 2654435761);
@@ -83,6 +87,6 @@ export function baseDigest(markdown: string, definition: string | null): string 
     }
     h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
     h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
-    // Stryker disable next-line ArithmeticOperator: any fixed mix of the text is a digest of it.
+    // Stryker disable next-line ArithmeticOperator: any fixed way of mixing the text gives a valid digest.
     return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36);
 }

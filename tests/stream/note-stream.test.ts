@@ -17,11 +17,11 @@ import { flushPromises } from "../stream-view-fixture";
 import { SCROLL_IDLE_MS } from "../../src/stream/scroll-anchor";
 import { STALL_MS } from "../../src/stream/stall-warning";
 
-/** What the stream constructed its window with, besides what it calls on it. */
+/** What the stream created its window with, besides what it calls on it. */
 type FakeWindow = Omit<Mocked<NoteWindowManager>, "enqueue" | "layoutChanges"> & {
-    /** The stream's queue, as the window's renders reach it. */
+    /** The stream's queue, which the window's renders run through. */
     enqueue: (task: () => Promise<void>) => Promise<void>;
-    /** A getter on the real one; a test counts a render by hand. */
+    /** A getter on the real one. A test counts a render by hand. */
     layoutChanges: number;
     memory: {
         heights: NoteHeights;
@@ -31,7 +31,7 @@ type FakeWindow = Omit<Mocked<NoteWindowManager>, "enqueue" | "layoutChanges"> &
 type FakeScroll = Mocked<InfiniteScrollController>;
 type FakeGuard = Mocked<ScrollBoxGuard>;
 type FakeFrames = Mocked<FrameDeferral>;
-/** What the stream constructed each with, besides what it calls on it. */
+/** What the stream created each one with, besides what it calls on it. */
 const fakes = vi.hoisted(() => ({
     windows: [] as FakeWindow[],
     scrolls: [] as FakeScroll[],
@@ -39,8 +39,8 @@ const fakes = vi.hoisted(() => ({
     frames: [] as FakeFrames[],
 }));
 
-// Both need a layout jsdom lacks, and have their own tests. The window
-// manager hands back placeholders keyed as the renderer keys them.
+// Both need a layout, which jsdom does not have, and have their own tests. The
+// window manager returns empty blocks with the same keys the renderer uses.
 vi.mock("../../src/stream/note-window", () => ({
     NoteWindowManager: class {
         attach = vi.fn();
@@ -127,7 +127,10 @@ function makeNotes(count = 30): TFile[] {
 /** A frame, at the fake clock's 60 fps. */
 const FRAME_MS = 16;
 
-/** A Base `file` draws as it renders, its query not yet run; on the fake clock from here. */
+/**
+ * A Base that `file` draws as it renders, before its query has run. Uses the
+ * fake clock from here on.
+ */
 function loadingBase(file: TFile): HTMLElement {
     vi.useFakeTimers();
     const view = document.createElement("div");
@@ -138,7 +141,10 @@ function loadingBase(file: TFile): HTMLElement {
     return view;
 }
 
-/** Obsidian renames the TFile in place, name and all, before the event arrives. */
+/**
+ * Obsidian renames the TFile object itself, name included, before the event
+ * arrives.
+ */
 function renameInPlace(file: TFile, path: string): TFile {
     const { name, basename, extension } = new TFile(path);
     return Object.assign(file, { path, name, basename, extension });
@@ -146,7 +152,10 @@ function renameInPlace(file: TFile, path: string): TFile {
 
 /** The vault's markdown files. */
 let vault: TFile[];
-/** Paths the filter hides, today's aside, as the real filter does; hiding another lists the notes again. */
+/**
+ * Paths the filter hides, except today's, as the real filter does. Hiding
+ * another path lists the notes again.
+ */
 let hidden: Set<string>;
 let service: DailyNoteService;
 let stream: NoteStream;
@@ -191,14 +200,14 @@ async function listed(...files: TFile[]) {
     await service.initialize();
 }
 
-/** Lists `files` and loads the first batch, then forgets every call it took. */
+/** Lists `files` and loads the first batch, then forgets every call it made. */
 async function load(...files: TFile[]) {
     await listed(...files);
     await stream.loadMoreNotes();
     vi.clearAllMocks();
 }
 
-/** The filter hides `files` from here on. */
+/** The filter hides `files` from now on. */
 const hide = (...files: TFile[]) => files.forEach((file) => hidden.add(file.path));
 
 /** The paths of the stream's blocks, in order. */
@@ -206,7 +215,10 @@ const shown = () => [...container.querySelectorAll<HTMLElement>("[data-source-pa
 
 const emptyState = () => container.querySelector(".daily-notes-empty-state");
 
-/** Lays the blocks out as the browser stacks them, each 540px tall, the first's top at `top`. */
+/**
+ * Lays out the blocks as the browser stacks them, each 540px tall, with the
+ * first one's top at `top`.
+ */
 function stack(top: number) {
     container.querySelectorAll<HTMLElement>("[data-source-path]").forEach((block, i) => {
         block.getBoundingClientRect = () => ({ top: top + i * 540, bottom: top + (i + 1) * 540 }) as DOMRect;
@@ -386,8 +398,8 @@ describe("a note created", () => {
 });
 
 describe("an event before the stream opens", () => {
-    // The view listens while its notes are listed: what it hears waits for a
-    // container to change.
+    // The view listens while its notes are listed. What it hears waits until
+    // there is a container to change.
     it("waits for open, then applies", async () => {
         const unopened = new NoteStream(service, renderer as unknown as NoteRenderer, {
             notes: heights,
@@ -468,7 +480,7 @@ describe("a note renamed", () => {
         expect(remove).not.toHaveBeenCalled();
     });
 
-    // The block was keyed by the old path when it was placed.
+    // The block was indexed by the old path when it was added.
     it("moves to its new sorted position, found by its old path", async () => {
         const renamed = note("2025-01-01");
         await load(note("2025-01-02"), renamed);
@@ -540,7 +552,8 @@ describe("a note modified", () => {
         expect(noteWindow.refresh).toHaveBeenCalledTimes(2);
     });
 
-    // Every change waits its turn: one that never finishes holds every note back (D-164).
+    // Every change waits for its turn, so one that never finishes holds back
+    // every note (D-164).
     it("logs a change still running after the stall time", async () => {
         const logged = vi.spyOn(console, "error").mockImplementation(() => {});
         await load(note("2025-01-01"));
@@ -577,8 +590,8 @@ describe("a note modified", () => {
         expect(noteWindow.refresh).not.toHaveBeenCalled();
     });
 
-    // The block stays: only its content is rebuilt, so the path stays
-    // resolvable and an unloaded note is left for its re-entry to render.
+    // The block stays. Only its content is drawn again, so the note can still
+    // be found by its path, and an empty note is drawn when it comes back.
     it("refreshes the note's own block rather than replacing it", async () => {
         const file = note("2025-01-01");
         await load(file);
@@ -665,7 +678,7 @@ describe("links to daily notes changed", () => {
         expect(shown()).toEqual(["Notes/2025-01-03.md", "Notes/2025-01-02.md", "Notes/2025-01-01.md"]);
     });
 
-    // Its linked mentions redraw themselves on `resolved`.
+    // Its linked mentions draw themselves again on `resolved`.
     it("leaves a note that stays alone", async () => {
         const file = note("2025-01-01");
         await load(file);
@@ -695,7 +708,7 @@ describe("the day's turn", () => {
         expect(shown()).toEqual([older.path]);
     });
 
-    // The reader's own scroll moves nothing at the top under them.
+    // The reader's own scrolling moves nothing at the top under them.
     it("leaves the day's empty note to a vault change or midnight, not a load or render the scroll asks for", async () => {
         hide(yesterday);
         await load(yesterday, older);
@@ -719,7 +732,10 @@ describe("the day's turn", () => {
     });
 
     describe("with the stream open and still at midnight", () => {
-        /** Opens a stream again on the fake clock, so its midnight timer is a fake one. */
+        /**
+         * Opens a stream again with the fake clock, so its midnight timer is
+         * fake.
+         */
         beforeEach(() => {
             stream.close();
             vi.useFakeTimers({ now: new Date(2025, 0, 2, 12) });
@@ -745,7 +761,8 @@ describe("the day's turn", () => {
         it("waits while the reader scrolls, touches or wheels, and catches up once they stop", async () => {
             hide(ahead);
             await load(ahead, yesterday);
-            // Midnight's timer has fired: the catch-up waits on the reader.
+            // Midnight's timer has fired, and the catch-up waits for the
+            // reader.
             await vi.advanceTimersByTimeAsync(12 * HOURS + 60 * 1000);
 
             for (const interact of [() => stream.onScroll(), () => stream.onTouch(null), () => stream.onWheel()]) {
@@ -780,7 +797,8 @@ describe("the day's turn", () => {
 
         it("leaves no timer running once closed", async () => {
             await load(note("2025-01-01"));
-            // Midnight's timer has fired: the catch-up waits on the reader.
+            // Midnight's timer has fired, and the catch-up waits for the
+            // reader.
             await vi.advanceTimersByTimeAsync(12 * HOURS + 60 * 1000);
             stream.onFileModify(note("2025-01-01"));
             stream.onDailyNoteSettingsChange();
@@ -934,8 +952,8 @@ describe("refresh", () => {
         expect(service.streamLength).toBe(2);
     });
 
-    // Rebuilt placeholders reserve what the store remembers, or the stream's
-    // scroll extent collapses the moment a refresh runs.
+    // Rebuilt empty blocks get the heights the store remembers. Otherwise the
+    // stream's scroll height would collapse as soon as a refresh runs.
     it("rebuilds each placeholder at the height the store remembers", async () => {
         const file = note("2025-01-03");
         await load(file);
@@ -1054,7 +1072,8 @@ describe("the pane", () => {
         expect(frames.detach).toHaveBeenCalled();
     });
 
-    // A frame starting its page mid-glide ends the glide on iOS (D-087).
+    // On iOS, a frame that starts loading its page while scrolling stops the
+    // scroll (D-087).
     it("holds back frames' pages in the notes it holds on mobile", () => {
         Platform.isMobile = true;
         try {
@@ -1065,12 +1084,13 @@ describe("the pane", () => {
         expect(frames.attach).toHaveBeenCalledWith(container);
     });
 
-    // The player fails inside the app, and its page would end a glide (D-088).
+    // The player does not work inside the app, and its page would stop
+    // scrolling (D-088).
     it("shows a YouTube embed as its thumbnail", () => {
         expect((frames as unknown as { standIn: unknown }).standIn).toBe(youtubeThumbnail);
     });
 
-    // A page in a frame would take the flick that should scroll the stream.
+    // A page in a frame would catch the flick that should scroll the stream.
     it("links a web page's frame to the page", () => {
         expect((frames as unknown as { wrapper: unknown }).wrapper).toBe(webPageLink);
     });
@@ -1084,7 +1104,8 @@ describe("the pane", () => {
         expect(frames.onScroll).toHaveBeenCalled();
     });
 
-    // iOS ends a glide early on a scroll box; Android is held to the same rule (ADR 0008).
+    // A scrolling box stops iOS's scrolling early. Android follows the same
+    // rule (ADR 0008).
     it("keeps scroll boxes out of the notes it holds on mobile", () => {
         Platform.isMobile = true;
         try {
@@ -1099,7 +1120,8 @@ describe("the pane", () => {
         expect(guard.attach).not.toHaveBeenCalled();
     });
 
-    // The renderer drew the Base, so it decides: cards, or fitted columns.
+    // The renderer drew the Base, so it decides between cards and fitted
+    // columns.
     it("hands a Base's layout to the renderer", () => {
         const view = document.createElement("div");
 
@@ -1108,7 +1130,7 @@ describe("the pane", () => {
         expect(renderer.onBaseLayout).toHaveBeenCalledWith(view);
     });
 
-    // Its style reads wait for the scroll to stop, like unloads.
+    // Reading styles waits for scrolling to stop, like emptying notes.
     it("passes a scroll on to the scroll box guard", () => {
         stream.onScroll();
         expect(guard.onScroll).toHaveBeenCalled();
@@ -1119,13 +1141,16 @@ describe("Obsidian's daily-notes settings changed", () => {
     beforeEach(() => vi.useFakeTimers());
     afterEach(() => vi.useRealTimers());
 
-    /** Runs the debounced check and drains the mutation queue. */
+    /** Runs the delayed check and empties the change queue. */
     async function settingsChanged() {
         stream.onDailyNoteSettingsChange();
         await vi.runAllTimersAsync();
     }
 
-    /** Obsidian's daily notes live in `Journal/` from here on, and the vault holds `files`. */
+    /**
+     * From now on, Obsidian's daily notes are in `Journal/`, and the vault
+     * holds `files`.
+     */
     function movedToJournal(...files: TFile[]) {
         __setMockSettings({ format: "YYYY-MM-DD", folder: "Journal" });
         vault = files;
@@ -1199,7 +1224,7 @@ describe("Obsidian's daily-notes settings changed", () => {
         expect(shown()).toEqual(files.map((f) => f.path));
     });
 
-    // The old notes' windows go with them.
+    // The old notes' windows are removed with them.
     it("lets the window manager go of the old notes, and attaches it anew", async () => {
         await load(note("2025-01-01"));
         movedToJournal(journal("2025-01-01"));
@@ -1241,7 +1266,7 @@ describe("jumping to a date", () => {
     let notes: TFile[];
 
     beforeEach(async () => {
-        // jsdom lays nothing out: every block lands at the pane's top at once.
+        // jsdom has no layout, so every block is at the pane's top at once.
         HTMLElement.prototype.scrollIntoView = vi.fn();
         notes = makeNotes(45);
         await listed(...notes);
@@ -1341,7 +1366,8 @@ describe("jumping to a date", () => {
     });
 
     it("stops loading when the stream runs out before the target index", async () => {
-        // A cache that shrank under us: the index can no longer be reached.
+        // The list got shorter in the meantime, so the index can no longer be
+        // reached.
         vi.spyOn(service, "indexForDate").mockReturnValue(99);
 
         await jump("2025-01-01");
@@ -1354,7 +1380,7 @@ describe("jumping to a date", () => {
 describe("what a search moves through", () => {
     let notes: TFile[];
     const observers: { callback: () => void; disconnected: boolean }[] = [];
-    /** Reports a resize to every observer still connected. */
+    /** Reports a resize to every observer that is still connected. */
     const resized = () => observers.filter((o) => !o.disconnected).forEach((o) => o.callback());
 
     beforeEach(async () => {
@@ -1380,7 +1406,7 @@ describe("what a search moves through", () => {
 
     const rect = (top: number, bottom: number) => ({ top, bottom }) as DOMRect;
 
-    // The step scrolls once, to the match: centering it is the search's.
+    // The step scrolls once, to the match. Centering it is the search's job.
     it("loads a note past the loaded range without scrolling to it", async () => {
         const target = placeholder(notes[24]!.path);
         target.scrollIntoView = vi.fn();
@@ -1391,7 +1417,7 @@ describe("what a search moves through", () => {
         expect(target.scrollIntoView).not.toHaveBeenCalled();
     });
 
-    // A search reads the note's highlights the moment it arrives.
+    // A search reads the note's highlights as soon as it arrives.
     it("renders the note before handing it back", async () => {
         let rendered = false;
         noteWindow.render.mockImplementation(() => void noteWindow["enqueue"](async () => void (rendered = true)));
@@ -1402,7 +1428,7 @@ describe("what a search moves through", () => {
         expect(rendered).toBe(true);
     });
 
-    // Scrolled to before, it shows its Bases empty, then filling in.
+    // If it were scrolled to first, its Bases would show empty, then fill in.
     it("hands the note back once its Bases fill in", async () => {
         const base = loadingBase(notes[3]!);
         let handed = false;
@@ -1416,7 +1442,8 @@ describe("what a search moves through", () => {
         expect(handed).toBe(true);
     });
 
-    // Still far off, a note may hide while it waits (ADR 0023): the caller reads it shown.
+    // While still far away, a note may be hidden while it waits (ADR 0023). The
+    // caller needs it shown.
     it("shows the note again once its Bases fill in, as it hands it back", async () => {
         const base = loadingBase(notes[3]!);
         let filled = false;
@@ -1437,7 +1464,10 @@ describe("what a search moves through", () => {
         expect(filledAtRender).toEqual([false, true]);
     });
 
-    /** A match over text in the stream, 20px tall, `top` down it: it moves as the pane scrolls. */
+    /**
+     * A match over text in the stream, 20px tall, `top` px down. It moves as
+     * the pane scrolls.
+     */
     function matchAt(top: number): Range {
         const range = document.createRange();
         range.selectNodeContents(container.createSpan().appendChild(document.createTextNode("milk")));
@@ -1482,7 +1512,7 @@ describe("what a search moves through", () => {
             expect(pane.scrollTop).toBe(0);
         });
 
-        // Nothing to show: nothing changes.
+        // There is nothing to show, so nothing changes.
         it("is kept through readying a note no longer listed", async () => {
             await stream.ready(note("1990-01-01"));
             resized();
@@ -1502,7 +1532,8 @@ describe("what a search moves through", () => {
             resized();
 
             expect(pane.scrollTop).toBe(0);
-            // Kept too, it would pull the pane to it first on every resize.
+            // If it were also kept in place, it would pull the pane to it first
+            // on every resize.
             expect(observers.filter((o) => !o.disconnected)).toHaveLength(1);
         });
 
@@ -1571,7 +1602,7 @@ describe("what a search moves through", () => {
 });
 
 describe("the heights the stream reserves", () => {
-    // Every view reads and adds to one store (ADR 0010).
+    // Every view reads from and adds to one store (ADR 0010).
     it("are the plugin's, measured in the column the notes sit in", () => {
         Object.defineProperty(container, "clientWidth", { value: 612 });
 
@@ -1597,7 +1628,8 @@ describe("the stream's place", () => {
         expect(stream.place()).toMatchObject({ path: notes[1]!.path, offset: -150 });
     });
 
-    // Back rebuilds the view, which reserves what the plugin remembers (ADR 0010).
+    // Back builds the view again, which gives notes the heights the plugin
+    // remembers (ADR 0010).
     it("holds only the place", async () => {
         await stream.loadMoreNotes();
         stack(-150);
@@ -1636,8 +1668,9 @@ describe("the stream's place", () => {
         expect(noteWindow.placed).toHaveBeenCalledOnce();
     });
 
-    // Loaded only through the place's note, the stream can end too soon
-    // below it for the pane to scroll there: the scroll stops short.
+    // If notes were only loaded up to the place's note, the stream could end
+    // too soon below it for the pane to scroll there, and the scroll would stop
+    // short.
     it("loads past the place until the pane can scroll to it", async () => {
         Object.defineProperty(pane, "clientHeight", { value: 800, configurable: true });
         Object.defineProperty(pane, "scrollHeight", { get: () => shown().length * 400, configurable: true });
@@ -1688,7 +1721,8 @@ describe("the stream's place", () => {
     });
 
     it("stays at the top when the stream runs out before its note", async () => {
-        // A cache that shrank under us: the index can no longer be reached.
+        // The list got shorter in the meantime, so the index can no longer be
+        // reached.
         vi.spyOn(service, "indexOf").mockReturnValue(99);
         pane.scrollTop = 0;
 
@@ -1698,7 +1732,7 @@ describe("the stream's place", () => {
     });
 
     // A setting that changes what is listed, such as "Hide empty notes",
-    // reloads the stream; the reader stays where they were reading.
+    // reloads the stream, and the reader stays where they were reading.
     describe("after a setting changes what is listed", () => {
         beforeEach(async () => {
             Object.defineProperty(pane, "scrollHeight", { value: 20000, configurable: true });
@@ -1708,7 +1742,9 @@ describe("the stream's place", () => {
             pane.scrollTop = 1000;
         });
 
-        /** The reload starts at the top, with `file`'s rebuilt block 3000px down. */
+        /**
+         * The reload starts at the top, with `file`'s new block 3000px down.
+         */
         function rebuildsAt(file: TFile) {
             noteWindow.add.mockImplementation((f: TFile) => {
                 const block = placeholder(f.path);
@@ -1726,8 +1762,8 @@ describe("the stream's place", () => {
             expect(pane.scrollTop).toBe(3150);
         });
 
-        // Drawn shifted, the notes may all sit above the pane until the scroll
-        // takes what the anchor owes.
+        // While the stream is shifted, the notes may all be above the pane,
+        // until what the anchor owes is moved into the scroll.
         it("reads the place once the scroll holds what the anchor owed", async () => {
             hide(notes[20]!);
             rebuildsAt(notes[5]!);

@@ -2,19 +2,21 @@ import { debounce } from "obsidian";
 import { SCROLL_IDLE_MS } from "./scroll-anchor";
 import { LAID_OUT } from "../render/bases/bases-fit";
 
-/** Clipped by the stylesheet already, Bases and all. */
+/** Bases and everything in them are already clipped by the stylesheet. */
 const BASE = ".bases-embed, .block-language-base";
 
 /**
- * Keeps scroll containers out of the stream (ADR 0008): reports each Base as it
- * lays out, for its owner to fit, clips each inline overflow-x as it appears,
- * and clips whatever else the stylesheet missed once the scroll is still.
+ * Keeps scrolling boxes out of the stream (ADR 0008). It reports each Base as
+ * it lays out, so its owner can fit it. It clips each inline overflow-x as soon
+ * as it appears. And once scrolling stops, it clips anything else the
+ * stylesheet missed.
  */
 export class ScrollBoxGuard {
     private observer: MutationObserver | null = null;
-    /** Roots added since the last check. */
+    /** Elements added since the last check. */
     private readonly unchecked = new Set<HTMLElement>();
-    // Reading computed styles mid-glide forces a page-wide recalc.
+    // Reading computed styles while scrolling makes the browser recalculate the
+    // styles of the whole page.
     private readonly checkOnceStill = debounce(() => this.clipScrollBoxes(), SCROLL_IDLE_MS, true);
 
     constructor(private readonly onBaseLayout: (view: HTMLElement) => void) {}
@@ -34,11 +36,11 @@ export class ScrollBoxGuard {
         this.observer?.disconnect();
         this.observer = null;
         this.checkOnceStill.cancel();
-        // Stryker disable next-line CallExpression: frees memory only; attached once, it is detached as the stream closes.
+        // Stryker disable next-line CallExpression: only frees memory; it is attached once, and detached when the stream closes.
         this.unchecked.clear();
     }
 
-    /** Postpones the check until the scroll stops. */
+    /** Delays the check until scrolling stops. */
     onScroll(): void {
         if (this.unchecked.size > 0) this.checkOnceStill();
     }
@@ -48,7 +50,8 @@ export class ScrollBoxGuard {
         for (const record of records) {
             const view = baseViewChangedBy(record);
             if (view) views.add(view);
-            // Both record types observed here, childList and attributes, target an element.
+            // Both kinds of record observed here, childList and attributes,
+            // have an element as target.
             clipInlineOverflow(record.target as Element);
             for (const node of Array.from(record.addedNodes)) {
                 if (!node.instanceOf(HTMLElement)) continue;
@@ -75,20 +78,22 @@ export class ScrollBoxGuard {
 }
 
 /**
- * The Base whose layout a mutation may have changed: rows added or removed, or
- * a new width on its table's header row or kanban board. Its own style writes, the fitted cap
- * among them, are not layout.
+ * The Base whose layout a change may have affected: rows added or removed, or a
+ * new width on its table's header row or kanban board. Changes to its own
+ * styles, such as the width limit set when fitting it, are not layout changes.
  */
 function baseViewChangedBy(record: MutationRecord): HTMLElement | null {
-    // Both record types observed here, childList and attributes, target an element.
+    // Both kinds of record observed here, childList and attributes, have an
+    // element as target.
     const target = record.target as Element;
     if (record.type === "attributes" && !target.matches(LAID_OUT)) return null;
     return target.closest<HTMLElement>(".bases-view");
 }
 
 /**
- * Obsidian sets overflow-x inline on a table's wrapper, which outranks the
- * stylesheet's clip (D-172). Read inline, it costs no style recalc mid-glide.
+ * Obsidian sets overflow-x as an inline style on a table's wrapper, which wins
+ * over the stylesheet's clip (D-172). Reading the inline style does not make
+ * the browser recalculate styles while scrolling.
  */
 function clipInlineOverflow(el: Element): void {
     if (!el.instanceOf(HTMLElement) || !el.style.getPropertyValue("overflow-x") || el.closest(BASE)) return;
@@ -96,7 +101,10 @@ function clipInlineOverflow(el: Element): void {
     el.addClass("is-scroll-clipped");
 }
 
-/** `hidden` too: no finger scrolls it, but it is a scroll container. */
+/**
+ * Includes `hidden`: a finger cannot scroll it, but it is still a scrolling
+ * box.
+ */
 function isScrollBox(el: HTMLElement): boolean {
     const style = getComputedStyle(el);
     return /auto|scroll|hidden/.test(`${style.overflowX} ${style.overflowY}`);

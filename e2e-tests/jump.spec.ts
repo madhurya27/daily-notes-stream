@@ -12,7 +12,10 @@ import {
     DAILY_NOTES_CONFIG,
 } from "./obsidian";
 
-/** The note at the pane's top, how far it starts above it, and how many unloaded notes lie above. */
+/**
+ * The note at the pane's top, how far above the top it starts, and how many
+ * empty notes are above it.
+ */
 function readingPoint(container: import("@playwright/test").Locator) {
     return container.evaluate((column) => {
         const pane = column.parentElement!.getBoundingClientRect();
@@ -36,15 +39,15 @@ async function turnPhone(page: import("@playwright/test").Page) {
 }
 
 /**
- * Narrows the pane as a desktop reader does. Not by resizing the viewport:
- * afterwards Obsidian's menus no longer close on Escape.
+ * Makes the pane narrower, as a desktop reader does. Not by resizing the
+ * viewport, because afterwards Obsidian's menus no longer close on Escape.
  */
 async function openRightSidebar(page: import("@playwright/test").Page) {
     await page.evaluate(() => window.app.workspace.rightSplit.expand());
     return { restore: () => page.evaluate(() => window.app.workspace.rightSplit.collapse()) };
 }
 
-/** Opens the jump suggester and returns its prompt. */
+/** Opens the jump list and returns its prompt. */
 async function openSuggester(page: import("@playwright/test").Page) {
     await page.locator('.view-action[aria-label="Jump to date"]').click();
     const prompt = page.locator(".prompt");
@@ -52,7 +55,7 @@ async function openSuggester(page: import("@playwright/test").Page) {
     return prompt;
 }
 
-/** Types `date` into the suggester and takes the first thing it offers. */
+/** Types `date` into the jump list and chooses the first item. */
 async function jumpTo(page: import("@playwright/test").Page, date: string) {
     const prompt = await openSuggester(page);
     await prompt.locator("input.prompt-input").fill(date);
@@ -61,8 +64,8 @@ async function jumpTo(page: import("@playwright/test").Page, date: string) {
 }
 
 test.describe("jump to date", () => {
-    // Tests share one Obsidian instance, and a suggester left open puts a
-    // modal backdrop over the next test's first click.
+    // Tests share one Obsidian instance, and a jump list left open puts a modal
+    // background over the next test's first click.
     test.afterEach(async ({ obsidian }) => {
         await obsidian.page.keyboard.press("Escape");
         await expect(obsidian.page.locator(".modal-container")).toHaveCount(0);
@@ -78,14 +81,14 @@ test.describe("jump to date", () => {
 
         await jumpTo(page, oldest);
 
-        // The target lay beyond the first batch, so reaching it had to load more.
+        // The target was past the first batch, so reaching it had to load more.
         await expect(blocks).toHaveCount(SEEDED_DAYS);
         const target = container.locator(`.daily-note-block[data-source-path="Notes/${oldest}.md"]`);
         await expect(target.locator(".daily-note-title")).toHaveText(oldest);
 
-        // Scrolled to, not merely loaded: the block settles at the top of the
-        // pane. Polled, because the jump keeps correcting the scroll as the
-        // notes around the target render and push it down.
+        // Scrolled to, not only loaded: the block ends up at the top of the
+        // pane. Checked repeatedly, because the jump keeps correcting the
+        // scroll as the notes around the target are drawn and push it down.
         await expect
             .poll(() =>
                 target.evaluate((el) => {
@@ -97,7 +100,7 @@ test.describe("jump to date", () => {
     });
 
     // Only days the vault has a note for are listed, so the reader can no
-    // longer ask for one that silently lands somewhere else.
+    // longer choose one that quietly goes somewhere else.
     test("offers the vault's own dates, newest first", async ({ obsidian }) => {
         const { page } = obsidian;
         await openStream(page);
@@ -141,8 +144,8 @@ test.describe("jump to date", () => {
         }
     });
 
-    // A focused query raises the phone's keyboard over half the list; the
-    // reader looks first, then taps the query or the calendar.
+    // A focused search field brings up the phone's keyboard over half the list.
+    // The reader looks first, then taps the search field or the calendar.
     test("focuses the query on desktop only, and a tap focuses it on mobile", async ({ obsidian, mobileLayout }) => {
         const { page } = obsidian;
         await openStream(page);
@@ -153,7 +156,8 @@ test.describe("jump to date", () => {
             await expect(query).toBeFocused();
             return;
         }
-        // Polled for a while: Obsidian may focus the query after the open.
+        // Checked for a while, because Obsidian may focus the search field
+        // after it opens.
         await expect.poll(() => query.evaluate((el) => el === document.activeElement), { timeout: 1000 }).toBe(false);
         await page.waitForTimeout(500);
         await expect(query).not.toBeFocused();
@@ -176,7 +180,7 @@ test.describe("jump to date", () => {
         const { page } = obsidian;
         await openStream(page);
 
-        // A day past the end of the vault: no note carries it.
+        // A day after the end of the vault, so no note has it.
         const prompt = await openSuggester(page);
         await prompt.locator("input.prompt-input").fill(seededDate(-1));
 
@@ -198,8 +202,8 @@ test.describe("jump to date", () => {
         expect(clear.x + clear.width).toBeLessThanOrEqual(input.x + input.width);
     });
 
-    // iOS opens its wheel only for a tap on the date input itself, never
-    // through showPicker(): so a tap on the icon must land on the input.
+    // iOS only opens its date picker from a tap on the date input itself, never
+    // through showPicker(), so a tap on the icon must land on the input.
     test("puts the date input under the calendar icon, where a tap lands", async ({ obsidian }) => {
         const { page } = obsidian;
         await openStream(page);
@@ -207,7 +211,8 @@ test.describe("jump to date", () => {
 
         const icon = prompt.locator(".daily-notes-jump-calendar");
 
-        // Polled: on mobile the prompt slides up from below the screen.
+        // Checked repeatedly, because on mobile the prompt slides up from below
+        // the screen.
         await expect
             .poll(async () => {
                 const box = (await icon.boundingBox())!;
@@ -219,8 +224,8 @@ test.describe("jump to date", () => {
             .toBe(true);
     });
 
-    // iOS draws a date input at its own width, whatever its box says; one
-    // spilling out of the icon took the clear button's taps.
+    // iOS draws a date input at its own width, whatever its box says. One that
+    // spread out of the icon caught the clear button's taps.
     test("leaves the clear button its taps, however wide the date input draws", async ({ obsidian }) => {
         const { page } = obsidian;
         await openStream(page);
@@ -239,8 +244,9 @@ test.describe("jump to date", () => {
             .toBe(true);
     });
 
-    // iOS fills an empty date input with today as its wheel opens; taking
-    // focus away on that change closed the wheel before the reader turned it.
+    // iOS fills an empty date input with today's date when its picker opens.
+    // Moving the focus away on that change closed the picker before the reader
+    // could use it.
     test("keeps the wheel open as it fills the query, and Enter still jumps", async ({ obsidian }) => {
         const { page } = obsidian;
         const container = await openStream(page);
@@ -270,8 +276,9 @@ test.describe("jump to date", () => {
         const prompt = await openSuggester(page);
         const target = seededDate(2);
 
-        // The wheel itself is the platform's, so the test drives the hidden
-        // control the calendar button hands to it and checks what comes back.
+        // The date picker itself belongs to the platform, so the test uses the
+        // hidden input that the calendar button passes to it, and checks what
+        // comes back.
         await prompt.locator(".daily-notes-jump-picker").evaluate((el, value) => {
             (el as HTMLInputElement).value = value;
             el.dispatchEvent(new Event("change"));
@@ -286,7 +293,8 @@ test.describe("jump to date", () => {
         const container = await openStream(page);
         const newest = seededDate(0);
 
-        // A day past the end of the vault: the newest note is what precedes it.
+        // A day after the end of the vault, so the newest note is the one
+        // before it.
         await jumpTo(page, seededDate(-1));
 
         const target = container.locator(`.daily-note-block[data-source-path="Notes/${newest}.md"]`);
@@ -307,7 +315,8 @@ test.describe("jump to date", () => {
         expect(await scroller.evaluate((el) => el.scrollTop)).toBe(0);
     });
 
-    // A guess grows or shrinks as the reader scrolls back past it (ADR 0010).
+    // A guessed height grows or shrinks as the reader scrolls back past it (ADR
+    // 0010).
     test("reserves the heights notes measured in an earlier session", async ({ obsidian }) => {
         const { page } = obsidian;
         await scrollThroughStream(await openStream(page));
@@ -333,16 +342,17 @@ test.describe("jump to date", () => {
                 ]),
             };
         });
-        // On a phone, the text size scaled by iOS's setting.
+        // On a phone, the text size changed by iOS's setting.
         expect(layout).toMatch(/^\d+:(\d+px|calc\(\d+px \* [\d.]+\))$/);
         expect(reserved.length).toBeGreaterThan(0);
-        // A note unloaded this session reserves what it measured, as the store keeps it (D-105).
+        // A note emptied in this session keeps the height it measured, as the
+        // store saves it (D-105).
         for (const [path, height] of reserved) expect(height, path).toBe(`${remembered[path!]}px`);
     });
 
-    // iOS has no scroll anchoring: whatever changes height as the width
-    // changes, the stream alone must hold the place. At 100px, the note above
-    // straddles the pane's top and reflows too.
+    // iOS does not keep the scroll position. Whatever changes height when the
+    // width changes, the stream must keep the place by itself. At 100px, the
+    // note above crosses the pane's top and reflows too.
     for (const below of [0, 100]) {
         test(`keeps a title ${below}px below the pane's top where it was when the width changes`, async ({
             obsidian,
@@ -355,7 +365,8 @@ test.describe("jump to date", () => {
                 const date = seededDate(Math.floor(SEEDED_DAYS / 2));
                 await jumpTo(page, date);
                 await container.evaluate((column, below) => column.parentElement!.scrollBy(0, -below), below);
-                // The scroll counts as still, and the anchor re-picks the place.
+                // Scrolling counts as stopped, and the anchor reads the place
+                // again.
                 await page.waitForTimeout(1000);
                 const title = container.locator(`.daily-note-block[data-source-path$="${date}.md"] .daily-note-title`);
                 const titleTop = () =>
@@ -371,7 +382,8 @@ test.describe("jump to date", () => {
                 const width = testInfo.project.name === "mobile" ? await turnPhone(page) : await openRightSidebar(page);
                 try {
                     await expect.poll(() => container.evaluate((column) => column.clientWidth)).not.toBe(widthBefore);
-                    // Obsidian reports the resize late, and the scroll takes the shift once still.
+                    // Obsidian reports the resize late, and the shift moves
+                    // into the scroll once it stops.
                     await page.waitForTimeout(1000);
                     expect(await titleTop()).toBeCloseTo(before, 0);
                 } finally {
@@ -383,9 +395,9 @@ test.describe("jump to date", () => {
         });
     }
 
-    // Turned, a phone redraws the cards being read as a table: the reader lands
-    // as far through the Base as they were (D-056), in
-    // the table while it is held open at the cards' height.
+    // When turned, a phone draws the cards being read as a table again. The
+    // reader ends up as far through the Base as they were (D-056), in the
+    // table, while it is held at the cards' height.
     test("keeps how far the pane's top is through a Base redrawn as a table", async ({ obsidian, mobileLayout }) => {
         test.skip(!mobileLayout, "only a phone draws a Base as cards");
         const { page } = obsidian;
@@ -409,7 +421,7 @@ test.describe("jump to date", () => {
             const slot = container.locator(`.daily-note-block[data-source-path="${path}"] .daily-note-base`);
             await expect(slot.locator(".bases-cards-item[draggable]").first()).toBeVisible();
             await page.waitForTimeout(1000);
-            /** How far through the Base the pane's top is. */
+            /** How far down the Base the pane's top is. */
             const through = () =>
                 slot.evaluate((el) => {
                     const pane = el.closest(".daily-notes-stream-container")!.parentElement!;
@@ -424,7 +436,8 @@ test.describe("jump to date", () => {
             await page.waitForTimeout(1000);
             expect(await through()).toBeCloseTo(0.5, 1);
 
-            // Two frames into the table being held open at the cards' height.
+            // Two frames after the table starts being held at the cards'
+            // height.
             const whileHeld = slot.evaluate(
                 (el) =>
                     new Promise<{ paneAt: number; drawn: number }>((resolve) => {
@@ -448,7 +461,8 @@ test.describe("jump to date", () => {
                 const { paneAt, drawn } = await whileHeld;
                 expect(paneAt).toBeLessThan(drawn);
                 await expect(slot.locator(".bases-thead")).toBeVisible();
-                // Held until Bases fills it, then handed to the scroll once still.
+                // Held until Bases fills it, then moved into the scroll once
+                // scrolling stops.
                 await page.waitForTimeout(3000);
                 expect(await through()).toBeCloseTo(0.5, 1);
             } finally {
@@ -460,8 +474,8 @@ test.describe("jump to date", () => {
         }
     });
 
-    // As a phone's trace showed: the pane's top on the Base's last card, a
-    // heading below it starting inside the pane. The reader is in the Base.
+    // As a phone's trace showed: the pane's top is on the Base's last card, and
+    // a heading below it starts inside the pane. The reader is in the Base.
     test("keeps the pane's top in a Base redrawn as a table when a heading starts below it", async ({
         obsidian,
         mobileLayout,
@@ -470,7 +484,8 @@ test.describe("jump to date", () => {
         const { page } = obsidian;
         const date = seededDate(SEEDED_DAYS);
         const path = `Notes/${date}.md`;
-        // The demo vault's: six books, too wide for a phone's table, embedded from a .base file.
+        // The demo vault's Base: six books, too wide for a table on a phone,
+        // embedded from a .base file.
         const books: [string, string, string, string][] = [
             ["A Pattern Language", "Christopher Alexander", "up next", ""],
             ["Four Thousand Weeks", "Oliver Burkeman", "finished", "4"],
@@ -524,14 +539,15 @@ test.describe("jump to date", () => {
             const slot = container.locator(`.daily-note-block[data-source-path="${path}"] .daily-note-base`);
             await expect(slot.locator(".bases-cards-item[draggable]").first()).toBeVisible();
             await page.waitForTimeout(1000);
-            /** How far through the Base the pane's top is. */
+            /** How far down the Base the pane's top is. */
             const through = () =>
                 slot.evaluate((el) => {
                     const pane = el.closest(".daily-notes-stream-container")!.parentElement!;
                     const { top, height } = el.getBoundingClientRect();
                     return (pane.getBoundingClientRect().top - top) / height;
                 });
-            // The Base ends 40% down the pane, the heading just below.
+            // The Base ends 40% of the way down the pane, with the heading just
+            // below.
             await slot.evaluate((el) => {
                 const pane = el.closest(".daily-notes-stream-container")!.parentElement!;
                 const bottom = el.getBoundingClientRect().bottom - pane.getBoundingClientRect().top;
@@ -545,7 +561,8 @@ test.describe("jump to date", () => {
             const width = await turnPhone(page);
             try {
                 await expect(slot.locator(".bases-thead")).toBeVisible();
-                // Held until Bases fills it, then handed to the scroll once still.
+                // Held until Bases fills it, then moved into the scroll once
+                // scrolling stops.
                 await page.waitForTimeout(3000);
                 expect(await through()).toBeCloseTo(before, 1);
             } finally {

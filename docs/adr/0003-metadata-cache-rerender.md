@@ -1,41 +1,40 @@
-# 0003. Re-render from `metadataCache`, not `vault.modify`
+# 0003. Draw notes again from `metadataCache`, not `vault.modify`
 
 - **Status:** Accepted
 - **Date:** 2026-08-20 (recorded 2026-08-30)
 
 ## Context
 
-The view re-rendered a note on `vault.on("modify")`. That event fires as soon as
-the file is written, before `metadataCache` catches up — and the renderer reads
-the cache to slice frontmatter off the body. The result was a note re-rendered
-at a stale frontmatter offset: outdated properties, and body text that had been
-part of the frontmatter block a moment earlier.
+The view drew a note again on `vault.on("modify")`. That event fires as soon as
+the file is written, before `metadataCache` is updated, and the renderer reads
+the cache to cut the frontmatter off the body. So the note was drawn again with
+the frontmatter's old position: old properties, and body text that had been part
+of the frontmatter a moment earlier.
 
 ## Decision
 
-Drive re-render from `metadataCache.on("changed")`, which fires after the cache
-holds the new parse of that file. The handler replaces the note's DOM element in
-place rather than rebuilding the batch.
+Draw notes again on `metadataCache.on("changed")`, which fires after the cache
+has the new reading of that file. The handler replaces the note's DOM element in
+place, instead of building the batch again.
 
-`create`, `delete` and `rename` stay on vault events: they change _which_ notes
-exist, not what a note's parsed content is, and they route through
-`service.insertSorted` / `removeSorted` so sort order and the cached range stay
-in step.
+`create`, `delete` and `rename` stay on vault events. They change _which_ notes
+exist, not what is read from a note, and they go through `service.insertSorted`
+and `removeSorted`, so the sort order and the loaded range stay in step.
 
 ## Consequences
 
-- Re-render lags the keystroke by the cache's own debounce. In a read-only
-  stream that is invisible.
-- Anything else reading `metadataCache` during a render is reading the same
+- Drawing again comes after the key press by the cache's own delay. In a
+  read-only stream, nobody notices.
+- Anything else that reads `metadataCache` while a note is drawn reads the same
   version the event announced.
-- The two event families must not be merged back together on the grounds that
-  they look similar; they answer different questions.
+- The two kinds of event must not be merged again because they look similar.
+  They answer different questions.
 
 ## Rejected alternatives
 
-- **Keep `vault.modify`, re-read the file directly** — bypasses the cache the
-  renderer already uses, so the offset can still disagree.
-- **Keep `vault.modify` with a delay** — a guess at the cache's timing, wrong
-  under load.
-- **Re-render the whole batch on any change** — loses scroll position and
-  collapse state for an edit to one note.
+- **Keep `vault.modify`, and read the file directly** — goes around the cache
+  the renderer already uses, so the position can still disagree.
+- **Keep `vault.modify` with a delay** — a guess at the cache's timing, which is
+  wrong when the machine is busy.
+- **Draw the whole batch again on any change** — loses the scroll position and
+  the fold state, for an edit to one note.

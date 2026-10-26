@@ -40,7 +40,7 @@ describe("youtubeThumbnail", () => {
         expect(link.rel).toBe("noopener");
     });
 
-    // Sharp across a phone at 3x: 1,280 px wide, where hqdefault is 480.
+    // Sharp across a phone at 3x: 1,280 px wide, while hqdefault is 480.
     it("shows the video's largest thumbnail under a play button", () => {
         const link = thumbnail(`https://www.youtube.com/embed/${ID}`);
 
@@ -49,7 +49,8 @@ describe("youtubeThumbnail", () => {
         expect(link.querySelector(".daily-note-video-play")).not.toBeNull();
     });
 
-    // YouTube's own button: red, a white triangle, hidden from a screen reader as the link names the video.
+    // YouTube's own button: red with a white triangle, hidden from screen
+    // readers because the link already names the video.
     it("draws YouTube's play button", () => {
         const play = thumbnail(`https://www.youtube.com/embed/${ID}`).querySelector(".daily-note-video-play")!;
         const [button, triangle] = Array.from(play.children);
@@ -68,7 +69,7 @@ describe("youtubeThumbnail", () => {
         expect(thumbnail(`https://www.youtube.com/embed/${ID}`).ariaLabel).toBe("YouTube video");
     });
 
-    // The player's box, so the note is as tall as it would have been.
+    // The player's size, so the note is as tall as it would have been.
     it("takes the embed's width and shape", () => {
         const link = thumbnail(`https://www.youtube.com/embed/${ID}`, { width: "560", height: "315" });
 
@@ -76,7 +77,7 @@ describe("youtubeThumbnail", () => {
         expect(link.style.getPropertyValue("--daily-note-video-ratio")).toBe("560 / 315");
     });
 
-    // The stylesheet's defaults: 16:9, across the note.
+    // The stylesheet's defaults: 16:9, as wide as the note.
     it("sets no size when the embed gives none", () => {
         const link = thumbnail(`https://www.youtube.com/embed/${ID}`);
 
@@ -110,7 +111,7 @@ describe("fallBackToSmallThumbnail", () => {
     const MAX = `https://i.ytimg.com/vi/${ID}/maxresdefault.jpg`;
     const HQ = `https://i.ytimg.com/vi/${ID}/hqdefault.jpg`;
     const image = () => thumbnail(`https://www.youtube.com/embed/${ID}`).querySelector("img")!;
-    /** As the stream's capture listener hands it on. */
+    /** As the stream's capture listener passes it on. */
     const event = (type: "load" | "error", target: EventTarget) => ({ type, target }) as unknown as Event;
     const loaded = (img: HTMLImageElement, width: number) => {
         Object.defineProperty(img, "naturalWidth", { configurable: true, value: width });
@@ -125,7 +126,7 @@ describe("fallBackToSmallThumbnail", () => {
         expect(img.getAttribute("src")).toBe(HQ);
     });
 
-    // YouTube answers a missing one with a 120 px grey stand-in.
+    // When one is missing, YouTube sends a 120 px grey placeholder.
     it("falls back when YouTube sends its stand-in", () => {
         const img = image();
 

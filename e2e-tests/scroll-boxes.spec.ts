@@ -2,18 +2,23 @@ import type { Locator, Page } from "@playwright/test";
 import { pdf } from "../scripts/pdf.mjs";
 import { test, expect, openStream } from "./obsidian";
 
-/** Newer than every seeded note, so it opens the stream. */
+/** Newer than every test note, so it is first in the stream. */
 const NOTE = "Notes/2026-03-15.md";
 
-/** Enough columns to overrun a phone, and a desktop at Bases' default width. */
+/**
+ * Enough columns to be wider than a phone, and than a desktop at Bases' default
+ * width.
+ */
 const WIDE_COLUMNS = ["file.name", "file.path", "file.folder", "file.ext", "file.size", "file.ctime", "file.mtime"];
 
 const BASES: Record<string, string> = {
     "Wide.base": baseView(WIDE_COLUMNS),
     "Narrow.base": baseView(["file.name"]),
-    // A hand-resized column ignores the fitted cap, so it clips instead.
+    // A column resized by hand ignores the maximum width set when fitting, so
+    // it is cut off instead.
     "Resized.base": baseView(["file.name", "file.path"], ["columnSize:", "      file.path: 900"]),
-    // A column per extension: md, base and pdf, wider than a phone (1.14).
+    // One column for each file type, md, base and pdf, which is wider than a
+    // phone (1.14).
     "Kanban.base": baseView(["file.name"], ["groupBy:", "      property: file.ext", "      direction: ASC"], "kanban"),
 };
 
@@ -29,13 +34,15 @@ function baseView(order: string[], extra: string[] = [], type = "table"): string
     ].join("\n");
 }
 
-/** Where Kanban.base draws among the zoo's extracted Bases. */
+/** Where Kanban.base is drawn among this note's Bases. */
 const KANBAN_SLOT = 3;
 
-/** Three pages of text: Obsidian's PDF viewer scrolls between them. */
+/** Three pages of text. Obsidian's PDF viewer scrolls between them. */
 const PDF = { path: "Doc.pdf", body: pdf(3) };
 
-/** One of each embed that scrolls inside a note elsewhere in Obsidian. */
+/**
+ * One of each kind of embed that scrolls inside a note elsewhere in Obsidian.
+ */
 const ZOO = [
     "## Embeds",
     "",
@@ -47,7 +54,7 @@ const ZOO = [
     "",
     "![[Kanban.base]]",
     "",
-    // Inline, so it stays a table on a phone too.
+    // Inline, so it is still a table on a phone.
     "Fitted: ![[Wide.base]]",
     "",
     "![[Reading list]]",
@@ -72,7 +79,7 @@ const ZOO = [
     "",
 ].join("\n");
 
-/** Every element in the stream that is a scroll container, SVG aside. */
+/** Every element in the stream that is a scrolling box, except SVG. */
 function scrollBoxes(container: Locator): Promise<string[]> {
     return container.evaluate((root) =>
         Array.from(root.querySelectorAll("*"))
@@ -88,7 +95,8 @@ function scrollBoxes(container: Locator): Promise<string[]> {
 async function seedZoo(page: Page): Promise<void> {
     await page.evaluate(
         async ({ bases, note, zoo }) => {
-            // What Mermaid's "Allow" writes; without it Obsidian draws no diagram.
+            // What Mermaid's "Allow" saves. Without it, Obsidian draws no
+            // diagram.
             window.app.saveLocalStorage("mermaid-vault-trust", true);
             for (const [path, body] of Object.entries(bases)) await window.app.vault.create(path, body);
             await window.app.vault.create(note, zoo);
@@ -109,7 +117,7 @@ async function deleteZoo(page: Page): Promise<void> {
     );
 }
 
-/** How far `el` could scroll sideways, and whether it is a box that scrolls. */
+/** How far `el` could scroll sideways, and whether it is a scrolling box. */
 function sidewaysScroll(el: Locator): Promise<{ overflow: number; scrolls: boolean }> {
     return el.evaluate((box) => ({
         overflow: box.scrollWidth - box.clientWidth,
@@ -117,7 +125,7 @@ function sidewaysScroll(el: Locator): Promise<{ overflow: number; scrolls: boole
     }));
 }
 
-// Neither side widens the page itself.
+// Neither side makes the page itself wider.
 test("never scrolls the page sideways", async ({ obsidian }) => {
     const { page } = obsidian;
     await seedZoo(page);
@@ -148,7 +156,8 @@ test("on desktop, draws a kanban as a kanban", async ({ obsidian, mobileLayout }
     }
 });
 
-// Clipped, it would pass the test above with the end of the equation cut off.
+// If it were cut off, it would pass the test above with the end of the equation
+// missing.
 test("on mobile, shrinks a wide equation to fit the note", async ({ obsidian, mobileLayout }) => {
     test.skip(!mobileLayout, "desktop draws math as Obsidian does");
     const { page } = obsidian;
@@ -172,8 +181,8 @@ test("on mobile, shrinks a wide equation to fit the note", async ({ obsidian, mo
     }
 });
 
-// iOS ends a glide early on a scroll box inside the scroller once notes have
-// unloaded; Android is held to the same rule (ADR 0008).
+// A scrolling box inside the scrolling pane stops iOS's scrolling early once
+// notes have been emptied. Android follows the same rule (ADR 0008).
 test.describe("on mobile, nothing inside the stream scrolls", () => {
     test.beforeEach(({ mobileLayout }) => test.skip(!mobileLayout, "desktop keeps its scroll bars"));
     test.afterEach(({ obsidian }) => deleteZoo(obsidian.page));
@@ -199,7 +208,8 @@ test.describe("on mobile, nothing inside the stream scrolls", () => {
         await expect.poll(() => scrollBoxes(container)).toEqual([]);
     });
 
-    // Clipped, it showed one column of several; cards show every column as a group.
+    // Cut off, it showed one of several columns. Cards show every column as a
+    // group.
     test("draws a kanban wider than the note as cards, a group per column", async ({ obsidian }) => {
         const { page } = obsidian;
         await seedZoo(page);
@@ -213,7 +223,7 @@ test.describe("on mobile, nothing inside the stream scrolls", () => {
         for (const ext of columns) await expect(kanban.getByText(ext, { exact: true })).toBeVisible();
     });
 
-    // Clipped, its viewer shows page 1 and its toolbar reaches nothing (D-083).
+    // Cut off, its viewer shows page 1, and its toolbar does nothing (D-083).
     test("opens a PDF from a tap on its first page", async ({ obsidian }) => {
         const { page } = obsidian;
         await seedZoo(page);
@@ -240,10 +250,12 @@ test.describe("on mobile, nothing inside the stream scrolls", () => {
             .toBeLessThanOrEqual(0);
     });
 
-    // Bases pins both to its own scroll box; clipped, they would pin to the stream's.
+    // Bases fixes both to its own scrolling box. If it were cut off, they would
+    // be fixed to the stream's.
     test("keeps a Base's header and summaries on its table while the stream scrolls", async ({ obsidian }) => {
         const { page } = obsidian;
-        // A screen of text either side, so the stream can scroll the table past either edge.
+        // A screen of text on each side, so the stream can scroll the table
+        // past either edge.
         const screen = Array.from({ length: 40 }, (_, i) => `Line ${i}`).join("\n\n");
         await page.evaluate(
             async ({ note, body, base }) => {
@@ -260,7 +272,10 @@ test.describe("on mobile, nothing inside the stream scrolls", () => {
             const view = (await openStream(page)).locator(".bases-view").first();
             await expect(view.locator(".bases-table-footer")).toBeAttached();
 
-            /** Scrolls the view's `edge` 100px past the screen's; how far it went, and where each bar sits on the view. */
+            /**
+             * Scrolls the view's `edge` 100px past the screen's edge. Returns
+             * how far it went, and where each bar is on the view.
+             */
             const scrollPast = (edge: "top" | "bottom") =>
                 view.evaluate((el, edge) => {
                     const pane = el.closest(".daily-notes-stream-container")!.parentElement!;
@@ -293,7 +308,7 @@ test.describe("on mobile, nothing inside the stream scrolls", () => {
         const table = container.locator(".daily-note-block").first().locator("table").first();
 
         await expect(table).toHaveClass(/is-stacked/);
-        // Each stacked cell names its column, from the header row.
+        // Each stacked cell shows its column's name, from the header row.
         await expect(table.locator("tbody td").nth(1)).toHaveAttribute("data-column", "Distance");
     });
 });
@@ -304,7 +319,8 @@ test.describe("on desktop, wide content scrolls inside its own box", () => {
 
     test("gives a table too wide for the note its own scroll bar", async ({ obsidian }) => {
         const { page } = obsidian;
-        // Unbreakable cells: a table wraps its words, so only these overrun.
+        // Cells that cannot break. A table wraps its words, so only these are
+        // too wide.
         const cell = "x".repeat(60);
         await page.evaluate(
             async (text) => {

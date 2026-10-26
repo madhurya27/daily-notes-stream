@@ -1,7 +1,10 @@
 import type { Page } from "@playwright/test";
 import { test, expect, openStream } from "./obsidian";
 
-/** Where each open note sits: its path, and whether its leaf shares the stream's tab group. */
+/**
+ * Where each open note is: its path, and whether its leaf is in the stream's
+ * tab group.
+ */
 function openNotes(page: Page) {
     return page.evaluate(() => {
         const stream = window.app.workspace.getLeavesOfType("daily-notes-stream-view")[0];
@@ -14,7 +17,10 @@ function openNotes(page: Page) {
     });
 }
 
-/** The path of the note in the focused leaf; getActiveFile() would report the last note focused. */
+/**
+ * The path of the note in the focused leaf. getActiveFile() would report the
+ * last note that had focus.
+ */
 function activeNote(page: Page) {
     return page.evaluate(() => window.app.workspace.activeLeaf?.view?.file?.path);
 }
@@ -29,7 +35,8 @@ async function firstLink(page: Page, text: string) {
 }
 
 test.describe("links in a note", () => {
-    // Tests share the instance: a note left open would take the screen from the next test's stream.
+    // Tests share the instance, so a note left open would cover the next test's
+    // stream.
     test.afterEach(async ({ obsidian }) => {
         await obsidian.page.evaluate(() => window.app.workspace.detachLeavesOfType("markdown"));
     });
@@ -93,7 +100,8 @@ test.describe("links in a note", () => {
 
     test("offer the linked note's file menu on right-click", async ({ obsidian, mobileLayout }) => {
         const { page } = obsidian;
-        // A native menu (the macOS default) never reaches the DOM to be read.
+        // A native menu (the macOS default) is never in the DOM, so it cannot
+        // be read.
         await page.evaluate(() => window.app.vault.setConfig("nativeMenus", false));
         await (await firstLink(page, "Reading list")).click({ button: "right" });
 
@@ -101,7 +109,7 @@ test.describe("links in a note", () => {
         await expect(menu.getByText("Open in new tab")).toBeVisible();
         await expect(menu.getByText("Bookmark...")).toBeVisible();
 
-        // A phone's menu is a sheet over a backdrop, and ignores Escape.
+        // A phone's menu is a sheet over a background, and ignores Escape.
         if (mobileLayout) await page.locator(".suggestion-bg").click({ position: { x: 5, y: 5 } });
         else await page.keyboard.press("Escape");
         await expect(menu).toBeHidden();
@@ -116,7 +124,7 @@ test.describe("links in a note", () => {
 
             const menu = page.locator(".menu");
             await expect(menu.getByText("Open in new tab")).toBeVisible();
-            // No file yet, so none of Obsidian's file-menu items.
+            // There is no file yet, so none of Obsidian's file menu items.
             await expect(menu.getByText("Bookmark...")).toHaveCount(0);
             await expect(menu.getByText("Rename...")).toHaveCount(0);
 
@@ -179,7 +187,8 @@ test.describe("links in a note", () => {
     }) => {
         test.skip(mobileLayout, "a phone has no hover");
         const { page } = obsidian;
-        // Settings → Page preview: the stream's row, its toggle on while hovering needs Mod.
+        // Settings → Page preview: the stream's row. Its switch is on while
+        // hovering needs Mod.
         const needsMod = async () => {
             const settings = page.context().waitForEvent("page");
             await page.evaluate(() => {

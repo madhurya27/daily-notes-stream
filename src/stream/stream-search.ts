@@ -4,47 +4,55 @@ import type { SearchHighlighter } from "../render/search-highlights";
 
 /** Every daily note, and a way to read its source. */
 export interface NoteSource {
-    /** Newest first, as the stream orders them. */
+    /** Newest first, the same order as the stream. */
     notes(): readonly TFile[];
     read(file: TFile): Promise<string>;
 }
 
 /** The stream, as a search moves through it. */
 export interface SearchTarget {
-    /** Loads `file` into the stream, drawn whole, without scrolling to it; its block, or null when gone. */
+    /**
+     * Loads `file` into the stream and draws all of it, without scrolling to
+     * it. Returns its block, or null if the note is gone.
+     */
     ready(file: TFile): Promise<HTMLElement | null>;
     /** The block `file` is shown in, if loaded. */
     blockOf(file: TFile): HTMLElement | null;
     /** The note at the top of the pane, where a search starts from. */
     firstVisibleNote(): TFile | null;
-    /** Centers `range` in the pane, and keeps it there while the stream renders. */
+    /**
+     * Centers `range` in the pane, and keeps it there while the stream draws.
+     */
     center(range: Range): Promise<void>;
-    /** Whether `range` lies wholly inside the pane's visible area. */
+    /** Whether all of `range` is inside the pane's visible area. */
     isOnScreen(range: Range): boolean;
 }
 
-/** Collapsed sections, which a step opens to show the match inside. */
+/** Folded sections, which a search step opens to show the match inside. */
 export interface Folds {
-    /** Whether a collapsed section hides `node`. */
+    /** Whether a folded section hides `node`. */
     folds(node: Node): boolean;
-    /** Expands every section hiding `node`, unsaved. */
+    /** Unfolds every section that hides `node`, without saving it. */
     unfold(node: Node): void;
 }
 
 type Direction = 1 | -1;
 
 /**
- * Moves through the notes matching a query, counted per note, and through the
- * highlights inside each (D-022). Every call runs after
- * the ones before it, so a step waits for the search typed ahead of it.
+ * Moves through the notes that match a query, counted by note, and through the
+ * highlights inside each (D-022). Every call runs after the calls before it, so
+ * a step waits for the search typed before it.
  */
 export class StreamSearch {
     private query = "";
     private matches: TFile[] = [];
-    /** Index into `matches`; -1 before the first step. */
+    /** The current index in `matches`. -1 before the first step. */
     // Stryker disable next-line UnaryOperator: search sets it before any step finds a match.
     private current = -1;
-    /** Index into the current note's reachable ranges; -1 when it has none. */
+    /**
+     * The current index in the current note's reachable ranges. -1 when it has
+     * none.
+     */
     // Stryker disable next-line UnaryOperator: search sets it before any step finds a match.
     private range = -1;
     private queue: Promise<void> = Promise.resolve();
@@ -55,7 +63,10 @@ export class StreamSearch {
         private readonly highlighter: SearchHighlighter,
         private readonly folds: Folds,
         private readonly onStatus: (status: string) => void,
-        /** jsdom lays nothing out, so visibility is the one seam tests replace. */
+        /**
+         * jsdom has no layout, so tests replace this function to check
+         * visibility.
+         */
         private readonly isShown: (range: Range) => boolean = (range) => range.getClientRects().length > 0
     ) {}
 
@@ -63,7 +74,7 @@ export class StreamSearch {
         return this.run(async () => {
             this.query = query;
             this.current = -1;
-            // Stryker disable next-line UnaryOperator: read only once a step has entered a note, which sets it.
+            // Stryker disable next-line UnaryOperator: only read once a step has entered a note, which sets it.
             this.range = -1;
             this.highlighter.setQuery(query);
             this.matches = await this.find();
@@ -71,10 +82,13 @@ export class StreamSearch {
         });
     }
 
-    /** Re-reads the vault after it changed, staying on the current note while it matches. */
+    /**
+     * Reads the vault again after it changed, and stays on the current note if
+     * it still matches.
+     */
     refresh(): Promise<void> {
         return this.run(async () => {
-            // Stryker disable next-line ConditionalExpression: an empty query finds no note, reading none.
+            // Stryker disable next-line ConditionalExpression: an empty query finds no note, and reads none.
             if (!this.query) return;
             const file = this.matches[this.current];
             this.matches = await this.find();
@@ -99,9 +113,9 @@ export class StreamSearch {
     }
 
     /**
-     * Marks the topmost match the reader can already see, as Obsidian's own
-     * bar marks one as you type — without scrolling, so a half-typed word
-     * never carries the reader years away (D-022).
+     * Marks the highest match the reader can already see, as Obsidian's own
+     * search bar marks one as you type. It does not scroll, so a half-typed
+     * word never takes the reader years away (D-022).
      */
     private markFirstOnScreen(): void {
         for (const [index, file] of this.matches.entries()) {
@@ -129,7 +143,10 @@ export class StreamSearch {
         await this.enter(this.adjacentNote(direction), direction);
     }
 
-    /** Shows the match at `index`, on its first highlight going forwards and its last going back. */
+    /**
+     * Shows the match at `index`: its first highlight when going forward, its
+     * last when going back.
+     */
     private async enter(index: number, direction: Direction): Promise<void> {
         this.current = index;
         const block = await this.target.ready(this.matches[index]!);
@@ -137,7 +154,10 @@ export class StreamSearch {
         await this.show(ranges, direction === 1 ? 0 : ranges.length - 1);
     }
 
-    /** The next match along, wrapping; the first step starts from the note on screen. */
+    /**
+     * The next match, going round to the start after the end. The first step
+     * starts from the note on screen.
+     */
     private adjacentNote(direction: Direction): number {
         const count = this.matches.length;
         if (this.current !== -1) return (this.current + direction + count) % count;
@@ -145,14 +165,18 @@ export class StreamSearch {
         const order = this.source.notes();
         const top = this.target.firstVisibleNote();
         const from = top ? order.indexOf(top) : 0;
-        // Matches are in stream order, so counting those above is finding the first below.
+        // Matches are in the stream's order, so the number of matches above is
+        // the index of the first one below.
         const positions = this.matches.map((file) => order.indexOf(file));
         if (direction === 1) return positions.filter((position) => position < from).length % count;
         const throughTop = positions.filter((position) => position <= from).length;
         return (throughTop - 1 + count) % count;
     }
 
-    /** Marks the range at `index` and brings it on screen; out of bounds marks none. */
+    /**
+     * Marks the range at `index` and scrolls it on screen. An index out of
+     * range marks nothing.
+     */
     private async show(ranges: readonly Range[], index: number): Promise<void> {
         const range = ranges[index] ?? null;
         this.range = range ? index : -1;
@@ -161,7 +185,7 @@ export class StreamSearch {
         if (range) await this.target.center(range);
     }
 
-    /** Highlights on screen, or behind a fold a step can open. */
+    /** Highlights that are shown, or inside a fold that a step can open. */
     private reachableRanges(block: HTMLElement): Range[] {
         return this.highlighter
             .rangesIn(block)
@@ -173,7 +197,8 @@ export class StreamSearch {
         const count = this.matches.length;
         if (count === 0) return "No results";
         if (this.current === -1) return count === 1 ? "1 note" : `${count} notes`;
-        // The note matched, but in nothing drawn: hidden frontmatter, an embed.
+        // The note matched, but not in anything drawn, such as hidden
+        // frontmatter or an embed.
         const hidden = this.range === -1 ? " · hidden" : "";
         return `${this.current + 1} / ${count}${hidden}`;
     }

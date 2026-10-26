@@ -9,113 +9,168 @@ import { blockAt } from "./stream-blocks";
 import { warnIfStalled } from "./stall-warning";
 
 /**
- * What a block reserves before anything was measured at this layout, in panes:
- * too tall is safe (D-092), and the notes on screen are measured within moments.
+ * The height a block keeps, in pane heights, before anything has been measured
+ * in this layout. Too tall is safe (D-092), and the notes on screen are
+ * measured within moments.
  */
 export const UNMEASURED_PANES = 2;
 
 /**
- * Both margins are viewports, not pixels: how far ahead of the reader the
- * stream works is the same question on a phone and on a tall monitor.
+ * The distances are in pane heights, not pixels, so the stream works the same
+ * distance ahead of the reader on a phone and on a tall monitor.
  */
 const RENDER_VIEWPORTS = 1.5;
-/** Well past the render margin, so a block on the edge cannot thrash. */
+/**
+ * Well past the distance at which notes are drawn, so a block near that edge is
+ * not drawn and hidden over and over.
+ */
 const HIDE_VIEWPORTS = 4;
-/** How far a hidden note stays drawn; past it, it is emptied once the scroll is still (ADR 0023). */
+/**
+ * How far away a hidden note stays drawn. Further away, it is emptied once
+ * scrolling stops (ADR 0023).
+ */
 const UNLOAD_VIEWPORTS = 12;
-/** A drawn note out of the layout: its content takes `display: none` inside its pin (ADR 0023). */
+/**
+ * A drawn note taken out of the layout: its content gets `display: none`, and
+ * the block keeps its fixed height (ADR 0023).
+ */
 const FAR = "is-far";
-/** A pane dragged to nothing, or a root not laid out yet, still gets a window. */
+/**
+ * A pane dragged to zero height, or not laid out yet, still gets distances to
+ * work with.
+ */
 const MIN_VIEWPORT_PX = 400;
 
 interface NoteWindow extends Reserving {
-    /** Non-null exactly while the block holds rendered content. */
+    /** Not null exactly while the block holds drawn content. */
     component: Component | null;
-    /** Guards against a second render arriving during the first one's await. */
+    /** Stops a second render from starting while the first one is waiting. */
     rendering: boolean;
-    /** From its start, where a jump lands; null draws it in the order the reader meets it. */
+    /**
+     * Draw from the start, where a jump lands. Null draws it in the order the
+     * reader reaches it.
+     */
     order: DrawOrder | null;
     /**
-     * The block left while its render was queued or in flight. An observer
-     * reports changes, so this is the only unload it will get until it comes
-     * back into view — honoring it later is what keeps a fast scroll from
-     * leaving rendered notes behind.
+     * The block went out of range while its render was queued or running. An
+     * observer only reports changes, so this is the only request to empty it
+     * until it comes back into view. Doing it later is what stops a fast scroll
+     * from leaving drawn notes behind.
      */
     unloadWanted: boolean;
-    /** Holds the rendered note at `height` until it settles; null once let go. */
+    /**
+     * Keeps the drawn note at `height` until it stops changing. Null once
+     * released.
+     */
     hold: HeightHold | null;
-    /** What was rendered in the block. */
+    /** What was drawn in the block. */
     watched: Element[];
-    /** Remembers the height once the rendered note stops resizing; null while unloaded. */
+    /**
+     * Remembers the height once the drawn note stops changing size. Null while
+     * the block is empty.
+     */
     keepOnceSettled: Debouncer<[], void> | null;
 }
 
 /**
- * Keeps the rendered part of the stream bounded: every loaded note has a block,
- * but only blocks near the viewport hold content. An unloaded block keeps its
- * height, so scroll position survives the round trip.
+ * Limits how much of the stream is drawn. Every loaded note has a block, but
+ * only blocks near the screen hold content. An empty block keeps its height, so
+ * the scroll position stays the same when it is emptied and drawn again.
  */
 export class NoteWindowManager {
     private readonly windows = new Map<HTMLElement, NoteWindow>();
 
     /**
-     * Renders and unloads since load. Both move everything below them, so a
-     * caller holding a scroll position watches this to know the stream settled.
+     * How many notes were drawn or emptied since loading. Both move everything
+     * below them, so code that keeps a scroll position watches this to know
+     * when the stream has stopped changing.
      */
     private changes = 0;
     private renderObserver: IntersectionObserver | null = null;
     private hideObserver: IntersectionObserver | null = null;
     private unloadObserver: IntersectionObserver | null = null;
     private screenObserver: IntersectionObserver | null = null;
-    /** The blocks in the pane now, not only near it. */
+    /** The blocks inside the pane now, not just near it. */
     private readonly onScreen = new Set<HTMLElement>();
-    /** Where each pinned block's content ended below its top as it was pinned. */
+    /**
+     * For each block with a fixed height: how far below its top its content
+     * ended when the height was fixed.
+     */
     private readonly pinnedEnds = new WeakMap<HTMLElement, number>();
-    /** Renders queued and not yet begun: a note on screen among them may go first. */
+    /**
+     * Renders queued but not started. A note on screen among them may go first.
+     */
     private readonly waiting = new Map<HTMLElement, NoteWindow>();
-    /** A render or unload moves everything below it; above the pane, that is the reader's place. */
+    /**
+     * Drawing or emptying a note moves everything below it. Above the pane,
+     * that would move the reader's place.
+     */
     private readonly anchor = new ScrollAnchor();
     private scrollRoot: HTMLElement | null = null;
     private stream: HTMLElement | null = null;
-    /** The layout heights are read and kept in, until the task reading it ends. */
+    /**
+     * The layout that heights are read and saved for. It is read once and kept
+     * until the current task ends.
+     */
     private currentLayout: string | null = null;
-    /** The height the current margins were computed from. */
+    /** The pane height the current distances were computed from. */
     private rootHeight = 0;
-    /** Rendered blocks past the unload margin, waiting for the scroll to be still. */
+    /**
+     * Drawn blocks past the distance at which they are emptied, waiting for
+     * scrolling to stop.
+     */
     private readonly leaving = new Set<HTMLElement>();
-    /** Every block past the unload margin, as last reported: one landing there is emptied too. */
+    /**
+     * Every block past the distance at which blocks are emptied, as last
+     * reported. A note that finishes drawing there is emptied too.
+     */
     private readonly beyond = new Set<HTMLElement>();
     private readonly unloadOnceStill = debounce(() => this.unloadLeaving(), SCROLL_IDLE_MS, true);
     private readonly reserveOnceStill = debounce(() => this.reserve(), SCROLL_IDLE_MS, true);
-    /** A long note's runs, hidden past the hide margin (ADR 0023). */
+    /**
+     * Parts of long notes, hidden when they are further away than the hiding
+     * distance (ADR 0023).
+     */
     private readonly runs: FarRunWatch;
     private readonly reservations: Reservations;
-    /** Watches rendered notes: a Base filling or an image loading measures short until done. */
+    /**
+     * Watches drawn notes: a Base that is filling in, or an image that is
+     * loading, is too short until it is done.
+     */
     private resizes: ResizeObserver | null = null;
 
     constructor(
         private readonly renderer: NoteRenderer,
         /**
-         * Renders run through the stream's queue, like every other mutation
-         * (ADR 0004). Its promise is the view's to chain; nothing here waits.
+         * Renders run through the stream's queue, like every other change (ADR
+         * 0004). The view chains its promise; nothing here waits for it.
          */
         private readonly enqueue: (task: () => Promise<void>) => unknown,
-        /** Every height measured, kept across sessions (ADR 0010). */
+        /** Every height measured, kept between sessions (ADR 0010). */
         private readonly heights: NoteHeights,
-        /** The layout the stream is laid out in now: a height is true only there. */
+        /**
+         * The stream's current layout. A height is only correct in the layout
+         * it was measured in.
+         */
         private readonly layoutOf: () => string,
-        /** jsdom lays nothing out, so measurement is the one seam tests replace. */
+        /** jsdom has no layout, so tests replace this function to measure. */
         private readonly measure: (el: HTMLElement) => number = (el) => el.getBoundingClientRect().height,
-        /** What a note not measured at a layout reserves there: by default, what the vault's notes measured (D-092). */
+        /**
+         * The height for a note not measured in a layout. By default, based on
+         * what the vault's notes measured (D-092).
+         */
         estimate: (layout: string, path: string) => number | undefined = (layout, path) =>
             heights.estimate(layout, path, this.unmeasured())
     ) {
         this.reservations = new Reservations(heights, estimate);
-        // Stryker disable next-line OptionalChaining: asked only of a run shown in a block of the stream's.
+        // Stryker disable next-line OptionalChaining: only asked about a part shown in one of the stream's blocks.
         this.runs = new FarRunWatch(renderer, (block) => !!this.windows.get(block)?.component);
     }
 
-    /** `stream` holds the blocks; `loadedToEnd`: every note is loaded, and nothing comes below its end. */
+    /**
+     * `stream` holds the blocks. `loadedToEnd` says whether every note is
+     * loaded, so nothing more comes below the end.
+     */
     attach(scrollRoot: HTMLElement, stream: HTMLElement, loadedToEnd: () => boolean): void {
         this.detachObservers();
         this.scrollRoot = scrollRoot;
@@ -130,8 +185,10 @@ export class NoteWindowManager {
             },
             { root: scrollRoot }
         );
-        // The anchor's too: a pinned note hides a change inside it from a
-        // watch on the note, and told after the re-pin, the anchor reads the note grown.
+        // The anchor needs these reports too. A note with a fixed height hides
+        // changes inside it from anything watching the note's size. Told only
+        // after the height is fixed again, the anchor would read the note
+        // already grown.
         this.resizes = new ResizeObserver((entries) => {
             const { heard, told } = this.contentResized(entries.map(({ target }) => target));
             if (heard && !told) this.anchor.resized();
@@ -145,7 +202,7 @@ export class NoteWindowManager {
         }
     }
 
-    /** The margins are viewports of the pane's height, taken now. */
+    /** The distances are multiples of the pane's height, measured now. */
     private observeMargins(scrollRoot: HTMLElement): void {
         this.rootHeight = Math.max(scrollRoot.clientHeight, MIN_VIEWPORT_PX);
 
@@ -191,7 +248,7 @@ export class NoteWindowManager {
         this.runs.observeWith(this.renderObserver, this.hideObserver);
     }
 
-    /** Obsidian reports a pane dragged or a device turned. */
+    /** Obsidian reports that a pane was resized or the device was turned. */
     onResize(): void {
         this.refreshMargins();
         this.expectLayout();
@@ -199,9 +256,9 @@ export class NoteWindowManager {
     }
 
     /**
-     * Rebuilds the margins against the pane's new height. A no-op when the
-     * height did not change, so dragging a split costs nothing. The anchor
-     * stays (D-055).
+     * Computes the distances again for the pane's new height. Does nothing when
+     * the height did not change, so dragging a split costs nothing. The anchor
+     * is kept (D-055).
      */
     private refreshMargins(): void {
         if (!this.scrollRoot) return;
@@ -218,8 +275,9 @@ export class NoteWindowManager {
     }
 
     /**
-     * The heights were emptied: every unloaded note, measured or not, reserves
-     * as in a session that never measured, once the scroll is still.
+     * The saved heights were cleared. Once scrolling stops, every empty note,
+     * measured or not, gets the height it would have in a session that never
+     * measured anything.
      */
     forgetHeights(): void {
         const layout = this.layout();
@@ -235,7 +293,7 @@ export class NoteWindowManager {
         return UNMEASURED_PANES * Math.max(this.rootHeight, MIN_VIEWPORT_PX);
     }
 
-    /** A scroll restarts the wait on any block that left the margin. */
+    /** A scroll restarts the wait for blocks that went out of range. */
     onScroll(): void {
         this.repinAtTop();
         this.anchor.onScroll();
@@ -244,30 +302,39 @@ export class NoteWindowManager {
     }
 
     /**
-     * Re-pins the note at the pane's top if its content moved inside its pin,
-     * as a Base filling in moves what is below it: the report would come
-     * after this scroll, and the anchor would read its place in the moved
-     * text first (D-145).
+     * Fixes the height of the note at the top of the pane again, if its content
+     * moved inside the fixed height, as when a Base filling in moves what is
+     * below it. Its resize report would come after this scroll, and the anchor
+     * would read its place in the moved text first (D-145).
      */
     private repinAtTop(): void {
-        // A scroll queued as the view closed comes after its detach.
+        // A scroll queued while the view closed arrives after detach.
         if (!this.scrollRoot) return;
         const block = blockAt(this.stream!, this.scrollRoot.getBoundingClientRect().top) as HTMLElement | null;
         const end = block && this.pinnedEnds.get(block);
         if (block && end !== undefined && end !== this.contentEnd(block)) this.repin(block);
     }
 
-    /** How far below pinned `block`'s top what it rendered ends. */
+    /**
+     * How far below the top of `block`, which has a fixed height, its drawn
+     * content ends.
+     */
     private contentEnd(block: HTMLElement): number {
         return block.lastElementChild!.getBoundingClientRect().bottom - block.getBoundingClientRect().top;
     }
 
-    /** A Base in a note set its height: the note re-pins in this task (D-108). */
+    /**
+     * A Base in a note set its height, so the note's height is fixed again in
+     * this task (D-108).
+     */
     onBaseResized(target: EventTarget | null): void {
         this.contentResized([target]);
     }
 
-    /** A touch is the reader's own change, such as a collapse: no hold keeps it. */
+    /**
+     * A touch is the reader's own change, such as folding a section, so no held
+     * height may hide it.
+     */
     onTouch(target: EventTarget | null): void {
         const window = this.windowOf(target);
         if (window) this.releaseHold(window);
@@ -281,13 +348,16 @@ export class NoteWindowManager {
         this.anchor.fingerUp();
     }
 
-    /** Glides the pane to its top, the newest note. */
+    /** Scrolls the pane smoothly to its top, the newest note. */
     scrollToTop(): void {
         this.anchor.headForTop();
         this.scrollRoot?.scrollTo({ top: 0, behavior: "smooth" });
     }
 
-    /** An unloaded block for `file`, reserving what it last measured, or the estimate. */
+    /**
+     * Creates an empty block for `file`, with the height it last measured, or
+     * the estimate.
+     */
     add(file: TFile): HTMLElement {
         const block = this.renderer.createBlock(file);
         const window: NoteWindow = {
@@ -311,8 +381,8 @@ export class NoteWindowManager {
     }
 
     /**
-     * Read once per task: reading it lays the stream out, and a batch appends
-     * a block between one add and the next.
+     * Read once per task. Reading it lays the stream out, and a batch adds a
+     * block between one call and the next.
      */
     private layout(): string {
         if (this.currentLayout === null) {
@@ -326,25 +396,29 @@ export class NoteWindowManager {
         return this.changes;
     }
 
-    /** The scroll was just set to a place, for the stream as it now stands. */
+    /** The scroll was just set to a place, for the stream as it is now. */
     placed(): void {
         this.anchor.placed();
     }
 
-    /** What the anchor owes goes to the scroll now, and the notes are drawn where it puts them. */
+    /**
+     * Moves what the anchor owes into the scroll now, and draws the notes where
+     * it puts them.
+     */
     handOver(): void {
         this.anchor.handOver();
     }
 
     /**
-     * Rebuilds a rendered block's content. An unloaded one renders on re-entry,
-     * and meanwhile is estimated afresh once the scroll is still: the edit took
-     * its stored height (ADR 0017).
+     * Draws a drawn block's content again. An empty block is drawn when it
+     * comes back near the screen. Until then, once scrolling stops, its height
+     * is estimated again, because the edit removed its saved height (ADR 0017).
      */
     async refresh(block: HTMLElement): Promise<void> {
         const window = this.windows.get(block);
         if (!window) return;
-        // Hidden, it is not drawn again unseen: emptied at its pin, it renders on return.
+        // A hidden note is not drawn again while nobody can see it. It is
+        // emptied, keeping its height, and drawn when it comes back.
         if (block.hasClass(FAR)) this.empty(block, window);
         if (!window.component) {
             if (window.rendering) return;
@@ -358,7 +432,8 @@ export class NoteWindowManager {
         this.stopSettling(window);
         this.discard(block, window);
         block.empty();
-        // Without a component meanwhile, a note coming into view would be drawn twice.
+        // There is no component until the render finishes, so without this flag
+        // a note coming into view would be drawn twice.
         window.rendering = true;
         try {
             const rendered = await this.renderer.renderInto(block, window.file);
@@ -371,9 +446,9 @@ export class NoteWindowManager {
     }
 
     /**
-     * A note re-renders only what the save changed (ADR 0019), drawn
-     * meanwhile; false where it must render whole. An unload asked for
-     * meanwhile waits for the outcome.
+     * Draws again only what the save changed (ADR 0019), while the rest stays
+     * drawn. Returns false when the whole note must be drawn again. A request
+     * to empty the note made in the meantime waits for the result.
      */
     private async updateInPlace(block: HTMLElement, window: NoteWindow, component: Component): Promise<boolean> {
         window.rendering = true;
@@ -397,7 +472,7 @@ export class NoteWindowManager {
         if (!window) return;
         this.unobserve(block);
         this.leaving.delete(block);
-        // Stryker disable next-line CallExpression: frees memory only; a block gone from the stream never lands again.
+        // Stryker disable next-line CallExpression: only frees memory; a block removed from the stream never finishes drawing again.
         this.beyond.delete(block);
         this.onScreen.delete(block);
         this.stopSettling(window);
@@ -410,7 +485,7 @@ export class NoteWindowManager {
         this.unloadOnceStill.cancel();
         this.reserveOnceStill.cancel();
         this.leaving.clear();
-        // Stryker disable next-line CallExpression: frees memory only; the blocks go with the windows below.
+        // Stryker disable next-line CallExpression: only frees memory; the blocks are removed with the windows below.
         this.beyond.clear();
         this.waiting.clear();
         this.scrollRoot = null;
@@ -422,17 +497,19 @@ export class NoteWindowManager {
     }
 
     /**
-     * Draws `block` for a jump, which lands on its start: drawn from there
-     * (ADR 0022). A caller that needs the content now drains the queue.
+     * Draws `block` for a jump, which goes to the note's start, so it is drawn
+     * from there (ADR 0022). A caller that needs the content at once must wait
+     * for the queue to empty.
      */
     render(block: HTMLElement): void {
         this.queue(block, "from-start");
     }
 
     /**
-     * Queues a render of `block` in `order`, or as the reader meets it, unless
-     * it holds content, which it shows if hidden, or is rendering. The
-     * observer queues it on entry.
+     * Queues a render of `block` in `order`, or in the order the reader reaches
+     * it. If it already holds content, shows it if hidden instead. If it is
+     * already drawing, does nothing. The observer calls this when the block
+     * comes into range.
      */
     private queue(block: HTMLElement, order: DrawOrder | null): void {
         const window = this.windows.get(block);
@@ -442,11 +519,12 @@ export class NoteWindowManager {
             return;
         }
         if (window.rendering) {
-            // Back in view before its render finished: honoring the unload it
-            // asked for would leave it blank, and an observer reports changes,
-            // so no second event would ever come to fill it.
+            // It came back into view before its render finished. Emptying it as
+            // asked would leave it blank, and an observer only reports changes,
+            // so no second event would come to fill it.
             window.unloadWanted = false;
-            // A jump's render draws from where it lands, if not yet begun.
+            // A jump's render draws from where the jump goes, if it has not
+            // started yet.
             if (order) window.order = order;
             return;
         }
@@ -456,25 +534,30 @@ export class NoteWindowManager {
         this.enqueue(() => this.renderWaiting(block));
     }
 
-    /** Renders `block` if it still waits: a note on screen may have gone ahead of its turn. */
+    /**
+     * Draws `block` if it is still waiting. A note on screen may have been
+     * drawn before its turn.
+     */
     private async renderWaiting(block: HTMLElement): Promise<void> {
         const window = this.waiting.get(block);
         if (!window) return;
         this.waiting.delete(block);
         try {
-            // It flew past before its turn came: rendering it would hold the
-            // queue — shared with every vault event — for nothing.
+            // It scrolled past before its turn came. Drawing it would hold up
+            // the queue, which every vault event also uses, for nothing.
             if (window.unloadWanted) return;
 
-            // Between a long note's slices, it stops once it has left, so the
-            // note the reader stopped on draws next, and a note on screen
-            // draws ahead of one only near it (ADR 0020).
+            // Between the slices of a long note, it stops if it has gone out of
+            // range, so the note the reader stopped on is drawn next. And a
+            // note on screen is drawn before one that is only near it (ADR
+            // 0020).
             const rendered = await warnIfStalled(`Drawing ${window.file.path}`, () =>
                 this.renderer.renderInto(
                     block,
                     window.file,
                     async (note) => {
-                        // Drawn from its end, it grows at its top: its topmost run may grow yet.
+                        // Drawn from its end, it grows at its top, so its top
+                        // part may still grow.
                         if (block.hasClass(DRAWING_FROM_END))
                             this.hideFarRunsOf(block, this.renderer.runsOf(note).slice(1));
                         if (!this.onScreen.has(block)) await this.renderWaitingOnScreen();
@@ -483,16 +566,18 @@ export class NoteWindowManager {
                     window.order ?? this.orderFor(block)
                 )
             );
-            // Read over what it drew: nothing scrolled or resized while it did.
+            // Read the place again over what it drew: nothing scrolled or
+            // changed size while it drew.
             if (rendered && block.hasClass(DRAWING_FROM_END)) this.anchor.readPlace(block);
-            // Drawn or given up, it lays out from its start again in this task.
+            // Whether it was drawn or given up, it is laid out from its start
+            // again in this task.
             block.removeClass(DRAWING_FROM_END);
             if (!rendered) {
                 this.runs.forgetSpacers(block);
                 return;
             }
-            // close() empties the container mid-flight, off the queue: the
-            // block that comes back from the await may be nobody's child.
+            // close() empties the container while renders run, outside the
+            // queue, so after the await the block may no longer have a parent.
             if (!block.isConnected || !this.windows.has(block)) {
                 this.renderer.discard(rendered.component);
                 block.empty();
@@ -516,21 +601,30 @@ export class NoteWindowManager {
         this.landed(block, window, component);
     }
 
-    /** Drawn: re-pinned, its runs watched, and out of the layout if it left meanwhile. */
+    /**
+     * After drawing: fix the height again, watch the note's parts, and take it
+     * out of the layout if it went out of range meanwhile.
+     */
     private landed(block: HTMLElement, window: NoteWindow, component: Component): void {
         this.repin(block);
         this.runs.watch(block, component);
         if (window.unloadWanted) this.landedFar(block);
     }
 
-    /** From its end where the reader comes up into it: its middle is above the pane's. */
+    /**
+     * Draw from the end when the reader scrolls up into the note, that is, when
+     * its middle is above the pane's middle.
+     */
     private orderFor(block: HTMLElement): DrawOrder {
-        // Met only while attached: a detach drops every render waiting.
+        // Only reached while attached: detach drops every waiting render.
         const root = this.scrollRoot!.getBoundingClientRect();
         const note = block.getBoundingClientRect();
         return note.top + note.bottom < root.top + root.bottom ? "from-end" : "from-start";
     }
-    /** Still inside the queue's task: no other mutation runs meanwhile (ADR 0004). */
+    /**
+     * Still inside the queue's task, so no other change runs meanwhile (ADR
+     * 0004).
+     */
     private async renderWaitingOnScreen(): Promise<void> {
         for (const block of [...this.waiting.keys()]) {
             if (this.onScreen.has(block)) await this.renderWaiting(block);
@@ -541,7 +635,10 @@ export class NoteWindowManager {
     // Internals
     // -------------------------------------------------------------------------
 
-    /** Past the hide margin: a drawn note leaves the layout now, mid-glide too (ADR 0023). */
+    /**
+     * Further than the hiding distance: a drawn note is taken out of the layout
+     * now, even while scrolling (ADR 0023).
+     */
     private hide(block: HTMLElement, window: NoteWindow): void {
         if (window.rendering) {
             window.unloadWanted = true;
@@ -550,13 +647,19 @@ export class NoteWindowManager {
         if (window.component) this.conceal(block);
     }
 
-    /** Unpinned, its height is its content's: hidden, it would collapse, so it leaves as before. */
+    /**
+     * Without a fixed height, the block's height is its content's, so hiding it
+     * would collapse it. Then it is emptied once scrolling stops instead.
+     */
     private conceal(block: HTMLElement): void {
         if (block.hasClass("is-pinned")) block.addClass(FAR);
         else this.leave(block);
     }
 
-    /** It passed the hide margin while it drew, and the unload margin too if reported so. */
+    /**
+     * It went past the hiding distance while it drew, and also past the
+     * emptying distance if that was reported.
+     */
     private landedFar(block: HTMLElement): void {
         this.conceal(block);
         if (this.beyond.has(block)) this.leave(block);
@@ -582,16 +685,16 @@ export class NoteWindowManager {
     private unloadLeaving(): void {
         for (const block of this.leaving) {
             const window = this.windows.get(block)!;
-            // A refresh in flight waits for the next still scroll.
+            // A refresh that is running waits until scrolling stops again.
             if (!window.component || window.rendering) continue;
             this.empty(block, window);
         }
     }
 
     /**
-     * A block that was never laid out measures zero: reserving that would
-     * collapse a note the reader has scrolled past, and take the scroll
-     * position with it. It keeps what it already reserved.
+     * Empties the block. A block that was never laid out measures zero. Using
+     * that height would collapse a note the reader has scrolled past, and move
+     * the scroll position with it, so it keeps the height it had.
      */
     private empty(block: HTMLElement, window: NoteWindow): void {
         this.leaving.delete(block);
@@ -606,35 +709,39 @@ export class NoteWindowManager {
     }
 
     /**
-     * A height is true only at the width it was measured at: on a new one,
-     * nothing is held at the old one, and a note rendering again is held at
-     * what it measured at the new one. Placeholders take it once the scroll is
-     * still. The same width rereads nothing.
+     * A height is only correct at the width it was measured at. At a new width,
+     * nothing is held at a height from the old width, and a note drawn again is
+     * held at the height it measured at the new width. Empty blocks get their
+     * new heights once scrolling stops. If the width is the same, nothing is
+     * read again.
      */
     private expectLayout(): void {
         const layout = this.layout();
         if (!this.reservations.expectLayout(layout)) return;
         for (const [block, window] of this.windows) {
-            // Its pin measured the old width: emptied, it reserves as the unloaded do.
+            // Its fixed height was measured at the old width. Empty it, so it
+            // gets a height like the other empty blocks.
             if (block.hasClass(FAR)) this.empty(block, window);
-            // Their spacers measured the old width; they hide again at the next rest.
+            // The spacers' heights were measured at the old width. The parts
+            // are hidden again when scrolling next stops.
             this.runs.showAll(block);
             this.releaseHold(window);
-            // Stryker disable next-line ConditionalExpression: a drawn note's height is measured again as it unloads.
+            // Stryker disable next-line ConditionalExpression: a drawn note's height is measured again when it is emptied.
             if (!window.component) this.reservations.expect(window, layout);
         }
     }
 
     /**
-     * Each unloaded note reserves what it is now expected at: its height at a
-     * new width, or an estimate grown wiser since. The anchor draws the notes
-     * above the pane moving first, which keeps the scroll range (ADR 0015).
+     * Gives each empty note the height it is now expected to have: its height
+     * at a new width, or a better estimate made since. The anchor first shows
+     * the notes above the pane moving, which keeps the scroll range (ADR 0015).
      */
     private reserve(): void {
         const root = this.scrollRoot;
         if (!root) return;
-        // Its hand-over would end the hold on the place read before a turn,
-        // while what the turn redraws still moves (D-160).
+        // Moving the shift into the scroll now would stop keeping the place
+        // read before the screen turned, while what the turn draws again is
+        // still moving (D-160).
         if (this.anchor.holdsReflow()) {
             this.reserveOnceStill();
             return;
@@ -651,12 +758,16 @@ export class NoteWindowManager {
         for (const [block, window] of plan.changed) this.markUnloaded(block, window.height);
         this.changes++;
         this.anchor.resized();
-        // Run only once the scroll is still; put off, a scroll begun meanwhile
-        // carries the shift to the top (ADR 0015).
+        // This only runs once scrolling has stopped. If it waited longer, a
+        // scroll started in the meantime would carry the shift to the top (ADR
+        // 0015).
         this.anchor.handOver();
     }
 
-    /** Drawing from its end, a note hides the runs it drew far off between slices. */
+    /**
+     * A note drawn from its end hides, between slices, the parts it drew that
+     * are far away.
+     */
     private hideFarRunsOf(block: HTMLElement, runs: Element[][]): void {
         const root = this.scrollRoot;
         if (!root) return;
@@ -666,14 +777,16 @@ export class NoteWindowManager {
     }
 
     /**
-     * Held, the block cannot shrink: a dip shows only in what was rendered in
-     * it. Settling starts once `footer` is drawn: the linked mentions read
-     * other notes first, and a quiet spell while they do is not settled.
+     * While its height is held, the block cannot shrink, so a dip only shows in
+     * what was drawn inside it. Waiting for the note to stop changing starts
+     * once `footer` is drawn: the linked mentions read other notes first, and a
+     * pause while they do does not mean the note is done.
      */
     private watchSettling(block: HTMLElement, window: NoteWindow, footer: Promise<void>): void {
         if (window.measured) {
             const hold = new HeightHold(block, window.height, () => {
-                // Let go while the note stays: the pin hid the drop until now.
+                // Released while the note is still drawn. The fixed height hid
+                // the drop until now.
                 if (window.hold !== hold) return;
                 window.hold = null;
                 this.repin(block);
@@ -685,7 +798,8 @@ export class NoteWindowManager {
         this.watch(window.watched);
         const { component } = window;
         void footer.then(() => {
-            // Unloaded or re-rendered while the footer drew: that render settles itself.
+            // Emptied or drawn again while the footer was drawing. That render
+            // waits for its own note to stop changing.
             if (window.component !== component) return;
             window.keepOnceSettled = debounce(() => this.keepHeight(block, window), SETTLE_MS, true);
             window.keepOnceSettled();
@@ -696,7 +810,10 @@ export class NoteWindowManager {
         for (const el of rendered) this.resizes?.observe(el);
     }
 
-    /** Emptied or refilled next: its hold goes, and the pin keeps the height meanwhile. */
+    /**
+     * The note will be emptied or drawn again next. Its held height is
+     * released, and the fixed height keeps it meanwhile.
+     */
     private stopSettling(window: NoteWindow): void {
         const { hold } = window;
         window.hold = null;
@@ -707,20 +824,21 @@ export class NoteWindowManager {
         window.watched = [];
     }
 
-    /** Lets go of the hold, and the block takes its own height. */
+    /** Releases the held height, so the block takes its own height. */
     private releaseHold(window: NoteWindow): void {
         window.hold?.release();
     }
 
-    /** The note `target` is in, or is. */
+    /** The note that `target` is in, or that `target` is. */
     private windowOf(target: EventTarget | null): NoteWindow | undefined {
         const block = this.blockOf(target);
         return block ? this.windows.get(block) : undefined;
     }
 
     /**
-     * Re-pins each rendered note something in resized. `heard`: one was in
-     * the layout; `told`: re-pinning one told the anchor.
+     * Fixes the height again of each drawn note in which something changed
+     * size. `heard`: one of them was in the layout. `told`: fixing one of them
+     * told the anchor.
      */
     private contentResized(targets: (EventTarget | null)[]): { heard: boolean; told: boolean } {
         let heard = false;
@@ -742,21 +860,23 @@ export class NoteWindowManager {
     }
 
     /**
-     * Pins `block` at the height it lays out at, and tells the anchor in the
-     * same task if that changed. Nothing rendering inside a pinned block moves
-     * the stream: mid-glide iOS paints a resize before reporting it, and the
-     * shift would land a frame late (ADR 0013). A block laid out at nothing,
-     * in a hidden tab, stays unpinned. True if it told the anchor.
+     * Fixes `block` at the height it lays out at, and tells the anchor in the
+     * same task if the height changed. Nothing drawn inside a block with a
+     * fixed height moves the stream. While scrolling, iOS draws a resize before
+     * it reports it, so the shift would come one frame late (ADR 0013). A block
+     * with no height, in a hidden tab, gets no fixed height. Returns true if it
+     * told the anchor.
      */
     private repin(block: HTMLElement): boolean {
-        // Hidden, its content lays out at nothing: the pin holds.
-        // Stryker disable next-line BooleanLiteral: only contentResized reads the result, and it re-pins no far block.
+        // A hidden note's content has no height, so its fixed height stays.
+        // Stryker disable next-line BooleanLiteral: only contentResized reads the result, and it never fixes the height of a hidden block.
         if (block.hasClass(FAR)) return false;
         const before = block.style.getPropertyValue("--daily-note-pinned-height");
         block.style.removeProperty("--daily-note-pinned-height");
         const height = this.measure(block);
         if (height > 0) {
-            // Read before the pin dirties the layout the measure just made.
+            // Read this before setting the height changes the layout that the
+            // measure just made.
             this.pinnedEnds.set(block, this.contentEnd(block));
             block.style.setProperty("--daily-note-pinned-height", `${height}px`);
             this.anchor.pinned(block);
@@ -777,7 +897,10 @@ export class NoteWindowManager {
         block.style.removeProperty("--daily-note-pinned-height");
     }
 
-    /** Takes the block's height now; one never laid out measures zero and keeps what it had. */
+    /**
+     * Saves the block's height now. A block never laid out measures zero, and
+     * keeps the height it had.
+     */
     private measureInto(block: HTMLElement, window: NoteWindow): void {
         const measured = this.measure(block);
         if (measured <= 0) return;
@@ -785,19 +908,23 @@ export class NoteWindowManager {
         window.measured = true;
     }
 
-    /** A block not laid out, in a hidden tab, measures zero: nothing to remember. */
+    /**
+     * Remembers the block's height. A block not laid out, in a hidden tab,
+     * measures zero, so there is nothing to remember.
+     */
     private keepHeight(block: HTMLElement, window: NoteWindow): void {
         this.releaseHold(window);
         const measured = this.measure(block);
         if (measured > 0) this.heights.keep(this.layout(), window.file.path, measured);
-        // What the rest reserve may have changed; they take it at the next rest (ADR 0014).
+        // The heights for the other empty blocks may have changed. They get
+        // them when scrolling next stops (ADR 0014).
         if (this.reservations.owed) this.reserveOnceStill();
     }
 
     /**
-     * styles.css turns the custom property into the reserved height. The name
-     * is spelled out rather than shared with the clearing site: the compliance
-     * rule reads the source text for it (D-003).
+     * styles.css turns the custom property into the block's height. The name is
+     * written out here, not shared with the code that removes it, because the
+     * compliance rule searches the source text for it (D-003).
      */
     private markUnloaded(block: HTMLElement, height: number): void {
         block.addClass("is-unloaded");
@@ -841,7 +968,7 @@ export class NoteWindowManager {
         // Stryker disable next-line CallExpression: a disconnected observer watches nothing.
         this.runs.observeWith(null, null);
         this.resizes = null;
-        // Stryker disable next-line CallExpression: the next observer's first report sets every block's entry.
+        // Stryker disable next-line CallExpression: the next observer's first report sets every block's entry again.
         this.onScreen.clear();
     }
 }

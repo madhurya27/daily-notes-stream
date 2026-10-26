@@ -2,24 +2,29 @@
 /** @type {import("@stryker-mutator/api/core").PartialStrykerOptions} */
 export default {
     testRunner: "vitest",
-    // Named: under pnpm, Stryker does not find it on its own.
+    // Named here, because with pnpm, Stryker does not find it by itself.
     plugins: ["@stryker-mutator/vitest-runner"],
     mutate: ["src/**/*.ts"],
     coverageAnalysis: "perTest",
-    // With bail, vitest 4 sometimes reports no test run for a mutant that fails
-    // one at once, and Stryker counts it as survived: ~3 of 133 in a file.
+    // With bail, vitest 4 sometimes reports that no test ran for a mutant that
+    // makes a test fail at once, and Stryker counts it as surviving: about 3 of
+    // 133 in a file.
     disableBail: true,
     reporters: ["clear-text", "html", "progress"],
-    // The table only: every survivor, each run, buries it. The HTML report has them.
+    // Only the table, because listing every survivor on each run hides it. The
+    // HTML report has them.
     clearTextReporter: { reportMutants: false, reportTests: false },
     htmlReporter: { fileName: "reports/mutation/report.html" },
     tempDirName: ".dev/stryker-tmp",
-    // A worker takes more than a core: 30% of them leaves about half the machine free.
+    // A worker uses more than one core, so 30% of the cores leaves about half
+    // the machine free.
     concurrency: "30%",
-    // Reruns only the mutants whose code changed since the last run.
+    // Only runs again the mutants whose code changed since the last run.
     incremental: true,
-    // A static mutant reruns every test; they are few and slow.
+    // A static mutant runs every test again. There are few of them, and they
+    // are slow.
     ignoreStatic: true,
-    // Only what the unit tests import: the vaults in .dev/ are thousands of files.
+    // Only what the unit tests import, because the vaults in .dev/ have
+    // thousands of files.
     ignorePatterns: ["/.dev", "/docs/plans", "/e2e-tests", "/coverage", "/test-results"],
 };

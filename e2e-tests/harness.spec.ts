@@ -4,8 +4,9 @@ test("the test window follows the system color scheme", async ({ obsidian }) => 
     const { page } = obsidian;
     const prefersDark = await page.evaluate(() => window.matchMedia("(prefers-color-scheme: dark)").matches);
 
-    // Playwright emulates a light scheme on attach unless the fixture clears it.
-    // Polled: the mobile layout's rebuild sets the class late under load.
+    // Playwright switches to light mode when it attaches, unless the test setup
+    // clears it. Checked repeatedly, because on a busy machine the mobile
+    // layout's rebuild sets the class late.
     await expect
         .poll(() => page.evaluate(() => document.body.className.match(/theme-\w+/)?.[0] ?? "none"))
         .toBe(prefersDark ? "theme-dark" : "theme-light");
@@ -14,7 +15,8 @@ test("the test window follows the system color scheme", async ({ obsidian }) => 
 test("the test window draws on screen, but nothing of it shows", async ({ obsidian }) => {
     test.skip(process.env.E2E_SHOW_WINDOW === "1", "the window is deliberately visible");
 
-    // Asked of macOS: Electron calls a window visible while its app is hidden.
+    // Asked of macOS, because Electron says a window is visible while its app
+    // is hidden.
     const windows = obsidian.windowsOnScreen();
     expect(windows.length).toBeGreaterThan(0);
     expect(windows.map(({ alpha }) => alpha)).toEqual(windows.map(() => 0));
@@ -39,18 +41,19 @@ test("shows nothing of a window Obsidian opens beside it", async ({ obsidian, mo
 test("the test run never leaves Obsidian in front of the user's work", async ({ obsidian }) => {
     test.skip(process.env.E2E_SHOW_WINDOW === "1", "the window is deliberately visible");
 
-    // Obsidian focuses its own window twice while starting, so the fixture hides
-    // it and hands focus back; by the time a test runs, neither may have stuck.
+    // Obsidian takes the focus for its own window twice while starting, so the
+    // test setup hides it and gives the focus back. By the time a test runs,
+    // neither may still have the focus.
     expect(obsidian.isFrontmost()).toBe(false);
 });
 
 test("shrinks the window to Obsidian's minimum", async ({ obsidian }) => {
     test.skip(process.env.E2E_SHOW_WINDOW === "1", "the window is deliberately a normal one");
 
-    // Bounds landing on no display at all are rejected outright, and Obsidian
-    // falls back to a centered full-size window — which then flashes over the
-    // user's screen before the cloak lands. An extended desktop makes that easy
-    // to hit, so the corner has to be a point some display actually contains.
+    // Window bounds that are on no display at all are refused, and Obsidian
+    // uses a centered full-size window instead, which then flashes over the
+    // user's screen before it is hidden. An extended desktop makes that easy to
+    // happen, so the corner must be on a real display.
     const sizes = obsidian.windowsOnScreen().map(({ width, height }) => ({ width, height }));
     expect(sizes).toContainEqual({ width: 300, height: 200 });
 });
@@ -58,17 +61,18 @@ test("shrinks the window to Obsidian's minimum", async ({ obsidian }) => {
 test("lays the page out at a normal size despite the small window", async ({ obsidian }) => {
     test.skip(process.env.E2E_SHOW_WINDOW === "1", "the window is a normal one");
 
-    // The window itself is shrunk to Obsidian's 300x200 minimum and parked in a
-    // corner, so the flash before the cloak lands is small; the renderer is told
-    // to lay out at a usual size so infinite scroll behaves realistically.
+    // The window itself is shrunk to Obsidian's 300x200 minimum and put in a
+    // corner, so the flash before it is hidden is small. The page is laid out
+    // at a normal size, so the stream's loading works as it would for a reader.
     // Each project lays out at its own size: a desktop window, or a phone.
     const expected = LAYOUT_VIEWPORT[test.info().project.name === "mobile" ? "mobile" : "desktop"];
     const inner = await obsidian.page.evaluate(() => ({ w: window.innerWidth, h: window.innerHeight }));
     expect(inner).toEqual({ w: expected.width, h: expected.height });
 });
 
-// Detached, a session takes its viewport with it, and the page falls back to
-// the 300x200 window the next time it lays out — such as when settings open.
+// When a session is detached, its viewport setting goes with it, and the page
+// uses the 300x200 window the next time it lays out, for example when the
+// settings open.
 test.describe("after a test's own viewport session ends", () => {
     test.describe.configure({ mode: "serial" });
 
@@ -102,8 +106,8 @@ test("keeps drawing frames after a test changes the viewport", async ({ obsidian
     const cdp = await page.context().newCDPSession(page);
     await cdp.send("Emulation.setDeviceMetricsOverride", { ...viewport, deviceScaleFactor: 1, mobile: false });
     await cdp.detach();
-    // Hidden, a window whose viewport was set again drew two frames a second
-    // once a tab next opened, until the worker restarted.
+    // A hidden window whose viewport was set again drew two frames a second,
+    // from the next time a tab opened until the worker restarted.
     await page.evaluate(async () => {
         const note = window.app.vault.getMarkdownFiles()[0]!;
         await window.app.workspace.getLeaf("tab").openFile(note);

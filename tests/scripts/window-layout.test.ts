@@ -32,15 +32,15 @@ describe("layoutFrom", () => {
 
 describe("emulateDevice", () => {
     /**
-     * A page whose `evaluate` runs the callback against jsdom's window, and
-     * whose `waitForFunction` gives up rather than polling: a predicate not
-     * already true is one this window never satisfies.
+     * A page whose `evaluate` runs the callback in jsdom's window, and whose
+     * `waitForFunction` gives up instead of checking again and again: in this
+     * window, a condition that is not already true never becomes true.
      */
     const fakePage = (isMobile: boolean, { reloads = true } = {}) => {
         const emulated: boolean[] = [];
         (window as unknown as { app: unknown }).app = {
             isMobile,
-            // The real one reloads, dropping the old document's globals.
+            // The real one reloads, which removes the old document's globals.
             emulateMobile: (on: boolean) => {
                 emulated.push(on);
                 if (reloads)

@@ -57,7 +57,8 @@ describe("webpArgs", () => {
     });
 
     it("rounds each delay so the whole runs as long as the frames do", () => {
-        // Three 0.1234 s frames rounded alone run 369 ms, not 370.
+        // Three 0.1234 s frames, each rounded on its own, add up to 369 ms, not
+        // 370.
         const thirds = [0.1234, 0.1234, 0.1234].map((delay, i) => ({ path: `${i}.png`, delay }));
         const ms = webpArgs(thirds, "out.webp").flatMap((arg, i, all) => (all[i - 1] === "-d" ? [Number(arg)] : []));
         expect(ms.reduce((sum, each) => sum + each, 0)).toBe(370);

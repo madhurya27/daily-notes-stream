@@ -1,7 +1,10 @@
 import type { Page } from "@playwright/test";
 import { test, expect, openStream } from "./obsidian";
 
-/** What Obsidian's status bar and a phone's file info describe; null for none. */
+/**
+ * What Obsidian's status bar and a phone's file info describe, or null for
+ * nothing.
+ */
 function activeFile(page: Page) {
     return page.evaluate(() => window.app.workspace.getActiveFile()?.path ?? null);
 }
@@ -27,7 +30,8 @@ test.describe("status bar", () => {
             window.app.workspace.setActiveLeaf(stream, { focus: true });
         });
 
-        // A phone has no status bar, so there the active file is the whole check.
+        // A phone has no status bar, so there the check is only the active
+        // file.
         await expect.poll(() => activeFile(page)).toBeNull();
         await expect(wordCount).toBeHidden();
         await expect(page.locator(".status-bar-item.plugin-backlink")).toBeHidden();

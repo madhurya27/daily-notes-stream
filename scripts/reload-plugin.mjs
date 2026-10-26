@@ -1,9 +1,10 @@
 /**
- * Reloads the plugin in the window `pnpm run demo` opened, over the debugging
- * port it was launched with. Why here and not in the vault: D-008.
+ * Reloads the plugin in the window `pnpm run demo` opened, through the
+ * debugging port it was started with. D-008 says why it is done here and not in
+ * the vault.
  *
- * Disabling and re-enabling re-runs `onload` and re-injects `styles.css`, which
- * Obsidian otherwise reads once, at load.
+ * Turning the plugin off and on again runs `onload` again and loads
+ * `styles.css` again, which Obsidian otherwise only reads once, when it loads.
  */
 import { chromium } from "@playwright/test";
 import { execSync } from "child_process";
@@ -14,15 +15,16 @@ import { PLUGIN_ID, USER_DATA_DIR } from "./vaults.mjs";
 const VIEW_TYPE = "daily-notes-stream-view";
 
 /**
- * The debugging port of the Obsidian launched with `userDataDir`, from a `ps`
- * listing, or null when it has none. Only that one: e2e runs launch their own,
- * each with a port, and a reload there would break a test. Its helper processes
- * carry the directory without the port.
+ * The debugging port of the Obsidian started with `userDataDir`, read from a
+ * `ps` listing, or null if it has none. Only that one, because e2e runs start
+ * their own copies, each with a port, and a reload there would break a test.
+ * Its helper processes have the folder but not the port.
  */
 export function debugPort(psOutput, userDataDir) {
     for (const args of psOutput.split("\n")) {
         const port = /--remote-debugging-port=(\d+)/.exec(args);
-        // The flag and a space after it, so a path holding spaces matches and a longer one does not.
+        // The option and a space after it, so a path with spaces matches, and a
+        // longer path does not.
         if (port && `${args} `.includes(`--user-data-dir=${userDataDir} `)) return Number(port[1]);
     }
     return null;
@@ -33,8 +35,8 @@ function runningPort() {
 }
 
 /**
- * Returns the port it reached. Throws when no window is open, rather than
- * leaving a watcher looking like it worked.
+ * Returns the port it reached. Throws an error when no window is open, instead
+ * of letting a watcher look like it worked.
  */
 export async function reloadPlugin() {
     const port = runningPort();
@@ -50,7 +52,8 @@ export async function reloadPlugin() {
                         if (!app?.plugins?.plugins?.[pluginId]) return false;
                         await app.plugins.disablePlugin(pluginId);
                         await app.plugins.enablePlugin(pluginId);
-                        // Disabling detached the view; the command reopens it.
+                        // Turning the plugin off closed the view, so the
+                        // command opens it again.
                         if (app.workspace.getLeavesOfType(viewType).length === 0) {
                             await app.commands.executeCommandById(`${pluginId}:open-stream`);
                         }
@@ -67,7 +70,7 @@ export async function reloadPlugin() {
     throw new Error(`Obsidian is on port ${port}, but ${PLUGIN_ID} is not installed in the open vault.`);
 }
 
-/** True when this module is the file node was asked to run, not an import. */
+/** True when this module is the file Node was asked to run, not an import. */
 export function isMain(moduleUrl) {
     return process.argv[1] !== undefined && resolve(process.argv[1]) === fileURLToPath(moduleUrl);
 }

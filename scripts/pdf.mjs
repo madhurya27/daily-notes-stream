@@ -1,6 +1,7 @@
 /**
- * A PDF of `pages` letter-size pages, each its number in large type, as text:
- * enough for Obsidian's viewer, with no binary fixture to keep.
+ * A PDF of `pages` letter-size pages, each showing its number in large type, as
+ * text. This is enough for Obsidian's viewer, without keeping a binary test
+ * file.
  *
  * @param {number} pages
  * @returns {string}

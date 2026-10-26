@@ -12,7 +12,10 @@ function storeOf() {
     return { load: vi.fn(() => saved), save: vi.fn((value: unknown) => void (saved = structuredClone(value))) };
 }
 
-/** A vault of `texts` by path, each file's size its text's length, its verdicts kept in `store`. */
+/**
+ * A vault of `texts` by path. Each file's size is its text's length, and the
+ * results are kept in `store`.
+ */
 function vaultOf(texts: Record<string, string>, store = storeOf()) {
     const files = new Map<string, TFile>();
     const fileAt = (path: string) => {
@@ -29,7 +32,7 @@ function vaultOf(texts: Record<string, string>, store = storeOf()) {
     return { texts, fileAt, read, resolve, store, notes: new EmptyNotes({ read, resolve }, store, __mockSettings) };
 }
 
-/** Rewrites `path`, as a save does: new text, new mtime. */
+/** Writes `path` again, as a save does: new text, and a new change time. */
 function write(vault: ReturnType<typeof vaultOf>, path: string, text: string): TFile {
     vault.texts[path] = text;
     const file = vault.fileAt(path);
@@ -224,7 +227,10 @@ describe("hideEmptyNotes", () => {
 
     afterEach(() => vi.useRealTimers());
 
-    /** A filter over a vault holding an empty note of yesterday's and today's. */
+    /**
+     * A filter for a vault holding an empty note for yesterday and one for
+     * today.
+     */
     async function filterOver() {
         const vault = vaultOf({ "Templates/Daily.md": TEMPLATE, "2026-09-27.md": "", "2026-09-28.md": "" });
         const filter = hideEmptyNotes(vault.notes, new BacklinkIndex(() => links), () => settings);
@@ -310,7 +316,10 @@ describe("EmptyNotes across sessions", () => {
 
     afterEach(() => vi.useRealTimers());
 
-    /** A session that checked every note at `now`, then closed; the next session's vault, sharing its store. */
+    /**
+     * A session that checked every note at `now`, then closed. Returns the next
+     * session's vault, which uses the same store.
+     */
     async function afterASession(texts: Record<string, string> = TEXTS) {
         const first = vaultOf({ ...texts });
         await first.notes.checkAll(Object.keys(texts).slice(1).map(first.fileAt));
@@ -320,7 +329,7 @@ describe("EmptyNotes across sessions", () => {
         return { first, next, files: () => Object.keys(texts).slice(1).map(next.fileAt) };
     }
 
-    /** The notes, not the template, the vault read. */
+    /** The notes the vault read, not counting the template. */
     const notesRead = (vault: ReturnType<typeof vaultOf>) =>
         vault.read.mock.calls.map(([file]) => file.path).filter((path) => !path.startsWith("Templates/"));
 

@@ -9,7 +9,8 @@ function device(name: string, deviceType: string, transportType = "wired", reali
     };
 }
 
-// Both can stay plugged in: test:ios drives the iPhone, test:ipados the iPad (D-168).
+// Both can stay plugged in: test:ios uses the iPhone, and test:ipados the iPad
+// (D-168).
 describe("deviceToDrive", () => {
     const phone = device("GLaDOS", "iPhone");
     const pad = device("iPad", "iPad");

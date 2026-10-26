@@ -11,7 +11,8 @@ describe("InfiniteScrollController", () => {
         mockObserve = vi.fn();
         mockUnobserve = vi.fn();
         mockDisconnect = vi.fn();
-        // Must use a regular function (not arrow) so it can be called with `new`
+        // A regular function, not an arrow function, so it can be called with
+        // `new`.
         vi.stubGlobal(
             "IntersectionObserver",
             vi.fn(function (cb: IntersectionObserverCallback) {

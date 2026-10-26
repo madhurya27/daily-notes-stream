@@ -13,9 +13,9 @@ import { FRAMES, startScreenCapture, type Scene } from "./screen-capture";
 import { APPIUM_PORT } from "./session";
 
 /**
- * Readies a USB-connected iPhone or iPad for `phone.ts`: the XCUITest driver, a
- * WebDriverAgent signed by this Mac's Apple Development certificate, and an
- * Appium server (ADR 0016).
+ * Gets an iPhone or iPad connected by USB ready for `phone.ts`: the XCUITest
+ * driver, a WebDriverAgent signed by this Mac's Apple Development certificate,
+ * and an Appium server (ADR 0016).
  */
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
@@ -23,13 +23,18 @@ const DEV = join(REPO, ".dev");
 const APPIUM = join(REPO, "node_modules/.bin/appium");
 const XCUITEST = "xcuitest@12.13.3";
 
-/** Xcode itself: the command-line tools alone have no `devicectl` or iOS SDK. */
+/**
+ * Xcode itself, because the command-line tools alone have no `devicectl` or iOS
+ * SDK.
+ */
 function developerDir(): string {
     const selected = execFileSync("xcode-select", ["-p"], { encoding: "utf8" }).trim();
     return selected.includes("CommandLineTools") ? "/Applications/Xcode.app/Contents/Developer" : selected;
 }
 
-/** The team in the Apple Development certificate's subject, as `OU=`. */
+/**
+ * The team in the Apple Development certificate's subject, written as `OU=`.
+ */
 function teamId(): string {
     const pem = execFileSync("security", ["find-certificate", "-c", "Apple Development", "-p"], { encoding: "utf8" });
     const team = /^OU=(\w+)$/m.exec(new X509Certificate(pem).subject)?.[1];
@@ -43,7 +48,10 @@ function devicectl(env: NodeJS.ProcessEnv, ...args: string[]): any {
     return JSON.parse(readFileSync(out, "utf8")).result;
 }
 
-/** The iPhone or iPad on the cable, unlocked: a locked one leaves WebDriverAgent waiting out the test's timeout. */
+/**
+ * The iPhone or iPad on the cable, which must be unlocked, because with a
+ * locked one WebDriverAgent waits until the test's timeout.
+ */
 function connectedPhone(env: NodeJS.ProcessEnv): string {
     const phone = deviceToDrive(devicectl(env, "list", "devices").devices, env);
     const { udid } = phone.hardwareProperties;
@@ -60,7 +68,10 @@ function installDriver(env: NodeJS.ProcessEnv): void {
     writeFileSync(context, oneConsoleListener(readFileSync(context, "utf8")));
 }
 
-/** Incremental after the first run; re-signs when the free profile's week is up. */
+/**
+ * Only builds what changed after the first run. Signs again when the free
+ * profile's week is over.
+ */
 function buildWebDriverAgent(env: NodeJS.ProcessEnv): void {
     const project = join(env.APPIUM_HOME!, "node_modules/appium-xcuitest-driver/node_modules/appium-webdriveragent");
     execFileSync(
@@ -90,13 +101,14 @@ async function waitForAppium(): Promise<void> {
 }
 
 /**
- * Encodes the frames inside the scene the recording marked, if it did: the
- * Focus banner iOS shows as a capture starts and stops falls outside it.
+ * Encodes the frames inside the scene the recording marked, if it marked one.
+ * The Focus banner iOS shows when a recording starts and stops is outside the
+ * scene.
  */
 /**
- * How much later a touch shows in the frames than the harness logs it: a
- * gesture is logged as Appium answers, after it ends. Measured: a key's bubble
- * shows 120–150 ms before, a stroke's scroll 160.
+ * How much later a touch shows in the frames than the tests log it. A gesture
+ * is logged when Appium answers, after the gesture ends. Measured: a key's
+ * bubble shows 120–150 ms before, and a stroke's scroll 160 ms before.
  */
 const TOUCH_SHIFT_MS = -150;
 
@@ -126,19 +138,22 @@ function encodeScene(): void {
         .map((name) => ({ timestamp: Number(name.slice(0, -4)) / 1000, path: join(FRAMES, name) }))
         .filter(({ timestamp }) => timestamp >= scene.start && timestamp <= scene.end)
         .sort((a, b) => a.timestamp - b.timestamp);
-    // Lossy: a glide changes the whole screen each frame, which lossless keeps at twice the size.
-    // Thirty a second: a key's bubble shows for some 60 ms, and a glide is choppy at ten.
+    // Lossy, because scrolling changes the whole screen each frame, and
+    // lossless makes the file twice the size. Thirty frames a second, because a
+    // key's bubble shows for about 60 ms, and scrolling looks jerky at ten.
     writeWebp(frames, scene.output, { quality: 80, minInterval: 1 / 30 });
 }
 
-/** Appium serving the phone on the cable; returns what stops it. */
+/**
+ * Starts Appium for the phone on the cable. Returns a function that stops it.
+ */
 export default async function startAppium(): Promise<() => Promise<void>> {
     mkdirSync(DEV, { recursive: true });
     loadLocalEnv(join(REPO, "e2e-tests/ios/.env"));
     // A typo fails here, not after the run.
     keyboardAfterRun(process.env);
     const team = teamId();
-    // Set here, the workers inherit them.
+    // Set here, so the workers get them too.
     Object.assign(process.env, {
         APPIUM_HOME: join(DEV, "appium"),
         DEVELOPER_DIR: process.env.DEVELOPER_DIR ?? developerDir(),
@@ -147,7 +162,8 @@ export default async function startAppium(): Promise<() => Promise<void>> {
         IOS_WDA_DATA: join(DEV, "wda"),
     });
     process.env.IOS_UDID = connectedPhone(process.env);
-    // First, before WebDriverAgent connects: starting a capture drops its connection.
+    // First, before WebDriverAgent connects, because starting a recording drops
+    // its connection.
     let stopCapture = async () => {};
     if (recordingAsked()) {
         rmSync(FRAMES, { recursive: true, force: true });
@@ -171,14 +187,16 @@ export default async function startAppium(): Promise<() => Promise<void>> {
     return async () => {
         stopAppium(appium);
         await stopCapture();
-        // A capture's scene.json stays among the frames: re-encoding it on a plain run rewrote the README's.
+        // A recording's scene.json stays with the frames. Encoding it again on
+        // a normal run replaced the README's recording.
         if (recordingAsked()) encodeScene();
     };
 }
 
 /**
- * Appium, and the WebDriverAgent it started on the phone: Appium runs its
- * xcodebuild in a process group of its own, which outlives Appium.
+ * Stops Appium, and the WebDriverAgent it started on the phone. Appium runs its
+ * xcodebuild in a separate process group, which keeps running after Appium
+ * stops.
  */
 function stopAppium(appium: ChildProcess): void {
     appium.kill();

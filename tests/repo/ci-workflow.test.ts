@@ -43,7 +43,7 @@ describe("CI workflow", () => {
     });
 
     it("gives the token read access only", () => {
-        // Pull requests run their own code; nothing in the job writes.
+        // Pull requests run their own code, so nothing in the job may write.
         expect(workflow!.permissions).toEqual({ contents: "read" });
     });
 

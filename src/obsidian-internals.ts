@@ -1,28 +1,38 @@
 import type { App, EventRef, Hotkey, ItemView, PaneType } from "obsidian";
 
-/** Obsidian's unpublished shape, so every unsupported access sits in one place. */
+/**
+ * Parts of Obsidian that are not in its public API. All use of them is kept in
+ * this file.
+ */
 type VaultInternal = {
     config?: { readableLineLength?: boolean };
-    /** Public API; read here only because the vault is reached through this cast. */
+    /**
+     * Part of the public API. Read here only because the vault is reached
+     * through this cast.
+     */
     configDir: string;
     on(name: "raw", callback: (path: string) => unknown): EventRef;
 };
 
-/** Reaches the vault without the bare `app.` global the compliance rules forbid. */
+/**
+ * Gets the vault without the global `app`, which the compliance rules forbid.
+ */
 const vaultOf = (app: App) => (app as unknown as { vault?: VaultInternal }).vault;
 
 /**
- * No public API: Obsidian applies "Readable line length" per MarkdownView rather
- * than on the body, so a custom ItemView reads the config. Absent means default, on.
+ * There is no public API for this. Obsidian applies "Readable line length" to
+ * each MarkdownView, not to the page, so a custom ItemView reads the setting
+ * itself. If the setting is missing, it is on, the default.
  */
 export function getReadableLineLength(app: App): boolean {
     return vaultOf(app)?.config?.readableLineLength ?? true;
 }
 
 /**
- * Fires when anything under the vault's config directory is written — the only
- * signal that Obsidian's daily-notes format or folder changed. The undeclared
- * "raw" vault event covers every file in the vault, so paths are filtered here.
+ * Fires when anything in the vault's config folder is written. This is the only
+ * way to know that Obsidian's daily notes format or folder changed. The
+ * undocumented "raw" vault event fires for every file in the vault, so paths
+ * are filtered here.
  */
 export function onVaultConfigChange(app: App, handler: () => void): EventRef {
     const vault = vaultOf(app) as VaultInternal;
@@ -32,38 +42,48 @@ export function onVaultConfigChange(app: App, handler: () => void): EventRef {
     });
 }
 
-/** Obsidian's unpublished workspace event. */
+/** A workspace event that is not in Obsidian's public API. */
 type WorkspaceInternal = { on(name: "post-processor-change", callback: () => unknown): EventRef };
 
 /**
- * Fires when what renders markdown changes: Mermaid's "Allow", or a plugin
- * adding or removing a post-processor. Obsidian's own views re-render on it.
+ * Fires when what draws Markdown changes: Mermaid's "Allow", or a plugin adding
+ * or removing a post-processor. Obsidian's own views draw again when it fires.
  */
 export function onPostProcessorChange(app: App, handler: () => void): EventRef {
     return (app.workspace as unknown as WorkspaceInternal).on("post-processor-change", handler);
 }
 
-/** The core plugins' unpublished handles, reached through the registry. */
+/**
+ * The core plugins, which are not in the public API, found through the plugin
+ * registry.
+ */
 type InternalPlugins = {
     getPluginById(id: "global-search"): { instance?: { openGlobalSearch(query: string): void } } | undefined;
     getPluginById(id: "daily-notes"): { instance?: { options?: DailyNoteSettings } } | undefined;
 };
 
-/** Where daily notes live and what they are named, as the user set it; unset fields are absent. */
+/**
+ * Where daily notes are and how they are named, as the user set it. Settings
+ * not set are missing.
+ */
 export interface DailyNoteSettings {
     format?: string;
     folder?: string;
     template?: string;
 }
 
-/** Periodic Notes' settings, which replace the core plugin's while it has daily notes on. */
+/**
+ * Periodic Notes' settings. While its daily notes are on, they replace the core
+ * plugin's.
+ */
 type CommunityPlugins = {
     getPlugin(id: "periodic-notes"): { settings?: { daily?: DailyNoteSettings & { enabled?: boolean } } } | null;
 };
 
 /**
- * No public API: the daily-notes settings, from Periodic Notes while it has
- * daily notes on, else from the core plugin. Nothing set once the internals go.
+ * There is no public API for this. The daily notes settings come from Periodic
+ * Notes while its daily notes are on, otherwise from the core plugin. If
+ * Obsidian removes these internals, nothing is set.
  */
 export function getDailyNoteSettings(app: App): DailyNoteSettings {
     const { internalPlugins, plugins } = app as unknown as {
@@ -76,20 +96,26 @@ export function getDailyNoteSettings(app: App): DailyNoteSettings {
     return { format, folder, template };
 }
 
-/** The core search view, whose query a pane of our own has to set itself. */
+/**
+ * The core search view. When we open it in its own pane, we have to set its
+ * query ourselves.
+ */
 type SearchView = { setQuery?(query: string): void };
 
-/** A tag as the search pane spells it; one holding a space needs quoting. */
+/**
+ * A tag written the way the search pane writes it. A tag with a space must be
+ * quoted.
+ */
 function tagQuery(tag: string): string {
     const name = tag.startsWith("#") ? tag : `#${tag}`;
     return /\s/.test(name) ? `tag:"${name}"` : `tag:${name}`;
 }
 
 /**
- * Opens the search on a tag, the way clicking a tag anywhere else in Obsidian
- * does: in the sidebar pane, or, given a pane, in a pane of its own. No
- * public API exposes the search pane, so the core plugin is reached by id; a
- * user who disabled it gets nothing rather than an error.
+ * Searches for a tag, the way clicking a tag anywhere else in Obsidian does: in
+ * the sidebar, or, if `pane` is given, in a pane of its own. The search pane is
+ * not in the public API, so the core plugin is found by its id. If the user
+ * turned it off, nothing happens, rather than an error.
  */
 export async function openTagSearch(app: App, tag: string, pane: PaneType | boolean = false): Promise<void> {
     const plugins = (app as unknown as { internalPlugins?: InternalPlugins }).internalPlugins;
@@ -101,21 +127,24 @@ export async function openTagSearch(app: App, tag: string, pane: PaneType | bool
         return;
     }
     const { workspace } = app;
-    // `true` is Keymap's word for the default new pane, a tab.
+    // For Keymap, `true` means the default new pane, which is a tab.
     const leaf = workspace.getLeaf(pane === true ? "tab" : pane);
     await leaf.setViewState({ type: "search", active: true });
     (leaf.view as SearchView).setQuery?.(query);
 }
 
-/** No public API: the type manager resolves a key to the widget that draws its row. */
+/**
+ * Not in the public API: the type manager finds the widget that draws a
+ * property's row.
+ */
 type MetadataTypeManager = {
     getTypeInfo?(key: string, value: unknown): { expected: { icon: string } | null; inferred: { icon: string } | null };
 };
 
 /**
- * The icon Obsidian's own properties panel shows for a key: the one on the type
- * assigned to it, else on the type its value infers. Null once the internal is
- * gone, so a caller can fall back.
+ * The icon Obsidian's own properties panel shows for a property: the icon of
+ * the type set for it, otherwise of the type its value suggests. Null if
+ * Obsidian removes this internal, so the caller can use another icon.
  */
 export function getPropertyIcon(app: App, key: string, value: unknown): string | null {
     const manager = (app as unknown as { metadataTypeManager?: MetadataTypeManager }).metadataTypeManager;
@@ -123,21 +152,27 @@ export function getPropertyIcon(app: App, key: string, value: unknown): string |
     return (info?.expected ?? info?.inferred)?.icon ?? null;
 }
 
-/** The command the vault binds "Search current file" to, whose hotkey the stream answers. */
+/**
+ * The command for "Search current file". The stream opens its search on this
+ * command's hotkey.
+ */
 const SEARCH_COMMAND = "editor:open-search";
 
-/** Obsidian's own default for it, should the hotkey manager go. */
+/** Obsidian's default hotkey for it, in case the hotkey manager is removed. */
 const DEFAULT_SEARCH_HOTKEYS: Hotkey[] = [{ modifiers: ["Mod"], key: "F" }];
 
-/** No public API: the hotkey manager holds the user's bindings, and Obsidian's. */
+/**
+ * Not in the public API: the hotkey manager holds the user's hotkeys, and
+ * Obsidian's.
+ */
 type HotkeyManager = {
     getHotkeys(id: string): Hotkey[] | undefined;
     getDefaultHotkeys(id: string): Hotkey[] | undefined;
 };
 
 /**
- * What "Search current file" is bound to right now: the user's binding, even
- * an empty one, else Obsidian's default.
+ * The current hotkeys for "Search current file": the user's, even if they set
+ * none, otherwise Obsidian's default.
  */
 export function getSearchHotkeys(app: App): Hotkey[] {
     const manager = (app as unknown as { hotkeyManager?: HotkeyManager }).hotkeyManager;
@@ -145,15 +180,19 @@ export function getSearchHotkeys(app: App): Hotkey[] {
     return manager.getHotkeys(SEARCH_COMMAND) ?? manager.getDefaultHotkeys(SEARCH_COMMAND) ?? DEFAULT_SEARCH_HOTKEYS;
 }
 
-/** No public API: the title Obsidian draws in a view's header. Null once the internal is gone. */
+/**
+ * Not in the public API: the title Obsidian draws in a view's header. Null if
+ * Obsidian removes it.
+ */
 export function getViewTitle(view: ItemView): HTMLElement | null {
     return (view as unknown as { titleEl?: HTMLElement }).titleEl ?? null;
 }
 
 /**
- * Removes this vault's localStorage keys whose name `matches` picks, and says
- * how many. No public API lists them: `saveLocalStorage` prefixes each name
- * with the vault's unpublished `appId`. A vault without one removes nothing.
+ * Removes this vault's localStorage keys whose names `matches` accepts, and
+ * returns how many. No public API lists them: `saveLocalStorage` puts the
+ * vault's `appId`, which is not public, in front of each name. In a vault
+ * without one, nothing is removed.
  */
 export function removeLocalStorageKeys(
     app: App,
@@ -164,7 +203,7 @@ export function removeLocalStorageKeys(
     if (!appId) return 0;
     const prefix = `${appId}-`;
     const keys = Array.from({ length: storage.length }, (_, i) => storage.key(i)).filter(
-        // Stryker disable next-line ConditionalExpression: below the length, every index has a key.
+        // Stryker disable next-line ConditionalExpression: every index below the length has a key.
         (key): key is string => key !== null && key.startsWith(prefix) && matches(key.slice(prefix.length))
     );
     for (const key of keys) storage.removeItem(key);

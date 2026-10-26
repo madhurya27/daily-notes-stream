@@ -5,7 +5,7 @@ paths:
 
 # iPhone tests
 
-- `phone.type()` taps each key on iOS's keyboard, some 3 s for a six-letter
-  search: use it where the typing is under test (the keyboard rises, keys reach
-  the input) or on screen (a recording). Text that only sets a test up is set by
-  script.
+- `phone.type()` taps each key on iOS's keyboard, which takes about 3 s for a
+  six-letter search. Use it only when the test is about typing (the keyboard
+  appears, the keys reach the input) or when the typing is filmed (a recording).
+  When text only prepares a test, set it with a script.

@@ -18,8 +18,8 @@ function table(order: string[], ...extra: string[]): string {
 }
 
 describe("narrowestTableWidth", () => {
-    // Bases sizes a column to its header or its longest value, whichever is
-    // wider, plus one: the header alone is the floor.
+    // Bases makes a column as wide as its header or its longest value,
+    // whichever is wider, plus one. So the header alone gives the minimum.
     it("sums each column's header", () => {
         expect(narrowestTableWidth(table(["mood", "energy"]), undefined, headers)).toBe(40 + 34 + 1 + (60 + 34 + 1));
     });
@@ -50,7 +50,8 @@ describe("narrowestTableWidth", () => {
         expect(narrowestTableWidth(definition, undefined, headers)).toBe(40 + 35);
     });
 
-    // Only a leading note., formula. or file. names where the column comes from.
+    // Only a note., formula. or file. at the start says where the column comes
+    // from.
     it("keeps the whole name of a property with one inside it", () => {
         expect(narrowestTableWidth(table(["trip.note.length"]), undefined, headers)).toBe(160 + 35);
     });

@@ -1,8 +1,12 @@
 import { test, expect, openStream } from "./obsidian";
 
-/** What the stream measured, kept across sessions (ADR 0010), and what it reserves where nothing is. */
+/**
+ * What the stream measured, kept between sessions (ADR 0010), and the height it
+ * uses where nothing was measured.
+ */
 
-// Erring tall: a glide up past notes taller than reserved runs out of scroll short of the top (D-092).
+// Leaning tall: scrolling up past notes taller than their estimate runs out of
+// scroll before the top (D-092).
 test("reserves a note never measured at what the vault's notes measured, erring tall", async ({ obsidian }) => {
     const container = await openStream(obsidian.page);
     const reserved = () =>
@@ -12,7 +16,8 @@ test("reserves a note never measured at what the vault's notes measured, erring 
             const unmeasured = [...column.querySelectorAll<HTMLElement>(".daily-note-block.is-unloaded")].find(
                 (block) => notes.heightOf(layout, block.dataset.sourcePath) === undefined
             );
-            // Never capped below two panes, what a note reserves before anything is measured (D-135).
+            // Never limited to less than two pane heights, the height a note
+            // gets before anything is measured (D-135).
             const floor = 2 * column.parentElement!.clientHeight;
             return {
                 estimate:
@@ -22,11 +27,13 @@ test("reserves a note never measured at what the vault's notes measured, erring 
         });
     await expect.poll(async () => (await reserved()).estimate).toBeGreaterThan(0);
 
-    // Made before anything was measured, a placeholder takes it once the notes on screen are (ADR 0014).
+    // An empty block made before anything was measured gets the new height once
+    // the notes on screen are measured (ADR 0014).
     await expect.poll(async () => (await reserved()).placeholder).toBe(`${(await reserved()).estimate}px`);
 });
 
-// Edited on another device, or while the plugin was off, its stored height is outdated (ADR 0017).
+// When a note is edited on another device, or while the plugin was off, its
+// saved height is out of date (ADR 0017).
 test("keeps each height with its note's mtime, and forgets it as the note is edited", async ({ obsidian }) => {
     const { page } = obsidian;
     const container = await openStream(page);
@@ -52,7 +59,7 @@ test("keeps each height with its note's mtime, and forgets it as the note is edi
     }, path);
     try {
         expect((await stored()).heights).toBe(0);
-        // Rendered, it is measured again, at the edit's mtime.
+        // When drawn, it is measured again, at the edit's change time.
         await expect.poll(async () => (await stored()).heights).toBeGreaterThan(0);
         const after = await stored();
         expect(after.mtime).toBe(after.now);
@@ -74,7 +81,8 @@ test("forgets every height on a device build's command", async ({ obsidian }) =>
     await expect.poll(stored).toBeGreaterThan(0);
 
     const forgotten = await obsidian.page.evaluate(() => {
-        // A release build, as e2e runs, has no command: call what it runs.
+        // A release build, which e2e uses, has no command, so call what the
+        // command would run.
         const plugin = window.app.plugins.plugins["daily-notes-stream"];
         plugin.forgetNoteHeights();
         const { notes } = plugin.layoutMemory;

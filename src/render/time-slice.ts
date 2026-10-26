@@ -1,13 +1,16 @@
 /**
- * Lets everything already waiting run before the caller goes on: input,
- * painting and timers. `scheduler.yield()` would put the caller first, and
- * hold every timer until a long render ends (ADR 0020).
+ * Lets everything already waiting run before the caller continues: input,
+ * drawing and timers. `scheduler.yield()` would put the caller first, and delay
+ * every timer until a long render ends (ADR 0020).
  */
 export function yieldToMain(): Promise<void> {
     return new Promise((resolve) => window.setTimeout(resolve, 0));
 }
 
-/** Work split into a task per slice of time, so no long render freezes the stream. */
+/**
+ * Splits work into one task for each slice of time, so no long render freezes
+ * the stream.
+ */
 export class TimeSlice {
     private start: number;
 
@@ -19,7 +22,10 @@ export class TimeSlice {
         this.start = now();
     }
 
-    /** Gives the thread back once the slice's time is spent; true if it did. */
+    /**
+     * Gives the thread back once the slice's time is used up. Returns true if
+     * it did.
+     */
     async yieldIfSpent(): Promise<boolean> {
         if (this.now() - this.start < this.budgetMs) return false;
         await this.giveBack();

@@ -1,7 +1,10 @@
 import { installPeriodicNotes, setPeriodicDaily } from "./periodic-notes";
 import { test, expect, openStream } from "./obsidian";
 
-/** Periodic Notes' daily notes: a folder and a format core's settings don't name. */
+/**
+ * Periodic Notes' daily notes: a folder and a format that the core plugin's
+ * settings don't name.
+ */
 const DAILY = { enabled: true, folder: "Periodic", format: "DD-MM-YYYY" };
 const NOTES = ["Periodic/14-04-2026.md", "Periodic/13-04-2026.md", "Elsewhere/20-04-2026.md"];
 

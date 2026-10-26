@@ -11,7 +11,8 @@ describe("pdf", () => {
         expect(doc).toContain("(Page 3) Tj");
     });
 
-    // pdf.js finds each object through the table: catalog, page list, then a page and its text per page.
+    // pdf.js finds each object through the table: the catalog, the page list,
+    // then a page and its text for each page.
     it("points each cross-reference entry at its object", () => {
         const [, table = ""] = doc.split(/xref\n0 \d+\n0000000000 65535 f \n/);
         const offsets = table

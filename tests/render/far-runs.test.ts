@@ -1,7 +1,9 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { FarRuns, type Box } from "../../src/render/far-runs";
 
-/** jsdom lays nothing out: each element's box is read from its data attributes. */
+/**
+ * jsdom has no layout, so each element's box is read from its data attributes.
+ */
 function box(el: Element): Box | null {
     const { top, bottom, mt, mb } = (el as HTMLElement).dataset;
     if (top === undefined) return null;
@@ -40,7 +42,8 @@ describe("FarRuns", () => {
         expect(spacer.hasClass("daily-note-far-run")).toBe(true);
         expect(one!.hasClass("is-far") && two!.hasClass("is-far")).toBe(true);
         expect(three!.hasClass("is-far")).toBe(false);
-        // From the first one's border box to the last one's, with their outer margins to collapse as theirs did.
+        // From the first one's border box to the last one's, with their outer
+        // margins, so they combine with neighbours' margins as before.
         expect(prop(spacer, "--daily-note-far-height")).toBe("160px");
         expect(prop(spacer, "--daily-note-far-margin-top")).toBe("16px");
         expect(prop(spacer, "--daily-note-far-margin-bottom")).toBe("16px");
@@ -128,7 +131,8 @@ describe("FarRuns", () => {
         expect(note.querySelector(".daily-note-far-run, .is-far")).toBeNull();
     });
 
-    // Shown by a scroll, a collapse, a search step or a save, it is watched again (ADR 0023).
+    // Shown again by a scroll, a fold, a search step or a save, it is watched
+    // again (ADR 0023).
     it("tells who listens which run it showed, once per run", () => {
         const note = content(`<p data-top="0" data-bottom="10">one</p><p data-top="10" data-bottom="20">two</p>`);
         const [one, two] = children(note);

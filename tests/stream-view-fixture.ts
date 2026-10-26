@@ -13,17 +13,17 @@ import { BacklinkIndex } from "../src/notes/backlink-index";
 import { LinkChanges } from "../src/notes/link-changes";
 import { LayoutMemory } from "../src/stream/layout-memory";
 
-/** A stand-in for `T`, holding only the members a test reaches. */
+/** A fake `T`, holding only the members a test uses. */
 export function fake<T>(members: Partial<T>): T {
     return members as T;
 }
 
-/** An app stub, handed to code typed against the real `App`. */
+/** A fake app, passed to code that expects the real `App` type. */
 export function asApp(stub: object): App {
     return stub as App;
 }
 
-/** A service stub holding no notes. */
+/** A fake service holding no notes. */
 export function makeService(): DailyNoteService {
     return fake<DailyNoteService>({
         getBatch: vi.fn().mockReturnValue([]),
@@ -47,7 +47,9 @@ export function makeService(): DailyNoteService {
     });
 }
 
-/** Minimal plugin stub — satisfies DailyNotesStreamView's constructor needs. */
+/**
+ * A minimal fake plugin, with what DailyNotesStreamView's constructor needs.
+ */
 export function makePlugin(): DailyNotesStreamPlugin {
     const app = makeApp();
     return fake<DailyNotesStreamPlugin>({
@@ -69,10 +71,12 @@ export function makePlugin(): DailyNotesStreamPlugin {
     });
 }
 
-/** An event source's `on`, recording each callback for the test to fire. */
+/**
+ * An event source's `on`, which records each callback so the test can call it.
+ */
 const events = () => vi.fn((_name: string, _callback: (...args: unknown[]) => unknown): EventRef => ({}));
 
-/** Minimal App stub — satisfies what the view and NoteRenderer access. */
+/** A minimal fake App, with what the view and NoteRenderer use. */
 export function makeApp() {
     return {
         vault: {
@@ -95,14 +99,15 @@ export function makeApp() {
     };
 }
 
-/** Flushes all pending microtasks so .then() callbacks fire. */
+/** Runs all waiting microtasks, so .then() callbacks run. */
 export function flushPromises(): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, 0));
 }
 
 /**
- * A view whose renderer, scroll controller and DOM lookups are stubbed, not
- * yet opened — for tests that must act between construction and onOpen.
+ * A view whose renderer, scroll controller and DOM lookups are fakes, not yet
+ * opened. For tests that must do something between creating the view and
+ * onOpen.
  */
 export function makeStubbedView(app: object = makeApp()) {
     __setMockNotes([]);
@@ -116,7 +121,7 @@ export function makeStubbedView(app: object = makeApp()) {
         delegate: vi.fn(),
         onBaseModified: vi.fn().mockResolvedValue(undefined),
     });
-    // The window manager hands back placeholders; rendering is its business.
+    // The window manager returns empty blocks. Drawing is its job.
     Object.assign(view["stream"], {
         window: fake<NoteWindowManager>({
             attach: vi.fn(),
@@ -147,7 +152,7 @@ export function makeStubbedView(app: object = makeApp()) {
     return { view, plugin, service };
 }
 
-/** A stubbed view, opened. */
+/** A view with fakes, opened. */
 export async function makeViewSetup(app: object = makeApp()) {
     const setup = makeStubbedView(app);
     await setup.view.onOpen();

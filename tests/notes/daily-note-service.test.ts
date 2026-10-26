@@ -11,7 +11,7 @@ import {
 } from "../mocks/daily-notes";
 import { TFile, moment } from "obsidian";
 
-/** Counts reads of each file's name: every date parse starts with one. */
+/** Counts reads of each file's name. Every date read starts with one. */
 function countNameReads(files: TFile[]): () => number {
     let reads = 0;
     for (const file of files) {
@@ -260,7 +260,8 @@ describe("DailyNoteService", () => {
             expect(svc.length).toBe(2);
         });
 
-        // A config write refreshes the service (refreshIfSettingsChanged), so the list's format is current.
+        // A change to the settings refreshes the service
+        // (refreshIfSettingsChanged), so the list's format is up to date.
         it("reads no daily-note settings once built", async () => {
             __setMockSettings({ format: "YYYY-MM-DD", folder: "Notes" });
             __setMockNotes(["Notes/2025-01-01.md", "Notes/2025-01-02.md"]);
@@ -319,7 +320,7 @@ describe("DailyNoteService", () => {
     });
 
     describe("instance: insertSorted — invalid date", () => {
-        // A vault event fires for every file, attachments and copies too.
+        // A vault event fires for every file, including attachments and copies.
         it.each(["Notes/2025-01-02.pdf", "Notes/2025-01-02 copy.md"])("returns null for %s", async (path) => {
             __setMockSettings({ format: "YYYY-MM-DD", folder: "Notes" });
             __setMockNotes(["Notes/2025-01-01.md"]);
@@ -414,7 +415,8 @@ describe("DailyNoteService", () => {
     });
 
     describe("a missing or folder-only format", () => {
-        // An empty moment format reads any ISO 8601 date, week and ordinal forms included.
+        // An empty moment format reads any ISO 8601 date, including week and
+        // ordinal forms.
         it("lists only notes named YYYY-MM-DD when no format is set", async () => {
             __setMockSettings({ format: "", folder: "Notes" });
             __setMockNotes(["Notes/2025-01-01.md", "Notes/20250102.md", "Notes/2025-W01.md"]);
@@ -485,14 +487,16 @@ describe("DailyNoteService", () => {
             await svc.initialize();
             const before = svc.getBatch(0, svc.length);
 
-            // A note appearing on disk is the vault events' business, not a rebuild's.
+            // A note appearing on disk is handled by vault events, not by a
+            // rebuild.
             __setMockNotes(["Notes/2025-01-01.md", "Notes/2025-01-02.md"]);
 
             expect(await svc.refreshIfSettingsChanged()).toBe(false);
             expect(svc.getBatch(0, svc.length)).toEqual(before);
         });
 
-        // A note made between the config write and the refresh joins the list it was sorted into.
+        // A note made between the settings change and the refresh stays in the
+        // list it was added to.
         it("dates notes by the format the list was built with until a refresh rebuilds it", async () => {
             __setMockSettings({ format: "YYYY-MM-DD", folder: "Notes" });
             __setMockNotes(["Notes/2025-01-01.md"]);
@@ -521,7 +525,7 @@ describe("DailyNoteService", () => {
         beforeEach(() => vi.useFakeTimers({ now: new Date(2025, 0, 5, 12) }));
         afterEach(() => vi.useRealTimers());
 
-        /** Yesterday's, today's and one made ahead. */
+        /** Yesterday's note, today's, and one made in advance. */
         async function svc(): Promise<DailyNoteService> {
             __setMockNotes(["Notes/2025-01-04.md", "Notes/2025-01-05.md", "Notes/2025-01-10.md"]);
             const svc = new DailyNoteService(__mockMarkdownFiles, __mockSettings);
@@ -693,8 +697,9 @@ describe("DailyNoteService", () => {
             expect(svc.dates().map((d) => d.format("YYYY-MM-DD"))).toEqual(["2025-01-03", "2025-01-02", "2025-01-01"]);
         });
 
-        // The suggester lists what the reader's own filenames say, so a vault
-        // that names its notes DD-MM-YYYY must not be offered ISO dates.
+        // The jump list shows dates the way the reader's own file names write
+        // them, so a vault that names its notes DD-MM-YYYY must not be shown
+        // ISO dates.
         it("writes a date the way this vault names its notes", async () => {
             __setMockSettings({ format: "DD-MM-YYYY", folder: "Notes" });
             const svc = new DailyNoteService(__mockMarkdownFiles, __mockSettings);
@@ -712,8 +717,8 @@ describe("DailyNoteService", () => {
             expect(svc.parseNoteDate("2025-01-03")).toBeNull();
         });
 
-        // Between a settings change and the rebuild that follows it, the
-        // suggester offers what the stream still shows, as a jump lands there.
+        // Between a settings change and the rebuild after it, the jump list
+        // shows what the stream still shows, because a jump goes there.
         it("offers the notes the stream shows until a format change rebuilds it", async () => {
             __setMockNotes(["Notes/2025-01-01.md", "Notes/2025-01-31.md"]);
             const svc = new DailyNoteService(__mockMarkdownFiles, __mockSettings);
@@ -723,7 +728,7 @@ describe("DailyNoteService", () => {
             expect(svc.dates().map((d) => d.format("YYYY-MM-DD"))).toEqual(["2025-01-31", "2025-01-01"]);
         });
 
-        // A nested format names the file after its last segment only.
+        // With a nested format, the file is named after the last part only.
         it("writes only the segment the filename carries", async () => {
             __setMockSettings({ format: "YYYY/MM/YYYY-MM-DD", folder: "Notes" });
             const svc = new DailyNoteService(__mockMarkdownFiles, __mockSettings);
@@ -735,7 +740,7 @@ describe("DailyNoteService", () => {
 });
 
 describe("DailyNoteService: hidden notes", () => {
-    /** A filter hiding `hidden`, recording what it was prepared with. */
+    /** A filter that hides `hidden`, and records what it was prepared with. */
     function filterHiding(hidden: string[]) {
         const prepared: string[][] = [];
         const rechecked: string[] = [];

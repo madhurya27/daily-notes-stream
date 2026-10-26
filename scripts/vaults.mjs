@@ -1,8 +1,8 @@
 /**
- * The two local vaults every command acts on: the demo vault by default, the
- * test vault docs/TESTING.md is written against with `--test`. And the
- * plugin's id, which names its folder in either, and the Obsidian instance
- * that opens them.
+ * The two local vaults every command works on: the demo vault by default, and,
+ * with `--test`, the test vault that docs/TESTING.md is written for. Also the
+ * plugin's id, which is its folder name in both, and the copy of Obsidian that
+ * opens them.
  */
 import { execFileSync } from "child_process";
 import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync } from "fs";
@@ -18,7 +18,7 @@ export const DEMO_VAULT = join(REPO, ".dev", "demo-vault");
 export const TEST_VAULT = join(REPO, ".dev", "vault");
 
 /**
- * The vault named on the command line, else the one `args` asks for.
+ * The vault named on the command line, otherwise the one `args` asks for.
  * @param {string | undefined} named
  * @param {readonly string[]} args
  * @returns {string}
@@ -32,10 +32,10 @@ export function vaultFrom(named, args) {
 const BUILD = ["main.js", "manifest.json", "styles.css"];
 
 /**
- * Copies the build in `repo` into the vault's plugin folder. Throws, copying
- * nothing, when a file of it is missing. A link left there by `pnpm run demo`
- * is replaced, never copied through: it may point at another checkout, or at
- * a folder that is gone.
+ * Copies the build in `repo` into the vault's plugin folder. If one of its
+ * files is missing, it throws an error and copies nothing. A link left there by
+ * `pnpm run demo` is replaced, never copied through, because it may point to
+ * another checkout, or to a folder that no longer exists.
  * @param {string} vault
  * @param {string} repo
  */
@@ -50,14 +50,15 @@ export function installBuild(vault, repo = REPO) {
     }
 }
 
-/** The dev instance's own config, apart from your real Obsidian's. */
+/** The development copy's own settings, separate from your real Obsidian's. */
 export const USER_DATA_DIR = join(REPO, ".dev", "obsidian-userdata");
 
 /**
- * Quits the dev instance, every process of it, and waits until they are gone:
- * a surviving Electron helper holds the single-instance lock, and the next
- * launch then exits silently without opening its debugging port. Your own
- * Obsidian runs under another directory and is left alone.
+ * Quits every process of the development copy, and waits until they are gone.
+ * An Electron helper process that is still running holds the single-instance
+ * lock, and the next launch then exits without a message and without opening
+ * its debugging port. Your own Obsidian runs from another folder, and is not
+ * touched.
  * @param {typeof execFileSync} run
  */
 export function stopObsidian(run = execFileSync) {
@@ -73,7 +74,7 @@ export function stopObsidian(run = execFileSync) {
     try {
         run("pkill", ["-f", pattern]);
     } catch {
-        // Already gone between the check and the kill.
+        // It already stopped between the check and the kill.
     }
     const deadline = Date.now() + 10_000;
     while (running() && Date.now() < deadline) run("sleep", ["0.2"]);

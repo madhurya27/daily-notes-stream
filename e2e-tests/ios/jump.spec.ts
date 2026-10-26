@@ -1,8 +1,8 @@
 import { test, expect, type Phone } from "./phone";
 import { longNote } from "../long-note";
 
-// The notes above a jump's target were never drawn: each renders as a flick
-// up reaches it, while iOS owns the scroll (ADR 0013).
+// The notes above a jump's target were never drawn. Each one is drawn when a
+// flick up reaches it, while iOS controls the scroll (ADR 0013).
 test("a flick up from an old date glides on, the text under the thumb moving only with it", async ({ phone }) => {
     await phone.openStream();
     await phone.jumpTo("2026-09-12");
@@ -16,16 +16,20 @@ test("a flick up from an old date glides on, the text under the thumb moving onl
     expect(Math.max(...drifts.map(Math.abs)), `drifts: ${drifts.join(", ")}`).toBeLessThan(5);
 });
 
-/** A frame of the stream: its scroll, how far it is drawn off it, and its top below where it rests at the top. */
+/**
+ * A frame of the stream: its scroll position, how far it is shifted from it,
+ * and how far its top is below where it sits at the top.
+ */
 type Frame = { at: number; top: number; shift: number; streamTop: number };
 
-/** Starts noting each frame, up to 600; `frames` reports them. */
+/** Starts recording each frame, up to 600. `frames` reports them. */
 async function recordFrames(phone: Phone): Promise<void> {
     await phone.run(() => {
         const stream = document.querySelector<HTMLElement>(".daily-notes-stream-container")!;
         const pane = stream.parentElement!;
         const below = () => stream.getBoundingClientRect().top - pane.getBoundingClientRect().top;
-        // Read at rest, nothing owed: where the stream sits at scroll 0.
+        // Read while still, with nothing owed: where the stream is at scroll
+        // position 0.
         const atTop = below() + pane.scrollTop;
         const frames: Frame[] = [];
         (window as unknown as { streamFrames: Frame[] }).streamFrames = frames;
@@ -44,10 +48,11 @@ async function recordFrames(phone: Phone): Promise<void> {
 
 const frames = (phone: Phone) => phone.run(() => (window as unknown as { streamFrames: Frame[] }).streamFrames);
 
-// Placeholders far too short leave the glide less scroll than lies above. It
-// bounced at the top owing the rest, and a pull on the bounce opened
-// Obsidian's pull-down action over the stream (D-143). Stopped short, the
-// glide halts mid-speed: the cost of estimates too short (D-092).
+// Empty blocks that are far too short leave the scroll less room than there is
+// above. It bounced at the top, still owing the rest, and a pull on the bounce
+// opened Obsidian's pull-down action over the stream (D-143). Stopped early,
+// the scroll halts while still fast. This is the cost of estimates that are too
+// short (D-092).
 test("a glide owing the notes above stops before its scroll runs out, the text never jumping", async ({ phone }) => {
     await phone.openStream();
     await phone.jumpTo("2026-09-12");
@@ -59,8 +64,8 @@ test("a glide owing the notes above stops before its scroll runs out, the text n
 
     const { drifts } = await phone.stopFollowing();
     const seen = await frames(phone);
-    // Still owing and gliding up, the scroll leapt back: the stop wrote it.
-    // The page may hear no step for a frame or two before.
+    // Still owing and scrolling up, the scroll position jumped back, because
+    // the stop set it. The page may get no step for a frame or two before.
     let gliding = false;
     let stopped = false;
     for (const [i, f] of seen.entries()) {
@@ -78,16 +83,17 @@ test("a glide owing the notes above stops before its scroll runs out, the text n
     expect(Math.max(...drifts.map(Math.abs)), `drifts: ${drifts.join(", ")}`).toBeLessThan(5);
 });
 
-// Notes above shorter than their stored heights, as edited on another device,
-// leave the glide more scroll than lies above: the stream, drawn lower,
-// reached the pane's top with scroll to spare, and the glide went on into
-// blank.
+// Notes above that are shorter than their saved heights, as after editing on
+// another device, leave the scroll more room than there is above. The stream,
+// shifted down, reached the pane's top with scroll left, and the scrolling went
+// on into empty space.
 test("a glide that reaches the newest note with scroll to spare stops there", async ({ phone }) => {
     const above = ["Journal/2026-09-28.md", "Journal/2026-09-29.md", "Journal/2026-09-30.md"];
-    // Opened afresh: a test before may have shortened what notes reserve.
+    // Opened again, because an earlier test may have made the notes' empty
+    // heights shorter.
     await phone.openStream();
-    // Edited far from the reader: a rendered note re-renders short at once,
-    // or mid-glide, as its metadata catches up.
+    // Edited far from the reader, because a drawn note is drawn short again at
+    // once, or while scrolling, when its metadata is updated.
     await phone.jumpTo("2026-09-12");
     const texts = await phone.runAsync(
         (paths: string[]) => Promise.all(paths.map((path) => window.app.vault.adapter.read(path))),
@@ -122,10 +128,11 @@ test("a glide that reaches the newest note with scroll to spare stops there", as
             seen.some((f) => f.top === 0),
             "the glide reached the top"
         ).toBe(true);
-        // A bounce draws the stream below the pane's top; nothing else may.
+        // A bounce draws the stream below the pane's top. Nothing else may.
         const blank = Math.max(...seen.filter((f) => f.top >= 0).map((f) => f.streamTop));
         expect(blank).toBeLessThanOrEqual(1);
-        // iOS carries a glide on from a write: the stop held only if the stream never came back down.
+        // iOS keeps scrolling after the scroll position is set, so the stop
+        // only worked if the stream never came back down.
         const stopped = seen.findIndex((f) => f.top === 0);
         const after = Math.min(...seen.slice(stopped).map((f) => f.streamTop));
         expect(after, "the glide went on past the stop").toBeGreaterThanOrEqual(-1);
@@ -141,8 +148,9 @@ test("a glide that reaches the newest note with scroll to spare stops there", as
     }
 });
 
-// The picker is the platform's: desktop Chromium opens another one, so only
-// the phone shows whether a tap on the calendar opens it and a pick comes back.
+// The date picker belongs to the platform. Desktop Chromium opens a different
+// one, so only the phone shows whether a tap on the calendar opens it and a
+// chosen date comes back.
 test("the calendar's picker fills the query, and a tap on it jumps there", async ({ phone }) => {
     await phone.openStream();
     await phone.tap('[aria-label="Jump to date"]');
@@ -156,7 +164,7 @@ test("the calendar's picker fills the query, and a tap on it jumps there", async
     expect((await phone.place()).path).toBe("Journal/2026-09-12.md");
 });
 
-// The keyboard would cover half the list: the reader looks first, then taps.
+// The keyboard would cover half the list, so the reader looks first, then taps.
 test("the jump list opens with the keyboard down, and a tap on the query raises it", async ({ phone }) => {
     await phone.openStream();
     await phone.tap('[aria-label="Jump to date"]');
@@ -170,8 +178,9 @@ test("the jump list opens with the keyboard down, and a tap on the query raises 
     await expect.poll(() => phone.has(".prompt")).toBe(false);
 });
 
-// A jump lands on its note's start (ADR 0022). Drawn from its end, as a note
-// above the pane is met, the newest landed 130–286 px past its title in 4 of 5.
+// A jump goes to its note's start (ADR 0022). When it was drawn from its end,
+// as a note above the pane is, the newest note ended up 130–286 px below its
+// title in 4 out of 5 runs.
 test("a jump up to a long note lands on its title", async ({ phone }) => {
     const path = await phone.journalPath(0);
     const original = await phone.writeNote(path, longNote(10000));

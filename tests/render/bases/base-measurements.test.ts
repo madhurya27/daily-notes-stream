@@ -3,7 +3,7 @@ import { BaseMeasurements, baseDigest, type BaseKey } from "../../../src/render/
 
 const key = (path: string, base = "b1", layout = "600:16px"): BaseKey => ({ layout, path, base });
 
-// A Base's height is never kept: its note holds it (D-054).
+// A Base's height is never saved. Its note keeps it (D-054).
 describe("BaseMeasurements", () => {
     it("keeps which Bases were too wide for a table, per layout", () => {
         const measured = new BaseMeasurements();
@@ -15,7 +15,8 @@ describe("BaseMeasurements", () => {
         expect(measured.isTooWide(key("b.md"))).toBe(false);
     });
 
-    // The notes' rule (ADR 0010): nothing to tune per vault, however many Bases.
+    // The same rule as notes (ADR 0010): nothing to adjust for each vault,
+    // however many Bases it has.
     it("forgets the layout used longest ago, past its limit", () => {
         const measured = new BaseMeasurements(undefined, 2);
         measured.markTooWide(key("a.md", "b1", "a"));
@@ -74,7 +75,7 @@ describe("BaseMeasurements", () => {
 });
 
 describe("baseDigest", () => {
-    // A key holding a whole .base file ran to kilobytes a Base.
+    // A key that held a whole .base file was kilobytes long for each Base.
     it("stands for a Base's source in a few characters", () => {
         const definition = "views:\n" + "  - type: table\n".repeat(200);
 

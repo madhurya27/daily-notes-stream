@@ -1,16 +1,17 @@
 /**
- * Writes `.dev/demo-vault/` — a journal that reads like someone's real one, for
- * trying the plugin, screenshots and screen recordings. The test vault
- * (`seed --test`) is for the checklist: its notes are shaped around edge cases
- * and photograph as scaffolding.
+ * Writes `.dev/demo-vault/`: a journal that reads like a real person's, for
+ * trying the plugin and for screenshots and screen recordings. The test vault
+ * (`seed --test`) is for the checklist: its notes are made around edge cases,
+ * and they look artificial in pictures.
  *
  *   pnpm run seed [vault] [--days N] [--until YYYY-MM-DD]
  *
- * Each note is drawn from a generator seeded by its own date, and its lines are
- * dealt from decks keyed by its day or week, so a date reads the same on every
- * run and a recording can be retaken. Destructive like `seed --test`: notes
- * it no longer holds are deleted, changed ones rewritten; `.obsidian` is
- * written only when absent.
+ * Each note comes from a random generator started from its own date, and its
+ * lines are dealt from decks chosen by its day or week. So a date gives the
+ * same note on every run, and a recording can be made again. Like
+ * `seed --test`, it deletes things: notes it no longer has are deleted, and
+ * changed ones are written again. `.obsidian` is only written when it is
+ * missing.
  */
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "fs";
 import { dirname, join, resolve } from "path";
@@ -18,14 +19,19 @@ import { isMain } from "./reload-plugin.mjs";
 import { DEMO_VAULT, installBuild, PLUGIN_ID } from "./vaults.mjs";
 
 const JOURNAL = "Journal";
-/** The daily-notes template setting: a path without `.md`, as Obsidian stores it. */
+/**
+ * The daily notes template setting: a path without `.md`, as Obsidian saves it.
+ */
 export const DAILY_TEMPLATE = "Templates/Daily";
 const TEMPLATE = ["---", "tags:", "  - daily", "mood:", "---", "", "## Morning", "", "## Work", "", "- ", ""];
 /** About one day in twelve is made from the template and never written in. */
 const UNWRITTEN_ODDS = 1 / 12;
 const DAY_MS = 86_400_000;
 
-/** mulberry32: stable per seed, varied across seeds. */
+/**
+ * mulberry32: always the same numbers for the same seed, and different numbers
+ * for different seeds.
+ */
 const seeded = (seed) => {
     return () => {
         seed = (seed + 0x6d2b79f5) | 0;
@@ -42,18 +48,22 @@ const picker = (random) => ({
     between: (low, high) => low + Math.floor(random() * (high - low + 1)),
 });
 
-/** Days a line is kept from returning, across a reshuffle; within one, it never does. */
+/**
+ * How many days a line cannot come back after a reshuffle. Within one deck, it
+ * never comes back.
+ */
 const GAP = 3;
 
 const hash = (text) => [...text].reduce((sum, char) => (Math.imul(sum, 31) + char.charCodeAt(0)) | 0, 0);
 const shuffled = (pool, seed) => picker(seeded(seed)).some(pool, pool.length);
 
 /**
- * The `count` lines at `slot` (a day or a week) of `pool`, dealt from a deck
- * reshuffled each time through it, so no line returns until the deck is spent.
- * A deck's first GAP slots trade away any line the previous deck dealt in its
- * last GAP, swapping only with lines between the two, which keeps every deck
- * computable from its own seed: a date deals the same lines on every run.
+ * The `count` lines of `pool` for `slot` (a day or a week), dealt from a deck
+ * that is shuffled again each time it runs out, so no line comes back until the
+ * deck is used up. In a deck's first GAP slots, any line that the previous deck
+ * dealt in its last GAP slots is swapped out, only with lines between the two.
+ * This means every deck can be worked out from its own seed, so a date gets the
+ * same lines on every run.
  */
 const deal = (pool, slot, count) => {
     const slots = Math.floor(pool.length / count);
@@ -116,7 +126,7 @@ const RUNS = [
     ["Old town circuit", "Clear and cold"],
 ];
 
-/** The everyday of work: lines that can come round again. */
+/** Everyday work: lines that can come up again. */
 const WORK = [
     "Weekly 1:1 with [[Sam]]. Talked through their priorities and what to drop.",
     "Pairing with [[Jonah]] on the sync code. Slow going, good conversation.",
@@ -140,7 +150,10 @@ const WORK = [
     "Helped a new contractor set up. Realised how much of our setup lives only in my head.",
 ];
 
-/** Each week's one piece of news: told on a weekday, recalled in Sunday's review. */
+/**
+ * Each week's one piece of news: told on a weekday, and remembered in Sunday's
+ * review.
+ */
 const NEWS = [
     [
         "Design review for [[Project Atlas]]: the sidebar survives, the tab bar does not.",
@@ -328,7 +341,10 @@ const frontmatter = (properties) => [
     "",
 ];
 
-/** Where a date falls: its day since 1970, its week (from Monday) and its place in it, Monday 0. */
+/**
+ * Where a date is: its day since 1970, its week (starting Monday), and its day
+ * in the week, with Monday as 0.
+ */
 const calendar = (date) => {
     const day = Date.parse(`${date}T00:00:00Z`) / DAY_MS;
     return { day, week: Math.floor((day + 3) / 7), weekday: (day + 3) % 7 };
@@ -355,7 +371,10 @@ const runTable = (pick) => {
     ];
 };
 
-/** A quarter of weekdays get a line or two: a real journal has thin days, and several fit one screen. */
+/**
+ * A quarter of weekdays get only a line or two, because a real journal has
+ * short days, and several fit on one screen.
+ */
 const weekday = (date, when, pick) => {
     const properties = frontmatter({
         tags: ["daily", "work"],
@@ -435,7 +454,9 @@ const dailyNote = (date) => {
     return lines.join("\n") + "\n";
 };
 
-/** Whether `date` is left unwritten: the same on every run, as its note is. */
+/**
+ * Whether `date` is left without writing. The same on every run, like its note.
+ */
 const isUnwritten = (date) => seeded(hash(date))() < UNWRITTEN_ODDS;
 
 const READING_BASE = [
@@ -471,9 +492,10 @@ const personNote = (name) =>
     [...frontmatter({ tags: ["person"] }), `# ${name}`, "", "Works with me on [[Project Atlas]]."].join("\n") + "\n";
 
 /**
- * Each project's log of the newest days, `dates[0]` the newest: what gives
- * those days' notes linked mentions. The renovation starts from a property. A
- * run shorter than the log links its oldest day in place of the days it lacks.
+ * Each project's log of the newest days, with `dates[0]` the newest. This is
+ * what gives those days' notes linked mentions. The renovation starts from a
+ * property. A run with fewer days than the log links its oldest day instead of
+ * the days it does not have.
  */
 const projectNote = (name, dates, unwritten) => {
     const recent = (daysBack) => dates[Math.min(daysBack, dates.length - 1)];
@@ -503,7 +525,8 @@ const bookNote = ([title, { author, status, rating }]) =>
     [...frontmatter({ author, status, rating: rating || "", tags: ["book"] }), `# ${title}`, ""].join("\n") + "\n";
 
 /**
- * The vault as `{ path: contents }`: `days` daily notes ending on `until`, and all they link to.
+ * The vault as `{ path: contents }`: `days` daily notes ending on `until`, and
+ * all they link to.
  * @param {{ until: Date, days: number }} range
  * @returns {Record<string, string>}
  */
@@ -513,7 +536,8 @@ export function demoVault({ until, days }) {
     const dates = Array.from({ length: days }, (_, index) =>
         new Date(until.getTime() - index * DAY_MS).toISOString().slice(0, 10)
     );
-    // The newest is always written: it heads the stream, and every screenshot.
+    // The newest note always has writing, because it is at the top of the
+    // stream and of every screenshot.
     const unwritten = dates.filter((date, index) => index > 0 && isUnwritten(date));
     for (const date of dates) {
         vault[`${JOURNAL}/${date}.md`] = unwritten.includes(date) ? TEMPLATE.join("\n") : dailyNote(date);
@@ -528,9 +552,9 @@ export function demoVault({ until, days }) {
 }
 
 /**
- * Makes `folders` in `vault` hold exactly `files`, writing only what differs.
- * A note deleted and written again in an iCloud vault, while a device holds
- * it, comes back beside itself as "Mara 2.md".
+ * Makes `folders` in `vault` hold exactly `files`, and only writes what is
+ * different. In an iCloud vault, a note deleted and written again while a
+ * device has it open comes back next to itself as "Mara 2.md".
  */
 export function writeVault(vault, files, folders) {
     for (const folder of folders) {

@@ -10,7 +10,7 @@ let mockSettings: DailyNoteSettings = {
 
 let settingsCallCount = 0;
 
-/** The daily-notes settings, as `getDailyNoteSettings` would read them. */
+/** The daily notes settings, as `getDailyNoteSettings` would read them. */
 export function __mockSettings() {
     settingsCallCount++;
     return mockSettings;
@@ -24,7 +24,7 @@ export function __resetSettingsCallCount() {
     settingsCallCount = 0;
 }
 
-// Helpers to setup test state
+// Helpers to set up the state for a test
 export function __setMockNotes(paths: string[]) {
     mockFiles = paths.map((path) => new TFile(path));
 }

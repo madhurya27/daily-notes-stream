@@ -2,8 +2,9 @@ import { test, expect, openStream, restoreNote, seededDate, writeNote } from "./
 import { longNote } from "./long-note";
 
 /**
- * A long note's runs far from the screen leave the layout behind spacers of
- * their room, and come back before the reader reaches them (ADR 0021).
+ * Parts of a long note far from the screen leave the layout, replaced by
+ * spacers as tall as they were, and come back before the reader reaches them
+ * (ADR 0021).
  */
 
 const NEWEST = `Notes/${seededDate(0)}.md`;
@@ -16,7 +17,10 @@ test.describe("a long note's far runs", () => {
         await restoreNote(obsidian.page, NEWEST, original);
     });
 
-    /** Opens the stream on a 3,000-line newest note, once its far runs are hidden. */
+    /**
+     * Opens the stream with a 3,000-line newest note, once its far parts are
+     * hidden.
+     */
     async function openLong(page: import("@playwright/test").Page, text = longNote(3000)) {
         original = await writeNote(page, NEWEST, text);
         const container = await openStream(page);
@@ -50,7 +54,8 @@ test.describe("a long note's far runs", () => {
             const block = pane.querySelector(note)!;
             let seen = 0;
             let frames = 0;
-            // Most of a screen a frame, as a hard flick goes, to the note's end.
+            // Most of a screen each frame, as a hard flick goes, to the note's
+            // end.
             while (
                 pane.scrollTop + pane.clientHeight <
                 block.getBoundingClientRect().bottom - pane.getBoundingClientRect().top + pane.scrollTop

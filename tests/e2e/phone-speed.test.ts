@@ -6,7 +6,7 @@ describe("cpuSlowdown", () => {
         expect(cpuSlowdown(10, 80)).toBe(8);
     });
 
-    // Chromium throttles; it cannot speed a slow machine up.
+    // Chromium can slow the CPU down, but cannot make a slow machine faster.
     it("leaves a machine slower than the target as it is", () => {
         expect(cpuSlowdown(100, 80)).toBe(1);
     });

@@ -3,20 +3,29 @@ import { dirname, resolve } from "path";
 import { fileURLToPath } from "url";
 import type { SentTouch } from "./phone";
 
-/** Where the README recording's frames land, and the scene it marks among them (`recording.spec.ts`). */
+/**
+ * Where the README recording's frames are saved, and the scene it marks among
+ * them (`recording.spec.ts`).
+ */
 export const FRAMES = resolve(dirname(fileURLToPath(import.meta.url)), "../../.dev/phone-frames");
-/** The scene, in Unix seconds; the touches sent in it, to draw (`draw-touches.swift`); the screen's width in points. */
+/**
+ * The scene, in Unix seconds; the touches sent during it, to draw
+ * (`draw-touches.swift`); and the screen's width in points.
+ */
 export type Scene = { start: number; end: number; output: string; touches: SentTouch[]; screenWidth: number };
 
 const TOOL = resolve(dirname(fileURLToPath(import.meta.url)), "../../scripts/capture-iphone.swift");
-/** Compiling the tool takes some seconds, finding the phone up to ten more. */
+/**
+ * Compiling the tool takes a few seconds, and finding the phone up to ten more.
+ */
 const START_MS = 30_000;
 const STOP_MS = 15_000;
 
 /**
- * Starts capturing the iPhone's screen over USB into `dir`, as PNGs `width`
- * wide named by when they arrived; returns what stops it once every frame is
- * written. Before any WebDriverAgent session: a capture starting drops it.
+ * Starts recording the iPhone's screen over USB into `dir`, as PNGs `width`
+ * wide, named by when they arrived. Returns a function that stops it once every
+ * frame is written. Call it before any WebDriverAgent session, because starting
+ * a recording drops the session.
  */
 export async function startScreenCapture(dir: string, width: number): Promise<() => Promise<void>> {
     const tool = spawn("swift", ["-O", TOOL, dir, String(width)], { stdio: ["ignore", "pipe", "pipe"] });

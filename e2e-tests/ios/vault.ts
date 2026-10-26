@@ -11,24 +11,30 @@ import { PLUGIN_ID, vaultConfig } from "./vault-config";
 import { recordingAsked } from "../recording-asked";
 
 /**
- * The harness's own vault on the phone, stored on it rather than in iCloud,
- * holding the demo journal up to a fixed day: the same notes on any phone, on
- * any day (ADR 0016).
+ * The tests' own vault on the phone, stored on the phone, not in iCloud. It
+ * holds the demo journal up to a fixed day, so it has the same notes on any
+ * phone, on any day (ADR 0016).
  */
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
-/** The README recording's run: the desktop recording's journal, nothing shaped for a test. */
+/**
+ * A run for the README recording: the desktop recording's journal, with nothing
+ * made for a test.
+ */
 const RECORDING = recordingAsked();
 export const VAULT = process.env.IOS_VAULT ?? (RECORDING ? "Stream Demo" : "Stream E2E");
-/** Days of journal, 21 unless IOS_SEED_DAYS says otherwise: 1825 for five years. */
+/**
+ * How many days of journal: 21, unless IOS_SEED_DAYS sets another number, such
+ * as 1825 for five years.
+ */
 const DEMO: Record<string, string> = demoVault({
     until: new Date(Date.UTC(2026, 8, 30)),
     days: Number(process.env.IOS_SEED_DAYS ?? 21),
 });
 /**
- * What once stopped iOS glides, in the newest notes, so a flick from the top
- * starts on it: math (D-085), a Base, a wide table and a long code line
- * (ADR 0008).
+ * Things that used to stop iOS's scrolling, put in the newest notes so a flick
+ * from the top starts on them: math (D-085), a Base, a wide table and a long
+ * line of code (ADR 0008).
  */
 const STALLERS = [
     "## Stallers",
@@ -56,30 +62,38 @@ const NEWEST = Object.keys(DEMO)
     .sort()
     .slice(-3);
 /**
- * Two short notes mid-stream, so the next note's title is on screen below any
- * place in them, for a finger to tap: one ending in a Base, for a place inside
- * it, then one with no Base, below it. 2026-09-20, a Sunday, has its own.
+ * Two short notes in the middle of the stream, so from any place in them, the
+ * next note's title is on screen below for a finger to tap. One ends in a Base,
+ * for a place inside it, and the one below it has no Base. 2026-09-20, a
+ * Sunday, has its own Base.
  */
 const SHORT_NOTE_WITH_BASE = "Journal/2026-09-22.md";
 export const SHORT_NOTE = "Journal/2026-09-21.md";
 /** The kanban in the short note with Bases, the note above `SHORT_NOTE`. */
 export const SHORT_KANBAN = `.daily-note-block[data-source-path="${SHORT_NOTE_WITH_BASE}"] .daily-note-base:has(+ .daily-note-base)`;
-/** A note with every kind of chevron: its properties, headings, and a list item holding a list. */
+/**
+ * A note with every kind of fold arrow: on its properties, its headings, and a
+ * list item holding a list.
+ */
 export const NESTED_LIST_NOTE = "Journal/2026-09-26.md";
 /**
- * The test vault's note of one of each embed (docs/TESTING.md), the oldest
- * here, and the files it embeds.
+ * The test vault's note with one of each kind of embed (docs/TESTING.md), the
+ * oldest note here, and the files it embeds.
  */
 export const EMBEDS_NOTE = "Journal/2026-08-30.md";
-/** Kanban.base, `EMBEDS_NOTE`'s seventh Base: a column per file extension (D-107). */
+/**
+ * Kanban.base, `EMBEDS_NOTE`'s seventh Base: one column for each file type
+ * (D-107).
+ */
 /** Middle.base, `EMBEDS_NOTE`'s fourth Base. */
 export const MIDDLE = `.daily-note-block[data-source-path="${EMBEDS_NOTE}"] .daily-note-content > .daily-note-base:nth-child(4 of .daily-note-base)`;
 export const KANBAN = `.daily-note-block[data-source-path="${EMBEDS_NOTE}"] .daily-note-content > .daily-note-base:nth-child(7 of .daily-note-base)`;
 export const KANBAN_FILE = "Bases/Kanban.base";
 const TEST: Record<string, string> = testVault({ days: 0 });
 /**
- * Unfiltered, the test Bases list every file: over five years, thousands of
- * rows and a note a million pixels tall. Held to a month of the journal.
+ * Without a filter, the test Bases list every file: over five years, that is
+ * thousands of rows and a note a million pixels tall. Limited to one month of
+ * the journal.
  */
 export const A_MONTH = [
     "filters:",
@@ -98,7 +112,10 @@ const EMBEDS = {
     "Attachments/Manual.pdf": TEST["Attachments/Manual.pdf"]!,
     "Reading list.md": TEST["Reading list.md"]!,
 };
-/** A table of `columns` over the notes in Days/; narrow, so a phone draws it as a table, not cards (D-033). */
+/**
+ * A table of `columns` for the notes in Days/. Narrow, so a phone draws it as a
+ * table, not cards (D-033).
+ */
 const daysTable = (columns: string[]) =>
     [
         "filters:",
@@ -111,7 +128,10 @@ const daysTable = (columns: string[]) =>
         ...columns.map((column) => `      - ${column}`),
         "",
     ].join("\n");
-/** A link, a date and a link to a day in a Base: a touch on any once held the stream still (D-167). */
+/**
+ * A link, a date and a link to a day in a Base. A touch on any of them used to
+ * stop the stream from scrolling (D-167).
+ */
 const DAYS = {
     "Names.base": daysTable(["file.name"]),
     "Days.base": daysTable(["when", "day"]),
@@ -123,7 +143,10 @@ const DAYS = {
         ].map(([name, day]) => [`Days/${name}.md`, `---\nwhen: ${day}\nday: "[[${day}]]"\n---\n`])
     ),
 };
-/** Days the journal leaves out, for a test to write a note of its own on and delete. */
+/**
+ * Days with no note in the journal, so a test can write its own note on one and
+ * delete it.
+ */
 export const FREE_DAYS = ["Journal/2026-09-05.md", "Journal/2026-09-06.md"] as const;
 const TEST_NOTES = {
     ...Object.fromEntries(Object.entries(DEMO).filter(([path]) => !(FREE_DAYS as readonly string[]).includes(path))),
@@ -132,7 +155,7 @@ const TEST_NOTES = {
     ...Object.fromEntries(
         NEWEST.map((path) => [path, DEMO[path]!.replace(/^(---\n[\s\S]*?\n---\n\n)/, `$1${STALLERS.join("\n")}`)])
     ),
-    // First, so its chevron is on screen with the properties'.
+    // First, so its arrow is on screen together with the properties' arrow.
     [NESTED_LIST_NOTE]: DEMO[NESTED_LIST_NOTE]!.replace(
         /^(---\n[\s\S]*?\n---\n\n)/,
         "$1## Packing\n\n- Bag\n    - Charger\n    - Passport\n\n"
@@ -143,7 +166,9 @@ const TEST_NOTES = {
 
 const NOTES = RECORDING ? README_DEMO : TEST_NOTES;
 
-/** Everything the vault holds, configuration and build included, by path. */
+/**
+ * Everything the vault holds, including configuration and the build, by path.
+ */
 function contents(configDir: string): Record<string, string> {
     const config = vaultConfig({ recording: RECORDING });
     const build = ["main.js", "manifest.json", "styles.css"].map((name) => [
@@ -161,7 +186,7 @@ function contents(configDir: string): Record<string, string> {
 
 /**
  * Opens the vault by its URL, or creates it through the vault chooser. Never
- * through a vault's page in the chooser: that page holds Delete vault.
+ * through a vault's page in the chooser, because that page has Delete vault.
  */
 async function open(phone: Phone): Promise<void> {
     const name = () => openVault(phone);
@@ -173,13 +198,15 @@ async function open(phone: Phone): Promise<void> {
     } catch {
         // No such vault yet.
     }
-    // Each step redraws the chooser, so each waits for what the last drew.
+    // Each step draws the chooser again, so each waits for what the last one
+    // drew.
     const shows = (selector: string) => () =>
         phone.run((sel: string) => !!document.querySelector(sel), selector).catch(() => false);
-    // Shown already, with no vault open, when an earlier run stopped on it.
+    // Already shown, with no vault open, if an earlier run stopped there.
     await phone.run(() => document.querySelector(".mobile-vault-chooser") || window.app.openVaultChooser());
     await expect.poll(shows(".mobile-vault-chooser .lucide-plus-circle")).toBe(true);
-    // By its icon, not its label: Obsidian may speak another language.
+    // Found by its icon, not its label, because Obsidian may be in another
+    // language.
     await phone.run(() =>
         document
             .querySelector(".mobile-vault-chooser .lucide-plus-circle")!
@@ -191,7 +218,8 @@ async function open(phone: Phone): Promise<void> {
         const input = document.querySelector<HTMLInputElement>('.mobile-vault-chooser input[type="text"]')!;
         input.value = vault;
         input.dispatchEvent(new Event("input", { bubbles: true }));
-        // On the phone: an iCloud vault's writes sync to every device the account has.
+        // On the phone, because an iCloud vault's changes sync to every device
+        // on the account.
         const iCloud = document.querySelector<HTMLInputElement>('.mobile-vault-chooser input[type="checkbox"]');
         if (iCloud?.checked) iCloud.click();
         document.querySelector<HTMLButtonElement>(".mobile-vault-chooser button.mod-cta")!.click();
@@ -200,9 +228,9 @@ async function open(phone: Phone): Promise<void> {
 }
 
 /**
- * Makes the vault hold exactly `contents`, its config folder aside, and
+ * Makes the vault hold exactly `contents`, apart from its config folder, and
  * reloads Obsidian. Skipped when the vault's fingerprint shows the same
- * contents written already.
+ * contents were already written.
  */
 async function seed(phone: Phone): Promise<void> {
     const configDir = await phone.run(() => window.app.vault.configDir as string);
@@ -211,7 +239,8 @@ async function seed(phone: Phone): Promise<void> {
     const stamp = `${configDir}/stream-e2e-seed`;
     const [notes, config] = partition(files, (path) => !path.startsWith(`${configDir}/`));
     const loaded = (id: string) => !!window.app?.plugins?.plugins?.[id];
-    // A stopped run leaves the notes its tests made, which the stamp cannot see.
+    // A run that stopped early leaves behind the notes its tests made, which
+    // the fingerprint cannot see.
     const strays = (paths: string[]) =>
         (window.app.vault.getFiles() as { path: string }[]).some(({ path }) => !paths.includes(path));
     if (
@@ -225,8 +254,9 @@ async function seed(phone: Phone): Promise<void> {
     )
         return;
     const ready = () => phone.run(() => !!window.app?.vault?.adapter).catch(() => false);
-    // Off restricted mode before the plugin list names one, or Obsidian asks
-    // whether to trust the vault. Turning it off may reload the app.
+    // Turn off restricted mode before the plugin list names a plugin, or
+    // Obsidian asks whether to trust the vault. Turning it off may reload the
+    // app.
     await phone
         .runAsync(async () => {
             if (!window.app.plugins.isEnabled()) await window.app.plugins.setEnable(true);
@@ -235,7 +265,8 @@ async function seed(phone: Phone): Promise<void> {
     await expect.poll(ready).toBe(true);
     await phone.runAsync(async (files: Record<string, string>) => {
         const { adapter } = window.app.vault;
-        // The vault's own index, which leaves out the config folder: the mobile adapter has no listRecursive.
+        // The vault's own index, which leaves out the config folder, because
+        // the mobile adapter has no listRecursive.
         await Promise.all(
             (window.app.vault.getFiles() as { path: string }[])
                 .filter(({ path }) => !(path in files))
@@ -246,7 +277,8 @@ async function seed(phone: Phone): Promise<void> {
             if (!(await adapter.exists(folder))) await adapter.mkdir(folder);
         await Promise.all(Object.entries(files).map(([path, text]) => adapter.write(path, text)));
     }, notes);
-    // Last, the stamp after all: Obsidian may reload as its config changes, ending the script.
+    // The fingerprint is written last, because Obsidian may reload when its
+    // config changes, which ends the script.
     await phone
         .runAsync(
             async (files: Record<string, string>, plugin: string) => {
@@ -259,12 +291,14 @@ async function seed(phone: Phone): Promise<void> {
         )
         .catch(() => undefined);
     await expect.poll(ready).toBe(true);
-    // The old page answers until the reload lands: marked, it cannot pass for the new one.
+    // The old page still answers until the reload happens. Marked, it cannot be
+    // mistaken for the new one.
     await phone.run(() => {
         (window as unknown as { staleVault: boolean }).staleVault = true;
         window.app.commands.executeCommandById("app:reload");
     });
-    // Its layout ready too: until then, the stream's command opens nothing.
+    // Its layout must be ready too. Until then, the stream's command opens
+    // nothing.
     const reloaded = (id: string) =>
         !(window as unknown as { staleVault?: boolean }).staleVault &&
         !!window.app?.plugins?.plugins?.[id] &&
@@ -283,7 +317,7 @@ function partition(
     ];
 }
 
-/** The harness's vault open, seeded, with this build loaded. */
+/** Opens the tests' vault, filled, with this build loaded. */
 export async function useVault(phone: Phone): Promise<void> {
     await rememberTestersVault(phone);
     await open(phone);
@@ -293,8 +327,9 @@ export async function useVault(phone: Phone): Promise<void> {
 }
 
 /**
- * Waits for Obsidian to restore its tabs, which `seed` does only when it
- * writes: a stream opened before has no tab to open in, and Obsidian throws.
+ * Waits for Obsidian to restore its tabs, which only happens after `seed`
+ * writes. A stream opened before that has no tab to open in, and Obsidian
+ * throws an error.
  */
 async function laidOut(phone: Phone): Promise<void> {
     await expect
@@ -303,9 +338,9 @@ async function laidOut(phone: Phone): Promise<void> {
 }
 
 /**
- * Waits out Obsidian's indexing of the vault: until every note has its cache
- * and links, each note indexed redraws the stream, and its mentions, under the
- * tests. Minutes on a fresh five-year vault.
+ * Waits until Obsidian has indexed the vault. Until every note has its cache
+ * and links, each note that is indexed draws the stream and its mentions again
+ * during the tests. This takes minutes for a new five-year vault.
  */
 async function indexed(phone: Phone): Promise<void> {
     const done = () => {
@@ -318,7 +353,10 @@ async function indexed(phone: Phone): Promise<void> {
     await expect.poll(() => phone.run(done).catch(() => false), { timeout: 600_000, intervals: [2_000] }).toBe(true);
 }
 
-/** The tester's vault, on disk until put back: a worker restarted by a failure finds the harness's open. */
+/**
+ * The tester's vault, saved on disk until it is opened again, because a worker
+ * restarted after a failure finds the tests' vault open.
+ */
 const TESTERS_VAULT = join(REPO, ".dev/ios-testers-vault");
 
 function openVault(phone: Phone): Promise<string | undefined> {
@@ -330,7 +368,9 @@ async function rememberTestersVault(phone: Phone): Promise<void> {
     if (name && name !== VAULT) writeFileSync(TESTERS_VAULT, name);
 }
 
-/** Opens the vault the tester had open, so Obsidian starts in it next time too. */
+/**
+ * Opens the vault the tester had open, so Obsidian also starts in it next time.
+ */
 export async function returnToTestersVault(phone: Phone): Promise<void> {
     if (!existsSync(TESTERS_VAULT)) return;
     const name = readFileSync(TESTERS_VAULT, "utf8");

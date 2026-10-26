@@ -3,17 +3,26 @@ import { BaseMeasurements } from "../render/bases/base-measurements";
 import { NoteHeights } from "./note-heights";
 import { saveLoggingOnce } from "../local-storage";
 
-/** Vault-scoped and per device: a height is only true on the screen that measured it. */
+/**
+ * Kept for each vault and each device, because a height is only correct on the
+ * screen that measured it.
+ */
 export const LAYOUT_MEMORY_KEY = "daily-notes-stream:layout";
-/** A save that no longer reads what is stored bumps this, and the old one is dropped: it is a cache. */
+/**
+ * Change this when the saved format changes. The old data is then thrown away,
+ * which is fine for a cache.
+ */
 const VERSION = 5;
-/** From the first change of a burst, so a long scroll still saves as it goes. */
+/**
+ * Delay from the first of several quick changes, so a long scroll still saves
+ * as it goes.
+ */
 export const SAVE_DELAY_MS = 1000;
 
 /**
- * What the stream measured, kept across sessions, so a note never rendered
- * this session still reserves its real height (docs/adr/0010-layout-memory.md).
- * One per plugin; every view shares it.
+ * What the stream measured, kept between sessions, so a note not yet drawn in
+ * this session still gets its real height (docs/adr/0010-layout-memory.md).
+ * There is one for the plugin, which every view shares.
  */
 export class LayoutMemory {
     readonly notes = new NoteHeights(
@@ -31,7 +40,7 @@ export class LayoutMemory {
         this.bases.restore(saved.bases);
     }
 
-    /** A note's measurements follow it to its new path. */
+    /** Moves a note's measurements to its new path. */
     rename(oldPath: string, newPath: string): void {
         this.notes.rename(oldPath, newPath);
         this.bases.rename(oldPath, newPath);
@@ -42,18 +51,21 @@ export class LayoutMemory {
         this.bases.forget(path);
     }
 
-    /** Forgets notes deleted, or changed, while the plugin was not running to hear it. */
+    /**
+     * Forgets notes deleted or changed while the plugin was not running to see
+     * it.
+     */
     retainOnly(paths: ReadonlySet<string>): void {
         this.notes.retainOnly(paths);
         this.bases.retainOnly(paths);
     }
 
-    /** Starts over from nothing measured, as on a new device. */
+    /** Starts again with nothing measured, as on a new device. */
     forgetAll(): void {
         this.retainOnly(new Set());
     }
 
-    /** Saves a pending change now: the plugin is unloading. */
+    /** Saves a waiting change now, because the plugin is unloading. */
     flush(): void {
         this.saveSoon.run();
     }
@@ -75,12 +87,13 @@ function isVersion(saved: unknown): saved is { notes: unknown; bases: unknown } 
 }
 
 /**
- * The layout `column` lays notes out in: its width, or the one it is checked
- * against, and the size notes are drawn at, which on a phone iOS's text size
- * setting scales. Theme margins, line width and pane size all reach the width.
+ * The layout `column` uses for notes: its width, or the width given to check
+ * against, and the text size notes are drawn at. On a phone, iOS's text size
+ * setting changes the text size. Theme margins, line width and pane size all
+ * affect the width.
  */
 export function layoutOf(column: HTMLElement, width = column.clientWidth): string {
-    // Stryker disable next-line MethodExpression: jsdom trims a custom property's value, as engines since 2021 do; older ones kept the space.
+    // Stryker disable next-line MethodExpression: jsdom trims a custom property's value, as browsers have since 2021; older ones kept the space.
     const textSize = getComputedStyle(column).getPropertyValue("--font-preferred-size").trim();
     return `${width}:${textSize}`;
 }

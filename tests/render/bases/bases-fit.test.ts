@@ -8,7 +8,10 @@ let view: HTMLElement;
 let thead: HTMLElement;
 let scrolls: number;
 
-/** A `.bases-view` `available` wide, whose table Bases laid out `tableWidth` wide. */
+/**
+ * A `.bases-view` `available` wide, whose table Bases laid out `tableWidth`
+ * wide.
+ */
 function makeView(available: number, tableWidth: string): void {
     view = document.createElement("div");
     view.addClass("bases-view");
@@ -22,7 +25,7 @@ function makeView(available: number, tableWidth: string): void {
 beforeEach(() => makeView(300, "600px"));
 
 describe("fitBaseToWidth", () => {
-    // Bases' own minimum would hold a phone's columns wider than the cap.
+    // Bases' own minimum would keep a phone's columns wider than the maximum.
     it("shrinks the column cap by how far the table overruns", () => {
         fitBaseToWidth(view);
 
@@ -30,14 +33,15 @@ describe("fitBaseToWidth", () => {
         expect(view.style.getPropertyValue(MIN)).toBe("40px");
     });
 
-    // Bases reads the cap when it lays out, which a scroll around it triggers.
+    // Bases reads the maximum when it lays out, which a scroll event on the
+    // view triggers.
     it("asks Bases to lay the table out again", () => {
         fitBaseToWidth(view);
 
         expect(scrolls).toBe(1);
     });
 
-    // Bases' floors can keep the table as wide as it was.
+    // Bases' minimum widths can keep the table as wide as it was.
     it("shrinks from the cap it set before", () => {
         fitBaseToWidth(view);
 
@@ -54,7 +58,8 @@ describe("fitBaseToWidth", () => {
         expect(view.style.getPropertyValue(MAX)).toBe("40px");
     });
 
-    // Past the floor the table clips: a hand-resized column ignores the cap.
+    // Below the minimum, the table is cut off. A column resized by hand ignores
+    // the maximum.
     it("stops at the floor", () => {
         makeView(100, "1000px");
         fitBaseToWidth(view);

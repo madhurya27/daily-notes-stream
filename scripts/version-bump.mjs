@@ -11,8 +11,8 @@ manifest.version = targetVersion;
 writeJson("manifest.json", manifest);
 
 // versions.json maps each plugin version to the app version it needs, so every
-// released version needs its own entry — including a bump that leaves
-// minAppVersion untouched.
+// released version needs its own entry, even one that does not change
+// minAppVersion.
 const versions = JSON.parse(readFileSync("versions.json", "utf8"));
 if (!(targetVersion in versions)) {
     versions[targetVersion] = minAppVersion;

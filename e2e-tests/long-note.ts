@@ -1,4 +1,4 @@
-/** A long journal: headings, prose, lists, tasks, code and a table, repeated. */
+/** A long journal: headings, text, lists, tasks, code and a table, repeated. */
 export function longNote(lines: number): string {
     const chunk = [
         "## Entry",

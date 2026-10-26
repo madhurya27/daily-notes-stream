@@ -1,14 +1,15 @@
 /**
- * The one command for working against a vault: builds if there is no build,
- * reseeds the vault, links the build into it, opens it in its own Obsidian, then
- * rebuilds on every save and reloads the plugin in that window. Demo vault by
- * default, the test vault with --test; layout flags go to the window.
+ * The one command for working with a vault. It builds if there is no build,
+ * fills the vault again, links the build into it, and opens it in its own copy
+ * of Obsidian. Then it builds again on every save and reloads the plugin in
+ * that window. It uses the demo vault by default, and the test vault with
+ * --test. Layout options are passed to the window.
  *
  *   pnpm run demo [--test] [--desktop | --ipad | --landscape] [vault]
  *
- * Why links and a reload: D-008. Watching the linked files covers a
- * TypeScript change without knowing anything about the build — `main.js` is
- * what esbuild rewrites — and `styles.css` needs no build at all.
+ * D-008 says why it uses links and a reload. Watching the linked files catches
+ * a TypeScript change without knowing anything about the build, because esbuild
+ * writes `main.js` again. And `styles.css` needs no build at all.
  */
 import { spawn, spawnSync } from "child_process";
 import { existsSync, rmSync, statSync, symlinkSync, watch } from "fs";
@@ -19,10 +20,13 @@ import { PLUGIN_ID, stopObsidian, vaultFrom } from "./vaults.mjs";
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
-/** What the vault needs from the repo. `main.js` first: esbuild rewrites it. */
+/**
+ * What the vault needs from the repo. `main.js` first, because esbuild writes
+ * it again.
+ */
 export const ASSETS = ["main.js", "styles.css", "manifest.json"];
 
-/** Points a seeded vault's plugin folder at the repo's own files. */
+/** Points a filled vault's plugin folder at the repo's own files. */
 export function linkAssets(repo, vault) {
     const pluginDir = join(vault, ".obsidian", "plugins", PLUGIN_ID);
     for (const asset of ASSETS) {
@@ -34,9 +38,9 @@ export function linkAssets(repo, vault) {
 }
 
 /**
- * Returns a test for "this event carries a write". Reloading makes Obsidian
- * re-read the linked files, and macOS reports that read as a change — left
- * alone, every reload asks for the next.
+ * Returns a check for "this event is a write". Reloading makes Obsidian read
+ * the linked files again, and macOS reports that read as a change. Without this
+ * check, every reload would cause the next one.
  */
 export function createChangeFilter(mtimeOf) {
     const seen = new Map();
@@ -54,9 +58,10 @@ export function createChangeFilter(mtimeOf) {
 }
 
 /**
- * Returns the function to call on every change. One reload per burst: esbuild
- * writes `main.js` in more than one step, and a reload outlasts the writing, so
- * changes arriving during one share a single run after it.
+ * Returns the function to call on every change. There is one reload for each
+ * group of quick changes. esbuild writes `main.js` in more than one step, and a
+ * reload takes longer than the writing, so changes that arrive during a reload
+ * share a single run after it.
  */
 export function createReloader(reload, delay) {
     let timer = null;
@@ -90,21 +95,22 @@ export function createReloader(reload, delay) {
 }
 
 /**
- * What a run does, in order: a build only when there is none. The seed runs
- * every time: the vaults are disposable, and a fresh seed keeps their notes
- * current with the seed script and the date.
+ * What a run does, in order. It only builds when there is no build. The vault
+ * is filled every time, because the vaults are thrown away each time, and
+ * filling them again keeps their notes up to date with the seed script and the
+ * date.
  * @param {{ built: boolean }} state
  */
 export function stepsFor({ built }) {
     return [...(built ? [] : ["build"]), "seed", "link", "open", "watch"];
 }
 
-/** Flags of `open` that take a value, which is not the vault path. */
+/** Options of `open` that take a value. That value is not the vault path. */
 const FLAG_VALUES = new Set(["--position"]);
 
 /**
- * Splits the command line: the vault named, what the seed needs, and what the
- * window does, which is everything.
+ * Splits the command line into the vault named, what the seed needs, and what
+ * the window gets, which is everything.
  * @param {readonly string[]} args
  */
 export function optionsFrom(args) {
@@ -113,16 +119,17 @@ export function optionsFrom(args) {
     return { named, seedArgs, openArgs: [...args] };
 }
 
-/** Runs a step to completion, stopping here if it fails. */
+/** Runs a step until it finishes, and stops here if it fails. */
 function run(command, commandArgs) {
     const { status } = spawnSync(command, commandArgs, { stdio: "inherit", cwd: REPO });
     if (status !== 0) process.exit(status ?? 1);
 }
 
 /**
- * Rebuilds on every save and reloads the plugin after each, until Ctrl-C,
- * which also closes the window. Ctrl-C reaches esbuild too, so its exit, not
- * the signal, is what ends the run: whichever arrives first, the window goes.
+ * Builds again on every save, and reloads the plugin after each build, until
+ * Ctrl-C, which also closes the window. Ctrl-C also reaches esbuild, so esbuild
+ * exiting, not the signal, is what ends the run. Whichever comes first, the
+ * window closes.
  */
 function watchAndReload() {
     const esbuild = spawn("node", [join(REPO, "esbuild.config.mjs")], { stdio: "inherit" });
@@ -146,7 +153,8 @@ function watchAndReload() {
 
 function main() {
     const args = process.argv.slice(2);
-    // The options are the window's; answered before anything is built or seeded.
+    // The options are for the window. They are answered before anything is
+    // built or filled.
     if (args.includes("--help") || args.includes("-h")) {
         run("node", [join(REPO, "scripts", "open-vault.mjs"), "--help"]);
         return;

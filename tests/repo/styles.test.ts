@@ -31,9 +31,10 @@ describe("styles.css", () => {
         expect(rules.filter(({ body }) => body.includes("!important"))).toEqual([]);
     });
 
-    // WebKit reads only the prefixed property, so on iOS Obsidian's
-    // `-webkit-user-select: none` won: no selecting, and no search highlights,
-    // which WebKit does not paint on unselectable text.
+    // WebKit only reads the prefixed property, so on iOS, Obsidian's
+    // `-webkit-user-select: none` won. Nothing could be selected, and there
+    // were no search highlights, because WebKit does not draw them on text that
+    // cannot be selected.
     it("spells every user-select for WebKit too", () => {
         for (const { selector, body } of rules) {
             const value = /(?<![-\w])user-select:\s*([^;]+);/.exec(body)?.[1];

@@ -1,46 +1,52 @@
-# 0011. Hide daily notes that hold only their template
+# 0011. Hide daily notes that only hold their template
 
-- **Status:** Accepted; how a Templater block reads superseded by D-117
+- **Status:** Accepted. How a Templater block is read was replaced by D-117
 - **Date:** 2026-09-28
 
 ## Context
 
-A daily note created from a template and never written in is noise in the
-stream. The metadata cache sees frontmatter-only notes, but a template with
-headings or prompts (`## Log`, `- `) looks like content to it: telling template
-text from written text takes the note's text.
+A daily note created from a template and never written in is clutter in the
+stream. The metadata cache can see notes that only have frontmatter, but to the
+cache, a template with headings or prompts (`## Log`, `- `) looks like content.
+Telling template text apart from written text needs the note's text.
 
 ## Decision
 
-A note is empty when its whole text, frontmatter included, is blank or matches
-the daily-notes template (`getDailyNoteSettings().template`) read as a pattern:
-literal text, `{{…}}` placeholders as any text on one line, Templater's
-`<% … %>` as any text across lines, trailing whitespace ignored. An added or
-changed property is writing, so the note shows.
+A note is empty when its whole text, including the frontmatter, is blank, or
+matches the daily notes template (`getDailyNoteSettings().template`) read as a
+pattern: the text must match exactly, `{{…}}` placeholders match any text on one
+line, Templater's `<% … %>` blocks match any text across lines, and whitespace
+at the ends of lines is ignored. An added or changed property counts as writing,
+so the note is shown.
 
-Each view's service lists through the filter, before the first batch. Today's
-note always shows, and so does a note another note links to while linked
-mentions are shown: those are content under it. A setting, on by default, turns
-hiding off. How verdicts are kept across sessions is D-072; how link changes
-reach the views, D-073.
+Each view's service lists notes through this filter, before the first batch.
+Today's note is always shown, and so is a note that another note links to, while
+linked mentions are shown, because those are content under it. A setting, on by
+default, turns hiding off. D-072 describes how results are kept between
+sessions, and D-073 how link changes reach the views.
 
 ## Consequences
 
-- Notes made from an older version of the template don't match, so they show.
-- A Templater block that writes a whole section makes the pattern loose.
-- Emptiness changes on edit, so a note enters or leaves `_sorted` on `changed`,
-  through `insertSorted` / `removeSorted`.
-- Yesterday's empty note hides, and one made ahead for the new day shows, a
-  minute past midnight once the reader is still, or on the stream's next change
-  (D-123).
-- An unreadable template hides nothing.
+- Notes made from an older version of the template do not match, so they are
+  shown.
+- A Templater block that writes a whole section makes the pattern match too
+  much.
+- Whether a note is empty changes when it is edited, so a note is added to or
+  removed from `_sorted` on `changed`, through `insertSorted` and
+  `removeSorted`.
+- Yesterday's empty note is hidden, and one made in advance for the new day is
+  shown, a minute after midnight once the reader is still, or on the stream's
+  next change (D-123).
+- If the template cannot be read, nothing is hidden.
 
 ## Rejected alternatives
 
-- **Frontmatter-only, from the cache** — misses every template with a heading.
-- **Section shapes (headings and blank list items only)** — guesses; a template
-  of prompts reads as prose.
-- **Body only, ignoring frontmatter** — hides a note whose only entry is a
-  property.
-- **Hiding after render** — notes flash in, then vanish, shifting the scroll.
-- **A list of past templates** — configuration for a rare case.
+- **Only notes with nothing but frontmatter, from the cache** — misses every
+  template with a heading.
+- **Section shapes (only headings and empty list items)** — a guess, and a
+  template of prompts looks like normal text.
+- **Only the body, ignoring frontmatter** — would hide a note whose only entry
+  is a property.
+- **Hiding after drawing** — notes appear, then disappear, which moves the
+  scroll.
+- **A list of earlier templates** — a setting for a rare case.

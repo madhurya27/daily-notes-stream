@@ -3,7 +3,7 @@ import { Component } from "obsidian";
 import { stackWideTables } from "../../src/render/wide-tables";
 import { FakeWidths } from "./fake-widths";
 
-/** jsdom lays nothing out, so each test sets the widths it needs. */
+/** jsdom has no layout, so each test sets the widths it needs. */
 function setWidth(el: HTMLElement, prop: "offsetWidth" | "clientWidth", width: () => number): void {
     Object.defineProperty(el, prop, { configurable: true, get: width });
 }
@@ -80,7 +80,7 @@ describe("stackWideTables", () => {
         expect(el.classList.contains("is-stacked")).toBe(false);
     });
 
-    // Widths round: a table a pixel over the note's still fits.
+    // Widths are rounded, so a table one pixel wider than the note still fits.
     it("keeps a table one pixel wider than the note as a grid", () => {
         const el = content.appendChild(table(["A"], [["1"]]));
         setWidth(el, "offsetWidth", () => 401);
@@ -113,7 +113,8 @@ describe("stackWideTables", () => {
         expect(el.classList.contains("is-stacked")).toBe(false);
     });
 
-    // Dataview draws its table after the note renders, and again on each change.
+    // Dataview draws its table after the note is drawn, and again on each
+    // change.
     it("stacks a table drawn into the note later, named by its columns", async () => {
         stackWideTables(content, component, widths);
         const el = table(["Day"], [["1"]]);
@@ -137,7 +138,8 @@ describe("stackWideTables", () => {
         expect(el.classList.contains("is-stacked")).toBe(true);
     });
 
-    // Dataview fills its table over several renders: a header first, rows later.
+    // Dataview fills its table over several renders: the header first, the rows
+    // later.
     it("re-checks a table as its rows arrive", async () => {
         const el = content.appendChild(table(["Day"], []));
         let width = 300;

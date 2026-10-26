@@ -1,4 +1,7 @@
-/** Infinite scroll via a sentinel, re-appended as the last child on every attach. */
+/**
+ * Loads more notes when an empty element at the end comes into view. The
+ * element is added again as the last child on every attach.
+ */
 export class InfiniteScrollController {
     private sentinel: HTMLElement | null = null;
     private observer: IntersectionObserver | null = null;
@@ -28,9 +31,12 @@ export class InfiniteScrollController {
         this.observer.observe(this.sentinel);
     }
 
-    /** Forces a fresh callback: IntersectionObserver fires only on *changes*. */
+    /**
+     * Forces a new callback, because IntersectionObserver only fires on
+     * *changes*.
+     */
     recheck(): void {
-        // Stryker disable next-line LogicalOperator: attach and detach set and clear both together.
+        // Stryker disable next-line LogicalOperator: attach and detach always set and clear both together.
         if (!this.observer || !this.sentinel) return;
         this.observer.unobserve(this.sentinel);
         this.observer.observe(this.sentinel);
@@ -48,7 +54,8 @@ export class InfiniteScrollController {
     }
 
     /**
-     * Returns the sentinel element (always the last child of the container).
+     * Returns the empty element at the end, which is always the container's
+     * last child.
      */
     getSentinel(): HTMLElement | null {
         return this.sentinel;

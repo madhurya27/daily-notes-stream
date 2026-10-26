@@ -6,15 +6,17 @@ import { OUT, prepareDemo, showLightTheme } from "./demo";
 import { windowStill } from "../scripts/window-still.mjs";
 
 /**
- * Captures the README's stills from the real app rather than a mockup, one per
- * Playwright project so both layouts come from the same run. Opt-in, through
- * `pnpm run capture:screenshots`: an ordinary `pnpm run test:e2e` must not
- * rewrite files in docs/.
+ * Takes the README's screenshots from the real app, not a mockup, once for each
+ * Playwright project, so both layouts come from the same run. Only runs when
+ * asked, through `pnpm run capture:screenshots`, because a normal
+ * `pnpm run test:e2e` must not replace files in docs/.
  */
 
 /**
- * Opens the stream with a note boundary mid-screen: that is what makes it read as a stream. The boundary sits
- * below 2026-09-23, the newest note nothing links to, so linked mentions show only in the collapse still.
+ * Opens the stream with the boundary between two notes in the middle of the
+ * screen, which is what makes it look like a stream. The boundary is below
+ * 2026-09-23, the newest note that nothing links to, so linked mentions only
+ * show in the folding screenshot.
  */
 async function showStream(page: Page): Promise<void> {
     const container = await openStream(page);
@@ -24,7 +26,7 @@ async function showStream(page: Page): Promise<void> {
     await below.evaluate((block) => block.firstElementChild?.scrollIntoView({ block: "center" }));
 }
 
-/** One whole note, then the next one's date: notes stacked into a stream. */
+/** One whole note, then the next one's date: notes stacked in a stream. */
 function streamFrame(page: Page): Frame {
     return {
         from: note(page, "Notes/2026-09-23.md").locator(".daily-note-header"),
@@ -32,7 +34,10 @@ function streamFrame(page: Page): Frame {
     };
 }
 
-/** Waits for the stream to stop scrolling: a search step glides to its match. */
+/**
+ * Waits for the stream to stop scrolling, because a search step scrolls
+ * smoothly to its match.
+ */
 async function settled(page: Page): Promise<void> {
     const pane = page.locator(".workspace-leaf.mod-active .daily-notes-stream-container").locator("..");
     let last = NaN;
@@ -46,10 +51,15 @@ async function settled(page: Page): Promise<void> {
 /** One note, by path. */
 const note = (page: Page, path: string) => page.locator(`[data-source-path="${path}"]`);
 
-/** A desktop still runs from `from`, at its top, to the end of `to` (D-126). */
+/**
+ * A desktop screenshot goes from the top of `from` to the end of `to` (D-126).
+ */
 type Frame = { from: Locator; to: Locator };
 
-/** One still per layout; on desktop, `frame` sets what it shows, else the top of the column does. */
+/**
+ * One screenshot for each layout. On desktop, `frame` sets what it shows;
+ * otherwise it shows the top of the column.
+ */
 async function capture(page: Page, name: string, testInfo: TestInfo, frame?: Frame): Promise<void> {
     const layout = testInfo.project.name === "mobile" ? "phone" : "desktop";
     const path = join(OUT, `${name}-${layout}.png`);
@@ -61,9 +71,11 @@ async function capture(page: Page, name: string, testInfo: TestInfo, frame?: Fra
     if (frame) await fits(column, frame.to);
     const pane = await page.locator(".workspace-split.mod-root").boundingBox();
     if (!pane) throw new Error("the stream's pane is not on screen");
-    // The pane, its tab bar and header included, down to the column's end.
+    // The pane, including its tab bar and header, down to the end of the
+    // column.
     const clip = { x: Math.round(pane.x), y: Math.round(pane.y), width: Math.round(pane.width), height: HEIGHT };
-    // Unframed is the jump prompt, over the dimmed page: painting it over would show as a band.
+    // Without a frame is the jump prompt, over the darkened page. Painting over
+    // it would show as a band.
     const cover = await paintBelow(page, clip, frame ? await lastWholeLine(page, column) : clip.y + clip.height);
     const raw = join(tmpdir(), `${name}-${layout}.png`);
     try {
@@ -74,15 +86,25 @@ async function capture(page: Page, name: string, testInfo: TestInfo, frame?: Fra
     await windowStill(raw, path, clip);
 }
 
-/** The space above a still's first line and below its last, and every desktop still's height, its tab bar included: the longest frame's (D-126). */
+/**
+ * The space above a screenshot's first line and below its last, and the height
+ * of every desktop screenshot, including its tab bar, which is the longest
+ * frame's height (D-126).
+ */
 const MARGIN = 32;
 const HEIGHT = 960;
-/** The listing's window width, and exactly a still's height: Obsidian places a prompt by the window's height. */
+/**
+ * The directory images' window width, and exactly a screenshot's height,
+ * because Obsidian places a prompt based on the window's height.
+ */
 const WINDOW = { width: 904, height: HEIGHT };
 
 type Box = { x: number; y: number; width: number; height: number };
 
-/** The page's background over `box` below `bottom`, so a still ends on a whole line (D-126). */
+/**
+ * Paints the page's background over `box` below `bottom`, so a screenshot ends
+ * on a whole line (D-126).
+ */
 async function paintBelow(page: Page, box: Box, bottom: number) {
     return page.evaluateHandle(
         ({ box: { x, y, width, height }, bottom }) => {
@@ -104,8 +126,9 @@ async function paintBelow(page: Page, box: Box, bottom: number) {
 }
 
 /**
- * Scrolls `element` to a margin under the view's header, or under the search bar while it is open. With the
- * wheel, as a reader would: a search step holds its match in place against a scroll set from script.
+ * Scrolls `element` to a little below the view's header, or below the search
+ * bar while it is open. Uses the mouse wheel, as a reader would, because a
+ * search step keeps its match in place against a scroll set by a script.
  */
 async function toTop(page: Page, element: Locator): Promise<void> {
     const leaf = page.locator(".workspace-leaf.mod-active");
@@ -122,11 +145,15 @@ async function toTop(page: Page, element: Locator): Promise<void> {
         await settled(page);
         expect(Math.abs((await element.boundingBox())!.y - top)).toBeLessThan(1);
     }).toPass();
-    // Off the note: a hovered property draws an outline.
+    // Away from the note, because a property under the pointer draws an
+    // outline.
     await page.mouse.move(column.x + column.width + MARGIN / 2, top);
 }
 
-/** Fails unless `end`, and a margin under it, fit `column`: a frame that needs more raises HEIGHT. */
+/**
+ * Fails unless `end`, and some space under it, fit in `column`. A frame that
+ * needs more space must raise HEIGHT.
+ */
 async function fits(column: Box, end: Locator): Promise<void> {
     const box = await end.boundingBox();
     if (!box) throw new Error("the still's end is not on screen");
@@ -135,7 +162,10 @@ async function fits(column: Box, end: Locator): Promise<void> {
     );
 }
 
-/** A margin under the last line `box` shows whole, or the next line's top if that comes sooner. */
+/**
+ * Some space under the last line that `box` shows in full, or the next line's
+ * top if that comes first.
+ */
 async function lastWholeLine(page: Page, box: Box): Promise<number> {
     return page.evaluate(
         ({ box, margin }) => {
@@ -161,7 +191,10 @@ async function lastWholeLine(page: Page, box: Box): Promise<number> {
     );
 }
 
-/** The note column, from under the view's header so an open search bar shows, to the still's end (D-126). */
+/**
+ * The note column, from under the view's header so an open search bar shows, to
+ * the end of the screenshot (D-126).
+ */
 async function noteColumn(page: Page): Promise<Box> {
     const leaf = page.locator(".workspace-leaf.mod-active");
     const pane = await page.locator(".workspace-split.mod-root").boundingBox();
@@ -180,8 +213,9 @@ test.describe("README screenshots", () => {
         await prepareDemo(obsidian.page);
     });
 
-    // On desktop, a window a still's size at a Retina screen's scale, without the status bar, which would sit
-    // over the notes; the phone's stays its screen.
+    // On desktop, a window the size of a screenshot at a Retina screen's scale,
+    // without the status bar, which would be over the notes. The phone's stays
+    // the size of its screen.
     test.beforeEach(async ({ obsidian, mobileLayout }) => {
         if (mobileLayout) return;
         const { page } = obsidian;
@@ -217,7 +251,8 @@ test.describe("README screenshots", () => {
         await page.locator('.view-action[aria-label="Search"]').click();
         const bar = page.locator(".daily-notes-search");
         await bar.locator("input").fill("Mara");
-        // Typing makes the first match current; two steps on is one in a note the other stills don't show.
+        // Typing makes the first match current. Two steps further is a match in
+        // a note the other screenshots don't show.
         await page.keyboard.press("Enter");
         await page.keyboard.press("Enter");
         await expect(bar.locator(".document-search-count")).toHaveText(/^3 \/ \d+$/);
@@ -244,7 +279,8 @@ test.describe("README screenshots", () => {
         await capture(page, "jump", testInfo);
     });
 
-    // Before the collapse still, which folds these footers and leaves them folded.
+    // Before the folding screenshot, which folds these footers and leaves them
+    // folded.
     test("linked mentions", async ({ obsidian }, testInfo) => {
         const { page } = obsidian;
         const container = await openStream(page);
@@ -258,7 +294,8 @@ test.describe("README screenshots", () => {
     test("collapsed sections", async ({ obsidian }, testInfo) => {
         const { page } = obsidian;
         const container = await openStream(page);
-        // Every section of the first two notes folded, linked mentions too: the chevrons show, and more dates fit.
+        // Every section of the first two notes is folded, including linked
+        // mentions, so the arrows show and more dates fit.
         for (const index of [0, 1]) {
             const block = container.locator(".daily-note-block").nth(index);
             const mentions = block.locator(".daily-note-mentions");
@@ -270,7 +307,8 @@ test.describe("README screenshots", () => {
             await mentions.locator(".daily-note-mentions-heading .collapse-indicator").click();
             await expect(mentions).toHaveClass(/is-collapsed/);
         }
-        // Folding shifts the page under the scroll anchor; start from the newest note again.
+        // Folding moves the page under the scroll anchor, so start from the
+        // newest note again.
         await container
             .locator(".daily-note-block")
             .first()
@@ -284,7 +322,8 @@ test.describe("README screenshots", () => {
         test.skip(testInfo.project.name === "desktop", "on desktop a Base looks as it does in Obsidian");
         const { page } = obsidian;
         const container = await openStream(page);
-        // Only notes near the viewport are rendered: bring the block in, then its heading to the top.
+        // Only notes near the screen are drawn, so bring the block into view,
+        // then its heading to the top.
         const sunday = container.locator('[data-source-path="Notes/2026-09-20.md"]');
         await sunday.scrollIntoViewIfNeeded();
         const reading = sunday.locator("h3", { hasText: "Reading" });

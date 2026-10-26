@@ -30,14 +30,17 @@ import { isStreamPlace } from "../stream/scroll-position";
 
 export const VIEW_TYPE_DAILY_NOTES_STREAM = "daily-notes-stream-view";
 
-/** A change to the notes re-reads every one for an open search; a burst of them needs one. */
+/**
+ * A change to the notes makes an open search read every note again. Several
+ * quick changes need only one read.
+ */
 const SEARCH_REFRESH_DEBOUNCE_MS = 500;
 
 export class DailyNotesStreamView extends ItemView implements HoverParent {
     hoverPopover: HoverPopover | null = null;
     /**
-     * Obsidian takes a view that isn't navigable for a sidebar, and keeps the
-     * last note active behind it: its word count stays in the status bar.
+     * Obsidian treats a view that isn't navigable as a sidebar, and keeps the
+     * last note active behind it, so its word count stays in the status bar.
      */
     navigation = true;
     private plugin: DailyNotesStreamPlugin;
@@ -46,19 +49,22 @@ export class DailyNotesStreamView extends ItemView implements HoverParent {
     private stream: NoteStream;
     private search: StreamSearch;
     private searchBar: SearchBar;
-    /** Obsidian's "Search current file" binding, re-read on each config write. */
-    // Stryker disable next-line ArrayDeclaration: set on open, before a key reaches the view.
+    /**
+     * Obsidian's hotkeys for "Search current file", read again whenever the
+     * settings are saved.
+     */
+    // Stryker disable next-line ArrayDeclaration: set on open, before any key reaches the view.
     private searchHotkeys: Hotkey[] = [];
     /**
      * Obsidian restores the pane before the vault is indexed, and may close it
-     * while `onOpen` still waits for the notes: the stream never opens then.
-     * Never back to "opening": Obsidian builds a new view for every open, Back
-     * and a layout rebuild included.
+     * while `onOpen` is still waiting for the notes. Then the stream never
+     * opens. It never goes back to "opening": Obsidian builds a new view every
+     * time one opens, including for Back and when the layout is rebuilt.
      */
     // Stryker disable next-line StringLiteral: only "open" and "closed" are ever compared.
     private lifecycle: "opening" | "open" | "closed" = "opening";
 
-    /** `service` is this view's own (.claude/rules/invariants.md). */
+    /** `service` belongs to this view only (.claude/rules/invariants.md). */
     constructor(
         leaf: WorkspaceLeaf,
         plugin: DailyNotesStreamPlugin,
@@ -72,7 +78,8 @@ export class DailyNotesStreamView extends ItemView implements HoverParent {
             this.app,
             this,
             this.collapsible,
-            // A closure, not the object: loadSettings() reassigns plugin.settings.
+            // A function, not the object, because loadSettings() replaces
+            // plugin.settings.
             () => plugin.settings,
             highlighter,
             plugin.layoutMemory.bases,
@@ -98,8 +105,8 @@ export class DailyNotesStreamView extends ItemView implements HoverParent {
             close: () => void this.search.close(),
         });
 
-        // The active leaf's scope sees every key first; what it leaves
-        // undefined goes on to Obsidian's own hotkeys.
+        // The active leaf's scope sees every key first. Keys it does not handle
+        // go on to Obsidian's own hotkeys.
         this.scope = new Scope(this.app.scope);
         this.scope.register(null, null, (evt) => this.onKeydown(evt));
     }
@@ -115,20 +122,21 @@ export class DailyNotesStreamView extends ItemView implements HoverParent {
     }
 
     async onOpen() {
-        // Outside the scrolling pane, so it stays put while the notes move.
+        // Outside the scrolling pane, so it does not move while the notes do.
         this.containerEl.insertBefore(this.searchBar.el, this.contentEl);
 
         const streamContainerEl = this.contentEl.createDiv({ cls: "daily-notes-stream-container" });
 
-        // Mirrors Obsidian's "Readable line length" setting.
+        // Follows Obsidian's "Readable line length" setting.
         const syncReadableWidth = () => {
             this.contentEl.toggleClass("is-readable-line-width", getReadableLineLength(this.app));
         };
         syncReadableWidth();
         this.registerEvent(this.app.workspace.on("css-change", syncReadableWidth));
 
-        // Obsidian's daily-notes format and folder decide what the stream even
-        // contains, and nothing re-reads them. A rebind lands in hotkeys.json.
+        // Obsidian's daily notes format and folder decide what the stream
+        // contains, and nothing else reads them again. A changed hotkey is
+        // saved in hotkeys.json.
         this.searchHotkeys = getSearchHotkeys(this.app);
         this.registerEvent(
             onVaultConfigChange(this.app, () => {
@@ -137,19 +145,21 @@ export class DailyNotesStreamView extends ItemView implements HoverParent {
             })
         );
 
-        // Heard while the notes are listed, and applied once the stream opens:
-        // a note synced in or deleted meanwhile is not missed.
-        // metadataCache "changed", not vault "modify": the cache lags the write,
-        // and the renderer reads it for frontmatter offsets and properties.
+        // Events heard while the notes are listed are applied once the stream
+        // opens, so a note synced or deleted in the meantime is not missed.
+        // metadataCache "changed", not vault "modify": the cache is updated
+        // after the file is written, and the renderer reads the cache for the
+        // frontmatter's position and the properties.
         const { metadataCache, vault } = this.app;
         this.registerEvent(metadataCache.on("changed", (f) => this.stream.onFileModify(f)));
         this.registerEvent(vault.on("create", (f) => this.stream.onFileCreate(f)));
         this.registerEvent(vault.on("delete", (f) => this.stream.onFileDelete(f)));
         this.registerEvent(vault.on("rename", (f, old) => this.stream.onFileRename(f, old)));
-        // A Base has no metadata to wait for.
+        // A Base file has no metadata to wait for.
         this.registerEvent(vault.on("modify", (f) => void this.renderer.onBaseModified(f)));
         this.registerEvent(onPostProcessorChange(this.app, () => void this.refresh()));
-        // A link to an empty note shows it; losing its last hides it (ADR 0011).
+        // A link to an empty note shows it. When its last link is removed, it
+        // is hidden again (ADR 0011).
         this.register(
             this.plugin.linkChanges.subscribe((paths) => {
                 const files = paths.map((path) => vault.getFileByPath(path)).filter((file) => file !== null);
@@ -157,8 +167,9 @@ export class DailyNotesStreamView extends ItemView implements HoverParent {
             })
         );
 
-        // Not in onload(): the vault may not have indexed its files yet. Awaited:
-        // the first batch must already leave out what is hidden (ADR 0011).
+        // Not in onload(), because the vault may not have indexed its files
+        // yet. It is awaited because the first batch must already leave out
+        // hidden notes (ADR 0011).
         await this.service.initialize();
         if (this.lifecycle === "closed") return;
 
@@ -167,7 +178,8 @@ export class DailyNotesStreamView extends ItemView implements HoverParent {
 
         this.addAction("calendar-1", "Jump to date", () => this.promptJumpToDate());
         this.addAction("text-search", "Search", () => this.searchBar.open());
-        // iOS apps scroll to the top on a tap of the title bar; desktop's title is a label.
+        // In iOS apps, a tap on the title bar scrolls to the top. On desktop,
+        // the title is only a label.
         const title = getViewTitle(this);
         if (!Platform.isMobile) this.addAction("arrow-up-to-line", "Scroll to top", () => this.scrollToTop());
         else if (title) this.registerDomEvent(title, "click", () => this.scrollToTop());
@@ -184,8 +196,8 @@ export class DailyNotesStreamView extends ItemView implements HoverParent {
     }
 
     /**
-     * Obsidian's history keeps a view's scroll here, not in its state: Back
-     * reopens the stream from its state, then hands this back.
+     * Obsidian's history keeps a view's scroll position here, not in its state.
+     * Back opens the stream again from its state, then passes this back.
      */
     getEphemeralState(): Record<string, unknown> {
         const place = this.lifecycle === "open" ? this.stream.place() : null;
@@ -199,8 +211,9 @@ export class DailyNotesStreamView extends ItemView implements HoverParent {
     }
 
     /**
-     * Obsidian calls this on a pane resize, at startup while `onOpen` still
-     * waits for the notes: the stream has no container then to lay out in.
+     * Obsidian calls this when a pane is resized, including at startup, while
+     * `onOpen` is still waiting for the notes. Then the stream has no container
+     * to lay out in yet.
      */
     onResize(): void {
         if (this.lifecycle === "open") this.stream.window.onResize();
@@ -212,14 +225,17 @@ export class DailyNotesStreamView extends ItemView implements HoverParent {
         this.stream.close();
     }
 
-    /** Obsidian's "Search current file" hotkey opens the bar. False takes the key. */
+    /**
+     * Obsidian's hotkey for "Search current file" opens the search bar.
+     * Returning false stops the key from going further.
+     */
     private onKeydown(evt: KeyboardEvent): false | undefined {
         if (!this.searchHotkeys.some((hotkey) => matchesHotkey(evt, hotkey))) return undefined;
         this.searchBar.open();
         return false;
     }
 
-    /** An open search re-reads the notes once the stream's changed. */
+    /** An open search reads the notes again once the stream's notes change. */
     private readonly refreshSearch = debounce(() => void this.search.refresh(), SEARCH_REFRESH_DEBOUNCE_MS, true);
 
     /** Asks for a date, then jumps to it. */
@@ -231,7 +247,10 @@ export class DailyNotesStreamView extends ItemView implements HoverParent {
         this.stream.window.scrollToTop();
     }
 
-    /** Before the stream opens there is nothing to forget: its notes are estimated as they load. */
+    /**
+     * Before the stream opens, there is nothing to forget: its notes get
+     * estimated heights as they load.
+     */
     forgetHeights(): void {
         if (this.lifecycle === "open") this.stream.window.forgetHeights();
     }

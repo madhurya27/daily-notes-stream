@@ -1,8 +1,8 @@
 import { test, expect } from "./phone";
 import { longNote } from "../long-note";
 
-// Every test fails on an error in Obsidian's console; these prove the check
-// fails, one for each way an error reaches it.
+// Every test fails if there is an error in Obsidian's console. These prove the
+// check fails, one for each way an error can reach it.
 for (const [how, cause] of [
     ["logged", () => console.error("A logged error")],
     [
@@ -30,7 +30,8 @@ for (const [how, cause] of [
         await phone.run(cause);
     });
 
-// The status bar's clock ticks: in a shot, two shots of a still screen differ.
+// The status bar's clock changes, so two screenshots of a screen that is not
+// moving would differ.
 test("a screenshot leaves out the status bar", async ({ phone }) => {
     const shot = Buffer.from(await phone.screenshot(), "base64");
     const screen = await phone.run(() => window.innerHeight * window.devicePixelRatio);
@@ -38,8 +39,9 @@ test("a screenshot leaves out the status bar", async ({ phone }) => {
     expect(shot.readUInt32BE(20), "the shot's height, in pixels").toBeLessThan(screen);
 });
 
-// Written to the top, the scroll left the anchor holding a place from below: a
-// long newest note drew from its end and landed some 250,000 px down.
+// Setting the scroll to the top left the anchor keeping a place from further
+// down. A long newest note drew from its end and ended up about 250,000 px
+// down.
 test("a stream opened from deep in it is at its top, over a long newest note", async ({ phone }) => {
     const path = await phone.journalPath(0);
     const original = await phone.writeNote(path, longNote(10000));
@@ -56,8 +58,8 @@ test("a stream opened from deep in it is at its top, over a long newest note", a
     }
 });
 
-// The follower judges every glide spec: a recording showed this jump, and
-// none where an owing glide stops (jump.spec.ts).
+// The follower checks every scrolling test. A recording showed this jump, and
+// no jump where a scroll that owes stops (jump.spec.ts).
 test("the reader's follower reports a note above growing mid-glide, unshifted", async ({ phone }) => {
     await phone.openStream();
     await phone.flick("up");
@@ -65,7 +67,8 @@ test("the reader's follower reports a note above growing mid-glide, unshifted", 
     await phone.run(() => {
         const pane = document.querySelector(".daily-notes-stream-container")!.parentElement!;
         let heard = 0;
-        // Pinned, its size goes unobserved: the anchor never hears of it (ADR 0013).
+        // With a fixed height, its size is not observed, so the anchor never
+        // hears about it (ADR 0013).
         const grow = () => {
             if (++heard < 5) return;
             pane.removeEventListener("scroll", grow);
@@ -87,8 +90,9 @@ test("the reader's follower reports a note above growing mid-glide, unshifted", 
     );
 });
 
-// A glide ended at speed, mid-stream, is what a staller does (ADR 0008): the
-// pane frozen for a frame, as the stream's stop freezes it, ends it so.
+// A scroll that ends while still fast, in the middle of the stream, is what
+// something that stops scrolling causes (ADR 0008). Freezing the pane for a
+// frame, as the stream's stop does, ends it in the same way.
 test("a glide cut short mid-stream is told from one that slows to its end", async ({ phone }) => {
     await phone.openStream();
     await phone.flick("up");

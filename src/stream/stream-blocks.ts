@@ -1,14 +1,17 @@
 /**
- * Where the stream's blocks sit: in note order, ahead of the infinite-scroll
- * sentinel, and indexed by the path each was rendered under. A block's
- * children may be unloaded (ADR 0006), so the index — never a DOM query — is
- * the lookup.
+ * Where the stream's blocks are: in note order, before the empty element at the
+ * end that loads more notes, and indexed by the path each was drawn with. A
+ * block's children may be emptied (ADR 0006), so blocks are always found
+ * through the index, never through a DOM query.
  */
 export class StreamBlocks {
     private container!: HTMLElement;
     private readonly byPath = new Map<string, HTMLElement>();
 
-    /** The sentinel is recreated on every scroll attach, so it is looked up each time. */
+    /**
+     * The empty element at the end is created again each time scrolling is
+     * attached, so it is looked up each time.
+     */
     constructor(private readonly sentinel: () => HTMLElement | null) {}
 
     get el(): HTMLElement {
@@ -28,13 +31,13 @@ export class StreamBlocks {
         return this.byPath.entries();
     }
 
-    /** Places `block` last among the notes. */
+    /** Puts `block` after the last note. */
     append(path: string, block: HTMLElement): void {
         this.byPath.set(path, block);
         this.insertBeforeSentinel(block);
     }
 
-    /** Places `block` ahead of the note at `nextPath`, or last when it has none. */
+    /** Puts `block` before the note at `nextPath`, or last if there is none. */
     insertBefore(path: string, block: HTMLElement, nextPath: string | undefined): void {
         this.byPath.set(path, block);
         // Stryker disable next-line ConditionalExpression: no note has an undefined path, so get finds none either.
@@ -46,7 +49,7 @@ export class StreamBlocks {
         }
     }
 
-    /** Takes the block at `path` out of the stream; null when none is there. */
+    /** Removes the block at `path` from the stream. Null if there is none. */
     remove(path: string): HTMLElement | null {
         const block = this.get(path);
         if (!block) return null;
@@ -66,7 +69,7 @@ export class StreamBlocks {
         this.clear();
     }
 
-    /** Shows `text` as the one message, in place of the stream's notes. */
+    /** Shows `text` as the only message, instead of the stream's notes. */
     showEmptyState(text: string): void {
         const shown = this.findEmptyState();
         if (shown) shown.setText(text);
@@ -81,14 +84,20 @@ export class StreamBlocks {
         return this.container.querySelector(".daily-notes-empty-state");
     }
 
-    /** The sentinel must stay the last child, so everything lands before it. */
+    /**
+     * The empty element at the end must stay the last child, so everything is
+     * put before it.
+     */
     private insertBeforeSentinel(el: HTMLElement): void {
-        // Before null is last.
+        // Inserting before null puts the element last.
         this.container.insertBefore(el, this.sentinel());
     }
 }
 
-/** The block `paneTop` crosses, by halving: blocks stack, and a stream holds thousands. */
+/**
+ * The block at `paneTop`, found by binary search: blocks are stacked in order,
+ * and a stream can hold thousands.
+ */
 export function blockAt(stream: HTMLElement, paneTop: number): Element | null {
     const blocks = stream.children;
     let low = 0;

@@ -23,15 +23,16 @@ test.describe("daily notes stream in real Obsidian", () => {
         // Newest first: 2026-03-14 is the most recent seeded note.
         await expect(container.locator(".daily-note-title").first()).toHaveText("2026-03-14");
 
-        // Obsidian's MarkdownRenderer produced real elements, not raw text.
+        // Obsidian's MarkdownRenderer made real elements, not raw text.
         const firstNote = container.locator(".daily-note-block").first();
         await expect(firstNote.locator(".daily-note-content h2").first()).toHaveText(/Morning/);
         await expect(firstNote.locator(".daily-note-content ul li").first()).toBeVisible();
-        // Frontmatter must not leak into the body.
+        // Frontmatter must not appear in the body.
         await expect(firstNote.locator(".daily-note-content")).not.toContainText("mood:");
     });
 
-    // An icon name Obsidian's Lucide set lacks renders a blank button, silently.
+    // An icon name missing from Obsidian's Lucide set draws a blank button,
+    // without any error.
     test("draws an icon on every header action", async ({ obsidian }) => {
         const { page } = obsidian;
         await openStream(page);
@@ -67,8 +68,9 @@ test.describe("daily notes stream in real Obsidian", () => {
         await expect(nested).toBeVisible();
         await heading.locator(".collapse-indicator").click();
 
-        // Hiding is a class the stylesheet has to honor: a heading carries the
-        // collapsible rule's own display, which a bare .is-hidden cannot outrank.
+        // Hiding is a class the stylesheet must respect. A heading has its own
+        // display from the foldable rule, which a single .is-hidden cannot
+        // beat.
         await expect(nested).toHaveClass(/is-hidden/);
         await expect(nested).toBeHidden();
 
@@ -102,8 +104,8 @@ test.describe("daily notes stream in real Obsidian", () => {
         await expect(table).toBeVisible();
         await heading.locator(".collapse-indicator").click();
 
-        // A stacked table carries its own display rule; hidden has to outrank it
-        // or a collapsed section keeps showing.
+        // A stacked table has its own display rule. The hidden rule must beat
+        // it, or a folded section keeps showing.
         await expect(table).toBeHidden();
         await expect(code).toBeHidden();
 
@@ -123,8 +125,8 @@ test.describe("daily notes stream in real Obsidian", () => {
         await expect(chevron).toBeVisible();
         const [chevronBox, checkboxBox] = await Promise.all([chevron.boundingBox(), checkbox.boundingBox()]);
 
-        // The chevron sits outside the list content; a task item puts its
-        // checkbox there too, so the two collide unless the chevron moves.
+        // The arrow sits outside the list content. A task item puts its
+        // checkbox there too, so the two overlap unless the arrow moves.
         expect(chevronBox!.x + chevronBox!.width).toBeLessThanOrEqual(checkboxBox!.x);
     });
 
@@ -132,14 +134,16 @@ test.describe("daily notes stream in real Obsidian", () => {
         const { page } = obsidian;
         const container = await openStream(page);
 
-        // Both shapes the vault seeds: a plain bullet with children, and a task.
+        // Both kinds the test vault has: a plain bullet with children, and a
+        // task.
         for (const label of ["Groceries", "Parent task"]) {
             const item = container.locator(".daily-note-content li.is-collapsible", { hasText: label }).first();
             await expect(item).toBeVisible();
 
             const offset = await item.evaluate((li) => {
                 const chevron = li.querySelector(":scope > .collapse-indicator")!;
-                // The item's own words, wrapped for WebKit beside the sub-list.
+                // The item's own words, wrapped in an element for WebKit, next
+                // to the nested list.
                 const range = document.createRange();
                 range.selectNodeContents(li.querySelector(":scope > .daily-note-text-run")!);
                 const words = range.getBoundingClientRect();
@@ -151,9 +155,9 @@ test.describe("daily notes stream in real Obsidian", () => {
         }
     });
 
-    // Obsidian nudges the box by a fixed 0.2em of its own 13.33px font: the
-    // box grows with the text and the nudge does not, so it drifts off center
-    // at other sizes, by 3px at 28px on a phone (D-104).
+    // Obsidian moves the box by a fixed 0.2em of its own 13.33px font. The box
+    // grows with the text but the move does not, so at other sizes it is off
+    // center, by 3px at 28px on a phone (D-104).
     for (const size of [12, 16, 22, 28]) {
         test(`centers a task's checkbox on its label at a ${size}px text size`, async ({ obsidian }) => {
             const { page } = obsidian;
@@ -173,8 +177,9 @@ test.describe("daily notes stream in real Obsidian", () => {
         });
     }
 
-    // The box grows with the text and the list's indent does not: reading view
-    // starts a task's first line 11px left of the rest at 28px on a phone (D-106).
+    // The box grows with the text but the list's indent does not. At 28px on a
+    // phone, reading view starts a task's first line 11px left of the rest
+    // (D-106).
     test.describe("a wrapped task", () => {
         const NOTE = "Notes/2026-03-20.md";
 
@@ -221,12 +226,12 @@ test.describe("daily notes stream in real Obsidian", () => {
             .locator("> input.task-list-item-checkbox");
 
         await expect(checkbox).not.toBeChecked();
-        // force: the checkbox is inert, so Playwright's actionability check
-        // would otherwise wait for pointer events it will never receive.
+        // force: the checkbox ignores the pointer, so otherwise Playwright's
+        // check would wait for pointer events it will never get.
         await checkbox.click({ force: true });
 
-        // The stream is read-only and the renderer never writes back, so a
-        // toggle here would be a lie the next re-render silently undoes.
+        // The stream is read-only and the renderer never saves, so a tick here
+        // would be false, and the next render would remove it.
         await expect(checkbox).not.toBeChecked();
     });
 
@@ -236,10 +241,10 @@ test.describe("daily notes stream in real Obsidian", () => {
         const list = container.locator(".daily-note-content ul", { hasText: "Groceries" }).first();
         await expect(list).toBeVisible();
 
-        // Obsidian indents rendered lists through the list item's margin and
-        // zeroes the list's own padding; a plain <ul> instead falls back to the
-        // browser's 40px per level, which on a phone eats a tenth of the width
-        // for every nesting level.
+        // Obsidian indents drawn lists with the list item's margin, and sets
+        // the list's own padding to zero. A plain <ul> gets the browser's 40px
+        // for each level instead, which on a phone uses a tenth of the width
+        // for every level of nesting.
         const step = await list.evaluate((ul) => {
             const li = (el: Element) => el.querySelector(":scope > li")!;
             const outer = li(ul).getBoundingClientRect().left;
@@ -271,7 +276,8 @@ test.describe("daily notes stream in real Obsidian", () => {
             }, NOTE);
         });
 
-        // Link and words run on as one line of text, not side-by-side columns.
+        // The link and the words continue as one line of text, not as columns
+        // side by side.
         test("wraps as reading view wraps it", async ({ obsidian }) => {
             const { page } = obsidian;
             const height = (h: Element) => Math.round(h.getBoundingClientRect().height);
@@ -353,7 +359,8 @@ test.describe("daily notes stream in real Obsidian", () => {
 
     test("keeps loading batches while short notes leave a tall window unfilled", async ({ obsidian, mobileLayout }) => {
         const { page, vaultPath } = obsidian;
-        // Taller than a batch of ten short notes, which settle at about 140px each.
+        // Taller than a batch of ten short notes, which end up about 140px
+        // each.
         const viewport = LAYOUT_VIEWPORT[mobileLayout ? "mobile" : "desktop"];
         const cdp = await page.context().newCDPSession(page);
         const resize = (height: number) =>
@@ -374,7 +381,8 @@ test.describe("daily notes stream in real Obsidian", () => {
             const container = await openStream(page);
             const blocks = container.locator(".daily-note-block");
             await expect(blocks.first()).toHaveAttribute("data-source-path", notes.at(-1)!);
-            // Unscrolled: a batch of ten short notes leaves the window unfilled.
+            // Not scrolled: a batch of ten short notes does not fill the
+            // window.
             await expect.poll(() => blocks.count()).toBeGreaterThan(10);
             expect(await container.evaluate((el) => el.parentElement!.scrollTop)).toBe(0);
         } finally {
@@ -387,11 +395,14 @@ test.describe("daily notes stream in real Obsidian", () => {
         }
     });
 
-    // jsdom loads no stylesheet and lays nothing out, so unloading can only be
-    // proven here: a block far above the viewport keeps its height and loses
+    // jsdom loads no stylesheet and has no layout, so emptying notes can only
+    // be proven here: a block far above the screen keeps its height and loses
     // its content (ADR 0006).
     test.describe("off-screen notes", () => {
-        /** Three notes tall enough that the top one can be pushed past the unload margin. */
+        /**
+         * Three notes tall enough that the top one can be pushed past the
+         * emptying distance.
+         */
         const TALL_NOTES = ["2026-03-20.md", "2026-03-19.md", "2026-03-18.md"];
 
         test.beforeEach(async ({ obsidian }) => {
@@ -425,12 +436,13 @@ test.describe("daily notes stream in real Obsidian", () => {
 
             await expect(top).toHaveClass(/is-unloaded/);
             await expect(top.locator(".daily-note-content")).toHaveCount(0);
-            // The placeholder holds the space the note had, so nothing below moves.
+            // The empty block keeps the space the note had, so nothing below
+            // moves.
             expect((await top.boundingBox())!.height).toBeCloseTo(renderedHeight, -1);
         });
 
-        // On iOS an unload mid-glide ends the glide, so none happens until the
-        // scroll stops (D-032).
+        // On iOS, emptying a note while scrolling stops the scroll, so nothing
+        // is emptied until scrolling stops (D-032).
         test("keeps a note scrolled far above rendered until the scroll stops", async ({ obsidian }) => {
             const { page } = obsidian;
             const container = await openStream(page);
@@ -438,7 +450,8 @@ test.describe("daily notes stream in real Obsidian", () => {
             await expect(top.locator(".daily-note-content")).toBeVisible();
 
             await container.locator(".daily-note-block").nth(3).scrollIntoViewIfNeeded();
-            // A glide: a small scroll every frame-ish, for well past the idle wait.
+            // Scrolling: a small scroll about every frame, for much longer than
+            // the idle wait.
             const scroller = container.locator("xpath=..");
             const stillRendered = await scroller.evaluate(async (el) => {
                 const block = el.querySelector(".daily-note-block")!;
@@ -469,7 +482,10 @@ test.describe("daily notes stream in real Obsidian", () => {
             expect(await scroller.evaluate((el) => el.scrollTop)).toBe(before);
         });
 
-        /** Scrolls the top note's bottom five panes above the pane, through a glide of small steps. */
+        /**
+         * Scrolls the top note's bottom five pane heights above the pane, in
+         * small steps.
+         */
         async function glidePastTop(scroller: import("@playwright/test").Locator) {
             return scroller.evaluate(async (el) => {
                 const top = el.querySelector<HTMLElement>(".daily-note-block")!;
@@ -484,8 +500,9 @@ test.describe("daily notes stream in real Obsidian", () => {
             });
         }
 
-        // WebKit stalls in proportion to what is laid out, so a far note leaves
-        // the layout as it goes, mid-glide too (ADR 0023).
+        // WebKit pauses for longer the more is laid out, so a note far away
+        // leaves the layout as soon as it is far, even while scrolling (ADR
+        // 0023).
         test("takes a note a few panes above out of the layout mid-glide, keeping its height", async ({ obsidian }) => {
             const { page } = obsidian;
             const container = await openStream(page);
@@ -532,7 +549,10 @@ test.describe("daily notes stream in real Obsidian", () => {
     });
 
     test.describe("a note above the pane changing height", () => {
-        /** Where the fourth note sits, scrolled to the top, before and after a note above it grows 1000px. */
+        /**
+         * Where the fourth note is, scrolled to the top, before and after a
+         * note above it grows 1000px.
+         */
         async function growAbove(page: import("@playwright/test").Page, container: import("@playwright/test").Locator) {
             const blocks = container.locator(".daily-note-block");
             await expect(blocks.nth(3)).toBeAttached();
@@ -543,28 +563,32 @@ test.describe("daily notes stream in real Obsidian", () => {
                     const pane = el.closest(".daily-notes-stream-container")!.parentElement!;
                     return el.getBoundingClientRect().top - pane.getBoundingClientRect().top;
                 });
-            // The notes above render as it is scrolled to, outgrowing their
-            // placeholders: the first thing anchoring has to absorb.
+            // The notes above are drawn as it is scrolled to, and grow taller
+            // than their empty blocks. This is the first thing the anchor has
+            // to correct.
             await expect.poll(top).toBeCloseTo(0, 0);
             const before = await top();
 
             await blocks.first().evaluate(async (el) => {
                 el.appendChild(document.createElement("div")).style.height = "1000px";
-                // A frame for the resize to be observed, a second for the scroll it sets.
+                // One frame for the resize to be observed, and a second for the
+                // scroll it sets.
                 for (let frame = 0; frame < 2; frame++) await new Promise((r) => requestAnimationFrame(r));
             });
             return { before, after: await top() };
         }
 
-        // iOS WebKit has no scroll anchoring: the text under the reader jumped
-        // by whatever a note above grew. Chromium stands in for it here.
+        // iOS's WebKit does not keep the scroll position, so the text under the
+        // reader jumped by however much a note above grew. Here, Chromium acts
+        // as iOS.
         test.describe("where the platform has no scroll anchoring", () => {
             test.beforeEach(({ obsidian }) => withoutScrollAnchoring(obsidian.page));
             test.afterEach(({ obsidian }) => restoreScrollAnchoring(obsidian.page));
 
             async function openUnanchored(page: import("@playwright/test").Page) {
                 const container = await openStream(page);
-                // Ours, so a platform half-anchoring cannot correct a second time.
+                // Ours, so a platform that partly keeps the place cannot
+                // correct it a second time.
                 await expect(container.locator("xpath=..")).toHaveCSS("overflow-anchor", "none");
                 return container;
             }
@@ -578,8 +602,9 @@ test.describe("daily notes stream in real Obsidian", () => {
                 expect(after).toBeCloseTo(before, 0);
             });
 
-            // A Base filling in the part of a note scrolled past: nothing above
-            // the pane's top is the reader's doing, whichever note it is in.
+            // A Base filling in, in the part of a note scrolled past. Nothing
+            // above the pane's top was done by the reader, whichever note it is
+            // in.
             test("keeps the reader's place when a note reaching into the pane grows above it", async ({ obsidian }) => {
                 const { page } = obsidian;
                 const container = await openUnanchored(page);
@@ -616,8 +641,8 @@ test.describe("daily notes stream in real Obsidian", () => {
                 expect(after).toBeCloseTo(before, 0);
             });
 
-            // Nothing loads below the stream's end to fill what a shift there
-            // draws past it: a note shrinking there moves the place at once.
+            // Nothing loads below the stream's end to fill the space a shift
+            // leaves there, so a note shrinking there moves the place at once.
             test("draws nothing past the stream's end when the last note shrinks", async ({ obsidian }) => {
                 const { page } = obsidian;
                 const container = await openUnanchored(page);
@@ -627,14 +652,16 @@ test.describe("daily notes stream in real Obsidian", () => {
                 const last = blocks.last();
                 await last.scrollIntoViewIfNeeded();
                 await expect(last).not.toHaveClass(/is-unloaded/);
-                // Taller than the pane, so the pane's top is inside the note as it shrinks.
+                // Taller than the pane, so the pane's top is inside the note as
+                // it shrinks.
                 await last.evaluate((el) => {
                     const tail = el.querySelector(".daily-note-content")!.appendChild(document.createElement("div"));
                     tail.dataset.e2eTail = "";
                     tail.style.height = "2000px";
                 });
                 const pane = container.locator("xpath=..");
-                // At the end, and still: the note re-pins at its new height a report later.
+                // At the end, and not scrolling. The note's height is fixed at
+                // its new height one report later.
                 await expect
                     .poll(async () => {
                         await pane.evaluate((el) => (el.scrollTop = el.scrollHeight));
@@ -644,7 +671,8 @@ test.describe("daily notes stream in real Obsidian", () => {
                     .toBeLessThanOrEqual(1);
                 await expect(container).not.toHaveClass(/is-scroll-shifted/);
 
-                // How far the pane's bottom shows past the stream's end, beyond the pane's own padding.
+                // How far the pane's bottom shows past the stream's end, not
+                // counting the pane's own padding.
                 const blank = await pane.evaluate(async (el) => {
                     const frame = () => new Promise((resolve) => requestAnimationFrame(resolve));
                     const stream = el.querySelector(".daily-notes-stream-container")!;
@@ -662,13 +690,17 @@ test.describe("daily notes stream in real Obsidian", () => {
                 expect(blank).toBeLessThanOrEqual(1);
             });
 
-            /** A flick upward, frame by frame, until a note above has rendered, then on a little. */
+            /**
+             * A flick upward, frame by frame, until a note above has been
+             * drawn, then a little more.
+             */
             const GLIDE_STEP_PX = 30;
             const GLIDE_STEPS_AFTER_RENDER = 10;
 
-            // iOS owns the scroll mid-glide: a write then is dropped or undone,
-            // which the reader saw as a jump or a flicker. So nothing but the
-            // glide may move the scroll until it stops.
+            // While scrolling, iOS controls the scroll position. Setting it
+            // then is ignored or undone, which the reader saw as a jump or a
+            // flicker. So nothing but the scrolling itself may move the scroll
+            // until it stops.
             test("leaves a glide the only thing moving the scroll, and the text moving with it", async ({
                 obsidian,
             }) => {
@@ -677,7 +709,8 @@ test.describe("daily notes stream in real Obsidian", () => {
                 const blocks = container.locator(".daily-note-block");
                 await expect(blocks).toHaveCount(10); // BATCH_SIZE
                 await blocks.last().evaluate((el) => el.scrollIntoView({ block: "start" }));
-                // Still, so what rendered on the way down is settled into the scroll.
+                // Not scrolling, so what was drawn on the way down is already
+                // in the scroll position.
                 await page.waitForTimeout(1000);
                 await expect(container).not.toHaveClass(/is-scroll-shifted/);
 
@@ -711,8 +744,9 @@ test.describe("daily notes stream in real Obsidian", () => {
                 expect(glide.rendered).toBeGreaterThan(0);
                 expect(glide.overwritten).toEqual([]);
 
-                // Once still, the scroll takes the shift over: the text is where
-                // the glide alone would have put it.
+                // Once scrolling stops, the shift moves into the scroll
+                // position, and the text is where the scrolling alone would
+                // have put it.
                 await expect(container).not.toHaveClass(/is-scroll-shifted/);
                 const reader = page.locator("[data-e2e-reader]");
                 const moved = await reader.evaluate((el, start) => el.getBoundingClientRect().top - start, glide.start);
@@ -720,16 +754,17 @@ test.describe("daily notes stream in real Obsidian", () => {
             });
         });
 
-        // Mid-glide, iOS paints a resize before reporting it (ADR 0013).
-        // Chromium reports first, so each test reads the layout as the task
-        // changing it ends: what iOS would paint.
+        // While scrolling, iOS draws a resize before it reports it (ADR 0013).
+        // Chromium reports it first, so each test reads the layout when the
+        // task that changes it ends, which is what iOS would draw.
         test.describe("as iOS paints it, before any resize is reported", () => {
             test.beforeEach(({ obsidian }) => withoutScrollAnchoring(obsidian.page));
             test.afterEach(({ obsidian }) => restoreScrollAnchoring(obsidian.page));
 
             test("draws a note rendering above the pane with the shift that keeps the place", async ({ obsidian }) => {
                 const { page } = obsidian;
-                // Unmeasured, every note renders unheld: the case that jumped.
+                // With no measured heights, every note is drawn without a held
+                // height. This is the case that jumped.
                 await page.evaluate(() =>
                     window.app.plugins.plugins["daily-notes-stream"].layoutMemory.notes.restore(null)
                 );
@@ -738,8 +773,9 @@ test.describe("daily notes stream in real Obsidian", () => {
                 await expect(blocks).toHaveCount(10); // BATCH_SIZE
                 await blocks.last().evaluate((el) => el.scrollIntoView({ block: "start" }));
                 await page.waitForTimeout(1000);
-                // Seeded notes lay out alike, so the layout's median guesses them
-                // right: each placeholder guesses short, and every render grows.
+                // The test notes all lay out alike, so the layout's estimate
+                // would be right. Here each empty block is too short, and every
+                // note grows when drawn.
                 await container.evaluate((stream) => {
                     for (const block of stream.querySelectorAll<HTMLElement>(".daily-note-block.is-unloaded"))
                         block.style.setProperty("--daily-note-placeholder-height", "100px");
@@ -753,17 +789,21 @@ test.describe("daily notes stream in real Obsidian", () => {
                     const reader = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2)!;
                     const start = reader.getBoundingClientRect().top;
                     let scrolled = 0;
-                    // Where the reader's scroll left the pane: until the anchor stops
-                    // it as a glide short of the top, writing what it owes.
+                    // Where the reader's scroll left the pane, until the anchor
+                    // stops the scroll before the top and sets what it owes.
                     let at = pane.scrollTop;
-                    // How far the reader is from where its own scroll puts it.
+                    // How far the reader is from where the reader's own scroll
+                    // puts them.
                     const drift = () => reader.getBoundingClientRect().top - (start + scrolled);
                     const drifts: number[] = [];
-                    // A mutation's callback runs as the task that made it ends.
+                    // A mutation observer's callback runs when the task that
+                    // made the change ends.
                     const rendered = new MutationObserver((records) => {
                         for (const { target, oldValue } of records) {
                             const block = target as HTMLElement;
-                            // Far behind the glide, the reader's note hides its content (ADR 0023): no place then.
+                            // Far behind the scroll, the reader's note hides
+                            // its content (ADR 0023), so there is no place
+                            // then.
                             if (pane.scrollTop !== at || reader.getClientRects().length === 0) return;
                             if (oldValue?.includes("is-unloaded") && !block.classList.contains("is-unloaded"))
                                 drifts.push(drift());
@@ -828,8 +868,9 @@ test.describe("daily notes stream in real Obsidian", () => {
                 expect(offBy).toEqual(offBy.map(() => 0));
             });
 
-            // Inherited, a re-pin restyled every element of the note: 0.5 s
-            // for a 10,000-line note at a phone's speed (D-129).
+            // When the property was inherited, fixing the height again restyled
+            // every element of the note: 0.5 s for a 10,000-line note at a
+            // phone's speed (D-129).
             test("keeps a pinned height and the stream's shift from the elements inside", async ({ obsidian }) => {
                 const container = await openStream(obsidian.page);
                 await expect(container.locator(".daily-note-block.is-pinned").first()).toBeAttached();
@@ -847,8 +888,9 @@ test.describe("daily notes stream in real Obsidian", () => {
                 expect(inside).toEqual(["", ""]);
             });
 
-            // A Base, unmeasured notes and a scroll down and back: renders,
-            // unloads and Bases filling in, each a height change.
+            // A Base, notes with no measured height, and a scroll down and
+            // back: drawing, emptying and Bases filling in each change a
+            // height.
             test.describe("through a scroll down and back", () => {
                 const path = `Notes/${seededDate(SEEDED_DAYS)}.md`;
                 const base = ["```base", "views:", "  - type: table", "    name: Files", "```", ""].join("\n");
@@ -875,7 +917,10 @@ test.describe("daily notes stream in real Obsidian", () => {
 
                     const { sawBases, unpinned } = await container.locator("xpath=..").evaluate(async (pane, path) => {
                         const frame = () => new Promise((resolve) => requestAnimationFrame(resolve));
-                        /** What only a re-pin or an unload changes. */
+                        /**
+                         * What only fixing the height again or emptying the
+                         * note changes.
+                         */
                         const state = (block: HTMLElement) =>
                             [
                                 block.style.getPropertyValue("--daily-note-pinned-height"),
@@ -885,8 +930,9 @@ test.describe("daily notes stream in real Obsidian", () => {
                         const seen = new Map<HTMLElement, { state: string; height: number }>();
                         const unpinned: string[] = [];
                         let sawBases = false;
-                        // Read as a task ends and as a frame starts: before Chromium's
-                        // resize reports, so what iOS would paint.
+                        // Read when a task ends and when a frame starts, before
+                        // Chromium's resize reports, so it is what iOS would
+                        // draw.
                         const check = () => {
                             sawBases ||= pane.querySelectorAll(`[data-source-path="${path}"] .bases-view`).length === 2;
                             for (const block of pane.querySelectorAll<HTMLElement>(".daily-note-block")) {
@@ -943,7 +989,8 @@ test.describe("daily notes stream in real Obsidian", () => {
             });
         });
 
-        // Where the platform anchors, a second correction would double the move.
+        // Where the platform keeps the place itself, a second correction would
+        // double the move.
         test("leaves the anchoring to the platform where it has its own", async ({ obsidian }) => {
             const { page } = obsidian;
             const container = await openStream(page);
@@ -958,7 +1005,8 @@ test.describe("daily notes stream in real Obsidian", () => {
         const { page } = obsidian;
         const container = await openStream(page);
 
-        // Return nothing: the created TFile is not serialisable back to Node.
+        // Return nothing, because the created TFile cannot be sent back to
+        // Node.
         await page.evaluate(async () => {
             await window.app.vault.create("Notes/2026-03-20.md", "## Later\n\nA newer day.\n");
         });
@@ -979,7 +1027,8 @@ test.describe("daily notes stream in real Obsidian", () => {
             if (message.type() === "error") errors.push(message.text());
         });
 
-        // The deletion lands where it races: after the render took the note, before its read.
+        // The deletion happens in the middle: after the render took the note,
+        // before it read it.
         await page.evaluate(async () => {
             const vault = window.app.vault;
             const read = vault.cachedRead.bind(vault);
@@ -1004,12 +1053,14 @@ test.describe("daily notes stream in real Obsidian", () => {
 
         await page.evaluate(async () => {
             await window.app.vault.createFolder("Attachments").catch(() => {});
-            // Right date shape, wrong folder — and right folder, wrong extension.
+            // Right date format but wrong folder, and right folder but wrong
+            // file type.
             await window.app.vault.create("Attachments/2026-03-25.md", "not a daily note");
             await window.app.vault.create("Notes/2026-03-26.png", "not markdown either");
         });
 
-        // Give the vault events time to be wrong, if they are going to be.
+        // Give the vault events time to do the wrong thing, if they are going
+        // to.
         await page.waitForTimeout(1000);
         await expect(container.locator(".daily-note-title").first()).toHaveText("2026-03-14");
         await expect(container.locator(".daily-note-block")).toHaveCount(10);
@@ -1022,8 +1073,8 @@ test.describe("daily notes stream in real Obsidian", () => {
         });
     });
 
-    // The stream is a column of notes, so it takes a note's margins: the
-    // theme's, with nothing of its own added.
+    // The stream is a column of notes, so it has a note's margins: the theme's,
+    // with nothing of its own added.
     test("lays a note's text out as wide as reading view does", async ({ obsidian }) => {
         const { page } = obsidian;
         const edges = (p: Element) => {
@@ -1044,14 +1095,16 @@ test.describe("daily notes stream in real Obsidian", () => {
         expect(stream).toEqual(await reading.evaluate(edges));
     });
 
-    // A height is remembered by the column's width (ADR 0010): a stream opening
-    // empty, before a scroll bar can show, has to read the width it fills at.
+    // Heights are remembered by the column's width (ADR 0010). A stream that
+    // opens empty, before a scroll bar can show, must read the width it will
+    // have when full.
     test("keeps the column as wide while the pane cannot scroll", async ({ obsidian }) => {
         const { page } = obsidian;
         const container = await openStream(page);
         const scrolling = await container.evaluate((el) => el.clientWidth);
 
-        // Every spec shares the page: the rule goes with the measurement.
+        // Every test shares the page, so the rule is removed together with the
+        // measurement.
         const still = await container.evaluate((el) => {
             const hidden = el.appendChild(document.createElement("style"));
             hidden.textContent = ".daily-note-block { display: none; }";
@@ -1070,11 +1123,12 @@ test.describe("daily notes stream in real Obsidian", () => {
         await expect(container.locator("table").first()).toBeVisible();
         await expect(container.locator("p > a.external-link").first()).toBeVisible();
 
-        // The mobile project is where this bites: a phone has no room for a wide
-        // table, code line or URL, so it pushes the page sideways instead.
+        // This matters in the mobile project: a phone has no room for a wide
+        // table, line of code or URL, so it pushes the page sideways instead.
         const overflow = await container.evaluate((el) => {
             const scroller = el.parentElement!;
-            // Both are viewport coordinates: the scroller need not start at 0.
+            // Both are viewport coordinates, because the scrolling element need
+            // not start at 0.
             const limit = scroller.getBoundingClientRect().right;
             return {
                 pageOverflow: scroller.scrollWidth - scroller.clientWidth,
@@ -1095,11 +1149,12 @@ test.describe("daily notes stream in real Obsidian", () => {
         const container = await openStream(page);
         const pre = container.locator("pre").first();
         await expect(pre).toBeVisible();
-        // The button only fades in on hover, but it holds its place either way.
+        // The button only fades in when the pointer is over it, but it takes up
+        // its space either way.
         await pre.hover();
 
-        // Obsidian wraps rendered code and pins its copy button to the top-right
-        // corner, so a long first line runs underneath the icon.
+        // Obsidian wraps drawn code and fixes its copy button to the top-right
+        // corner, so a long first line runs under the icon.
         const overlap = await pre.evaluate((el) => {
             const button = el.querySelector(".copy-code-button");
             const code = el.querySelector("code");
@@ -1139,7 +1194,7 @@ test.describe("daily notes stream in real Obsidian", () => {
         await firstNote.locator(".metadata-properties-heading").click();
         await expect(panel).toHaveClass(/is-collapsed/);
 
-        // Editing the note re-renders it; the panel must not spring back open.
+        // Editing the note draws it again, and the panel must not open again.
         await page.evaluate(async () => {
             const file = window.app.vault.getAbstractFileByPath("Notes/2026-03-14.md");
             await window.app.vault.append(file, "\nEdited.\n");
@@ -1161,8 +1216,8 @@ test.describe("daily notes stream in real Obsidian", () => {
         const container = await openStream(page);
         const block = container.locator(".daily-note-block").first();
         const panel = block.locator(".metadata-container");
-        // Collapse state persists per note, and an earlier test may have left
-        // this panel closed; its keys are then not there to measure.
+        // Fold state is saved for each note, and an earlier test may have left
+        // this panel closed. Then its keys are not there to measure.
         if (await panel.evaluate((el) => el.classList.contains("is-collapsed"))) {
             await panel.locator(".metadata-properties-heading").click();
         }
@@ -1173,9 +1228,9 @@ test.describe("daily notes stream in real Obsidian", () => {
         // Obsidian puts the heading above the box, not in it.
         await expect(block.locator(".metadata-content > .metadata-properties-heading")).toHaveCount(0);
 
-        // Obsidian hangs the chevron outside the panel and starts the heading's
-        // word on the panel's own left edge; in flow the chevron took the icon
-        // column and the heading read as one more property row.
+        // Obsidian puts the arrow outside the panel, and starts the heading's
+        // word at the panel's own left edge. Inside the panel, the arrow took
+        // the icon column, and the heading looked like one more property row.
         const [titleBox, rowsBox] = await Promise.all([
             block.locator(".metadata-properties-title").boundingBox(),
             rows.boundingBox(),
@@ -1195,8 +1250,9 @@ test.describe("daily notes stream in real Obsidian", () => {
         const box = block.locator(".metadata-content").first();
         await expect(box).toBeVisible();
 
-        // Obsidian bleeds this box evenly past its container on both sides; a
-        // gutter taken out of the container shifts it instead of narrowing it.
+        // Obsidian extends this box evenly past its container on both sides.
+        // Taking space out of the container would move it instead of making it
+        // narrower.
         const [blockBox, boxBox] = await Promise.all([block.boundingBox(), box.boundingBox()]);
         const leftBleed = blockBox!.x - boxBox!.x;
         const rightBleed = boxBox!.x + boxBox!.width - (blockBox!.x + blockBox!.width);
@@ -1216,8 +1272,8 @@ test.describe("daily notes stream in real Obsidian", () => {
         await expect(chevron).toBeVisible();
         await page.mouse.move(0, 0);
 
-        // Obsidian keeps this indicator hidden until the row is hovered, and
-        // the row itself is the control — a phone taps that instead.
+        // Obsidian keeps this arrow hidden until the pointer is over the row,
+        // and the row itself is the control. A phone taps the row instead.
         await expect(chevron).toHaveCSS("opacity", "0");
         await heading.hover();
         await expect(chevron).toHaveCSS("opacity", "1");
@@ -1235,10 +1291,10 @@ test.describe("daily notes stream in real Obsidian", () => {
         const chevron = block.locator(".metadata-properties-heading > .collapse-indicator");
         await expect(chevron).toBeVisible();
 
-        // Obsidian hangs this indicator in a left margin its own properties
-        // panel keeps clear. Here it hangs exactly where a content heading's
-        // does — in the stream's padding, and never off the pane, which on a
-        // phone has less of that padding to give.
+        // Obsidian puts this arrow in a left margin that its own properties
+        // panel keeps empty. Here it goes exactly where a content heading's
+        // arrow does: in the stream's padding, and never outside the pane,
+        // which on a phone has less padding.
         const [paneBox, chevronBox, headingChevronBox] = await Promise.all([
             page.locator(".workspace-leaf-content[data-type='daily-notes-stream-view'] .view-content").boundingBox(),
             chevron.boundingBox(),
@@ -1248,8 +1304,8 @@ test.describe("daily notes stream in real Obsidian", () => {
         expect(chevronBox!.x).toBeGreaterThanOrEqual(paneBox!.x);
     });
 
-    // A list starts flush under its heading, a quarter of a paragraph's
-    // spacing below; a paragraph or table keeps its own margin.
+    // A list starts right under its heading, a quarter of a paragraph's spacing
+    // below. A paragraph or table keeps its own margin.
     test("spaces a heading from what follows it", async ({ obsidian }) => {
         const container = await openStream(obsidian.page);
         const gaps = await container
@@ -1277,8 +1333,8 @@ test.describe("daily notes stream in real Obsidian", () => {
         const block = container.locator(".daily-note-block").first();
         await expect(block.locator(".metadata-properties-title")).toBeVisible();
 
-        // "Properties" is a heading of the note like any other: its word starts
-        // where "Morning" does, and its chevron sits the same step to the left.
+        // "Properties" is a heading of the note like any other. Its word starts
+        // where "Morning" does, and its arrow is the same distance to the left.
         const geometry = await block.evaluate((el) => {
             const box = (node: Element) => node.getBoundingClientRect();
             const heading = el.querySelector(".daily-note-content h2.is-collapsible")!;
@@ -1305,9 +1361,10 @@ test.describe("daily notes stream in real Obsidian", () => {
             await plugin.saveSettings();
         });
 
-        // The panel Obsidian draws for the same note, to measure the stream's
-        // against: every rule for these classes is already in its stylesheet,
-        // and anything the stream restates is a chance to drift from it.
+        // The panel Obsidian draws for the same note, to compare the stream's
+        // with. Every rule for these classes is already in Obsidian's
+        // stylesheet, and anything the stream sets again could end up
+        // different.
         const measure = (root: Element) => {
             const size = (sel: string) => {
                 const el = root.querySelector(sel)!;
@@ -1342,8 +1399,8 @@ test.describe("daily notes stream in real Obsidian", () => {
         for (const part of ["title", "row", "key", "keyText", "value"] as const) {
             expect(stream[part].fontSize, part).toBe(native[part].fontSize);
             // Obsidian fills a row with inputs and the stream with text, so a
-            // box can round a pixel apart; anything more is a rule it is
-            // missing.
+            // box can be a pixel different after rounding. Anything more means
+            // a rule is missing.
             expect(Math.abs(stream[part].height - native[part].height), part).toBeLessThanOrEqual(1);
         }
     });
@@ -1358,8 +1415,8 @@ test.describe("daily notes stream in real Obsidian", () => {
         });
 
         // setIcon names the svg after the icon it drew. The two panels label a
-        // row differently: Obsidian with an attribute, the stream with the key
-        // it printed.
+        // row differently: Obsidian with an attribute, and the stream with the
+        // key it wrote.
         const iconsByKey = (root: Locator, keyFrom: "attribute" | "text") =>
             root.evaluate(
                 (el, mode) =>
@@ -1390,8 +1447,8 @@ test.describe("daily notes stream in real Obsidian", () => {
         const stream = await iconsByKey(block, "text");
 
         expect(stream).toEqual(native);
-        // A guard on the comparison itself: identical icons everywhere would
-        // satisfy it while proving nothing about the types.
+        // A check on the comparison itself: the same icon everywhere would pass
+        // it without proving anything about the types.
         expect(new Set(Object.values(stream).map(String)).size).toBeGreaterThan(1);
     });
 
@@ -1419,7 +1476,8 @@ test.describe("daily notes stream in real Obsidian", () => {
             .first()
             .click({ modifiers: ["ControlOrMeta"] });
 
-        // A tab of the main area, not the sidebar pane a plain click opens.
+        // A tab in the main area, not the sidebar pane that a plain click
+        // opens.
         const search = page.locator(".workspace-split.mod-root .workspace-leaf-content[data-type='search']");
         await expect(search).toBeVisible();
         await expect(search.locator('input[type="search"]')).toHaveValue("tag:#running");
@@ -1453,9 +1511,9 @@ test.describe("daily notes stream in real Obsidian", () => {
             await plugin.saveSettings();
         });
 
-        // Only what the tag styling decides. A pill's own box is not
-        // comparable: its width follows its word, and Obsidian's editable one
-        // is padded out by a remove button the read-only stream never draws.
+        // Only what the tag styles decide. A pill's own box cannot be compared:
+        // its width depends on its word, and Obsidian's editable pill is made
+        // wider by a remove button that the read-only stream never draws.
         const measure = (root: Element) => {
             const pill = root.querySelector('.metadata-property-value[data-property-type="tags"] .multi-select-pill')!;
             const content = pill.querySelector(".multi-select-pill-content")!;
@@ -1485,9 +1543,9 @@ test.describe("daily notes stream in real Obsidian", () => {
         const stream = await container.evaluate(measure);
 
         expect(stream).toEqual(native);
-        // A pill, not a rectangle: the radius rounds its ends fully, and the
-        // word sits evenly inside it. Obsidian's trailing space is the remove
-        // button's margin, so a read-only pill has to supply its own.
+        // A pill, not a rectangle: its ends are fully rounded, and the word is
+        // evenly inside it. Obsidian's space at the end is the remove button's
+        // margin, so a read-only pill must add its own.
         const pill = await container
             .locator(".multi-select-pill")
             .first()
@@ -1552,7 +1610,7 @@ test.describe("daily notes stream in real Obsidian", () => {
             "text-decoration-line",
             "line-through"
         );
-        // It names no tag, so it offers no search.
+        // It names no tag, so it does not start a search.
         await expect(block.locator(".multi-select-pill.is-invalid").first()).toHaveCSS("cursor", "default");
 
         await page.evaluate(async () => {
@@ -1611,9 +1669,9 @@ test.describe("daily notes stream in real Obsidian", () => {
         }
         await expect(panel.locator(".metadata-property").first()).toBeVisible();
 
-        // Where the glyphs land, not where their boxes do: the key fills the
-        // row's height, so its box was centered while the word inside it sat
-        // against the top — a phone's taller row especially.
+        // Where the letters are, not where their boxes are. The key fills the
+        // row's height, so its box was centered while the word inside it was at
+        // the top, especially in a phone's taller row.
         const centers = await panel
             .locator(".metadata-property")
             .first()
@@ -1675,14 +1733,14 @@ test.describe("daily notes stream in real Obsidian", () => {
         await heading.click();
         await expect(panel).toHaveClass(/is-collapsed/);
 
-        // Hiding the rows alone left the box that holds them — padded and, on
-        // mobile, filled — standing under the heading.
+        // Hiding only the rows left the box that holds them, with its padding
+        // and, on mobile, its background, under the heading.
         await expect(block.locator(".metadata-content")).toBeHidden();
         const [panelBox, headingBox] = await Promise.all([panel.boundingBox(), heading.boundingBox()]);
         expect(panelBox!.y + panelBox!.height).toBeLessThanOrEqual(headingBox!.y + headingBox!.height + 1);
 
-        // Only what is under the heading goes: the heading itself must not
-        // jump, or collapsing twice reads as the panel twitching.
+        // Only what is under the heading is hidden. The heading itself must not
+        // jump, or folding twice looks like the panel twitching.
         expect(Math.abs(headingBox!.y - expandedTop)).toBeLessThanOrEqual(1);
     });
 
@@ -1697,8 +1755,9 @@ test.describe("daily notes stream in real Obsidian", () => {
         const heading = container.locator(".metadata-properties-heading").first();
         await heading.click();
 
-        // Obsidian rings this heading on :focus; the stream is read-only, so a
-        // click on it must collapse the panel and leave nothing behind.
+        // Obsidian draws a ring around this heading on :focus. The stream is
+        // read-only, so a click on it must fold the panel and leave no ring
+        // behind.
         await expect(heading).not.toBeFocused();
         expect(await heading.evaluate((el) => getComputedStyle(el, "::before").boxShadow)).toBe("none");
     });
@@ -1712,17 +1771,17 @@ test.describe("daily notes stream in real Obsidian", () => {
         });
         const container = await openStream(page);
         const panel = container.locator(".metadata-container").first();
-        // Collapse state persists per note, and an earlier test may have left
-        // this panel closed; its icons are then not there to measure.
+        // Fold state is saved for each note, and an earlier test may have left
+        // this panel closed. Then its icons are not there to measure.
         if (await panel.evaluate((el) => el.classList.contains("is-collapsed"))) {
             await panel.locator(".metadata-properties-heading").click();
         }
         const icon = panel.locator(".metadata-property-icon").first();
         await expect(icon).toBeVisible();
 
-        // Obsidian's mobile stylesheet styles this icon as a button: in its own
-        // properties editor it opens a menu. The stream is read-only, so the
-        // cursor must not promise an interaction that cannot happen.
+        // Obsidian's mobile stylesheet styles this icon as a button, because in
+        // its own properties editor it opens a menu. The stream is read-only,
+        // so the cursor must not suggest something that cannot happen.
         await expect(icon).toHaveCSS("cursor", "default");
     });
 });

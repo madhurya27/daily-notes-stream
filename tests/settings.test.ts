@@ -14,7 +14,7 @@ function makeTab(plugin: ReturnType<typeof makePlugin>) {
     return new DailyNotesStreamSettingTab(asApp({}), fake<DailyNotesStreamPlugin>(plugin));
 }
 
-/** The definitions' shape here: toggles, and groups of them. */
+/** The definitions' shape here: switches, and groups of them. */
 type Toggle = { name: string; desc: string; visible?: () => boolean; control: { type: string; key: string } };
 type Group = { type: "group"; heading: string; items: Toggle[] };
 
@@ -22,14 +22,17 @@ function definitionsOf(tab: DailyNotesStreamSettingTab) {
     return tab.getSettingDefinitions() as (Toggle | Group)[];
 }
 
-/** Each toggle by name and key, a group's under its heading in brackets. */
+/**
+ * Each switch by name and key. A group's switches are under its heading, in
+ * brackets.
+ */
 function outline(items: (Toggle | Group)[]): unknown[] {
     return items.map((item) =>
         "type" in item ? { [`[${item.heading}]`]: outline(item.items) } : `${item.name} (${item.control.key})`
     );
 }
 
-/** Every toggle, groups opened, top to bottom. */
+/** Every switch, including those inside groups, from top to bottom. */
 function toggles(items: (Toggle | Group)[]): Toggle[] {
     return items.flatMap((item) => ("type" in item ? item.items : [item]));
 }

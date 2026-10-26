@@ -1,11 +1,12 @@
-// Draws each touch the harness sent onto the iPhone frames that show it: a
-// disc under the finger, gliding along a stroke, held a moment after the lift
-// and then faded. iOS draws none, and the page sees too few touches to draw
-// its own: a touch that catches a glide stays with iOS.
+// Draws each touch the tests sent onto the iPhone frames that show it: a circle
+// under the finger, which moves along a stroke, stays for a moment after the
+// finger lifts, and then fades. iOS draws none, and the page sees too few
+// touches to draw its own, because a touch that catches a scroll stays with
+// iOS.
 //
 //   swift -O scripts/draw-touches.swift <frames dir> <touches.json> <screen width in points> <shift ms>
 //
-// Frames are PNGs named by the Unix ms they arrived; each touch is
+// Frames are PNGs named by the Unix ms when they arrived. Each touch is
 // `{ from: {x, y}, to: {x, y}, start, ms }`, in points and Unix ms. `shift`
 // moves every touch later, by how long a frame takes to arrive.
 import CoreGraphics
@@ -28,12 +29,15 @@ guard arguments.count == 5, let points = Double(arguments[3]), let shift = Doubl
 let directory = URL(fileURLWithPath: arguments[1])
 let touches = try JSONDecoder().decode([Touch].self, from: Data(contentsOf: URL(fileURLWithPath: arguments[2])))
 
-/** Shown this long after the lift, then faded: a tap is a glimpse otherwise. */
+/**
+ * Shown for this long after the finger lifts, then faded. Otherwise a tap would
+ * only show for a moment.
+ */
 let linger = 100.0
 let fade = 150.0
 let radius = 22.0
 
-/** Where a touch's disc is at `time`, and how opaque, if it shows. */
+/** Where a touch's circle is at `time`, and how opaque it is, if it shows. */
 func disc(_ touch: Touch, at time: Double) -> (x: Double, y: Double, alpha: Double)? {
     let start = touch.start + shift
     let lift = start + touch.ms
@@ -63,7 +67,7 @@ for name in try FileManager.default.contentsOfDirectory(atPath: directory.path) 
     let scale = Double(frame.width) / points
     for (x, y, alpha) in shown {
         let size = radius * 2 * scale
-        // Core Graphics counts y up from the bottom.
+        // Core Graphics counts y upwards from the bottom.
         let box = CGRect(x: x * scale - size / 2, y: height - y * scale - size / 2, width: size, height: size)
         context.setFillColor(CGColor(gray: 0.47, alpha: 0.35 * alpha))
         context.fillEllipse(in: box)

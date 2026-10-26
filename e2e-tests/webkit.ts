@@ -2,20 +2,29 @@ import { devices, webkit, type Browser, type Page } from "@playwright/test";
 import { test as obsidianTest, LAYOUT_VIEWPORT } from "./obsidian";
 
 /**
- * iOS runs the plugin in WebKit; Obsidian on the desktop is Chromium. Where the
- * engines disagree — CSS parsing, painting — a snapshot of the real app is
- * rendered again in WebKit (ADR 0009).
+ * iOS runs the plugin in WebKit, while Obsidian on desktop is Chromium. Where
+ * the two browser engines differ, in reading CSS or drawing, a copy of the real
+ * app's page is drawn again in WebKit (ADR 0009).
  */
 
-/** Tags the elements a snapshot addresses, since its markup carries no ranges or scroll offsets. */
+/**
+ * Marks the elements a copy of the page refers to, because its markup has no
+ * ranges or scroll positions.
+ */
 const MARK = "data-webkit-node";
 
-/** A range endpoint: a text node by its parent and index, or an element and child offset. */
+/**
+ * One end of a range: a text node, by its parent and index, or an element and a
+ * child offset.
+ */
 interface Point {
     el: string;
     child: number | null;
     offset: number;
-    /** The text node's data, checked on arrival: the reparse may have moved it. */
+    /**
+     * The text node's data, checked when it arrives, because reading the markup
+     * again may have moved it.
+     */
     text?: string;
 }
 
@@ -25,7 +34,10 @@ interface Snapshot {
     scrolls: { el: string; top: number; left: number }[];
 }
 
-/** Runs in Obsidian: the page as markup, its stylesheets inline, with what markup cannot hold. */
+/**
+ * Runs in Obsidian: the page as markup, with its stylesheets inline, and what
+ * markup cannot hold.
+ */
 async function capture(page: Page): Promise<Snapshot> {
     return page.evaluate(async (mark) => {
         let next = 0;
@@ -54,8 +66,9 @@ async function capture(page: Page): Promise<Snapshot> {
         const clone = document.documentElement.cloneNode(true) as HTMLElement;
         for (const el of document.querySelectorAll(`[${mark}]`)) el.removeAttribute(mark);
 
-        // As text, in place: the app:// URLs mean nothing to another browser,
-        // and the CSSOM would rewrite -webkit- properties to Chromium's names.
+        // As text, in place, because the app:// URLs mean nothing to another
+        // browser, and the CSSOM would change -webkit- properties to Chromium's
+        // names.
         const links = [...document.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"]')];
         const cloneLinks = [...clone.querySelectorAll('link[rel="stylesheet"]')];
         for (const [i, link] of links.entries()) {
@@ -68,7 +81,7 @@ async function capture(page: Page): Promise<Snapshot> {
     }, MARK);
 }
 
-/** Runs in WebKit: puts back what the markup could not carry. */
+/** Runs in WebKit: puts back what the markup could not hold. */
 async function restore(page: Page, snapshot: Snapshot): Promise<void> {
     await page.evaluate(
         ({ mark, highlights, scrolls }) => {
@@ -97,7 +110,10 @@ async function restore(page: Page, snapshot: Snapshot): Promise<void> {
     );
 }
 
-/** An iPhone's density, touch and user agent, at the size the mobile project lays Obsidian out at. */
+/**
+ * An iPhone's pixel density, touch and user agent, at the size the mobile
+ * project lays out Obsidian at.
+ */
 const { defaultBrowserType: _, ...IPHONE } = devices["iPhone 17"];
 
 export const test = obsidianTest.extend<{ inWebKit: () => Promise<Page> }, { webkitBrowser: Browser }>({
@@ -109,7 +125,7 @@ export const test = obsidianTest.extend<{ inWebKit: () => Promise<Page> }, { web
         },
         { scope: "worker" },
     ],
-    /** Renders Obsidian's page as it stands, in WebKit. */
+    /** Draws Obsidian's page as it is now, in WebKit. */
     inWebKit: async ({ obsidian, webkitBrowser }, use) => {
         const context = await webkitBrowser.newContext({ ...IPHONE, viewport: LAYOUT_VIEWPORT.mobile });
         await use(async () => {

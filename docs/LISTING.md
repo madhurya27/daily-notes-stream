@@ -1,12 +1,12 @@
 # Listing
 
 The descriptions on the plugin's page in the
-[Obsidian plugin directory](https://community.obsidian.md/plugins/daily-notes-stream),
-pasted there by hand (D-165). Git history shows how they changed.
+[Obsidian plugin directory](https://community.obsidian.md/plugins/daily-notes-stream).
+They are pasted there by hand (D-165). Git history shows how they changed.
 
-The short one is also the manifest's, which the linter holds to more: no
-"obsidian" or "plugin" in any case, and no characters but letters, digits,
-spaces and `. , ! ? ' " -`.
+The short description is also the one in the manifest, where the linter has
+stricter rules: it may not contain "obsidian" or "plugin" in any case, and only
+letters, digits, spaces and `. , ! ? ' " -` are allowed.
 
 ## Short description
 

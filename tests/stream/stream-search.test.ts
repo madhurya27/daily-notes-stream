@@ -30,7 +30,7 @@ describe("StreamSearch", () => {
         CSS.highlights.clear();
         notes = SOURCES.map(([path]) => new TFile(path));
         highlighter = new SearchHighlighter();
-        // Every note rendered, as a short stream near the viewport would be.
+        // Every note is drawn, as in a short stream near the screen.
         blocks = new Map(
             notes.map((file, i) => {
                 const block = document.createElement("div");
@@ -95,8 +95,9 @@ describe("StreamSearch", () => {
         expect(status).toBe("");
     });
 
-    // Obsidian's own bar selects a match as you type; the stream does so only
-    // where the reader already is, so a half-typed word never scrolls away.
+    // Obsidian's own search bar selects a match as you type. The stream only
+    // does so where the reader already is, so a half-typed word never scrolls
+    // away.
     it("marks the topmost match already on screen, moving nothing", async () => {
         const inNote = (i: number) => (range: Range) => blocks.get(notes[i]!)!.contains(range.startContainer);
         onScreen = (range) => inNote(2)(range) || (inNote(0)(range) && range.startOffset === 14);
@@ -190,7 +191,8 @@ describe("StreamSearch", () => {
         expect(status).toBe("2 / 3");
     });
 
-    // Not the element holding it: a code block taller than the pane centers off it.
+    // Not the element holding it: centering a code block taller than the pane
+    // would move the match off screen.
     it("centers the current highlight itself in the pane", async () => {
         await search.search("milk");
 
@@ -271,7 +273,8 @@ describe("StreamSearch", () => {
     });
 
     it("reads what the reader can see off the layout", async () => {
-        // jsdom has no Range layout; Chromium gives a hidden range no boxes.
+        // jsdom has no layout for ranges. Chromium gives a hidden range no
+        // boxes.
         const boxes = vi.fn(function (this: Range) {
             return this.startOffset === 0 ? [] : [{}];
         });
@@ -312,7 +315,7 @@ describe("StreamSearch", () => {
         expect(status).toBe("2 / 3 · hidden");
     });
 
-    // Drawn again since, as a save redraws it, its matches are in sight.
+    // Drawn again since, as after a save, so its matches can be seen.
     it("steps into a hidden note's first match once it shows", async () => {
         shown = () => false;
         await search.search("milk");

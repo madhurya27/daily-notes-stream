@@ -17,9 +17,9 @@ const title = (page: Page) =>
     page.locator('.workspace-leaf-content[data-type="daily-notes-stream-view"] .view-header-title');
 
 /**
- * Jumps to the oldest note, so the notes between it and the top are
- * placeholders never rendered: each outgrows its estimate as the scroll back
- * up passes it.
+ * Jumps to the oldest note, so the notes between it and the top are empty
+ * blocks that were never drawn. Each one grows taller than its estimate as the
+ * scroll back up passes it.
  */
 async function scrollToOldest(page: Page, container: Locator) {
     await page.locator('.view-action[aria-label="Jump to date"]').click();
@@ -27,7 +27,8 @@ async function scrollToOldest(page: Page, container: Locator) {
     await page.locator(".prompt .suggestion-item").first().click();
     await expect(page.locator(".prompt")).toBeHidden();
     await expect.poll(() => pane(container).evaluate((el) => el.scrollTop)).toBeGreaterThan(1000);
-    // Once still, the notes above are re-reserved and the anchor moves the scroll with them (ADR 0014).
+    // Once scrolling stops, the notes above get new heights, and the anchor
+    // moves the scroll with them (ADR 0014).
     let last = NaN;
     await expect
         .poll(
@@ -42,7 +43,7 @@ async function scrollToOldest(page: Page, container: Locator) {
         .toBe(true);
 }
 
-/** How far the newest note sits below the pane's top. */
+/** How far the newest note is below the pane's top. */
 const newestOffset = (container: Locator) =>
     container
         .locator(".daily-note-block")
@@ -80,10 +81,13 @@ test.describe("tapping the header title", () => {
             await page.keyboard.press("Escape");
         });
 
-        // iOS WebKit has no scroll anchoring: the stream holds the reader's
-        // place itself, and must not hold it short of the top here.
+        // iOS's WebKit does not keep the scroll position, so the stream keeps
+        // the reader's place itself, and must not stop before the top here.
         test.describe("where the platform has no scroll anchoring", () => {
-            /** Notes between the top and the oldest, tall enough to outgrow their placeholders. */
+            /**
+             * Notes between the top and the oldest, tall enough to grow taller
+             * than their empty blocks.
+             */
             const TALL = [3, 4, 5, 6, 7, 8, 9].map((days) => `Notes/${seededDate(days)}.md`);
             let originals: string[] = [];
 
@@ -103,7 +107,7 @@ test.describe("tapping the header title", () => {
             });
 
             test.afterEach(async ({ obsidian }) => {
-                // Nothing to restore when the test was skipped.
+                // Nothing to restore if the test was skipped.
                 if (originals.length === 0) return;
                 await restoreScrollAnchoring(obsidian.page);
                 await obsidian.page.evaluate(
@@ -125,30 +129,34 @@ test.describe("tapping the header title", () => {
 
                 await title(page).click();
 
-                // Still there once the anchor's hand-over, due when the scroll is still, has landed.
+                // Still there after the anchor has moved the shift into the
+                // scroll, which happens when scrolling stops.
                 await expect.poll(() => pane(container).evaluate((el) => el.scrollTop)).toBe(0);
                 await page.waitForTimeout(500);
                 expect(await pane(container).evaluate((el) => el.scrollTop)).toBe(0);
                 expect(await newestOffset(container)).toBeGreaterThanOrEqual(0);
             });
 
-            // Each note between the oldest and the top reserves what it last
-            // measured (ADR 0010), so nothing is owed that the glide cannot reach.
+            // Each note between the oldest and the top gets the height it last
+            // measured (ADR 0010), so nothing is owed that the scroll cannot
+            // reach.
             test("lets a scroll up by hand from a jump reach the newest note", async ({ obsidian }) => {
                 const { page } = obsidian;
                 await scrollThroughStream(await openStream(page));
                 const container = await openStream(page);
                 await scrollToOldest(page, container);
 
-                // By hand: the wheel, until the pane is at its top. The tall notes run to ~12,000px each.
+                // By hand, with the wheel, until the pane is at its top. The
+                // tall notes are about 12,000px each.
                 await container.hover();
                 while ((await pane(container).evaluate((el) => el.scrollTop)) > 0) {
                     await page.mouse.wheel(0, -2000);
                     await page.waitForTimeout(30);
                 }
 
-                // Still there once the anchor's hand-over, due when the scroll is still, has landed.
-                // Heights are remembered as laid out, so nothing is owed for them (D-105).
+                // Still there after the anchor has moved the shift into the
+                // scroll, which happens when scrolling stops. Heights are
+                // remembered as laid out, so nothing is owed for them (D-105).
                 await page.waitForTimeout(500);
                 expect(await pane(container).evaluate((el) => el.scrollTop)).toBe(0);
                 expect(await newestOffset(container)).toBeGreaterThanOrEqual(0);

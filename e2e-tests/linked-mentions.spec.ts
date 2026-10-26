@@ -4,8 +4,8 @@ import { test, expect, openStream, seededDate, today, STREAM, unloadFar } from "
 const NEWEST = seededDate(0);
 
 /**
- * Notes linking to the newest daily note. Agenda exists twice, so `[[Agenda]]`
- * resolves to the one beside whichever note it is written in.
+ * Notes that link to the newest daily note. There are two Agenda notes, so
+ * `[[Agenda]]` goes to the one next to whichever note it is written in.
  */
 const SOURCES: Record<string, string> = {
     "Ideas/Agenda.md": "# Ideas agenda\n",
@@ -24,7 +24,7 @@ const SOURCES: Record<string, string> = {
     "Trip.md": `---\nday: "[[${NEWEST}]]"\n---\n\nPacked.\n`,
 };
 
-/** Paths the cache reports linking to `target`. */
+/** The paths the cache says link to `target`. */
 function linkingTo(page: Page, target: string): Promise<string[]> {
     return page.evaluate(
         (path) =>
@@ -95,7 +95,8 @@ test.describe("linked mentions", () => {
         await expect(footer.locator('[data-link-source="Trip.md"] .daily-note-mention-excerpt')).toHaveText(/^day: /);
     });
 
-    // The note's own bottom border is the stream's one divider; a second line above the footer read as a note ending.
+    // The note's own bottom border is the stream's only divider. A second line
+    // above the footer looked like the end of a note.
     test("draws no line of its own, leaving the note's end the only one", async ({ obsidian }) => {
         const footer = await footerOfNewest(obsidian.page);
 
@@ -167,12 +168,14 @@ test.describe("linked mentions", () => {
         await expect(reopened.locator(".daily-note-mention")).toHaveCount(2);
     });
 
-    // Nothing in the stream may scroll on a phone (ADR 0008), a quoted table included.
+    // Nothing in the stream may scroll on a phone (ADR 0008), including a
+    // quoted table.
     test("makes nothing in the footer a scroll box on a phone", async ({ obsidian, mobileLayout }) => {
         test.skip(!mobileLayout, "desktop keeps Obsidian's scroll bars");
         const footer = await footerOfNewest(obsidian.page);
         await expect(footer.locator("table")).toBeVisible();
-        // Obsidian makes a lone table's parent scroll; the guard clips it once the scroll is still.
+        // Obsidian makes the parent of a table on its own scroll. The guard
+        // cuts it off once scrolling stops.
         await expect
             .poll(() =>
                 footer.evaluate((root) =>
@@ -188,8 +191,9 @@ test.describe("linked mentions", () => {
             .toEqual([]);
     });
 
-    // The footer reads its sources after the note draws. A note scrolled back to
-    // must not settle short in between: the text below it would jump on iOS.
+    // The footer reads the linking notes after the note draws. A note that the
+    // reader scrolls back to must not end up too short in between, or the text
+    // below it would jump on iOS.
     test("holds a note coming back into view at its height while its mentions are read", async ({ obsidian }) => {
         const { page } = obsidian;
         await footerOfNewest(page);
@@ -215,7 +219,8 @@ test.describe("linked mentions", () => {
         }
         await unloadFar(newest);
 
-        // Reads of the linking notes now outlast the settle wait, as a slow disk's would.
+        // Reading the linking notes now takes longer than the wait for the note
+        // to stop changing, as on a slow disk.
         const heights = await page.evaluate(async () => {
             const vault = window.app.vault;
             const read = vault.cachedRead.bind(vault);
@@ -240,7 +245,8 @@ test.describe("linked mentions", () => {
     });
 });
 
-// Core creates today's note as the vault opens, after the day's links to it are written.
+// The core plugin creates today's note when the vault opens, after the links to
+// that day are written.
 test("lists the notes linking to a note written before it was", async ({ obsidian }) => {
     const { page } = obsidian;
     const date = await today(page);

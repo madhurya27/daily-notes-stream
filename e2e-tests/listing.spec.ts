@@ -5,17 +5,21 @@ import { test, expect, openStream } from "./obsidian";
 import { prepareDemo, showLightTheme } from "./demo";
 
 /**
- * Captures the community directory listing's raw screenshots, each on desktop
- * and phone: the stream's pane on desktop, the whole screen on a phone. `scripts/listing-cards.mjs` lays
- * them out as the cards uploaded by hand under Edit listing, so they go to
- * .dev/, not docs/. Opt-in, through `pnpm run capture:listing`.
+ * Takes the raw screenshots for the plugin directory, each on desktop and
+ * phone: the stream's pane on desktop, and the whole screen on a phone.
+ * `scripts/listing-cards.mjs` lays them out as the images uploaded by hand
+ * under Edit listing, so they go to .dev/, not docs/. Only runs when asked,
+ * through `pnpm run capture:listing`.
  */
 
 const OUT = resolve(import.meta.dirname, "..", ".dev", "listing", "raw");
-/** Sized so the pane shows on its card at about its own size. */
+/** Sized so the pane shows in its image at about its own size. */
 const WINDOW = { width: 904, height: 640 };
 
-/** Scrolls the stream so the note at `path` starts `fraction` of the way down the window. */
+/**
+ * Scrolls the stream so the note at `path` starts `fraction` of the way down
+ * the window.
+ */
 async function placeNote(page: Page, path: string, fraction: number): Promise<void> {
     const block = page.locator(`.daily-notes-stream-container [data-source-path="${path}"]`);
     await block.scrollIntoViewIfNeeded();
@@ -25,7 +29,9 @@ async function placeNote(page: Page, path: string, fraction: number): Promise<vo
     }, fraction);
 }
 
-/** The window without the status bar, which shows the throwaway vault's sync state. */
+/**
+ * The window without the status bar, which shows the test vault's sync state.
+ */
 async function dressWindow(page: Page): Promise<void> {
     await page.evaluate(
         async ({ width, height }) => window.electron.remote.getCurrentWindow().setContentSize(width, height),
@@ -37,7 +43,10 @@ async function dressWindow(page: Page): Promise<void> {
     });
 }
 
-/** On desktop the stream's pane, its tab bar included; on a phone the whole screen. */
+/**
+ * On desktop, the stream's pane, including its tab bar. On a phone, the whole
+ * screen.
+ */
 async function capture(page: Page, name: string, testInfo: TestInfo): Promise<void> {
     await page.waitForTimeout(1000);
     const layout = testInfo.project.name === "mobile" ? "phone" : "desktop";
@@ -76,8 +85,10 @@ test.describe("listing screenshots", () => {
         await page.locator('.view-action[aria-label="Search"]').click();
         const bar = page.locator(".daily-notes-search");
         await bar.locator("input").fill("Mara");
-        // Typing marks a match it finds on screen without scrolling (D-022), even one under a phone's bottom bar.
-        // Enter steps to the next and centers it: the first match, or the second if typing marked the first.
+        // Typing marks a match it finds on screen without scrolling (D-022),
+        // even one under a phone's bottom bar. Enter moves to the next match
+        // and centers it: the first match, or the second if typing marked the
+        // first.
         const count = bar.locator(".document-search-count");
         await expect(count).toHaveText(/^(\d+ notes|1 \/ \d+)$/);
         const typed = await count.textContent();
@@ -104,7 +115,7 @@ test.describe("listing screenshots", () => {
         const sunday = container.locator('[data-source-path="Notes/2026-09-20.md"]');
         await sunday.scrollIntoViewIfNeeded();
         await sunday.locator("h3", { hasText: "Reading" }).evaluate((heading) => heading.scrollIntoView());
-        // A table on desktop, cards on a phone.
+        // A table on desktop, and cards on a phone.
         await expect(sunday.locator(".bases-thead, .bases-cards-item").first()).toBeVisible();
         await capture(page, "bases", testInfo);
     });

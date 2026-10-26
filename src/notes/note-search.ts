@@ -1,14 +1,18 @@
 import type { TFile } from "obsidian";
 
-/** The query as typed, case-insensitive; null when blank, which matches nothing. */
+/**
+ * The query as typed, ignoring case. Null if it is blank, which matches
+ * nothing.
+ */
 export function searchPattern(query: string): RegExp | null {
     if (query.trim() === "") return null;
     return new RegExp(query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi");
 }
 
 /**
- * The notes whose title or source hold `query`, in the order given. Source,
- * not rendered text: an unloaded note has none (ADR 0006).
+ * The notes whose title or text contains `query`, in the order given. It
+ * searches the note's Markdown, not the drawn text, because an emptied note has
+ * no drawn text (ADR 0006).
  */
 export async function findNotes(
     notes: readonly TFile[],

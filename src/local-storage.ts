@@ -1,7 +1,7 @@
 /**
- * A saver for one store: localStorage is a few megabytes, shared by every
- * vault in the app, so a save can be refused. The first refusal is logged;
- * every change after it is refused too.
+ * A save function for one store. localStorage holds only a few megabytes,
+ * shared by every vault in the app, so a save can be refused. The first refusal
+ * is logged; every save after it is refused too.
  */
 export function saveLoggingOnce(what: string): (save: () => void) => void {
     let failed = false;

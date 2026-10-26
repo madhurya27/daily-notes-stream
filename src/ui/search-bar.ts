@@ -1,9 +1,9 @@
 import { Component, debounce, setIcon } from "obsidian";
 
-/** Long enough that a word typed at speed searches once. */
+/** Long enough that a word typed quickly is only searched once. */
 export const SEARCH_DEBOUNCE_MS = 250;
 
-/** An icon control, named for screen readers and tooltips. */
+/** An icon button, with a name for screen readers and tooltips. */
 function labeled(el: HTMLElement, icon: string, label: string): HTMLElement {
     setIcon(el, icon);
     el.setAttribute("aria-label", label);
@@ -18,9 +18,9 @@ export interface SearchBarActions {
 }
 
 /**
- * The find bar, in the markup of Obsidian's own so its stylesheet draws it.
- * Enter steps forward, Shift+Enter back, Escape closes; the query is kept
- * across a close, as Obsidian's is.
+ * The search bar, with the same markup as Obsidian's own, so Obsidian's
+ * stylesheet draws it. Enter goes forward, Shift+Enter goes back, and Escape
+ * closes it. The query is kept after it closes, as Obsidian's is.
  */
 export class SearchBar {
     readonly el: HTMLElement;
@@ -60,7 +60,7 @@ export class SearchBar {
         return !this.el.hasClass("is-closed");
     }
 
-    /** Shows the bar with its query selected, and searches it again. */
+    /** Shows the bar with its query selected, and searches for it again. */
     open(): void {
         this.el.removeClass("is-closed");
         this.inputEl.focus();

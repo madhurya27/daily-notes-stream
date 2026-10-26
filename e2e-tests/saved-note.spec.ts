@@ -1,20 +1,20 @@
 import { test, expect, openStream, restoreNote, seededDate, todayNote, writeNote } from "./obsidian";
 
 /**
- * A note re-renders only the sections a save changed (ADR 0019): what it draws
- * must be what a whole render of the saved note draws.
+ * A note only draws again the sections a save changed (ADR 0019). What it draws
+ * must be the same as drawing the whole saved note.
  */
 /**
- * Today's renders by section from the start; an older note renders as runs of
- * sections (ADR 0020), then by section from its first save, so its fresh
- * render is in runs.
+ * Today's note is drawn by section from the start. An older note is drawn in
+ * groups of sections (ADR 0020), then by section after its first save, so its
+ * first render is in groups.
  */
 const NOTES = [
     ["today's", todayNote],
     ["an older", async () => `Notes/${seededDate(0)}.md`],
 ] as const;
 
-/** One day of a journal kept in one note, `n` telling the days apart. */
+/** One day of a journal kept in one note, with `n` to tell the days apart. */
 function day(n: number): string {
     return [
         `## Day ${n}`,
@@ -89,10 +89,11 @@ for (const [which, pathOf] of NOTES) {
             await expect(content(page)).not.toContainText("entry 35");
             await expect(content(page).locator("h2").first()).toHaveAttribute("data-kept", "");
 
-            // What differs only in markup: a whole render leaves a line break
-            // between blocks, Obsidian marks a table's cells with their
-            // direction when the table is all it renders, as a section alone is,
-            // and which runs are hidden when far depends on when it is read (ADR 0021).
+            // Differences in markup only: drawing the whole note leaves a line
+            // break between blocks; Obsidian marks a table's cells with their
+            // direction when the table is the only thing it draws, as in a
+            // section on its own; and which runs are hidden when far away
+            // depends on when it is read (ADR 0021).
             const drawn = () =>
                 content(page).evaluate((el) => {
                     const copy = el.cloneNode(true) as HTMLElement;
@@ -107,7 +108,8 @@ for (const [which, pathOf] of NOTES) {
                     return copy.innerHTML.replace(/(<t[hd]) dir="(?:ltr|rtl)"/g, "$1");
                 });
             await content(page).evaluate((el) => el.querySelector("[data-kept]")!.removeAttribute("data-kept"));
-            // On mobile, stray scroll boxes are clipped once the stream is still.
+            // On mobile, any scrolling boxes are cut off once the stream stops
+            // scrolling.
             let inPlace = "";
             await expect
                 .poll(async () => {
@@ -119,7 +121,7 @@ for (const [which, pathOf] of NOTES) {
                 .toBe(true);
             await openStream(page);
             await expect(content(page)).toContainText("A paragraph of its own.");
-            // Code blocks and links finish drawing after the note's render.
+            // Code blocks and links finish drawing after the note itself.
             await expect.poll(drawn).toBe(inPlace);
         });
 

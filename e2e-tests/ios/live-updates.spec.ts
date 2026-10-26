@@ -19,7 +19,7 @@ test("a note on screen edited elsewhere re-renders in place", async ({ phone }) 
     const before = await phone.runAsync(async (path: string) => window.app.vault.adapter.read(path), SHORT_NOTE);
 
     try {
-        // One line still, so the note keeps its height.
+        // Still one line, so the note keeps its height.
         await rewrite(phone, "A short day, one paragraph edited.\n");
 
         await expect

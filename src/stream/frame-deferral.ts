@@ -1,19 +1,25 @@
 import { debounce } from "obsidian";
 import { SCROLL_IDLE_MS } from "./scroll-anchor";
 
-/** What shows in a frame's place for good, such as a video's thumbnail; null keeps the frame. */
+/**
+ * What permanently replaces a frame, such as a video's thumbnail. Null keeps
+ * the frame.
+ */
 export type FrameStandIn = (frame: HTMLIFrameElement, src: string) => HTMLElement | null;
-/** What a kept frame is put in, such as a link to its page; null leaves it where it is. */
+/**
+ * What a kept frame is wrapped in, such as a link to its page. Null leaves it
+ * as it is.
+ */
 export type FrameWrapper = (frame: HTMLIFrameElement, src: string) => HTMLElement | null;
 
 /**
- * Loads a frame's page only once the scroll is still (D-087): on iOS, a frame
- * starting its page as a note renders mid-glide ends the glide. A frame with a
- * stand-in never starts it.
+ * Loads a frame's page only once scrolling stops (D-087). On iOS, if a frame
+ * starts loading its page while a note is drawn during scrolling, the scrolling
+ * stops. A frame that is replaced never loads its page.
  */
 export class FrameDeferral {
     private observer: MutationObserver | null = null;
-    /** Each frame held back, with the page it was given. */
+    /** Each frame that was held back, with the page it was given. */
     private readonly held = new Map<HTMLIFrameElement, string>();
     private readonly loadOnceStill = debounce(() => this.load(), SCROLL_IDLE_MS, true);
 
@@ -24,7 +30,8 @@ export class FrameDeferral {
 
     attach(container: HTMLElement): void {
         this.detach();
-        // Reported before the frame's page can start: a microtask after the insert.
+        // This is reported before the frame's page can start loading: one
+        // microtask after the frame is inserted.
         this.observer = new MutationObserver((records) => this.onMutations(records));
         this.observer.observe(container, { childList: true, subtree: true });
     }
@@ -33,11 +40,11 @@ export class FrameDeferral {
         this.observer?.disconnect();
         this.observer = null;
         this.loadOnceStill.cancel();
-        // Stryker disable next-line CallExpression: frees memory only; attached once, it is detached as the stream closes.
+        // Stryker disable next-line CallExpression: only frees memory; it is attached once, and detached when the stream closes.
         this.held.clear();
     }
 
-    /** Postpones the load until the scroll stops. */
+    /** Delays loading until scrolling stops. */
     onScroll(): void {
         if (this.held.size > 0) this.loadOnceStill();
     }
@@ -64,7 +71,8 @@ export class FrameDeferral {
         this.held.set(frame, src);
         frame.removeAttribute("src");
         frame.addClass("is-frame-held");
-        // Moved with no page: the move reports it again, and it is passed over.
+        // A frame moved without a page is reported again by the move, and
+        // skipped.
         const wrapper = this.wrapper(frame, src);
         if (wrapper) {
             frame.replaceWith(wrapper);

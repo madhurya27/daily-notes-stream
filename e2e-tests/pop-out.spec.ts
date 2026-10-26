@@ -2,12 +2,14 @@ import type { Page } from "@playwright/test";
 import { test, expect, openStream, SEEDED_DAYS, STREAM } from "./obsidian";
 
 /**
- * A pop-out window is a page of its own, with its own document, timers and
+ * A pop-out window is a separate page, with its own document, timers and
  * element types, while the plugin's code runs in the main window. Each test
- * moves the stream into one and drives it there.
+ * moves the stream into one and uses it there.
  */
 
-/** Moves a fresh stream into a new pop-out window and returns that window's page. */
+/**
+ * Moves a new stream into a new pop-out window, and returns that window's page.
+ */
 async function openInPopOut(page: Page): Promise<Page> {
     await openStream(page);
     const opened = page.context().waitForEvent("page");
@@ -20,7 +22,9 @@ async function openInPopOut(page: Page): Promise<Page> {
     return popOut;
 }
 
-/** Every uncaught error and logged error, in the main window and the pop-out. */
+/**
+ * Every uncaught error and logged error, in the main window and the pop-out.
+ */
 function errorsIn(...pages: Page[]): string[] {
     const errors: string[] = [];
     for (const page of pages) {
@@ -84,7 +88,8 @@ test.describe("the stream in a pop-out window", () => {
         await expect(input).toBeFocused();
         await input.fill("km");
 
-        // Painted in the pop-out's own registry: the main window's paints nothing there.
+        // Drawn from the pop-out's own registry, because the main window's
+        // registry draws nothing there.
         await expect
             .poll(() => popOut.evaluate(() => CSS.highlights.get("daily-notes-search-match")?.size ?? 0))
             .toBeGreaterThan(0);

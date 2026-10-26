@@ -6,20 +6,20 @@ paths:
 
 # Tests
 
-- Unit: Vitest + jsdom, mocking `obsidian` from `tests/mocks/`, where
-  `daily-notes.ts` holds the vault's notes and daily-notes settings. The mocks
-  take their signatures from the real API, so tests typecheck against them
-  (D-025).
-- **The split is a contract**
-  ([ADR 0002](../../docs/adr/0002-real-obsidian-e2e.md)): jsdom loads no
-  stylesheet, so a visibility assertion there proves nothing. Real rendering,
-  real events and what is visible on screen belong in `e2e-tests/`, which drives
-  the installed app against a throwaway vault.
-- Every e2e spec runs twice, desktop and mobile, both Chromium. What iOS's
-  engine paints or computes differently is checked in
-  `e2e-tests/webkit.spec.ts`, on a snapshot of the mobile run
+- Unit tests use Vitest and jsdom. `obsidian` is replaced by the mocks in
+  `tests/mocks/`; `daily-notes.ts` there holds the vault's notes and the daily
+  notes settings. The mocks copy their types from the real API, so the tests'
+  types are checked against it (D-025).
+- **Keep each kind of test on its side**
+  ([ADR 0002](../../docs/adr/0002-real-obsidian-e2e.md)). jsdom loads no
+  stylesheet, so a check there that something is visible proves nothing. Real
+  drawing, real events and what is visible on screen are tested in `e2e-tests/`,
+  which runs the installed app on a throwaway vault.
+- Every e2e test runs twice, as desktop and as mobile, both in Chromium. What
+  iOS's browser engine draws or measures differently is checked in
+  `e2e-tests/webkit.spec.ts`, on a copy of the mobile run's page
   ([ADR 0009](../../docs/adr/0009-webkit-render-checks.md)).
-- A mutation run leaves no surviving mutant (D-149). Kill each one with a test.
-  If no test can tell the mutant from the original, disable it with
-  `// Stryker disable next-line <mutator>: <why>`, and check that the reason is
-  true of the code.
+- After a mutation run, no mutant may survive (D-149). Write a test that fails
+  for each one. If no test can tell the mutant from the real code, disable it
+  with `// Stryker disable next-line <mutator>: <why>`, and check that the
+  reason is true.

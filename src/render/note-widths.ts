@@ -1,25 +1,37 @@
 import type { Component } from "obsidian";
 
-/** What refits a note when its width changes; `NoteWidths` in the view. */
+/**
+ * What fits a note again when its width changes. In the view, this is
+ * `NoteWidths`.
+ */
 export interface WidthWatch {
-    /** Calls `refit` with `el`'s width each time it changes, until `note` unloads. */
+    /**
+     * Calls `refit` with `el`'s width each time it changes, until `note`
+     * unloads.
+     */
     watch(el: HTMLElement, note: Component, refit: (width: number) => void): void;
 }
 
-/** A watched element: the width it last had, and what refits it when that changes. */
+/**
+ * A watched element: the width it last had, and what fits it again when that
+ * changes.
+ */
 interface Watched {
     width: number;
     refits: Set<(width: number) => void>;
 }
 
 /**
- * Each rendered note's width, through one observer for the view: tables,
- * equations and Bases refit when it changes. A change of height alone, the
- * most of what a note reports, refits nothing.
+ * Watches each drawn note's width, with one observer for the view. Tables,
+ * equations and Bases fit themselves again when it changes. A change in height
+ * only, which is most of what a note reports, fits nothing again.
  */
 export class NoteWidths implements WidthWatch {
     private readonly watched = new Map<Element, Watched>();
-    /** Made on the first watch: on desktop nothing refits, and none is needed. */
+    /**
+     * Created on the first watch. On desktop nothing needs fitting, so none is
+     * needed.
+     */
     private observer: ResizeObserver | null = null;
 
     constructor(view: Component) {
@@ -41,7 +53,8 @@ export class NoteWidths implements WidthWatch {
     private refit(entries: ResizeObserverEntry[]): void {
         for (const { target } of entries) {
             const watched = this.watched.get(target);
-            // Laid out at nothing, hidden far off (ADR 0023): no width to fit, and back at its own, none changed.
+            // A note hidden far away has no size (ADR 0023): there is no width
+            // to fit, and when it comes back at its own width, nothing changed.
             if (!watched || target.clientWidth === 0 || target.clientWidth === watched.width) continue;
             watched.width = target.clientWidth;
             for (const refit of watched.refits) refit(watched.width);
@@ -49,7 +62,8 @@ export class NoteWidths implements WidthWatch {
     }
 
     private unwatch(el: HTMLElement, refit: (width: number) => void): void {
-        // Each refit is a fresh closure, registered once: its note unwatches it once.
+        // Each refit is a new function, registered once, so its note stops
+        // watching it once.
         const watched = this.watched.get(el)!;
         watched.refits.delete(refit);
         if (watched.refits.size > 0) return;

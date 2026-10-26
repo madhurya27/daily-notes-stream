@@ -10,7 +10,7 @@ describe("JumpToDateModal", () => {
     let onSubmit: Mock<(target: Moment) => void>;
     let modal: JumpToDateModal;
 
-    /** Opens the suggester over a vault naming its notes `format`. */
+    /** Opens the jump list for a vault that names its notes in `format`. */
     async function open(format: string, basenames: string[]) {
         __setMockSettings({ format, folder: "Notes" });
         __setMockNotes(basenames.map((name) => `Notes/${name}.md`));
@@ -63,7 +63,7 @@ describe("JumpToDateModal", () => {
         expect(listed()).toEqual(["Jan 1, 2025"]);
     });
 
-    // The reader may reach for ISO whatever their filenames look like.
+    // The reader may type an ISO date, whatever their file names look like.
     it("narrows on an ISO query in a vault that names nothing that way", async () => {
         await open("DD-MM-YYYY", ["01-01-2025", "03-02-2025"]);
 
@@ -72,7 +72,7 @@ describe("JumpToDateModal", () => {
         expect(listed()).toEqual(["03-02-2025"]);
     });
 
-    /** `count` consecutive days from `first`, as ISO basenames. */
+    /** `count` days in a row from `first`, as ISO file names. */
     const days = (first: string, count: number) =>
         Array.from({ length: count }, (_, i) => moment(first, "YYYY-MM-DD", true).add(i, "days").format("YYYY-MM-DD"));
 
@@ -109,8 +109,8 @@ describe("JumpToDateModal", () => {
         expect(onSubmit.mock.calls[0]![0].format("YYYY-MM-DD")).toBe("2025-01-01");
     });
 
-    // The silent nearest-older fallback is what the suggester retires: a date
-    // with no note is still offered, but it says so first.
+    // The jump list replaces quietly going to the nearest older note. A date
+    // with no note is still listed, but it says so first.
     describe("a date no note carries", () => {
         it("offers the jump as one entry, saying what it will do", async () => {
             await open("DD-MM-YYYY", ["01-01-2025"]);
@@ -176,8 +176,9 @@ describe("JumpToDateModal", () => {
             delete (HTMLInputElement.prototype as { showPicker?: () => void }).showPicker;
         });
 
-        // iOS has showPicker() but opens nothing from it: its wheel opens only
-        // for a tap on the date input itself, so the input is the control.
+        // iOS has showPicker() but opens nothing from it. Its date picker only
+        // opens from a tap on the date input itself, so the input is the
+        // button.
         it("is the date input itself, under the calendar icon", async () => {
             await open("YYYY-MM-DD", ["2025-01-01"]);
 
@@ -223,7 +224,7 @@ describe("JumpToDateModal", () => {
         });
     });
 
-    // A focused query raises the phone's keyboard over half the list.
+    // A focused search field brings up the phone's keyboard over half the list.
     it("leaves the query unfocused on mobile, so the list opens without a keyboard", async () => {
         Platform.isMobile = true;
         await open("YYYY-MM-DD", ["2025-01-01"]);

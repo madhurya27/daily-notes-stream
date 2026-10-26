@@ -2,10 +2,13 @@ import type { Locator } from "@playwright/test";
 import { installDataview } from "./dataview";
 import { test, expect, openStream } from "./obsidian";
 
-/** Newer than every seeded note, so it opens the stream. */
+/** Newer than every test note, so it is first in the stream. */
 const NOTE = "Notes/2026-03-15.md";
 
-/** A table wider than a phone, as each of Dataview's two languages draws it, and a list. */
+/**
+ * A table wider than a phone, as each of Dataview's two query languages draws
+ * it, and a list.
+ */
 const QUERIES = [
     "```dataview",
     'TABLE file.ctime, file.mtime, file.size, file.folder, file.path FROM "Notes"',
@@ -65,8 +68,9 @@ test("on mobile, draws no scroll box around a query", async ({ obsidian, mobileL
     test.skip(!mobileLayout, "desktop keeps its scroll bars");
     const note = await openQueries(obsidian.page);
 
-    // The stylesheet must clip a block alone: the guard's own clip comes only
-    // once the scroll is still, unless Obsidian set the overflow inline (D-172).
+    // The stylesheet alone must cut off a block, because the guard only cuts it
+    // off once scrolling stops, unless Obsidian set the overflow inline
+    // (D-172).
     const boxes = await note.evaluate((root) =>
         Array.from(root.querySelectorAll(".block-language-dataview, .block-language-dataviewjs"))
             .filter((el) => {
@@ -80,7 +84,7 @@ test("on mobile, draws no scroll box around a query", async ({ obsidian, mobileL
     expect(boxes).toEqual([]);
 });
 
-// Dataview draws its table after the note renders.
+// Dataview draws its table after the note is drawn.
 test("on mobile, stacks a query's table too wide for the note", async ({ obsidian, mobileLayout }) => {
     test.skip(!mobileLayout, "desktop keeps a table a table");
     const note = await openQueries(obsidian.page);

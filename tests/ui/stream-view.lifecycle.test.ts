@@ -53,7 +53,8 @@ describe("DailyNotesStreamView — view API", () => {
         expect(restorePlace).toHaveBeenCalledWith(place);
     });
 
-    // The plugin remembers heights now (ADR 0010); a history entry from before still holds them.
+    // The plugin now remembers heights (ADR 0010). A history entry from before
+    // still contains them.
     it("returns to a place an earlier version kept heights with", () => {
         const restorePlace = vi.spyOn(view["stream"], "restorePlace").mockResolvedValue();
         const place = { path: "a.md", offset: 0, layout: { width: 700, heights: { "a.md": 540 } } };
@@ -78,7 +79,8 @@ describe("DailyNotesStreamView — view API", () => {
         expect(view.getIcon()).toBe("gallery-vertical-end");
     });
 
-    // Back rebuilds the view: what its Bases measured must outlive it.
+    // Back builds the view again, so what its Bases measured must last longer
+    // than the view.
     it("draws Bases from the measurements the plugin keeps for every view", () => {
         const plugin = makePlugin();
         const freshView = new DailyNotesStreamView(new WorkspaceLeaf(asApp(makeApp())), plugin, makeService());
@@ -86,7 +88,8 @@ describe("DailyNotesStreamView — view API", () => {
         expect(freshView["renderer"]["bases"]["measured"]).toBe(plugin.layoutMemory.bases);
     });
 
-    // Back rebuilds the view, and the app restarts: what notes measured outlives both.
+    // Back builds the view again, and the app restarts. What notes measured
+    // must last through both.
     it("reserves the heights the plugin keeps for every view", () => {
         const plugin = makePlugin();
         const freshView = new DailyNotesStreamView(new WorkspaceLeaf(asApp(makeApp())), plugin, makeService());
@@ -118,7 +121,8 @@ describe("DailyNotesStreamView — view API", () => {
 });
 
 describe("DailyNotesStreamView — today's note", () => {
-    // Today's is the note written in: rendered by section, its saves redraw in part (ADR 0019).
+    // Today's note is the one written in. It is drawn by section, so its saves
+    // draw only part of it again (ADR 0019).
     it("asks the service whether a note it renders is today's", async () => {
         const plugin = makePlugin();
         const service = makeService();
@@ -142,14 +146,16 @@ describe("DailyNotesStreamView — onResize", () => {
 });
 
 describe("DailyNotesStreamView — scroll", () => {
-    // Unloads wait for the scroll to stop, so the window has to hear every one.
+    // Emptying notes waits for scrolling to stop, so the window must hear every
+    // scroll.
     it("tells the window the stream scrolled", async () => {
         const { view } = await makeViewSetup();
         view.contentEl.dispatchEvent(new Event("scroll"));
         expect(view["stream"]["window"].onScroll).toHaveBeenCalled();
     });
 
-    // A touch is the reader's own change to a note: nothing may hold it.
+    // A touch is the reader's own change to a note, so no held height may hide
+    // it.
     it("tells the window what the reader touched", async () => {
         const { view } = await makeViewSetup();
         const touched = view.contentEl.createDiv();
@@ -157,7 +163,8 @@ describe("DailyNotesStreamView — scroll", () => {
         expect(view["stream"]["window"].onTouch).toHaveBeenCalledWith(touched);
     });
 
-    // Its note re-pins in the task the Base set its height in (D-108).
+    // Its note's height is fixed again in the same task the Base set its height
+    // in (D-108).
     it("tells the window which Base set its height", async () => {
         const { view } = await makeViewSetup();
         const slot = view.contentEl.createDiv();
@@ -176,7 +183,7 @@ describe("DailyNotesStreamView — scroll", () => {
         expect(window.onFingerUp).toHaveBeenCalledTimes(2);
     });
 
-    // A search holds its match until the reader moves the pane.
+    // A search keeps its match in place until the reader moves the pane.
     it("tells the stream the reader wheeled", async () => {
         const { view } = await makeViewSetup();
         const onWheel = vi.spyOn(view["stream"], "onWheel");
@@ -186,7 +193,7 @@ describe("DailyNotesStreamView — scroll", () => {
 });
 
 describe("DailyNotesStreamView — header title", () => {
-    /** A view whose header carries the title Obsidian draws there, opened. */
+    /** An open view whose header has the title Obsidian draws there. */
     async function withTitle() {
         const setup = makeStubbedView();
         const titleEl = document.createElement("div");
@@ -199,7 +206,7 @@ describe("DailyNotesStreamView — header title", () => {
         Platform.isMobile = false;
     });
 
-    // iOS apps scroll to the top on a tap of the title bar.
+    // In iOS apps, a tap on the title bar scrolls to the top.
     it("scrolls the stream to its top on a tap of the title, on mobile", async () => {
         Platform.isMobile = true;
         const { view, titleEl } = await withTitle();
@@ -235,7 +242,7 @@ describe("DailyNotesStreamView — header title", () => {
         expect(view["stream"]["window"].scrollToTop).toHaveBeenCalledOnce();
     });
 
-    // The title does it there.
+    // There, the title does it.
     it("has no scroll to top button on mobile", async () => {
         Platform.isMobile = true;
         const { view } = await withTitle();
@@ -259,7 +266,7 @@ describe("DailyNotesStreamView — header title", () => {
 });
 
 describe("DailyNotesStreamView — onOpen", () => {
-    // Its first batch must already leave out the hidden notes (ADR 0011).
+    // Its first batch must already leave out hidden notes (ADR 0011).
     it("opens the stream only once the service has listed its notes", async () => {
         const { view, service } = makeStubbedView();
         let listed!: () => void;
@@ -274,7 +281,8 @@ describe("DailyNotesStreamView — onOpen", () => {
         expect(view["stream"]["scroll"].attach).toHaveBeenCalled();
     });
 
-    // Obsidian restores the pane before the vault is indexed; closing it then asks for its place.
+    // Obsidian restores the pane before the vault is indexed. Closing it then
+    // asks for its place.
     it("hands Obsidian's history nothing while the notes are still being listed", async () => {
         const { view, service } = makeStubbedView();
         vi.mocked(service.initialize).mockReturnValue(new Promise(() => {}));
@@ -285,8 +293,8 @@ describe("DailyNotesStreamView — onOpen", () => {
         expect(view.getEphemeralState()).toEqual({});
     });
 
-    // Obsidian resizes a pane at startup, while the vault is still indexing:
-    // the stream has no container yet to read the layout from.
+    // Obsidian resizes a pane at startup, while the vault is still indexing.
+    // The stream has no container yet to read the layout from.
     it("ignores a resize while the notes are still being listed", async () => {
         const { view, service } = makeStubbedView();
         vi.mocked(service.initialize).mockReturnValue(new Promise(() => {}));
@@ -356,7 +364,8 @@ describe("DailyNotesStreamView — wiring", () => {
         expect(view.actions.find((a) => a.icon === "calendar-1")?.title).toBe("Jump to date");
     });
 
-    // A wheel or a touch listener that may cancel holds the scroll until it returns.
+    // A wheel or touch listener that may cancel the event delays scrolling
+    // until it returns.
     it("listens to the wheel and to fingers without holding the scroll", async () => {
         const { view } = makeStubbedView();
         const listen = vi.spyOn(view, "registerDomEvent");
@@ -389,7 +398,8 @@ describe("DailyNotesStreamView — wiring", () => {
 });
 
 describe("DailyNotesStreamView — refresh", () => {
-    // The plugin calls it when its own settings change; the rebuild is note-stream.test.ts's.
+    // The plugin calls it when its own settings change. The rebuild is tested
+    // in note-stream.test.ts.
     it("rebuilds the stream", async () => {
         const { view } = await makeViewSetup();
         const rebuild = vi.spyOn(view["stream"], "refresh");
@@ -401,7 +411,8 @@ describe("DailyNotesStreamView — refresh", () => {
 });
 
 describe("DailyNotesStreamView — hover parent", () => {
-    // Page preview hangs its popover on the view, and unloads it with the view.
+    // Page preview attaches its popup to the view, and unloads it with the
+    // view.
     it("starts with no popover", () => {
         const { view } = makeStubbedView(makeApp());
         expect(view.hoverPopover).toBeNull();

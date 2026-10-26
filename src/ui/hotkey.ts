@@ -2,7 +2,7 @@ import { Platform, type Hotkey, type Modifier } from "obsidian";
 
 type Physical = Exclude<Modifier, "Mod">;
 
-/** Mod is Cmd on macOS and Ctrl elsewhere. */
+/** Mod is Cmd on macOS and Ctrl everywhere else. */
 const physical = (modifier: Modifier): Physical => {
     if (modifier !== "Mod") return modifier;
     return Platform.isMacOS ? "Meta" : "Ctrl";
@@ -15,7 +15,10 @@ const held = (evt: KeyboardEvent): Record<Physical, boolean> => ({
     Alt: evt.altKey,
 });
 
-/** Whether `evt` is exactly the chord `hotkey` names: its key, its modifiers, no others. */
+/**
+ * Whether `evt` is exactly the key combination `hotkey` names: its key and
+ * modifiers, and no other modifiers.
+ */
 export function matchesHotkey(evt: KeyboardEvent, hotkey: Hotkey): boolean {
     if (evt.key.toLowerCase() !== hotkey.key.toLowerCase()) return false;
     const named = new Set(hotkey.modifiers.map(physical));

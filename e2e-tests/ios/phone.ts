@@ -6,16 +6,19 @@ import { connect, OBSIDIAN } from "./session";
 import { returnToTestersVault, useVault } from "./vault";
 
 /**
- * Obsidian on a USB-connected iPhone (ADR 0016). Touches are real ones, sent
- * through WebDriverAgent, so a flick glides as a thumb's does; what the stream
- * did is read from Obsidian's web view.
+ * Obsidian on an iPhone connected by USB (ADR 0016). The touches are real, sent
+ * through WebDriverAgent, so a flick keeps scrolling the way a thumb's does.
+ * What the stream did is read from Obsidian's web view.
  */
 
 const STREAM = ".daily-notes-stream-container";
 
 export type Orientation = "PORTRAIT" | "LANDSCAPE";
 type Layer = "letters" | "numbers";
-/** What a key's name escapes in the screen's XML, `&amp;` last. */
+/**
+ * The characters escaped in a key's name in the screen's XML, with `&amp;`
+ * last.
+ */
 const XML_ENTITIES = [
     ["&quot;", '"'],
     ["&apos;", "'"],
@@ -24,39 +27,63 @@ const XML_ENTITIES = [
     ["&amp;", "&"],
 ] as const;
 type Seen = { path: string; kind: string; index: number; text: string; top: number };
-/** A point in the web view, in CSS pixels, and the viewport's width they are measured against. */
+/**
+ * A point in the web view, in CSS pixels, and the viewport width they are
+ * measured against.
+ */
 export type Point = { x: number; y: number; viewport: number };
-/** A touch the harness sent: from where to where, in the screen's points, and when, in Unix ms, for how long. */
+/**
+ * A touch the tests sent: from where to where, in the screen's points, and when
+ * (in Unix ms) and for how long.
+ */
 export type SentTouch = { from: { x: number; y: number }; to: { x: number; y: number }; start: number; ms: number };
-/** Where the stream is, as it keeps its place: a note, and its top's offset from the pane's. */
+/**
+ * Where the stream is, as it keeps its place: a note, and how far its top is
+ * from the pane's top.
+ */
 export type Place = { path: string; offset: number };
 
-/** How far inside the pane's top a stroke stays, clear of the header above it. */
+/**
+ * How far below the pane's top a stroke stays, away from the header above it.
+ */
 const PANE_EDGE = 20;
 
-/** How long to wait for iOS's keyboard to appear. If it has not appeared by then, a keyboard is attached. */
+/**
+ * How long to wait for iOS's keyboard to appear. If it has not appeared by
+ * then, a keyboard is attached.
+ */
 const KEYBOARD_RISE = 5_000;
 
-/** XCTest's code for the Right Arrow key. Pressing it in an input types nothing. */
+/**
+ * XCTest's code for the Right Arrow key. Pressing it in an input types nothing.
+ */
 const RIGHT_ARROW = "\uF703";
 
-/** How far `placeAt` looks: past the first two batches of the harness's notes, some 20 screens each. */
+/**
+ * How far `placeAt` looks: past the first two batches of the test notes, about
+ * 20 screens each.
+ */
 const SCREENS = 60;
 
 /**
- * A note's blocks as the reader takes them in: its title, property rows,
- * Markdown blocks and mentions. A block is known by its place among its own
- * kind: a property added, or a hidden run's spacer, moves no other kind's.
+ * A note's parts as the reader sees them: its title, property rows, Markdown
+ * blocks and mentions. A part is identified by its position among parts of the
+ * same kind, so adding a property, or a hidden run's spacer, does not change
+ * the position of parts of other kinds.
  */
 const TEXT_KINDS = [
     ".daily-note-title",
     ".metadata-property",
-    // Not a Base: it redraws its rows as it scrolls, and its text, changed, reads as a blank.
+    // Not a Base: it draws its rows again as it scrolls, and its changed text
+    // would look like a blank.
     ".daily-note-content > :not(.daily-note-far-run, .daily-note-base)",
     ".daily-note-mention",
 ];
 
-/** The `.daily-note-block` selector `target` starts with, if any: up to the first space outside brackets. */
+/**
+ * The `.daily-note-block` selector that `target` starts with, if any: up to the
+ * first space outside brackets.
+ */
 function blockOf(target: string): string | undefined {
     if (!target.startsWith(".daily-note-block")) return undefined;
     let nesting = 0;
@@ -70,24 +97,40 @@ function blockOf(target: string): string | undefined {
 
 /**
  * Obsidian's sanitizer gives each embedded frame `allow-presentation`, a flag
- * iOS's WebKit does not know. Its own reading view logs this, the stream closed.
+ * iOS's WebKit does not know. Obsidian's own reading view logs this too, with
+ * the stream closed.
  */
 const OBSIDIANS_SANDBOX_NOTICE =
     "Error while parsing the 'sandbox' attribute: 'allow-presentation' is an invalid sandbox flag.";
 
 export class Phone {
-    /** WebDriverAgent takes up to half a second to answer, more during a glide; it changes only on a turn. */
+    /**
+     * WebDriverAgent takes up to half a second to answer, more while scrolling.
+     * It only changes when the screen turns.
+     */
     private screen: { width: number; height: number } | undefined;
-    /** Where the stream's pane starts on the screen; changes only on a turn. */
+    /**
+     * Where the stream's pane starts on the screen. It only changes when the
+     * screen turns.
+     */
     private pane: number | undefined;
-    /** Each touch sent since `logTouches`, or none kept. */
+    /**
+     * Each touch sent since `logTouches`, or null if touches are not being
+     * kept.
+     */
     private sent: SentTouch[] | null = null;
-    /** Where the keyboard's keys are, by layout; changes only on a turn. */
+    /**
+     * Where the keyboard's keys are, for each layout. It only changes when the
+     * screen turns.
+     */
     private readonly keyboards = new Map<Layer, Map<string, { x: number; y: number }>>();
 
     constructor(private readonly driver: WebdriverIO.Browser) {}
 
-    /** Starts keeping each touch sent, for `sentTouches`: a recording draws them. */
+    /**
+     * Starts keeping each touch sent, for `sentTouches`. A recording draws
+     * them.
+     */
     logTouches(): void {
         this.sent = [];
     }
@@ -96,14 +139,15 @@ export class Phone {
         return this.sent ?? [];
     }
 
-    /** The screen's size in points, what touches are measured in. */
+    /** The screen's size in points, the unit touches are measured in. */
     screenSize(): Promise<{ width: number; height: number }> {
         return this.windowSize();
     }
 
     /**
-     * Sends `actions`, logging `touches` if kept: each `after` ms into a
-     * gesture `length` ms long, which ended as the command returned.
+     * Sends `actions`, and logs `touches` if they are being kept. Each touch
+     * starts `after` ms into a gesture `length` ms long, which ended when the
+     * command returned.
      */
     private async perform(
         actions: Parameters<WebdriverIO.Browser["performActions"]>[0],
@@ -115,17 +159,20 @@ export class Phone {
         this.sent?.push(...touches.map(({ after, ...touch }) => ({ ...touch, start: end - length + after })));
     }
 
-    /** Runs `fn` in Obsidian's web view; like Playwright's `evaluate`, it closes over nothing. */
+    /**
+     * Runs `fn` in Obsidian's web view. Like Playwright's `evaluate`, `fn`
+     * cannot use variables from outside it.
+     */
     async run<R, A extends unknown[]>(fn: (...args: A) => R, ...args: A): Promise<R> {
         await this.inWebView();
         return (await this.driver.execute(`return (${fn.toString()})(...arguments)`, ...args)) as R;
     }
 
-    /** `run` for a function that settles later. */
+    /** `run` for a function that finishes later. */
     async runAsync<R, A extends unknown[]>(fn: (...args: A) => Promise<R>, ...args: A): Promise<R> {
         await this.inWebView();
-        // A rejection has to answer too, or the driver waits out its script
-        // timeout. Not as `error`: WebdriverIO takes that key for its own.
+        // A rejection must also call back, or the driver waits until its script
+        // timeout. Not as `error`, because WebdriverIO uses that key itself.
         const script = `const done = arguments[arguments.length - 1];
             (${fn.toString()})(...arguments[0]).then((value) => done({ value }), (e) => done({ failure: String(e) }));`;
         const { value, failure } = (await this.driver.executeAsync(script, args)) as { value: R; failure?: string };
@@ -133,19 +180,23 @@ export class Phone {
         return value;
     }
 
-    /** Opens `url` as a tapped link would, in whatever app claims it. */
+    /** Opens `url` as a tapped link would, in whatever app handles it. */
     async openUrl(url: string): Promise<void> {
         await this.native();
         await this.driver.execute("mobile: deepLink", { url, bundleId: OBSIDIAN });
     }
 
-    /** The bundle id of the app in front: another one once a tap leaves Obsidian. */
+    /**
+     * The bundle id of the app in front. It changes once a tap leaves Obsidian.
+     */
     async frontApp(): Promise<string> {
         await this.native();
         return ((await this.driver.execute("mobile: activeAppInfo")) as { bundleId: string }).bundleId;
     }
 
-    /** Back into Obsidian from whatever app is in front, as from its icon. */
+    /**
+     * Goes back to Obsidian from whatever app is in front, as if from its icon.
+     */
     async returnToObsidian(): Promise<void> {
         await this.native();
         await this.driver.execute("mobile: activateApp", { bundleId: OBSIDIAN });
@@ -163,11 +214,11 @@ export class Phone {
     }
 
     /**
-     * Waits for iOS's on-screen keyboard to appear. When a keyboard is
-     * attached to an iPad, iOS hides its own. Pressing one key through
-     * XCTest makes iOS show it again, and it stays shown until the keyboard
-     * is detached and attached again. So if the keyboard has not appeared,
-     * this presses Right Arrow on an iPad.
+     * Waits for iOS's on-screen keyboard to appear. When a keyboard is attached
+     * to an iPad, iOS hides its own. Pressing one key through XCTest makes iOS
+     * show it again, and it stays shown until the keyboard is detached and
+     * attached again. So if the keyboard has not appeared, this presses Right
+     * Arrow on an iPad.
      */
     async raiseKeyboard(): Promise<void> {
         const rose = await expect
@@ -183,12 +234,13 @@ export class Phone {
     }
 
     /**
-     * `text` typed on iOS's on-screen keyboard, a finger on each key; a
-     * newline is Return. Shift is never pressed: a letter takes the case iOS
-     * gives it, as it would a reader's. Keys go `burst` to a gesture: one
-     * gesture lands its keys some 30 ms apart, and each costs a round trip of
-     * about 560 ms, so 2 types in pairs, at about a reader's pace. Each key is
-     * held 30 ms: held past the next key's landing, iOS types extra letters.
+     * Types `text` on iOS's on-screen keyboard, tapping each key; a newline is
+     * Return. Shift is never pressed, so a letter gets the case iOS gives it,
+     * as it would for a reader. `burst` keys are sent in one gesture. One
+     * gesture presses its keys about 30 ms apart, and each gesture takes a
+     * round trip of about 560 ms, so 2 types in pairs, at about a reader's
+     * speed. Each key is held for 30 ms: held until the next key is pressed,
+     * iOS types extra letters.
      */
     async type(text: string, burst = Infinity): Promise<void> {
         await this.native();
@@ -199,7 +251,8 @@ export class Phone {
             taps = [];
         };
         const keysOf = async (l: Layer) => {
-            // An unread layout is read off the screen, so it must be showing.
+            // A layout not yet read is read from the screen, so it must be
+            // showing.
             if (!this.keyboards.has(l)) {
                 await flush();
                 await expect.poll(() => this.keyboardLayer()).toBe(l);
@@ -213,7 +266,8 @@ export class Phone {
                 const other = keys.get("more");
                 if (!other) throw new Error(`No key for ${JSON.stringify(char)} among ${[...keys.keys()].join(" ")}`);
                 taps.push(other);
-                // Alone: a key landing while it is still held goes to the old layout.
+                // On its own: a key pressed while this one is still held goes
+                // to the old layout.
                 await flush();
                 layer = layer === "letters" ? "numbers" : "letters";
                 keys = await keysOf(layer);
@@ -221,7 +275,7 @@ export class Phone {
             const key = keys.get(name);
             if (!key) throw new Error(`No ${JSON.stringify(char)} key on iOS's keyboard.`);
             taps.push(key);
-            // Either can take iOS from its digits back to its letters.
+            // Either one can switch iOS from its digits back to its letters.
             if (layer === "numbers" && (char === " " || char === "\n")) {
                 await flush();
                 layer = await this.keyboardLayer();
@@ -230,13 +284,16 @@ export class Phone {
         await flush();
     }
 
-    /** Which of its layouts the keyboard shows: letters, or digits and punctuation. */
+    /** Which layout the keyboard shows: letters, or digits and punctuation. */
     private async keyboardLayer(): Promise<Layer> {
         const q = await this.driver.$('-ios predicate string:type == "XCUIElementTypeKey" AND name ==[c] "q"');
         return (await q.isExisting()) ? "letters" : "numbers";
     }
 
-    /** Where each key of a layout is, by name, letters in lower case: read once, from one dump of the screen. */
+    /**
+     * Where each key of a layout is, by name, with letters in lower case. Read
+     * once, from one copy of the screen's XML.
+     */
     private async keysOf(layer: Layer): Promise<Map<string, { x: number; y: number }>> {
         const known = this.keyboards.get(layer);
         if (known) return known;
@@ -260,13 +317,19 @@ export class Phone {
         return keys;
     }
 
-    /** To the Home Screen for `seconds`, then back into Obsidian, as a reader switching apps. */
+    /**
+     * Goes to the Home Screen for `seconds`, then back to Obsidian, as a reader
+     * switching apps would.
+     */
     async background(seconds: number): Promise<void> {
         await this.native();
         await this.driver.execute("mobile: backgroundApp", { seconds });
     }
 
-    /** Quits Obsidian and opens it again, as from its icon; returns once the plugin is loaded. */
+    /**
+     * Quits Obsidian and opens it again, as if from its icon. Returns once the
+     * plugin is loaded.
+     */
     async relaunch(): Promise<void> {
         await this.native();
         await this.driver.execute("mobile: terminateApp", { bundleId: OBSIDIAN });
@@ -278,7 +341,10 @@ export class Phone {
             .toBe(true);
     }
 
-    /** The path of the daily note `days` back from today, as the test vault names it. */
+    /**
+     * The path of the daily note `days` before today, as the test vault names
+     * it.
+     */
     journalPath(days: number): Promise<string> {
         return this.run(
             (days: number) => `Journal/${new Date(Date.now() - days * 86_400_000).toLocaleDateString("en-CA")}.md`,
@@ -286,7 +352,10 @@ export class Phone {
         );
     }
 
-    /** Writes `text` to the note at `path`, once indexed; returns what it held, null where it was new. */
+    /**
+     * Writes `text` to the note at `path`, and waits until it is indexed.
+     * Returns what it held before, or null if it was new.
+     */
     writeNote(path: string, text: string): Promise<string | null> {
         return this.runAsync(
             async (path: string, text: string) => {
@@ -308,7 +377,7 @@ export class Phone {
         );
     }
 
-    /** Puts back what `writeNote` returned: the note's text, or no note. */
+    /** Puts back what `writeNote` returned: the note's old text, or no note. */
     async restoreNote(path: string, original: string | null): Promise<void> {
         await this.runAsync(
             async (path: string, original: string | null) => {
@@ -322,7 +391,10 @@ export class Phone {
         );
     }
 
-    /** Closes the stream and forgets every note's measured height: an open stream lays out by estimates. */
+    /**
+     * Closes the stream and forgets every note's measured height, so a stream
+     * opened next uses estimates.
+     */
     async forgetHeights(): Promise<void> {
         await this.run(() => {
             window.app.workspace.detachLeavesOfType("daily-notes-stream-view");
@@ -331,9 +403,10 @@ export class Phone {
     }
 
     /**
-     * Shortens every unrendered note's placeholder, then waits for rest.
-     * Measured on an earlier run, a placeholder is exact and a render moves
-     * nothing; short, every note grows as it renders: the case that jumped.
+     * Makes every undrawn note's empty block shorter, then waits until the
+     * stream is still. With heights measured on an earlier run, an empty block
+     * is exact and drawing moves nothing. When it is too short, every note
+     * grows as it is drawn, which is the case that used to jump.
      */
     async shortenPlaceholders(): Promise<void> {
         await this.run(() => {
@@ -344,17 +417,18 @@ export class Phone {
     }
 
     /**
-     * The stream, opened afresh, at its top and at rest. Reopened, not
-     * scrolled there: a scroll written to the top leaves the anchor holding a
-     * place from below (D-142).
+     * Opens the stream again, at its top, and waits until it is still. It is
+     * opened again, not scrolled to the top, because setting the scroll to the
+     * top leaves the anchor keeping a place from further down (D-142).
      */
     async openStream(): Promise<void> {
         await this.run(() => {
-            // A pull past the top, as a flick up the stream can end, opens Obsidian's command palette.
+            // Pulling past the top, which a flick up the stream can end in,
+            // opens Obsidian's command palette.
             for (const modal of document.querySelectorAll<HTMLElement>(".modal-container .modal-bg")) modal.click();
             window.app.workspace.detachLeavesOfType("daily-notes-stream-view");
         });
-        // Opened in the same task as the close, it never drew.
+        // If opened in the same task as the close, it never drew.
         await this.run(() => window.app.commands.executeCommandById("daily-notes-stream:open-stream"));
         await expect
             .poll(() => this.run((s: string) => document.querySelectorAll(`${s} .daily-note-block`).length, STREAM))
@@ -362,7 +436,10 @@ export class Phone {
         await this.rest();
     }
 
-    /** As the jump modal would, to the newest note on or before `date` (`YYYY-MM-DD`), at rest. */
+    /**
+     * Jumps, as the jump list would, to the newest note on or before `date`
+     * (`YYYY-MM-DD`), and waits until it is still.
+     */
     async jumpTo(date: string): Promise<void> {
         await this.runAsync(
             (d: string) =>
@@ -375,13 +452,15 @@ export class Phone {
     }
 
     /**
-     * Starts following the text at or just below the pane's middle, each frame, as the
-     * reader's eye would; `stopFollowing` reports it. By its place in its
-     * note, as `topOf` finds it: a note may render again under the reader.
-     * Text that leaves the screen hands the eye to the text then at the
-     * middle; a blank where it was on screen is a drift of NaN. Also read as
-     * the page hears a scroll, before the stream answers it: iOS glides on
-     * unheard, and a frame's read held that step and the stream's answer as one.
+     * Starts following the text at or just below the pane's middle on every
+     * frame, as the reader's eye would. `stopFollowing` reports what it saw.
+     * The text is found by its position in its note, as `topOf` finds it,
+     * because a note may be drawn again under the reader. When the text leaves
+     * the screen, the eye moves to the text then in the middle. A blank where
+     * the text was on screen counts as a drift of NaN. It also reads the text
+     * when the page gets a scroll event, before the stream reacts to it: iOS
+     * keeps scrolling without events, and reading only once a frame mixed that
+     * step and the stream's reaction into one.
      */
     async followReader(): Promise<void> {
         await this.run(
@@ -394,16 +473,18 @@ export class Phone {
                     const { top, bottom } = el.getBoundingClientRect();
                     return bottom > box.top && top < box.bottom;
                 };
-                // A scroll the text does not follow on screen is none of the reader's: the
-                // anchor's hand-over (ScrollAnchor), or a leap no one has traced yet.
+                // A scroll that the text on screen does not follow was not made
+                // by the reader: the anchor moving its shift into the scroll
+                // (ScrollAnchor), or a jump nobody has explained yet.
                 let unseen = 0;
                 let lastScroll = pane.scrollTop;
-                /** The glide's last step, as the page heard it. */
+                /** The scroll's last step, as the page heard it. */
                 let glide = 0;
                 /**
-                 * Written by the stream, not glided: the text stayed, or a write
-                 * against the glide carried it on one step at most, as a stop
-                 * does, iOS having drawn that step already (`ScrollAnchor.stopGlide`).
+                 * Set by the stream, not by scrolling: the text stayed still,
+                 * or setting the scroll against the scrolling moved it on by
+                 * one step at most, as stopping does, because iOS has already
+                 * drawn that step (`ScrollAnchor.stopGlide`).
                  */
                 const written = (step: number, moved: number) =>
                     Math.abs(moved) <= 1 ||
@@ -440,7 +521,10 @@ export class Phone {
                     heard: new AbortController(),
                 };
                 (window as unknown as { streamReader: typeof follow }).streamReader = follow;
-                /** Reads where the text is; false once there is no text to follow. */
+                /**
+                 * Reads where the text is. Returns false once there is no text
+                 * to follow.
+                 */
                 const read = (): boolean => {
                     if (!follow.on || !eye) return false;
                     const scroll = pane.scrollTop;
@@ -449,29 +533,34 @@ export class Phone {
                     follow.rendered = Math.max(follow.rendered, follow.unloaded - unloaded());
                     const block = pane.querySelector(`.daily-note-block[data-source-path="${eye.path}"]`);
                     const at = block?.querySelectorAll(eye.kind)[eye.index];
-                    // Another block in its place: its note is drawing again, short of it so far.
+                    // Another part is in its place: its note is being drawn
+                    // again, and has not reached it yet.
                     const text = at?.textContent === eye.text ? at : null;
                     if (!text) {
-                        // Its note on screen without it: a blank where the reader was, until it is back.
+                        // Its note is on screen without it: a blank where the
+                        // reader was, until it is back.
                         if (block && onScreen(block)) follow.drifts.push(NaN);
                         else eye = pick();
                         return true;
                     }
-                    // Where the text is, against where the scroll alone puts it.
+                    // Where the text is, compared with where the scroll alone
+                    // would put it.
                     const top = text.getBoundingClientRect().top;
                     const moved = top - eye.last;
                     eye.last = top;
                     if (Math.abs(step) > 1 && written(step, moved)) unseen += step + moved;
                     else if (Math.abs(step) > 1) glide = step;
                     follow.drifts.push(Math.round(top - eye.start - (eye.from - scrolled())));
-                    // Where the text is on screen, as a still reader sees it.
+                    // Where the text is on screen, as a reader who is not
+                    // scrolling sees it.
                     follow.moves.push(Math.round(top - eye.start));
                     if (!onScreen(text)) eye = pick();
                     return true;
                 };
                 const frame = () => read() && requestAnimationFrame(frame);
                 requestAnimationFrame(frame);
-                // Captured on the document: before the pane's own listeners, the stream's among them.
+                // Captured on the document, so it runs before the pane's own
+                // listeners, including the stream's.
                 document.addEventListener("scroll", (event) => event.target === pane && read(), {
                     capture: true,
                     signal: follow.heard.signal,
@@ -483,9 +572,9 @@ export class Phone {
     }
 
     /**
-     * Since `followReader`, each read: how far the text moved other than
-     * with the scroll (`drifts`, for a glide), and on screen (`moves`, for a
-     * still reader); and how many notes rendered.
+     * Each read since `followReader`: how far the text moved apart from the
+     * scroll (`drifts`, while scrolling), and on screen (`moves`, for a reader
+     * who is not scrolling), and how many notes were drawn.
      */
     stopFollowing(): Promise<{ drifts: number[]; moves: number[]; rendered: number }> {
         return this.run(() => {
@@ -507,14 +596,17 @@ export class Phone {
     }
 
     /**
-     * Starts watching each rendered note's height, as a task ends and each
-     * frame; `stopWatchingPins` reports a change made with no re-pin or
-     * unload beside it (ADR 0013). Also counts the notes seen rendered.
+     * Starts watching each drawn note's height, at the end of each task and on
+     * each frame. `stopWatchingPins` reports any change made without the height
+     * being fixed again or the note being emptied (ADR 0013). Also counts the
+     * notes seen drawn.
      */
     async watchPins(): Promise<void> {
         await this.run((s: string) => {
             const pane = document.querySelector(s)!.parentElement!;
-            /** What only a re-pin or an unload changes. */
+            /**
+             * What only fixing the height again or emptying the note changes.
+             */
             const state = (block: HTMLElement) =>
                 [
                     block.style.getPropertyValue("--daily-note-pinned-height"),
@@ -548,7 +640,10 @@ export class Phone {
         }, STREAM);
     }
 
-    /** Since `watchPins`: each height change made with no re-pin, and how many notes rendered. */
+    /**
+     * Since `watchPins`: each height change made without fixing the height
+     * again, and how many notes were drawn.
+     */
     stopWatchingPins(): Promise<{ unpinned: string[]; rendered: number }> {
         return this.run(() => {
             const watch = (
@@ -562,7 +657,9 @@ export class Phone {
         });
     }
 
-    /** The stream's place: the first note reaching into the pane. */
+    /**
+     * The stream's place: the first note that is at least partly in the pane.
+     */
     place(): Promise<Place> {
         return this.run((s: string) => {
             const pane = document.querySelector(s)!.parentElement!;
@@ -575,10 +672,10 @@ export class Phone {
     }
 
     /**
-     * Starts noting each place the stream shows, frame by frame, as `place`
-     * reads it, even before a stream is open; `places` reports them. From
-     * `now`, or from Obsidian's return from the background: a still stream
-     * would be done before it left.
+     * Starts recording each place the stream shows, frame by frame, as `place`
+     * reads it, even before a stream is open. `places` reports them. Starts
+     * `now`, or when Obsidian comes back from the background, because a stream
+     * that is not moving would be done before it left.
      */
     async followPlaces(from: "now" | "return" = "now"): Promise<void> {
         await this.run(
@@ -622,15 +719,19 @@ export class Phone {
         );
     }
 
-    /** Each place the stream showed since `followPlaces`, once it held still 30 frames. */
+    /**
+     * Each place the stream showed since `followPlaces`, once it stayed still
+     * for 30 frames.
+     */
     places(): Promise<Place[]> {
         return this.runAsync(() => (window as unknown as { streamPlaces: Promise<Place[]> }).streamPlaces);
     }
 
     /**
-     * Quick thumb strokes, `up` to move down the stream, each caught mid-glide
-     * by the next as a reader's are; returns once the last glide stops. Each
-     * `share` of the screen tall over `ms`: by default a hard flick.
+     * Quick thumb strokes, `up` to move down the stream, each one caught while
+     * the last is still scrolling, as a reader's are. Returns once the last
+     * scroll stops. Each stroke is `share` of the screen tall and takes `ms`;
+     * by default, a hard flick.
      */
     async flick(direction: "up" | "down", strokes = 1, { share = 0.7, ms = 60 } = {}): Promise<void> {
         const before = await this.readerAt();
@@ -649,9 +750,10 @@ export class Phone {
     }
 
     /**
-     * One stroke, and how its glide ended (`glide.ts`), once the pane is
-     * still: a full glide runs 1–3.5 s. Read every frame from the lift, so a
-     * stall is told from a stop; the longest is noted on the test.
+     * One stroke, and how its scrolling ended (`glide.ts`), once the pane is
+     * still. A full scroll lasts 1–3.5 s. It is read on every frame from when
+     * the finger lifts, so a pause can be told apart from a stop. The longest
+     * pause is noted on the test.
      */
     async glideEnding(direction: "up" | "down", { share = 0.7, ms = 60 } = {}): Promise<GlideEnding> {
         await this.run((s: string) => {
@@ -684,9 +786,10 @@ export class Phone {
     }
 
     /**
-     * A quick tap on each of `points`, in the screen's points, as one gesture:
-     * WebDriverAgent lands them some 30 ms apart, whatever pauses it is given.
-     * A finger each: it lands every tap twice in one finger's chain of them.
+     * A quick tap on each of `points`, in the screen's points, as one gesture.
+     * WebDriverAgent presses them about 30 ms apart, whatever pauses it is
+     * given. Each tap uses its own finger, because one finger doing a series of
+     * taps presses each tap twice.
      */
     private async pressAll(points: { x: number; y: number }[]): Promise<void> {
         if (points.length === 0) return;
@@ -704,15 +807,15 @@ export class Phone {
                 ],
             })),
             points.length * 30,
-            // Unlogged: a key shows its own bubble, as under a thumb.
+            // Not logged: a key shows its own bubble, as under a thumb.
             []
         );
     }
 
     /**
-     * An unhurried thumb stroke up a third of the screen, starting on the
-     * middle of the first `selector` a finger could reach; returns once the
-     * stream holds still.
+     * A slow thumb stroke up a third of the screen, starting on the middle of
+     * the first `selector` a finger could reach. Returns once the stream is
+     * still.
      */
     async swipeFrom(selector: string): Promise<void> {
         const at = await this.reach(selector);
@@ -743,10 +846,10 @@ export class Phone {
     }
 
     /**
-     * A thumb stroke `share` of the screen tall over `duration` ms, centred;
-     * returns as the finger lifts. Moved down onto the stream's pane if it
-     * would start or end above it: an iPad's header sits there, where a
-     * stroke scrolls nothing.
+     * A thumb stroke `share` of the screen tall, taking `duration` ms,
+     * centered. Returns as the finger lifts. Moved down onto the stream's pane
+     * if it would start or end above it: an iPad's header is there, and a
+     * stroke on it scrolls nothing.
      */
     private async stroke(direction: "up" | "down", share: number, duration: number): Promise<void> {
         const top = await this.paneTop();
@@ -759,8 +862,9 @@ export class Phone {
             { x, y: Math.round(height * from + below) },
             { x, y: Math.round(height * to + below) },
         ];
-        // One command per stroke: within one, WebDriverAgent drags the finger
-        // back to the start between strokes, scrolling the stream back.
+        // One command for each stroke. Within one command, WebDriverAgent drags
+        // the finger back to the start between strokes, which scrolls the
+        // stream back.
         await this.perform(
             [
                 {
@@ -784,7 +888,10 @@ export class Phone {
         return (this.screen ??= await this.driver.getWindowSize());
     }
 
-    /** The top of the stream's pane, in the screen's points: read before a glide, whose web view runs no script. */
+    /**
+     * The top of the stream's pane, in the screen's points. Read before
+     * scrolling, because the web view runs no script while scrolling.
+     */
     private async paneTop(): Promise<number> {
         if (this.pane !== undefined) return this.pane;
         const { top, viewport } = await this.run(
@@ -797,11 +904,15 @@ export class Phone {
         return (this.pane = top * ((await this.windowSize()).width / viewport));
     }
 
-    /** Fails if iOS holds Obsidian behind Face ID or Touch ID: no touch reaches the app until someone unlocks it. */
+    /**
+     * Fails if iOS keeps Obsidian locked behind Face ID or Touch ID, because no
+     * touch reaches the app until someone unlocks it.
+     */
     async assertUnlocked(): Promise<void> {
         await this.native();
         const lock = await this.driver.$(
-            // In English only; flick() catches a lock in any language by the stream not moving.
+            // Only in English. flick() detects a lock in any language, because
+            // the stream does not move.
             `-ios predicate string:label CONTAINS " ID Required" OR label BEGINSWITH "Passcode Required"`
         );
         if (await lock.isExisting())
@@ -809,17 +920,20 @@ export class Phone {
     }
 
     /**
-     * A finger's tap, as iOS delivers one: touches, then a click. On the
-     * middle of the first `selector` a finger could reach there, on screen
-     * and under nothing else; `offset` CSS pixels from it, for a finger off
-     * the mark.
+     * A finger's tap, as iOS delivers it: touches, then a click. On the middle
+     * of the first `selector` a finger could reach, on screen and not covered
+     * by anything. `offset` moves it that many CSS pixels, for a finger that
+     * misses slightly.
      */
     async tap(selector: string, offset = { x: 0, y: 0 }): Promise<void> {
         const { x, y, viewport } = await this.reach(selector);
         await this.tapAt({ x: x + offset.x, y: y + offset.y, viewport });
     }
 
-    /** Where `tap` would land on `selector`, looked up ahead: a reader's tap has no pause before it. */
+    /**
+     * Where `tap` would land on `selector`, looked up in advance, because a
+     * reader's tap has no pause before it.
+     */
     pointOf(selector: string): Promise<Point> {
         return this.reach(selector);
     }
@@ -829,18 +943,24 @@ export class Phone {
         return this.touch(point, 50);
     }
 
-    /** A finger held on the middle of the first `selector` it could reach, as `tap` finds it, for a second. */
+    /**
+     * A finger held for a second on the middle of the first `selector` it could
+     * reach, found as `tap` finds it.
+     */
     async longPress(selector: string): Promise<void> {
         await this.touch(await this.reach(selector), 1000);
     }
 
-    /** The screen as a PNG, the status bar, whose clock ticks, left out: the web view runs under it. */
+    /**
+     * The screen as a PNG, without the status bar, whose clock changes. The web
+     * view goes under the status bar.
+     */
     async screenshot(): Promise<string> {
         await this.native();
         return (await this.driver.execute("mobile: viewportScreenshot")) as string;
     }
 
-    /** Where `tap` touches for `selector`, once it holds still. */
+    /** Where `tap` touches for `selector`, once it stops moving. */
     private reach(selector: string): Promise<Point> {
         return this.runAsync(async (sel: string) => {
             const target = () => {
@@ -852,7 +972,8 @@ export class Phone {
                 }
                 return null;
             };
-            // Where it holds still for 10 frames: a modal slides in as it opens.
+            // Where it stays still for 10 frames, because a modal slides in as
+            // it opens.
             let last = "";
             for (let still = 0, frames = 0; still < 10 && frames < 120; frames++) {
                 await new Promise(requestAnimationFrame);
@@ -869,7 +990,8 @@ export class Phone {
     /** A finger down on `at` for `ms`, then lifted. */
     private async touch(at: Point, ms: number): Promise<void> {
         await this.native();
-        // The web view fills the screen, so a CSS pixel is a point, scaled only if the page is zoomed.
+        // The web view fills the screen, so a CSS pixel is a point, unless the
+        // page is zoomed.
         const scale = (await this.windowSize()).width / at.viewport;
         const point = { x: Math.round(at.x * scale), y: Math.round(at.y * scale) };
         await this.perform(
@@ -891,7 +1013,10 @@ export class Phone {
         );
     }
 
-    /** Escape, as a hardware keyboard sends it, at `selector`: what closes a modal or the search bar. */
+    /**
+     * Sends Escape to `selector`, as a hardware keyboard would. It closes a
+     * modal or the search bar.
+     */
     async escape(selector: string): Promise<void> {
         await this.run(
             (sel: string) =>
@@ -908,9 +1033,9 @@ export class Phone {
     }
 
     /**
-     * Picks `date` (`YYYY-MM-DD`) in iOS's open calendar popover, the date
-     * input's picker, and closes it with its checkmark. Finds months and
-     * days by their English labels, as `assertUnlocked` does.
+     * Picks `date` (`YYYY-MM-DD`) in iOS's open calendar popup, the date
+     * input's picker, and closes it with its tick button. Finds months and days
+     * by their English labels, as `assertUnlocked` does.
      */
     async pickDate(date: string): Promise<void> {
         await this.native();
@@ -928,9 +1053,12 @@ export class Phone {
         await this.driver.$("~Done").click();
     }
 
-    /** What Obsidian's console has shown as an error since last asked: logged, thrown or rejected. */
+    /**
+     * What Obsidian's console has shown as an error since the last call:
+     * logged, thrown or rejected.
+     */
     async consoleErrors(): Promise<string[]> {
-        // A timer already queued, behind a busy page, throws after the read.
+        // A timer already queued behind a busy page throws after the read.
         await this.runAsync(() => new Promise<void>((done) => setTimeout(done)));
         const entries = (await this.driver.getLogs("safariConsole")) as { level: string; message: string }[];
         return entries
@@ -945,9 +1073,10 @@ export class Phone {
     }
 
     /**
-     * The note at the pane's top, by its index in the stream, and how far
-     * into it the top is. Not the scroll: placeholders above re-reserved at
-     * rest move it by as much as they change (ADR 0014), the reader not at all.
+     * The note at the pane's top, by its index in the stream, and how far into
+     * it the top is. Not the scroll position: when empty blocks above get new
+     * heights after scrolling stops, the scroll position moves by as much as
+     * they change (ADR 0014), but the reader does not move at all.
      */
     private readerAt(): Promise<{ note: number; into: number }> {
         return this.run((s: string) => {
@@ -963,7 +1092,7 @@ export class Phone {
         return this.run((s: string) => document.querySelector(s)!.parentElement!.scrollTop, STREAM);
     }
 
-    /** How far the newest note's top sits below the pane's. */
+    /** How far the newest note's top is below the pane's top. */
     newestOffset(): Promise<number> {
         return this.run((s: string) => {
             const stream = document.querySelector(s)!;
@@ -978,8 +1107,9 @@ export class Phone {
     }
 
     /**
-     * Returns once the pane has its new width and holds still: a turn starts
-     * some frames after it is asked for. Already so turned, it does nothing.
+     * Returns once the pane has its new width and is still. A turn starts a few
+     * frames after it is asked for. If the screen is already turned that way,
+     * it does nothing.
      */
     async turn(orientation: Orientation): Promise<void> {
         if ((await this.orientation()) === orientation) return;
@@ -995,12 +1125,12 @@ export class Phone {
     }
 
     /**
-     * Scrolls the pane's top `depth` px into the first `target` at least a
-     * screen down the stream, or with a negative `depth` that far above it,
-     * and waits for it to hold still there. Only notes near the screen are
-     * rendered (ADR 0006), so it goes a screen at a time until one is, or at
-     * once to the target's block, always in the stream, when the target
-     * names one; and what renders, a Base filling above the target, may move
+     * Scrolls so the pane's top is `depth` px into the first `target` at least
+     * a screen down the stream, or, with a negative `depth`, that far above it.
+     * Then waits for it to stay still there. Only notes near the screen are
+     * drawn (ADR 0006), so it moves a screen at a time until one is found. If
+     * the target names a block, which is always in the stream, it goes there at
+     * once. What is drawn, such as a Base filling in above the target, may move
      * it, so it scrolls again until the target is where it was put.
      */
     async placeAt(target: string, depth: number): Promise<void> {
@@ -1036,16 +1166,18 @@ export class Phone {
                 target,
                 depth
             );
-            // Already there, from a step at rest: nothing moved, so nothing to wait out.
+            // Already there after a step while still: nothing moved, so there
+            // is nothing to wait for.
             if (off !== null && Math.abs(off) <= 1) return;
             await this.rest();
-            // Or as near as the pane scrolls: a target near the stream's end cannot reach its top.
+            // Or as close as the pane can scroll: a target near the stream's
+            // end cannot reach the pane's top.
             if (off !== null && (await this.atEnd())) return;
         }
         throw new Error(`Could not hold the pane's top at ${target} in ${SCREENS} screens.`);
     }
 
-    /** Whether a `selector` spans the pane's top edge. */
+    /** Whether a `selector` crosses the pane's top edge. */
     atTop(selector: string): Promise<boolean> {
         return this.run(
             (s: string, sel: string) => {
@@ -1070,10 +1202,10 @@ export class Phone {
     }
 
     /**
-     * What the reader sees at the pane's top: the first of the top note's
-     * blocks still in view, by its text, and how far its top is from the
-     * pane's. A turn reflows the note, so the note's own offset says nothing
-     * about which text is in view; follow it with `topOf`.
+     * What the reader sees at the pane's top: the first part of the top note
+     * still in view, by its text, and how far its top is from the pane's top. A
+     * turn reflows the note, so the note's own position says nothing about
+     * which text is in view. Follow it with `topOf`.
      */
     seen(): Promise<Seen> {
         return this.run(
@@ -1099,7 +1231,10 @@ export class Phone {
         );
     }
 
-    /** Where `seen`'s block is now, from the pane's top: found by its place in the note, since a Base redraws its text on a turn. */
+    /**
+     * Where `seen`'s part is now, from the pane's top. Found by its position in
+     * the note, because a Base draws its text again when the screen turns.
+     */
     topOf(seen: Seen): Promise<number> {
         return this.run(
             (s: string, { path, kind, index, text }: Seen) => {
@@ -1114,7 +1249,10 @@ export class Phone {
         );
     }
 
-    /** Until the pane has held still for half a second: a glide, a turn and the loads they set off are over. */
+    /**
+     * Waits until the pane has been still for half a second, so scrolling,
+     * turning and the loads they start are over.
+     */
     rest(): Promise<void> {
         return this.runAsync(async (s: string) => {
             const pane = document.querySelector(s)!.parentElement!;
@@ -1142,7 +1280,8 @@ export class Phone {
 }
 
 export const test = base.extend<{ quietConsole: void }, { phone: Phone }>({
-    // Errors in a test fail it, wherever they surface: no check has to ask.
+    // Errors during a test fail it, wherever they appear, so no check has to
+    // ask for them.
     quietConsole: [
         async ({ phone }, use) => {
             await use();
@@ -1153,11 +1292,13 @@ export const test = base.extend<{ quietConsole: void }, { phone: Phone }>({
     phone: [
         async ({}, use) => {
             const driver = await connect();
-            // WebDriverAgent otherwise waits after each gesture for animations
-            // to end, 15 s in Obsidian; rest() waits for the stream instead.
+            // Otherwise WebDriverAgent waits after each gesture for animations
+            // to end, which takes 15 s in Obsidian. rest() waits for the stream
+            // instead.
             await driver.updateSettings({ animationCoolOffTimeout: 0, waitForIdleTimeout: 0 });
             const phone = new Phone(driver);
-            // An iPad is read in landscape, an iPhone upright: the run leaves it as it found it.
+            // An iPad is used in landscape, and an iPhone upright. The run
+            // leaves it as it found it.
             const found = (await driver.getOrientation()) as Orientation;
             try {
                 await phone.assertUnlocked();
@@ -1166,7 +1307,8 @@ export const test = base.extend<{ quietConsole: void }, { phone: Phone }>({
                 await use(phone);
             } finally {
                 await driver.setOrientation(found);
-                // The phone as the tester left it: their vault, Obsidian closed, the Home Screen.
+                // Leave the phone as the tester left it: their vault, Obsidian
+                // closed, and the Home Screen showing.
                 await returnToTestersVault(phone);
                 await driver.execute("mobile: terminateApp", { bundleId: OBSIDIAN });
                 await driver.execute("mobile: pressButton", { name: "home" });
@@ -1174,7 +1316,8 @@ export const test = base.extend<{ quietConsole: void }, { phone: Phone }>({
                 await driver.deleteSession();
             }
         },
-        // Seeding and indexing a five-year vault outlast a test's timeout.
+        // Creating and indexing a five-year vault takes longer than a test's
+        // timeout.
         { scope: "worker", timeout: 900_000 },
     ],
 });

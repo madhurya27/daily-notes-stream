@@ -2,10 +2,11 @@ import type { Page } from "@playwright/test";
 import { test, expect, openStream, restoreScrollAnchoring, seededDate, withoutScrollAnchoring } from "./obsidian";
 
 /**
- * Defines `window.streamPlace` in the page: the first note reaching into the
- * pane and how far its top sits from the pane's, as the stream keeps its place;
- * undefined while no stream is open. And `window.streamPlaces`, every distinct
- * place from the next frame until 30 frames pass without a change.
+ * Defines `window.streamPlace` in the page: the first note that is at least
+ * partly in the pane, and how far its top is from the pane's top, as the stream
+ * keeps its place. Undefined while no stream is open. Also defines
+ * `window.streamPlaces`: every different place from the next frame until 30
+ * frames pass without a change.
  */
 function measurePlaces(page: Page) {
     return page.evaluate(() => {
@@ -39,7 +40,10 @@ function measurePlaces(page: Page) {
 
 const place = (page: Page) => page.evaluate(() => window.streamPlace!());
 
-/** Waits until the stream's place has held still: renders push it about, and a Base fills in later still. */
+/**
+ * Waits until the stream's place stops changing, because drawing moves it, and
+ * a Base fills in even later.
+ */
 async function settledPlace(page: Page) {
     let before = await place(page);
     let stillSince = Date.now();
@@ -58,9 +62,9 @@ async function settledPlace(page: Page) {
 }
 
 /**
- * Scrolls the stream `past` the top of the note `daysBack` and waits for it to
- * settle. Twice: the first scroll is measured against placeholders, and the
- * notes it renders move the target.
+ * Scrolls the stream `past` the top of the note `daysBack` days back, and waits
+ * for it to stop changing. Twice, because the first scroll is measured against
+ * empty blocks, and the notes it draws move the target.
  */
 async function scrollPast(page: Page, daysBack: number, past = 150) {
     const container = await openStream(page);
@@ -76,13 +80,16 @@ async function scrollPast(page: Page, daysBack: number, past = 150) {
     return { container, target, before: await settledPlace(page) };
 }
 
-/** Leaves the stream for a note and comes Back; every place the stream showed on the way, and the one it left. */
+/**
+ * Leaves the stream for a note and comes back with Back. Returns every place
+ * the stream showed on the way, and the place it left.
+ */
 async function goBack(page: Page) {
     const { target } = await scrollPast(page, 3);
     const title = await target.locator(".daily-note-title").elementHandle();
 
-    // In one task: on a phone the notes around it may still be rendering,
-    // so the place is taken the instant it is left.
+    // In one task, because on a phone the notes around it may still be drawing,
+    // so the place is read the moment it is left.
     const { left, frames } = await page.evaluate(async (title) => {
         const nextFrame = () => new Promise((resolve) => requestAnimationFrame(resolve));
 
@@ -92,14 +99,16 @@ async function goBack(page: Page) {
         const deadline = performance.now() + 15_000;
 
         const left = window.streamPlace!();
-        // Playwright's click() would scroll the title into view first, and move the place.
+        // Playwright's click() would scroll the title into view first, which
+        // would move the place.
         title!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
         while (history() === behind) {
             if (performance.now() > deadline) return { left: "the note never opened", frames: [] };
             await nextFrame();
         }
 
-        // Every frame from Back on, as the stream shows it, until it holds still.
+        // Every frame from Back onwards, as the stream shows it, until it stops
+        // changing.
         window.app.commands.executeCommandById("app:go-back");
         return { left, frames: await window.streamPlaces!(deadline) };
     }, title);
@@ -108,8 +117,9 @@ async function goBack(page: Page) {
 }
 
 /**
- * Reopens the stream and hands it the place it left once it has drawn a frame,
- * as iOS does; every place it showed from then on, and the one it left.
+ * Opens the stream again, and gives it the place it left once it has drawn a
+ * frame, as iOS does. Returns every place it showed from then on, and the place
+ * it left.
  */
 async function returnAfterAFrame(
     page: Page,
@@ -118,7 +128,7 @@ async function returnAfterAFrame(
     const { before: left } = await scrollPast(page, daysBack, past);
     const eState = await page.evaluate((unmeasured) => {
         const eState = window.app.workspace.getLeavesOfType("daily-notes-stream-view")[0]!.view.getEphemeralState();
-        // As after a change of width: nothing was measured at the new layout.
+        // As after a change of width: nothing was measured in the new layout.
         if (unmeasured) window.app.plugins.plugins["daily-notes-stream"].layoutMemory.notes.restore(null);
         return eState;
     }, unmeasured);
@@ -145,7 +155,8 @@ test.describe("history", () => {
         const { page } = obsidian;
         const { container, before } = await scrollPast(page, 8);
 
-        // The stream is the active, navigable tab: Obsidian opens the note in it.
+        // The stream is the active tab that can navigate, so Obsidian opens the
+        // note in it.
         await page.evaluate(async () => {
             await window.app.workspace.getLeaf(false).openFile(window.app.vault.getFileByPath("Reading list.md")!);
         });
@@ -170,14 +181,16 @@ test.describe("history", () => {
         expect(frames).toEqual([left]);
     });
 
-    // The tenth note ends the first batch: nothing is loaded below it until the
-    // stream loads more, too little to scroll to a place near its bottom.
+    // The tenth note is the last of the first batch. Nothing is loaded below it
+    // until the stream loads more, so there is too little to scroll to a place
+    // near its bottom.
     test("returns to a place near the bottom of the last note loaded with it", async ({ obsidian }) => {
         const { left, frames } = await returnAfterAFrame(obsidian.page, { daysBack: 9, past: 700 });
         expect(frames).toEqual([left]);
     });
 
-    // iOS WebKit has no scroll anchoring: the stream holds the reader's place itself.
+    // iOS's WebKit does not keep the scroll position, so the stream keeps the
+    // reader's place itself.
     test.describe("where the platform has no scroll anchoring", () => {
         test.beforeEach(({ obsidian }) => withoutScrollAnchoring(obsidian.page));
         test.afterEach(({ obsidian }) => restoreScrollAnchoring(obsidian.page));
@@ -218,7 +231,8 @@ test.describe("history", () => {
                 );
             });
 
-            // Bases fills a view after it is drawn: the note shrinks, then grows back.
+            // Bases fills a view after it is drawn, so the note shrinks, then
+            // grows back.
             test("returns to the place it left", async ({ obsidian }) => {
                 const { left, frames } = await returnAfterAFrame(obsidian.page, { past: 900 });
                 expect(frames).toEqual([left]);

@@ -19,7 +19,7 @@ import { asApp } from "../stream-view-fixture";
 function makeApp(opts: { readResult?: string; fileCache?: unknown; leaves?: unknown[] } = {}) {
     const { readResult = "", fileCache = null, leaves = [] } = opts;
     const mockOpenFile = vi.fn().mockResolvedValue(undefined);
-    // One leaf serves both uses: opening a note, and hosting a search pane.
+    // One leaf is used for both: opening a note, and holding a search pane.
     const searchView = { setQuery: vi.fn() };
     const mockLeaf = {
         openFile: mockOpenFile,
@@ -52,7 +52,10 @@ function makeApp(opts: { readResult?: string; fileCache?: unknown; leaves?: unkn
     };
 }
 
-/** A markdown leaf view; `instanceof` rules out deferred (unloaded) views. */
+/**
+ * A Markdown leaf view. `instanceof` rules out deferred views, which are not
+ * loaded.
+ */
 function makeMarkdownView(file: TFile | null): MarkdownView {
     const view = new MarkdownView();
     view.file = file;
@@ -70,24 +73,33 @@ function makeStore() {
     };
 }
 
-/** A real manager (the properties panel uses its toggle) with rendering stubbed. */
-/** The component role the view plays: it owns the delegated listeners. */
+/**
+ * A real manager (the properties panel uses its toggle), with drawing replaced
+ * by a fake.
+ */
+/** The component part of the view, which owns the shared listeners. */
 const delegateComponent = Object.assign(new Component(), {
     hoverPopover: null,
     getViewType: () => "daily-notes-stream-view",
 });
 
-/** The two-step API the window manager drives: build the block, then fill it. */
+/** The two-step API the window manager uses: create the block, then fill it. */
 async function renderNote(renderer: NoteRenderer, file: TFile): Promise<HTMLElement> {
     const block = renderer.createBlock(file);
     await renderer.renderInto(block, file);
     return block;
 }
 
-/** The manager the renderer under test was built with, so mount() can wire it. */
+/**
+ * The manager the renderer under test was created with, so mount() can connect
+ * it.
+ */
 let lastCollapsible: CollapsibleManager | null = null;
 
-/** Puts a rendered note under a delegated root, the way the stream container is. */
+/**
+ * Puts a drawn note under a root with shared listeners, as the stream's
+ * container is.
+ */
 function mount(renderer: NoteRenderer, el: HTMLElement): HTMLElement {
     const root = document.createElement("div");
     renderer.delegate(delegateComponent, root);
@@ -215,7 +227,7 @@ describe("NoteRenderer.renderInto", () => {
         expect(el.querySelector(".metadata-container")).not.toBeNull();
     });
 
-    // Before collapsing, which reads a list item's own text for its key.
+    // Before folding, which reads a list item's own text for its key.
     it("wraps text beside a block before making sections collapsible", async () => {
         vi.spyOn(MarkdownRenderer, "render").mockImplementation(async (_app, _md, el) => {
             el.innerHTML = "<ul><li>Standing pancake<ul><li>Head to floor</li></ul></li></ul>";
@@ -360,7 +372,7 @@ describe("NoteRenderer.renderInto", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Per-note component lifetime
+// How long each note's component lives
 // ---------------------------------------------------------------------------
 
 describe("NoteRenderer component lifetime", () => {
@@ -398,8 +410,9 @@ describe("NoteRenderer component lifetime", () => {
         expect(child.loaded).toBe(true);
     });
 
-    // Detaching the DOM alone leaves what MarkdownRenderer.render() registered
-    // alive on the view until the view unloads — the leak unloading exists to fix.
+    // Removing only the DOM leaves what MarkdownRenderer.render() registered
+    // active on the view until the view unloads. That is the leak that
+    // unloading a note exists to fix.
     it("discard unloads the note's component and drops it from the view", async () => {
         const owner = new Component();
         const renderer = new NoteRenderer(
@@ -421,7 +434,7 @@ describe("NoteRenderer component lifetime", () => {
     });
 
     // Tracked once the note is complete, so the title and body are searched,
-    // and forgotten with the component, so an unloaded note keeps no ranges.
+    // and forgotten with the component, so an emptied note keeps no ranges.
     it("highlights the search in the rendered note until it is discarded", async () => {
         const app = makeApp();
         app.vault.cachedRead = vi.fn().mockResolvedValue("body");
@@ -473,7 +486,10 @@ describe("NoteRenderer linked mentions", () => {
     const DAY = new TFile("Notes/2025-01-01.md");
     const SOURCE = new TFile("Ideas/a.md");
 
-    /** A vault where Ideas/a.md links to the day, its read held until `release`. */
+    /**
+     * A vault where Ideas/a.md links to the day, and reading it waits until
+     * `release`.
+     */
     function linkedVault() {
         const app = makeApp({ readResult: "body" });
         let release!: () => void;
@@ -534,7 +550,8 @@ describe("NoteRenderer linked mentions", () => {
         expect(block.querySelector(".daily-note-mention-excerpt .internal-link")?.hasClass("is-unresolved")).toBe(true);
     });
 
-    // The queue that renders notes also applies vault events: it must not wait on another note's read.
+    // The queue that draws notes also handles vault events, so it must not wait
+    // while another note is read.
     it("hands the note back before its linked mentions are read", async () => {
         const { renderer, release } = linkedVault();
         const block = renderer.createBlock(DAY);
@@ -681,7 +698,7 @@ describe("NoteRenderer title open targets", () => {
     });
 
     it("opens a new tab on middle-click", async () => {
-        // A middle button fires auxclick, never click.
+        // A middle click fires auxclick, never click.
         const app = makeApp();
         const { title } = await renderTitle(app);
 
@@ -783,7 +800,10 @@ describe("NoteRenderer title menu", () => {
 });
 
 describe("NoteRenderer internal links", () => {
-    /** Internal links come from MarkdownRenderer, mocked here; this is its output. */
+    /**
+     * Internal links come from MarkdownRenderer, which is faked here. This is
+     * its output.
+     */
     async function renderLink(app: ReturnType<typeof makeApp>, href: string | null = "Reading list") {
         const renderer = new NoteRenderer(
             asApp(app),
@@ -816,7 +836,8 @@ describe("NoteRenderer internal links", () => {
         expect(event.defaultPrevented).toBe(true);
     });
 
-    // A linked mention's excerpt was written in another note: `[[Reading list]]` resolves from there.
+    // A linked mention's excerpt was written in another note, so
+    // `[[Reading list]]` is resolved from there.
     it("opens a link in a linked mention from the note the excerpt came from", async () => {
         const app = makeApp();
         const { el } = await renderLink(app);
@@ -1063,7 +1084,7 @@ describe("NoteRenderer tables", () => {
         };
     });
 
-    /** A note holding one table, rendered. */
+    /** A drawn note holding one table. */
     async function renderTable(): Promise<HTMLElement> {
         vi.spyOn(MarkdownRenderer, "render").mockImplementationOnce((_app, _md, el) => {
             const table = el.createEl("table");
@@ -1083,7 +1104,7 @@ describe("NoteRenderer tables", () => {
         return mount(renderer, await renderNote(renderer, new TFile("Notes/2025-01-01.md")));
     }
 
-    // A desktop table scrolls sideways, as Obsidian's do (ADR 0008).
+    // On desktop, a table scrolls sideways, as Obsidian's tables do (ADR 0008).
     it("leaves a table to Obsidian on desktop", async () => {
         Platform.isMobile = false;
 
@@ -1092,7 +1113,8 @@ describe("NoteRenderer tables", () => {
         expect(el.querySelector("td")?.dataset.column).toBeUndefined();
     });
 
-    // A table too wide for a phone stacks as cards, each cell under its column.
+    // A table too wide for a phone is stacked as cards, with each cell under
+    // its column's name.
     it("names each rendered cell after its column", async () => {
         const el = await renderTable();
 
@@ -1115,7 +1137,10 @@ describe("NoteRenderer equations", () => {
         };
     });
 
-    /** A note holding one display equation twice as wide as the 400px note, rendered; its math. */
+    /**
+     * A drawn note holding one display equation twice as wide as the 400px
+     * note. Returns its math element.
+     */
     async function renderEquation(): Promise<HTMLElement> {
         vi.spyOn(MarkdownRenderer, "render").mockImplementationOnce((_app, _md, el) => {
             const container = el.createEl("mjx-container" as "div", { attr: { display: "true" } });
@@ -1190,7 +1215,8 @@ describe("NoteRenderer Bases", () => {
         expect(render.mock.calls[0]![1]).toBe(`Before\n${BASE}\nAfter`);
     });
 
-    // Each Base draws into its own placeholder, so it can be redrawn alone.
+    // Each Base is drawn into its own placeholder, so it can be drawn again on
+    // its own.
     it("draws each Base into a placeholder of its own", async () => {
         const render = vi.spyOn(MarkdownRenderer, "render").mockImplementationOnce((_app, markdown, el) => {
             el.createDiv({ cls: "daily-note-base" });
@@ -1228,7 +1254,8 @@ describe("NoteRenderer Bases", () => {
             new BaseMeasurements(),
             new BacklinkIndex(() => ({}))
         );
-        // The note draws its placeholder; the Base, a table twice the note's width.
+        // The note draws its placeholder, and the Base draws a table twice the
+        // note's width.
         const render = vi.spyOn(MarkdownRenderer, "render").mockImplementation((_app, _md, el) => {
             if (!el.matches(".daily-note-base")) el.createDiv({ cls: "daily-note-base" });
             else {
@@ -1257,7 +1284,10 @@ describe("NoteRenderer Bases", () => {
 });
 
 describe("NoteRenderer unresolved links", () => {
-    /** MarkdownRenderer's output for `[[Reading list]] [[Someday]]`, as the real one renders it. */
+    /**
+     * MarkdownRenderer's output for `[[Reading list]] [[Someday]]`, as the real
+     * one draws it.
+     */
     async function renderLinks(app: ReturnType<typeof makeApp>) {
         vi.spyOn(MarkdownRenderer, "render").mockImplementationOnce((_app, _md, el) => {
             for (const href of ["Reading list", "Someday#Later"]) {
@@ -1424,7 +1454,7 @@ describe("NoteRenderer renderProperties", () => {
         expect(el.querySelector(".multi-select-pill > .multi-select-pill-content")).not.toBeNull();
     });
 
-    // Obsidian colors a pill as a tag off the value's type, not its key.
+    // Obsidian colors a pill as a tag based on the value's type, not its key.
     it("types a tags property so its pills take the tag colors", async () => {
         const app = makeApp({ fileCache: { frontmatter: { tags: ["work"], aliases: ["w"] } } });
         const renderer = new NoteRenderer(
@@ -1442,7 +1472,8 @@ describe("NoteRenderer renderProperties", () => {
         expect(values[1]?.dataset.propertyType).toBeUndefined();
     });
 
-    // Obsidian never splits a scalar: `tags: work, daily` is one pill, and no tag name.
+    // Obsidian never splits a single value: `tags: work, daily` is one pill,
+    // and not a valid tag name.
     it("shows a scalar tags value as one invalid pill, as Obsidian does", async () => {
         const app = makeApp({ fileCache: { frontmatter: { tags: "work, daily" } } });
         const el = await renderWithProperties(app);
@@ -1623,8 +1654,8 @@ describe("NoteRenderer renderProperties", () => {
         const el = mount(renderer, await renderNote(renderer, new TFile("Notes/2025-01-01.md")));
         const container = el.querySelector(".metadata-container")!;
 
-        // Obsidian hides this chevron unless the pointer is over the row and a
-        // phone never hovers, so the row itself has to be the target.
+        // Obsidian hides this arrow unless the pointer is over the row, and a
+        // phone has no pointer, so the row itself has to be the target.
         (el.querySelector(".metadata-properties-title") as HTMLElement).click();
 
         expect(container.classList.contains("is-collapsed")).toBe(true);
@@ -1644,7 +1675,8 @@ describe("NoteRenderer renderProperties", () => {
         const el = mount(renderer, await renderNote(renderer, new TFile("Notes/2025-01-01.md")));
         const heading = el.querySelector(".metadata-properties-heading")!;
 
-        // The gray box is `.metadata-content`; the heading is its sibling above.
+        // The grey box is `.metadata-content`, and the heading is its sibling
+        // above it.
         expect(heading.parentElement!.className).toBe("metadata-container");
         expect(heading.nextElementSibling!.className).toBe("metadata-content");
     });
@@ -1662,9 +1694,10 @@ describe("NoteRenderer renderProperties", () => {
         );
         const el = mount(renderer, await renderNote(renderer, new TFile("Notes/2025-01-01.md")));
 
-        // Obsidian rings this heading on :focus, and a tabindex makes a click
-        // focus it: the ring then sat around the row until something else took
-        // focus. The chevron carries the keyboard affordance instead.
+        // Obsidian draws a ring around this heading on :focus, and a tabindex
+        // makes a click focus it. The ring then stayed around the row until
+        // something else took focus. So the arrow is what the keyboard uses
+        // instead.
         expect(el.querySelector(".metadata-properties-heading")!.hasAttribute("tabindex")).toBe(false);
         expect(el.querySelector(".metadata-properties-heading > .collapse-indicator")!.getAttribute("tabindex")).toBe(
             "0"
@@ -1701,13 +1734,13 @@ describe("NoteRenderer renderProperties", () => {
         expect(getTypeInfo).toHaveBeenCalledWith("created", "2026-09-22");
     });
 
-    // The key-name guesses below are the fallback, for a vault whose Obsidian
-    // no longer exposes the type manager.
+    // The guesses from property names below are used when Obsidian no longer
+    // gives access to the type manager.
     it("uses the 'tags' icon for 'tags' and 'aliases' keys", async () => {
         expect(await renderIcons({ tags: ["a"], aliases: ["c"] })).toEqual(["tags", "tags"]);
     });
 
-    // Obsidian 1.9.10 dropped `tag` for `tags`; it types `tag` as text now.
+    // Obsidian 1.9.10 replaced `tag` with `tags`, and now treats `tag` as text.
     it("gives a 'tag' key no tag icon", async () => {
         expect(await renderIcons({ tag: "b" })).toEqual(["file-text"]);
     });
@@ -1772,7 +1805,8 @@ describe("NoteRenderer — delegated listeners", () => {
     }
 
     it("binds nothing to the title itself", async () => {
-        // One listener per note would pile up on the view across re-renders.
+        // One listener for each note would pile up on the view as notes are
+        // drawn again.
         const app = makeApp();
         const { root, link } = await render(app, false);
         link.click();
@@ -1788,7 +1822,8 @@ describe("NoteRenderer — delegated listeners", () => {
         root.remove();
     });
 
-    // load and error do not bubble: the root catches them on the way down.
+    // load and error events do not bubble, so the root catches them on the way
+    // down.
     it("falls a video's missing large thumbnail back to the small one", async () => {
         const { root } = await render(makeApp(), true);
         const thumbnail = youtubeThumbnail(
@@ -1804,7 +1839,8 @@ describe("NoteRenderer — delegated listeners", () => {
         root.remove();
     });
 
-    // YouTube answers a missing large one with a 120px placeholder, which loads.
+    // When the large thumbnail is missing, YouTube sends a 120px placeholder,
+    // which loads.
     it("falls a video's placeholder large thumbnail back to the small one as it loads", async () => {
         const { root } = await render(makeApp(), true);
         const thumbnail = youtubeThumbnail(
@@ -1830,7 +1866,10 @@ describe("NoteRenderer — delegated listeners", () => {
 });
 
 describe("NoteRenderer tag click", () => {
-    /** Inline tags come from MarkdownRenderer, mocked here; this is its output. */
+    /**
+     * Inline tags come from MarkdownRenderer, which is faked here. This is its
+     * output.
+     */
     function addInlineTag(block: HTMLElement, tag: string): HTMLElement {
         const link = block.querySelector(".daily-note-content")!.createEl("a", { cls: "tag", text: tag });
         link.setAttribute("href", tag);

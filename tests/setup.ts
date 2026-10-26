@@ -1,6 +1,6 @@
 /**
- * Extends jsdom's HTMLElement prototype with Obsidian's custom DOM helpers
- * so that code calling .addClass(), .createDiv(), etc. works in tests.
+ * Extends jsdom's HTMLElement prototype with Obsidian's custom DOM helpers so
+ * that code calling .addClass(), .createDiv(), etc. works in tests.
  */
 
 const proto = HTMLElement.prototype;
@@ -77,12 +77,15 @@ proto.createSpan = function (this: HTMLElement, params?: { cls?: string; text?: 
     return this.createEl("span", params);
 };
 
-/** Obsidian's cross-window check; tests have one window. */
+/** Obsidian's check that works across windows. Tests have one window. */
 Node.prototype.instanceOf = function <T>(this: Node, type: new () => T): this is T {
     return this instanceof type;
 };
 
-/** Obsidian's handles on a node's own window and document, which a pop-out window has apart. */
+/**
+ * Obsidian's properties for a node's own window and document, which differ in a
+ * pop-out window.
+ */
 Object.defineProperties(Node.prototype, {
     doc: {
         get(this: Node) {
@@ -96,7 +99,10 @@ Object.defineProperties(Node.prototype, {
     },
 });
 
-/** Obsidian's global helpers: an element built as on a parent, then detached. */
+/**
+ * Obsidian's global helpers: an element built as if on a parent, then removed
+ * from it.
+ */
 const globals = globalThis as unknown as Pick<typeof globalThis, "createEl" | "createDiv" | "createSpan">;
 globals.createEl = ((tag: keyof HTMLElementTagNameMap, o?: Parameters<typeof proto.createEl>[1]) => {
     const el = document.createElement("div").createEl(tag, o);
@@ -106,7 +112,7 @@ globals.createEl = ((tag: keyof HTMLElementTagNameMap, o?: Parameters<typeof pro
 globals.createDiv = (o?: Parameters<typeof proto.createDiv>[0]) => globals.createEl("div", o);
 globals.createSpan = (o?: Parameters<typeof proto.createSpan>[0]) => globals.createEl("span", o);
 
-/** jsdom implements no scrolling; Obsidian runs on Chromium, which does. */
+/** jsdom does not scroll. Obsidian runs on Chromium, which does. */
 proto.scrollIntoView ??= function () {};
 
 proto.onClickEvent = function (this: HTMLElement, handler: (e: MouseEvent) => void) {
@@ -120,27 +126,32 @@ proto.prepend =
     };
 
 /**
- * jsdom ships no CSS object; Obsidian runs on Chromium, which has CSS.escape
- * and CSS.supports.
- * Escapes every character outside [A-Za-z0-9_-] — stricter than the CSSOM
- * algorithm, and valid wherever the result is used (identifier or quoted value).
+ * jsdom has no CSS object. Obsidian runs on Chromium, which has CSS.escape and
+ * CSS.supports. This escapes every character outside [A-Za-z0-9_-], which is
+ * stricter than the CSSOM rules, and valid wherever the result is used (an
+ * identifier or a quoted value).
  */
 const jsdomGaps = globalThis as { CSS?: Partial<typeof CSS>; Highlight?: typeof Highlight };
 
 jsdomGaps.CSS ??= {
     escape: (value: string): string => value.replace(/[^\w-]/g, (c) => `\\${c}`),
-    // Chromium anchors the scroll itself; a test standing in for iOS stubs this.
+    // Chromium keeps the scroll position itself. A test that acts as iOS
+    // replaces this.
     supports: (property: string) => property === "overflow-anchor",
 };
 
 /**
- * jsdom ships no CSS Custom Highlight API; Chromium does. A highlight is a
- * set of ranges, at priority 0 unless given one, and the registry a map of them by name.
+ * jsdom has no CSS Custom Highlight API; Chromium does. A highlight is a set of
+ * ranges, with priority 0 unless given another, and the registry is a map of
+ * highlights by name.
  */
 jsdomGaps.Highlight ??= class Highlight extends Set<AbstractRange> {
     priority = 0;
 } as unknown as typeof Highlight;
 jsdomGaps.CSS.highlights ??= new Map() as unknown as HighlightRegistry;
 
-/** jsdom lays nothing out, so nothing is drawn anywhere; a test with a layout stubs its own. */
+/**
+ * jsdom has no layout, so nothing is drawn anywhere. A test that needs a layout
+ * fakes its own.
+ */
 document.elementsFromPoint = () => [];

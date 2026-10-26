@@ -1,11 +1,14 @@
 /**
- * How long one change of the stream may run before the console hears of it.
- * Every change waits its turn in one queue (ADR 0004): one that never ends
- * leaves every note undrawn, and nothing else says why (D-164).
+ * How long one change to the stream may run before an error is logged to the
+ * console. Every change waits for its turn in one queue (ADR 0004). A change
+ * that never ends leaves every note undrawn, and nothing else says why (D-164).
  */
 export const STALL_MS = 5_000;
 
-/** Runs `task` for its result; once it has run for `STALL_MS`, logs an error naming `what`, and again as it ends. */
+/**
+ * Runs `task` and returns its result. If it runs for `STALL_MS`, logs an error
+ * naming `what`, and logs again when it ends.
+ */
 export async function warnIfStalled<T>(what: string, task: () => Promise<T>): Promise<T> {
     const started = performance.now();
     let stalled = false;

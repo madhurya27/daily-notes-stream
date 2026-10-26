@@ -94,7 +94,8 @@ describe("CollapsibleStateStore", () => {
     });
 
     describe("retainOnly", () => {
-        // A note deleted while the plugin was off, or on another device, was never heard of.
+        // A note deleted while the plugin was off, or on another device, was
+        // never seen.
         it("forgets every note not in the vault", () => {
             store.setCollapsed("kept.md", "intro", true);
             store.setCollapsed("gone.md", "intro", true);
@@ -225,7 +226,8 @@ describe("CollapsibleStateStore", () => {
         expect(next.collapsedOr("file.md", "properties", true)).toBe(false);
     });
 
-    // Each heading of each render asks: one read and parse per lookup added up.
+    // Each heading asks every time a note is drawn, so reading and parsing on
+    // every lookup added up.
     it("reads storage once, not per lookup", () => {
         store.isCollapsed("file.md", "a");
         store.collapsedOr("file.md", "b", true);

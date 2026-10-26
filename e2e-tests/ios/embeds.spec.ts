@@ -5,7 +5,10 @@ import { EMBEDS_NOTE, FREE_DAYS, KANBAN } from "./vault";
 const NOTE = `.daily-note-block[data-source-path="${EMBEDS_NOTE}"]`;
 const PDF = `${NOTE} .pdf-embed`;
 const VIDEO = `${NOTE} a.daily-note-video`;
-/** Narrow.base, with a summary row: cards on a phone held upright, a table on its side. */
+/**
+ * Narrow.base, with a summary row: cards on a phone held upright, and a table
+ * on its side.
+ */
 const SUMMED = `${NOTE} .bases-view:has(.bases-table-footer)`;
 
 test.afterEach(async ({ phone }) => {
@@ -13,7 +16,7 @@ test.afterEach(async ({ phone }) => {
     await phone.run(() => window.app.workspace.detachLeavesOfType("pdf"));
 });
 
-// A preview, its toolbar clipped away, and a link to the file (D-083).
+// A preview, with its toolbar cut off, and a link to the file (D-083).
 test("a PDF shows its first page without a toolbar, and a tap opens it", async ({ phone }) => {
     await phone.openStream();
     await phone.placeAt(PDF, -40);
@@ -49,7 +52,10 @@ test("a video shows its thumbnail under a play button, and a tap opens it on You
     await expect.poll(() => phone.frontApp()).not.toBe(OBSIDIAN);
 });
 
-/** The view's `edge` scrolled 100px past the pane's; how far it went, and where each bar sat on the view before and after. */
+/**
+ * Scrolls the view's `edge` 100px past the pane's edge. Returns how far it
+ * went, and where each bar was on the view before and after.
+ */
 const scrollPast = (phone: Phone, edge: "top" | "bottom") =>
     phone.run(
         (view: string, edge: "top" | "bottom") => {
@@ -68,7 +74,8 @@ const scrollPast = (phone: Phone, edge: "top" | "bottom") =>
         edge
     );
 
-// Bases pins both to its own scroll box; clipped on a phone, they would pin to the stream's.
+// Bases fixes both to its own scrolling box. Cut off on a phone, they would be
+// fixed to the stream's.
 test("a Base table's header and summary row stay on it as the stream scrolls past", async ({ phone }) => {
     await phone.openStream();
     const found = await phone.orientation();
@@ -87,7 +94,8 @@ test("a Base table's header and summary row stay on it as the stream scrolls pas
     }
 });
 
-// A preview, a link to the page (D-098): a touch on the page would scroll it, not the stream.
+// A preview that links to the page (D-098), because a touch on the page would
+// scroll it, not the stream.
 test("a web page in a frame shows, and a tap opens it", async ({ phone }) => {
     const note = FREE_DAYS[1];
     const link = `.daily-note-block[data-source-path="${note}"] a.daily-note-frame-link`;
@@ -108,7 +116,8 @@ test("a web page in a frame shows, and a tap opens it", async ({ phone }) => {
 
         await expect.poll(() => phone.frontApp()).not.toBe(OBSIDIAN);
     } finally {
-        // In the background iOS aborts IndexedDB writes, and Obsidian leaves the rejection unhandled.
+        // In the background, iOS stops IndexedDB writes, and Obsidian does not
+        // handle the rejection.
         if ((await phone.frontApp()) !== OBSIDIAN) await phone.returnToObsidian();
         await phone.runAsync(async (path: string) => {
             await window.app.vault.delete(window.app.vault.getFileByPath(path)!);
@@ -116,7 +125,7 @@ test("a web page in a frame shows, and a tap opens it", async ({ phone }) => {
     }
 });
 
-// Clipped, a phone showed the first column alone (D-107).
+// When cut off, a phone only showed the first column (D-107).
 test("a kanban wider than the phone shows every column as a group of cards", async ({ phone }) => {
     await phone.openStream();
     await phone.placeAt(KANBAN, -40);

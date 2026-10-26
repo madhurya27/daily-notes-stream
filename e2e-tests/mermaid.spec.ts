@@ -1,6 +1,6 @@
 import { test, expect, openStream } from "./obsidian";
 
-/** Newer than every seeded note, so it opens the stream. */
+/** Newer than every test note, so it is first in the stream. */
 const NOTE = "Notes/2026-03-15.md";
 
 test("draws a Mermaid diagram once Obsidian's guard is allowed", async ({ obsidian }) => {

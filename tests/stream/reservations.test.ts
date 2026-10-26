@@ -6,12 +6,12 @@ import { Reservations, type Reserving } from "../../src/stream/reservations";
 const LAYOUT = "600:16px";
 const TURNED = "900:16px";
 
-/** A note reserving `height`, as the window manager tracks one. */
+/** A note with the height `height`, as the window manager tracks it. */
 function reserving(path: string, height = 500, measured = false): Reserving {
     return { file: new TFile(path), height, measured };
 }
 
-/** An unloaded block reserving `reserved`px, drawn from `top` in the window. */
+/** An empty block `reserved`px tall, drawn from `top` in the window. */
 function placeholder(reserved: number, top: number): HTMLElement {
     const block = document.createElement("div");
     block.style.setProperty("--daily-note-placeholder-height", `${reserved}px`);
@@ -74,7 +74,8 @@ describe("Reservations", () => {
             expect(reservations.owed).toBe(true);
         });
 
-        // Reserved from what is known now, a new note settles nothing owed by the rest.
+        // A new note gets a height from what is known now. That does not do the
+        // update the other notes still need.
         it("stays owed across a note added", () => {
             reservations.add(reserving("Notes/a.md"), LAYOUT);
             heights.keep(LAYOUT, "Notes/b.md", 320);
@@ -166,7 +167,7 @@ describe("Reservations", () => {
             expect(plan?.movedAbove).toBe(400);
         });
 
-        // In a hidden tab nothing is laid out, and nothing is above the pane.
+        // In a hidden tab, nothing is laid out, and nothing is above the pane.
         it("counts a block not laid out as below the pane", () => {
             const hidden = placeholder(500, -600);
             hidden.getBoundingClientRect = () => ({ top: 0, bottom: 0, height: 0 }) as DOMRect;
@@ -184,7 +185,7 @@ describe("Reservations", () => {
             expect(reservations.owed).toBe(false);
         });
 
-        // The browser would clamp the scroll.
+        // The browser would pull the scroll back.
         it("is put off while the notes below would shrink the stream by more than lies below the pane", () => {
             estimated = 300;
             heights.keep(LAYOUT, "Notes/b.md", 320);

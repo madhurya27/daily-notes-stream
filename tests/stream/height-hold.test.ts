@@ -28,7 +28,8 @@ describe("HeightHold", () => {
         expect(vi.getTimerCount()).toBe(0);
     });
 
-    // Something that never holds still, a Base updating live, is not held forever.
+    // Something that never stops changing, such as a Base updating live, is not
+    // held forever.
     it("lets go by itself once the limit passes", async () => {
         new HeightHold(el, 812);
 
@@ -49,7 +50,8 @@ describe("HeightHold", () => {
         later.release();
     });
 
-    // A pinned block keeps its height through a let-go until told (ADR 0013).
+    // A block with a fixed height keeps its height after a release, until it is
+    // told (ADR 0013).
     it("says it let go, by release or by the limit, once each", async () => {
         const released = vi.fn();
         const hold = new HeightHold(el, 812, released);

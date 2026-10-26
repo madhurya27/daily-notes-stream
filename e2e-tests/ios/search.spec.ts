@@ -4,7 +4,10 @@ const MATCH = "daily-notes-search-match";
 const CURRENT = "daily-notes-search-current";
 const BAR = ".daily-notes-search:not(.is-closed) input";
 
-/** Types `query` into the open stream's search bar, then puts its caret away so the screen holds still. */
+/**
+ * Types `query` into the open stream's search bar, then removes its cursor so
+ * the screen stays still.
+ */
 async function search(phone: Phone, query: string): Promise<void> {
     await phone.tap('.view-action[aria-label="Search"]');
     await expect.poll(() => phone.has(BAR), "the search bar did not open").toBe(true);
@@ -12,18 +15,24 @@ async function search(phone: Phone, query: string): Promise<void> {
     await phone.type(query);
     expect(await phone.run((bar: string) => document.querySelector<HTMLInputElement>(bar)!.value, BAR)).toBe(query);
     await phone.run((bar: string) => document.querySelector<HTMLInputElement>(bar)!.blur(), BAR);
-    // An iPad's pane shrinks above its keyboard, so typing marks no match
-    // below it (D-022): the reader steps to one.
+    // An iPad's pane shrinks above its keyboard, so typing marks no match below
+    // it (D-022). The reader moves to one.
     const current = () => phone.run((name: string) => CSS.highlights.get(name)?.size ?? 0, CURRENT);
     if ((await current()) === 0) await phone.tap('.daily-notes-search [aria-label="Next"]');
     await expect.poll(current).toBe(1);
     await phone.rest();
 }
 
-/** The ranges under test, held fixed: one put back goes to the end of its highlight. */
+/**
+ * The ranges being tested, kept fixed, because a range added back goes to the
+ * end of its highlight.
+ */
 type Held = { shown: Range[]; current: Range };
 
-/** Holds the matches inside the pane, and the current one; returns how many are on screen. */
+/**
+ * Keeps the matches inside the pane, and the current one. Returns how many are
+ * on screen.
+ */
 function holdMatches(phone: Phone): Promise<number> {
     return phone.run(
         (match: string, current: string) => {
@@ -43,9 +52,13 @@ function holdMatches(phone: Phone): Promise<number> {
     );
 }
 
-/** Whether taking a held range out of the `from` highlights changes the screen; it goes back after. */
+/**
+ * Whether taking a kept range out of the `from` highlights changes the screen.
+ * It is put back afterwards.
+ */
 async function paints(phone: Phone, which: number | "current", from: string[]): Promise<boolean> {
-    // A shot can show the frame before a change; a wait too short fails the test, never passes it.
+    // A screenshot can show the frame before a change. A wait that is too short
+    // makes the test fail, never pass.
     const lift = async (put: boolean) => {
         await phone.run(
             (which: number | "current", from: string[], put: boolean) => {
@@ -70,11 +83,12 @@ test.afterEach(async ({ phone }) => {
     if (await phone.has(BAR)) await phone.escape(BAR);
 });
 
-// WebKit paints no highlight on text the reader cannot select (e2e-tests/webkit.spec.ts);
-// only the phone shows what iOS's own paints.
+// WebKit draws no highlight on text the reader cannot select
+// (e2e-tests/webkit.spec.ts). Only the phone shows what iOS's own WebKit draws.
 test("a search paints every match on screen, the current one apart from the rest", async ({ phone }) => {
     await phone.openStream();
-    // Twice in each of the newest notes' Stallers, so more than one on screen.
+    // Twice in each of the newest notes' Stallers section, so more than one is
+    // on screen.
     await search(phone, "Effort");
     expect(await phone.screenshot(), "the screen holds still between shots").toBe(await phone.screenshot());
 

@@ -2,7 +2,10 @@ import { Component, TFile, setIcon } from "obsidian";
 import { CollapsibleStateStore } from "./collapse-store";
 import { FarRuns } from "./far-runs";
 
-/** Letters, their combining marks and digits in any script; ASCII text slugs as it always has. */
+/**
+ * Keeps letters, their accents and digits in any script. ASCII text gets the
+ * same slug as before.
+ */
 function slugify(text: string): string {
     return text
         .toLowerCase()
@@ -10,20 +13,26 @@ function slugify(text: string): string {
         .replace(/^-|-$/g, "");
 }
 
-/** Reserved key for the properties panel; a heading slug can never contain ":". */
+/**
+ * The key kept for the properties panel. A heading's slug can never contain
+ * ":".
+ */
 export const PROPERTIES_SECTION_KEY = ":properties";
 
-/** Reserved key for the linked mentions footer. */
+/** The key kept for the linked mentions footer. */
 export const LINKED_MENTIONS_SECTION_KEY = ":linked-mentions";
 
-/** Unwritten this long, a note's missing sections are gone, not mid-edit (D-027). */
+/**
+ * If a note was not written for this long, its missing sections were deleted,
+ * not in the middle of an edit (D-027).
+ */
 const SETTLED_AFTER_MS = 24 * 60 * 60 * 1000;
 
-/** A section whose collapsed state is persisted per note. */
+/** A section whose folded state is saved for each note. */
 export interface CollapsibleSection {
     filePath: string;
     sectionKey: string;
-    /** Used until the user toggles the section for the first time. */
+    /** Used until the user folds or unfolds the section for the first time. */
     defaultCollapsed: boolean;
     /** Applies the state to the DOM. */
     apply(collapsed: boolean): void;
@@ -31,35 +40,55 @@ export interface CollapsibleSection {
     hides(node: Node): boolean;
 }
 
-/** A section with its chevron: search opens it, a re-render closes it again or gives it a new key. */
+/**
+ * A section with its fold arrow. Search opens it; drawing the note again closes
+ * it again or gives it a new key.
+ */
 interface Fold {
     section: CollapsibleSection;
-    /** Shows the section collapsed or not, without saving it. */
+    /** Shows the section folded or not, without saving it. */
     show(collapsed: boolean): void;
 }
 
-/** A section's key: its slug under the heading above it, numbered if repeated. */
+/**
+ * A section's key: its slug, under the heading above it, numbered if repeated.
+ */
 type KeyFor = (el: Element, slug: string) => string;
 
-/** Chevrons of collapsed sections carry this, so a query finds them. */
+/** The fold arrows of folded sections match this, so a query can find them. */
 const COLLAPSED_CHEVRON = '.collapse-indicator[aria-expanded="false"]';
 
-/** Adds collapse chevrons to headers and list items, persisting state per note. */
+/**
+ * Adds fold arrows to headings and list items, and saves whether each is
+ * folded, for each note.
+ */
 export class CollapsibleManager {
     constructor(
         private readonly store: CollapsibleStateStore,
-        /** Runs the stream hid when far, which a section shows before it opens or closes (ADR 0021). */
+        /**
+         * Parts of notes the stream hid because they were far away. A section
+         * shows them before it opens or closes (ADR 0021).
+         */
         readonly farRuns: FarRuns = new FarRuns()
     ) {}
 
-    /** Element → its toggle. Weak, so elements dropped by a re-render are collectable. */
+    /**
+     * Maps each element to its toggle. Weak, so elements removed when a note is
+     * drawn again can be freed.
+     */
     private readonly toggles = new WeakMap<HTMLElement, () => void>();
-    /** Chevron → its section. */
+    /** Maps each fold arrow to its section. */
     private readonly sections = new WeakMap<Element, Fold>();
-    /** Collapsible element → its section, so a note re-rendered in place tells kept from new. */
+    /**
+     * Maps each foldable element to its section, so a note drawn again in place
+     * can tell kept elements from new ones.
+     */
     private readonly keyed = new WeakMap<HTMLElement, Fold>();
 
-    /** One listener pair for the whole stream, so a re-rendered chevron needs none of its own. */
+    /**
+     * One pair of listeners for the whole stream, so a fold arrow drawn again
+     * needs no listener of its own.
+     */
     delegate(component: Component, root: HTMLElement): void {
         component.registerDomEvent(root, "click", (evt) => {
             const toggle = this.toggleFor(evt.target);
@@ -72,25 +101,25 @@ export class CollapsibleManager {
             if (evt.key !== "Enter" && evt.key !== " ") return;
             const toggle = this.toggleFor(evt.target);
             if (!toggle) return;
-            evt.preventDefault(); // Space would scroll the stream
+            evt.preventDefault(); // Otherwise Space would scroll the stream.
             evt.stopPropagation();
             toggle();
         });
     }
 
     /**
-     * Makes a second element toggle the same section — the properties heading
-     * row, whose chevron Obsidian hides unless hovered, so a phone would have
-     * nothing to tap.
+     * Makes a second element fold the same section: the properties heading row.
+     * Obsidian hides its arrow unless the pointer is over it, so on a phone
+     * there would be nothing to tap.
      */
     attachCollapseHost(host: HTMLElement, toggle: () => void): void {
         this.toggles.set(host, toggle);
     }
 
     /**
-     * The toggle of the nearest element an event landed in, if it has one.
-     * Walking up finds the chevron before the row that also hosts it, so a
-     * click on either runs the toggle exactly once.
+     * The toggle of the nearest element that an event happened in, if it has
+     * one. Going up from the target finds the arrow before the row that also
+     * has the toggle, so a click on either runs the toggle exactly once.
      */
     private toggleFor(target: EventTarget | null): (() => void) | undefined {
         let el = target as HTMLElement | null;
@@ -103,8 +132,9 @@ export class CollapsibleManager {
     }
 
     /**
-     * Binds the toggle to the chevron alone: a click on heading text or a link
-     * inside it must not collapse. Returns the toggle, for binding extra hosts.
+     * Binds the toggle to the arrow only: a click on a heading's text, or on a
+     * link in it, must not fold it. Returns the toggle, so other elements can
+     * use it too.
      */
     attachCollapseToggle(host: HTMLElement, section: CollapsibleSection): () => void {
         const indicator = createSpan();
@@ -115,8 +145,8 @@ export class CollapsibleManager {
         host.prepend(indicator);
 
         let collapsed = this.store.collapsedOr(section.filePath, section.sectionKey, section.defaultCollapsed);
-        // The DOM starts expanded; an expand pass would reveal content hidden
-        // by a collapsed ancestor.
+        // The DOM starts unfolded. Unfolding it again would show content hidden
+        // by a folded parent.
         if (collapsed) section.apply(true);
         indicator.setAttribute("aria-expanded", String(!collapsed));
 
@@ -137,14 +167,18 @@ export class CollapsibleManager {
         return toggle;
     }
 
-    /** Whether a collapsed section, or a run hidden when far, hides `node`. */
+    /**
+     * Whether a folded section, or a part hidden because it is far away, hides
+     * `node`.
+     */
     folds(node: Node): boolean {
         return this.farRuns.hides(node) || this.foldsAround(node).length > 0;
     }
 
     /**
-     * Expands every collapsed section hiding `node`, unsaved, as Obsidian's
-     * reading view does for a search match (D-024), and shows its far run.
+     * Unfolds every folded section that hides `node`, without saving it, as
+     * Obsidian's reading view does for a search match (D-024). Also shows the
+     * hidden part it is in.
      */
     unfold(node: Node): void {
         this.farRuns.reveal(node);
@@ -158,10 +192,13 @@ export class CollapsibleManager {
             .filter((fold): fold is Fold => fold !== undefined && fold.section.hides(node));
     }
 
-    /** Adds a chevron to every header and nested list; returns their section keys. */
+    /**
+     * Adds a fold arrow to every heading and nested list. Returns their section
+     * keys.
+     */
     makeCollapsible(contentEl: HTMLElement, filePath: string): string[] {
         const above = this.headingsAbove(contentEl);
-        // Shared across headers and lists so every key in a note is unique.
+        // Shared by headings and lists, so every key in a note is unique.
         const seenKeys = new Map<string, number>();
         const keyFor: KeyFor = (el, slug) => {
             const heading = above.get(el);
@@ -171,8 +208,8 @@ export class CollapsibleManager {
     }
 
     /**
-     * After sections re-rendered in place (ADR 0019): chevrons for what is new,
-     * and each collapsed section closed again over it.
+     * After sections are drawn again in place (ADR 0019): adds arrows to what
+     * is new, and folds each folded section again over it.
      */
     refreshCollapsible(contentEl: HTMLElement, filePath: string): string[] {
         const keys = this.makeCollapsible(contentEl, filePath);
@@ -183,13 +220,14 @@ export class CollapsibleManager {
     }
 
     /**
-     * Each heading and list item → the slug of the heading it sits under, so a
-     * repeat is numbered only among its heading's: deleting one under another
-     * heading hands on no saved state. "/" is in no slug.
+     * Maps each heading and list item to the slug of the heading it is under.
+     * So repeated text is only numbered among the items under the same heading,
+     * and deleting one under another heading does not pass its saved state on.
+     * No slug contains "/".
      */
     private headingsAbove(contentEl: HTMLElement): Map<Element, string> {
         const above = new Map<Element, string>();
-        // Stryker disable next-line ArrayDeclaration: a stray entry has no slug, and keys nothing.
+        // Stryker disable next-line ArrayDeclaration: an extra entry has no slug, so it affects no key.
         const open: { level: number; slug: string }[] = [];
         for (const el of Array.from(contentEl.querySelectorAll<HTMLElement>("h1, h2, h3, h4, h5, h6, li"))) {
             const level = this.headingLevel(el);
@@ -204,9 +242,9 @@ export class CollapsibleManager {
     }
 
     /**
-     * Whether `el` already has its chevron. One whose key moved — a same-text
-     * section added or removed before it — takes the key and its saved state,
-     * as a whole render would give it.
+     * Whether `el` already has its arrow. If its key changed, because a section
+     * with the same text was added or removed before it, it takes the new key
+     * and that key's saved state, as drawing the whole note would.
      */
     private kept(el: HTMLElement, key: string): boolean {
         const fold = this.keyed.get(el);
@@ -219,7 +257,10 @@ export class CollapsibleManager {
         return true;
     }
 
-    /** Drops saved sections `file` no longer has. The panels stay: a hidden one renders no key. */
+    /**
+     * Forgets saved sections that `file` no longer has. The panels' keys are
+     * kept, because a hidden panel draws no key.
+     */
     forgetRemovedSections(file: TFile, sectionKeys: readonly string[]): void {
         if (Date.now() - file.stat.mtime < SETTLED_AFTER_MS) return;
         this.store.retainSections(
@@ -229,9 +270,10 @@ export class CollapsibleManager {
     }
 
     /**
-     * Same-text headings would share one stored state. The first occurrence keeps
-     * the bare key, so state saved before this disambiguation still applies; the
-     * rest take a "#", which no slug contains, so "Foo 2" keeps its own.
+     * Headings with the same text would share one saved state. The first one
+     * keeps the plain key, so state saved before numbering was added still
+     * applies. The others get a "#", which no slug contains, so a heading "Foo
+     * 2" keeps its own key.
      */
     private uniqueKey(key: string, seenKeys: Map<string, number>): string {
         const occurrence = (seenKeys.get(key) ?? 0) + 1;
@@ -276,7 +318,7 @@ export class CollapsibleManager {
                     defaultCollapsed: false,
                     apply: (collapsed) => li.toggleClass("is-collapsed", collapsed),
                     hides: (node) =>
-                        // Stryker disable next-line Regex: no other HTML tag name holds these letters.
+                        // Stryker disable next-line Regex: no other HTML tag name contains these letters.
                         Array.from(li.children).some((el) => /^(UL|OL)$/.test(el.tagName) && el.contains(node)),
                 });
                 return sectionKey;
@@ -284,26 +326,30 @@ export class CollapsibleManager {
     }
 
     private applyHeaderCollapse(header: HTMLElement, isCollapsed: boolean): void {
-        // A spacer measured the run shown: what the section hides or shows must be the run itself.
+        // A spacer's height was measured with the part shown, so the section
+        // must fold or unfold the part itself.
         for (const el of this.sectionBody(header)) this.farRuns.reveal(el);
-        // A nested collapsed heading keeps its content hidden: skip siblings
-        // until a heading at that level or higher.
+        // A folded heading inside the section keeps its content hidden: skip
+        // siblings until a heading at that level or higher.
         let collapsedNestedLevel: number | null = null;
         for (const el of this.sectionBody(header)) {
             const level = this.headingLevel(el);
-            // Stryker disable next-line ConditionalExpression: no heading's level is at most null's 0.
+            // Stryker disable next-line ConditionalExpression: no heading's level is 0 or less, which is what null compares as.
             if (level !== null && collapsedNestedLevel !== null && level <= collapsedNestedLevel) {
                 collapsedNestedLevel = null;
             }
             if (collapsedNestedLevel === null) {
                 el.toggleClass("is-hidden", isCollapsed);
-                // Stryker disable next-line ConditionalExpression,LogicalOperator: folding, a folded section's body is hidden either way; only headings fold here.
+                // Stryker disable next-line ConditionalExpression,LogicalOperator: when folding, a folded section's body is hidden either way; only headings fold here.
                 if (!isCollapsed && level !== null && el.hasClass("is-collapsed")) collapsedNestedLevel = level;
             }
         }
     }
 
-    /** The siblings a heading's section holds: up to a heading at its level or higher. */
+    /**
+     * The siblings in a heading's section: up to the next heading at its level
+     * or higher.
+     */
     private sectionBody(header: HTMLElement): Element[] {
         const level = parseInt(header.tagName.substring(1));
         const body: Element[] = [];
@@ -316,18 +362,19 @@ export class CollapsibleManager {
     }
 
     private headingLevel(el: Element): number | null {
-        // Stryker disable next-line Regex: no other HTML tag name holds these letters.
+        // Stryker disable next-line Regex: no other HTML tag name contains these letters.
         return /^H[1-6]$/.test(el.tagName) ? parseInt(el.tagName.substring(1)) : null;
     }
 
     /**
-     * Own text, excluding nested sub-lists: a stable collapse key. A positional
-     * index would shift and desync saved state on every edit elsewhere.
+     * The item's own text, without nested lists: a fold key that does not
+     * change. A key based on position would change with every edit elsewhere,
+     * and the saved state would then apply to the wrong item.
      */
     private ownText(li: HTMLElement): string {
         let text = "";
         for (const node of Array.from(li.childNodes)) {
-            // Stryker disable next-line ConditionalExpression,Regex: a text node has no tag name to match; no other HTML tag name holds these letters.
+            // Stryker disable next-line ConditionalExpression,Regex: a text node has no tag name to match, and no other HTML tag name contains these letters.
             if (node.nodeType === Node.ELEMENT_NODE && /^(UL|OL)$/.test((node as HTMLElement).tagName)) continue;
             text += node.textContent;
         }

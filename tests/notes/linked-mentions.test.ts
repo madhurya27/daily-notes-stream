@@ -6,7 +6,7 @@ import { asApp } from "../stream-view-fixture";
 
 const DAY = "Notes/2025-01-01.md";
 
-/** A span in a note's source, as the metadata cache records one. */
+/** A span in a note's text, as the metadata cache records one. */
 function at(start: number, end: number) {
     return {
         start: { line: 0, col: 0, offset: start },
@@ -19,8 +19,8 @@ function link(target: string, start: number, end = start + target.length + 4) {
 }
 
 /**
- * A vault of `caches` by path. A link resolves by basename, as Obsidian's
- * shortest-path links do; the index is built from what the caches link to.
+ * A vault of `caches` by path. A link resolves by file name, as Obsidian's
+ * shortest-path links do. The index is built from what the caches link to.
  */
 function vault(caches: Record<string, object>, mtimes: Record<string, number> = {}) {
     const files = new Map<string, TFile>();
@@ -186,7 +186,8 @@ describe("linkedMentions", () => {
         expect(linkedMentions(app, index, day)).toEqual([]);
     });
 
-    // The index and the cache can disagree for a moment while the cache catches up.
+    // The index and the cache can disagree for a moment while the cache catches
+    // up.
     it("leaves out a source that is gone, uncached, or no longer links here", () => {
         const { app, index, day } = vault({ "a.md": { links: [link("2025-01-01", 0)] } });
         Object.assign(app.vault, { getFileByPath: () => null });
@@ -250,7 +251,8 @@ describe("mentionsSignature", () => {
         expect(signature({}, more)).not.toBe(signature());
     });
 
-    // Run together, `a.md` written at 1 then `2b.md` reads as `a.md` written at 12 then `b.md`.
+    // Without a separator, `a.md` changed at 1 followed by `2b.md` would read
+    // the same as `a.md` changed at 12 followed by `b.md`.
     it("tells one source's end from the next one's start", () => {
         const mention = (path: string, mtime: number) => {
             const source = new TFile(path);

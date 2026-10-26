@@ -14,7 +14,7 @@ interface View {
 const views = (definition: string | null): View[] => (parseYaml(definition!) as { views: View[] }).views;
 
 describe("asCards", () => {
-    // YAML reads a bare "-" as null.
+    // YAML reads a "-" on its own as null.
     it("passes over an empty view", () => {
         const [, view] = views(asCards(lines("views:", "  -", "  - type: table", "    name: Files")));
 
@@ -27,7 +27,7 @@ describe("asCards", () => {
         expect(view).toEqual({ type: "cards", name: "Files", order: ["file.name"] });
     });
 
-    // A kanban's columns are its groups; cards keep them as headings.
+    // A kanban's columns are its groups, and cards keep them as headings.
     it("draws a kanban view as cards, keeping its grouping", () => {
         const groupBy = ["    groupBy:", "      property: status", "      direction: ASC"];
         const definition = lines("views:", "  - type: kanban", "    name: Board", ...groupBy);
@@ -49,7 +49,7 @@ describe("asCards", () => {
         expect(views(asCards(definition)).map((v) => v.type)).toEqual(["cards", "map"]);
     });
 
-    // An embed names its view; a Base shows its first.
+    // An embed names its view, and a Base shows its first view.
     it("moves the named view first", () => {
         const definition = lines(TABLE, "  - type: table", "    name: Second");
 
@@ -68,14 +68,15 @@ describe("asCards", () => {
         expect(view).toEqual({ type: "cards", name: "Files", order: ["file.name"], cardSize: 800 });
     });
 
-    // Bases keeps a view's card size when the view switches to a table and back.
+    // Bases keeps a view's card size when the view switches to a table and
+    // back.
     it("keeps the card size a table view holds when given none", () => {
         const [view] = views(asCards(lines(TABLE, "    cardSize: 150")));
 
         expect(view).toEqual({ type: "cards", name: "Files", order: ["file.name"], cardSize: 150 });
     });
 
-    // A cards view the note wrote keeps the size it chose.
+    // A cards view written in the note keeps the size it chose.
     it("leaves a view already cards at its own size", () => {
         const definition = lines(TABLE, "  - type: cards", "    name: Mine", "    cardSize: 150");
 
@@ -104,7 +105,8 @@ describe("extractBases", () => {
 
         const { markdown: rest, bases } = extractBases(markdown);
 
-        // The blank line ends the HTML block; without it "After" joins it.
+        // The blank line ends the HTML block. Without it, "After" would become
+        // part of the block.
         expect(rest).toBe(lines("Before", SLOT, "", "After"));
         expect(bases).toEqual([{ kind: "block", definition: TABLE, markdown: lines("```base", TABLE, "```") }]);
     });
@@ -124,7 +126,8 @@ describe("extractBases", () => {
         expect(bases).toEqual([{ kind: "block", definition: TABLE, markdown: lines("~~~~ base", TABLE, "~~~~") }]);
     });
 
-    // CommonMark strips up to the fence's indent; a line may have less.
+    // CommonMark removes up to the fence's indent from each line, and a line
+    // may have less.
     it("reads a line indented less than its fence", () => {
         const { bases } = extractBases(lines("  ```base", "filters: x", "  ```"));
 
@@ -149,7 +152,8 @@ describe("extractBases", () => {
     it.each([
         ["quoted inside another fence", lines("````md", "```base", TABLE, "```", "````")],
         ["never closed", lines("```base", TABLE)],
-        // A shorter or other-character fence is content, not the close.
+        // A shorter fence, or one with another character, is content, not the
+        // end of the block.
         ["closed only by a mismatched fence", lines("````base", TABLE, "```", "~~~~")],
         ["not alone on its line", "See ![[Views.base]]"],
         ["in a list item", "- ![[Views.base]]"],

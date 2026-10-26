@@ -11,7 +11,7 @@ const repoRoot = resolve(__dirname, "../..");
 const readme = readFileSync(resolve(repoRoot, "README.md"), "utf8");
 const manifest = JSON.parse(readFileSync(resolve(repoRoot, "manifest.json"), "utf8")) as { name: string };
 
-/** Loads the plugin far enough to read the commands it registers. */
+/** Loads the plugin just enough to read the commands it registers. */
 async function loadedPlugin() {
     __setMockNotes([]);
     const app = {
@@ -29,7 +29,7 @@ async function loadedPlugin() {
     return plugin;
 }
 
-/** Every local image the README points at, however it is written. */
+/** Every local image the README links to, however the link is written. */
 function referencedImages(): string[] {
     const markdown = [...readme.matchAll(/!\[[^\]]*\]\(([^)]+)\)/g)].map((m) => m[1]!);
     const html = [...readme.matchAll(/<img[^>]+src="([^"]+)"/g)].map((m) => m[1]!);
@@ -61,14 +61,16 @@ describe("README", () => {
         }
     });
 
-    // Obsidian's developer policies: network use is disclosed, naming the service and why.
+    // Obsidian's developer policies: any network use must be stated, naming the
+    // service and why.
     it("names, in its privacy answer, each service the plugin loads from", () => {
         const services: Record<string, string> = { "i.ytimg.com": "YouTube" };
         const privacy = readme.split("\n- **").find((item) => item.startsWith("Is it private?**")) ?? "";
         const hosts = readdirSync(resolve(repoRoot, "src"), { recursive: true, encoding: "utf8" })
             .filter((file) => file.endsWith(".ts"))
             .flatMap((file) => [
-                // Lazy to the statement's end: Stryker wraps the URL in a mutant switch.
+                // Matches lazily up to the end of the statement, because
+                // Stryker wraps the URL in its own code.
                 ...readFileSync(resolve(repoRoot, "src", file), "utf8").matchAll(/\.src = [^;]*?`https:\/\/([^/]+)/g),
             ])
             .map((match) => match[1]!);
@@ -80,7 +82,8 @@ describe("README", () => {
         }
     });
 
-    // Settings buried under Use went unnoticed; a section of their own is found by skimming the headings.
+    // Settings hidden under Use went unnoticed. A section of their own can be
+    // found by skimming the headings.
     it("lists every setting, and its default, in a section of its own", () => {
         const section = readme.split(/^## /m).find((part) => part.startsWith("Settings\n")) ?? "";
         type Row = { name?: string; heading?: string; items?: Row[]; control?: { key: keyof typeof DEFAULT_SETTINGS } };

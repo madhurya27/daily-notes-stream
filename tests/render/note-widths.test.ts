@@ -27,7 +27,7 @@ class FakeResizeObserver {
     }
 }
 
-/** jsdom lays nothing out: an element as wide as `width()` says. */
+/** jsdom has no layout, so this element is as wide as `width()` says. */
 function noteContent(width: () => number): HTMLElement {
     const el = document.createElement("div");
     Object.defineProperty(el, "clientWidth", { configurable: true, get: width });
@@ -68,7 +68,8 @@ describe("NoteWidths", () => {
         expect(refit).toHaveBeenCalledExactlyOnceWith(800);
     });
 
-    // A height change reports too, and measuring then is wasted layout.
+    // A height change is reported too, and measuring then would be wasted
+    // layout work.
     it("refits nothing when only the height changed", () => {
         const content = noteContent(() => 400);
         const refit = vi.fn();
@@ -79,7 +80,8 @@ describe("NoteWidths", () => {
         expect(refit).not.toHaveBeenCalled();
     });
 
-    // Hidden far from the screen, a note lays out at nothing (ADR 0023): no width to fit.
+    // A note hidden far from the screen has no size (ADR 0023), so there is no
+    // width to fit.
     it("refits nothing while a note lays out at nothing, nor once it is back at its width", () => {
         let width = 400;
         const content = noteContent(() => width);
@@ -109,7 +111,7 @@ describe("NoteWidths", () => {
         expect(refitSecond).not.toHaveBeenCalled();
     });
 
-    // Tables, equations and Bases each refit the same note.
+    // Tables, equations and Bases each fit themselves again in the same note.
     it("runs every refit of a note", () => {
         let width = 400;
         const content = noteContent(() => width);
@@ -140,7 +142,8 @@ describe("NoteWidths", () => {
         expect(refit).not.toHaveBeenCalled();
     });
 
-    // A note drawn again into the same element, as a re-render does.
+    // A note drawn again into the same element, as happens when it is drawn
+    // again.
     it("watches a note again once watched afresh after it unloaded", () => {
         let width = 400;
         const content = noteContent(() => width);
@@ -161,7 +164,8 @@ describe("NoteWidths", () => {
         expect(FakeResizeObserver.instances).toEqual([]);
     });
 
-    // Its tables' refit leaves first; the equations' still watches until it goes too.
+    // Its tables' function stops watching first. The equations' function keeps
+    // watching until it stops too.
     it("watches a note until every refit of it is gone", () => {
         const content = noteContent(() => 400);
         const [tables, equations] = [loaded(), loaded()];

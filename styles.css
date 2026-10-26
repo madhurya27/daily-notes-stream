@@ -1,11 +1,12 @@
-/* Daily Notes Stream Styles - Fully Variable-Based */
+/* Daily Notes Stream styles. All values use Obsidian's CSS variables. */
 
-/* Laid out as reading view lays out a note: the theme's margins around a
-   column capped at the line width, with no margin of the stream's own. */
+/* Laid out the way reading view lays out a note: the theme's margins around a
+   column no wider than the line width, with no extra margin of the stream's
+   own. */
 .workspace-leaf-content[data-type="daily-notes-stream-view"] > .view-content {
     padding: var(--file-margins);
-    /* A height is remembered by the column's width (ADR 0010), which a scroll
-       bar appearing as the stream fills would change. */
+    /* Heights are remembered by the column's width (ADR 0010). A scroll bar
+       appearing as the stream fills would change that width. */
     scrollbar-gutter: stable;
 }
 
@@ -29,16 +30,17 @@
     padding-bottom: var(--size-4-16, 4rem);
 }
 
-/* ScrollAnchor holds the reader's place where the platform does not (iOS):
-   native anchoring off, so nothing corrects twice, and the stream drawn shifted
-   until the scroll stops and takes the shift over (D-036). */
+/* ScrollAnchor keeps the reader's place where the platform does not (iOS). The
+   browser's own anchoring is off, so nothing corrects the scroll twice. The
+   stream is drawn shifted until scrolling stops and the shift is moved into the
+   scroll position (D-036). */
 .is-scroll-anchored {
     overflow-anchor: none;
 }
 
-/* Read only by the element they are set on. Inherited, a change restyled every
-   element inside it: the whole note at each re-pin, the whole stream at each
-   shift (D-129). */
+/* Only read by the element they are set on. If they were inherited, each change
+   would restyle every element inside: the whole note each time its height is
+   fixed again, and the whole stream at each shift (D-129). */
 @property --daily-note-pinned-height {
     syntax: "*";
     inherits: false;
@@ -73,20 +75,20 @@
     transform: translateY(var(--daily-notes-scroll-shift));
 }
 
-/* For one frame, nothing to scroll: iOS ends a glide there (D-091). */
+/* For one frame, nothing can scroll, so iOS stops scrolling there (D-091). */
 .is-scroll-anchored.is-scroll-frozen {
     overflow: hidden;
 }
 
-/* An unloaded note: no content, but the height it had, so nothing shifts. */
+/* An emptied note: no content, but the height it had, so nothing moves. */
 .daily-note-block.is-unloaded {
     height: var(--daily-note-placeholder-height);
     overflow: clip;
 }
 
-/* A note drawing from its end, as the reader comes up into it: what is drawn
-   sits at the bottom of the height it reserves, where the reader is, and its
-   title waits above the rest of it, unseen until it lands. */
+/* A note being drawn from its end, as the reader scrolls up into it. What is
+   drawn sits at the bottom of the note's height, where the reader is. Its title
+   waits above the rest of the note, out of sight, until drawing finishes. */
 .daily-note-block.is-unloaded.is-drawing-from-end {
     display: flex;
     flex-direction: column;
@@ -97,20 +99,21 @@
     visibility: hidden;
 }
 
-/* A rendered note at the height the stream last took for it: what renders
-   inside moves nothing until NoteWindowManager re-pins it, telling the scroll
-   anchor in the same task (ADR 0013). */
+/* A drawn note, fixed at the height the stream last measured for it. What is
+   drawn inside moves nothing until NoteWindowManager fixes its height again,
+   and tells the scroll anchor in the same task (ADR 0013). */
 .daily-note-block.is-pinned {
     height: var(--daily-note-pinned-height);
     overflow-y: clip;
 }
 
-/* A drawn note far from the screen: out of the layout inside its pin (ADR 0023). */
+/* A drawn note far from the screen: its content is out of the layout, and the
+   block keeps its fixed height (ADR 0023). */
 .daily-note-block.is-far > * {
     display: none;
 }
 
-/* A note held at an earlier height while it refills
+/* A note kept at an earlier height while it is drawn again
    (src/stream/height-hold.ts). */
 .daily-note-block {
     min-height: var(--daily-note-held-height, 0);
@@ -123,19 +126,21 @@
     overflow-y: clip;
 }
 
-/* A Base drawn as written to be measured, likely to be redrawn as cards:
-   clipped sideways too, as it may overrun the note. */
+/* A Base drawn as written so it can be measured. It will likely be drawn again
+   as cards. It is also cut off at the sides, because it may be wider than the
+   note. */
 .daily-note-base.is-measuring {
     overflow: clip;
 }
 
-/* Custom properties inherit: a note's hold must not reach the Bases in it. */
+/* Custom properties are inherited, so a note's held height must be reset for
+   the Bases inside it. */
 .daily-note-block > * {
     --daily-note-held-height: initial;
 }
 
-/* The title is the note's inline title, whose em sizes Obsidian resolves
-   against the note's text size, not the interface's. */
+/* The title is the note's inline title. Obsidian sizes its em values from the
+   note's text size, not the interface's. */
 .daily-note-header {
     margin-bottom: var(--size-4-4, 1rem);
     font-size: var(--font-preferred-size);
@@ -158,10 +163,10 @@
     text-decoration: underline;
 }
 
-/* `overflow-wrap`: a long URL breaks mid-word rather than widening the stream,
-   as in reading view: Obsidian sets it on .markdown-preview-view, which the
-   stream lacks. The size too: the text size, scaled on a phone by iOS's text
-   size setting. */
+/* `overflow-wrap`: a long URL breaks in the middle of a word instead of making
+   the stream wider, as in reading view. Obsidian sets it on
+   .markdown-preview-view, which the stream does not have. The same for the
+   size: the text size, which on a phone iOS's text size setting changes. */
 .daily-note-content {
     line-height: var(--line-height-normal);
     -webkit-user-select: text;
@@ -172,31 +177,32 @@
     overflow-wrap: break-word;
 }
 
-/* Ensure standard spacing within rendered content */
+/* Normal paragraph spacing inside drawn content. */
 .daily-note-content p {
     margin-bottom: var(--p-spacing);
 }
 
-/* Daily Note Properties
+/* Daily note properties
 
-   Obsidian's stylesheet already draws every one of these classes, so the stream
-   renders its markup and stays out of the way. What follows is only what the
-   stream needs on top: collapsing, the heading's place among the note's own
-   headings, and the read-only affordances. Restating its sizing here shrank the
-   panel to 13px and left a 17px line in a row built for a 28px field. */
+   Obsidian's stylesheet already styles every one of these classes, so the
+   stream uses the same markup and adds as little as possible. What follows is
+   only what the stream needs on top: folding, the heading's place among the
+   note's own headings, and showing that the panel is read-only. Setting the
+   sizes again here shrank the panel to 13px, and left a 17px line in a row made
+   for a 28px field. */
 
-/* The panel belongs to the note, so it reads at the note's text size — what
-   Obsidian's own panel inherits from the editor around it. */
+/* The panel is part of the note, so it uses the note's text size, which is what
+   Obsidian's own panel gets from the editor around it. */
 .daily-notes-stream-container .metadata-container {
     font-size: var(--font-preferred-size);
 }
 
-/* Obsidian sets a key and a value through `input.metadata-property-key-input`
-   and `.metadata-input-text` — element selectors a read-only span cannot match.
-   Its variables carry the typography across. */
+/* Obsidian styles a key and a value with `input.metadata-property-key-input`
+   and `.metadata-input-text`. These need an input element, which a read-only
+   span is not. Obsidian's variables bring the same text styles across. */
 .daily-notes-stream-container .metadata-property-key-input {
-    /* An input centers its text in the field; a span drew it against the top,
-       leaving the key a row's-worth above the value beside it. */
+    /* An input centers its text in the field. A span put it at the top, leaving
+       the key a whole row above the value next to it. */
     display: flex;
     align-items: center;
     flex-grow: 1;
@@ -213,9 +219,9 @@
     font-size: var(--metadata-input-font-size);
 }
 
-/* Collapsed is heading-only: everything under the heading goes, the panel's
-   bottom padding and the heading's bottom margin included. The top padding
-   stays — dropping it slid the heading up as the box closed. */
+/* When folded, only the heading shows. Everything under it is hidden, including
+   the panel's bottom padding and the heading's bottom margin. The top padding
+   stays: removing it moved the heading up as the box closed. */
 .daily-notes-stream-container .metadata-container.is-collapsed {
     padding-bottom: 0;
 }
@@ -228,10 +234,11 @@
     margin-bottom: 0;
 }
 
-/* "Properties" is a heading of the note like any other: the content headings'
-   negative margin and matching padding, so its word starts where `## Morning`
-   does and its chevron shares their margin. A block box also drops the
-   descender's space Obsidian's inline-block heading keeps below it. */
+/* "Properties" is a heading of the note like any other. It gets the same
+   negative margin and padding as the content headings, so its word starts where
+   `## Morning` does, and its arrow is in the same margin. As a block box, it
+   also loses the space for descenders that Obsidian's inline-block heading
+   keeps below it. */
 .daily-notes-stream-container .metadata-properties-heading {
     display: block;
     width: fit-content;
@@ -239,8 +246,8 @@
     padding-left: var(--size-4-4);
 }
 
-/* The size and offset a content heading's chevron uses, in the margin the
-   heading just opened: the two line up, the same step from their words. */
+/* The same size and position as a content heading's arrow, in the margin the
+   heading just made, so both line up at the same distance from their words. */
 .daily-notes-stream-container :is(.metadata-properties-heading, .daily-note-mentions-heading) > .collapse-indicator {
     position: absolute;
     display: flex;
@@ -266,8 +273,8 @@
     height: var(--size-4-4, 1rem);
 }
 
-/* Obsidian fades the chevron in on hover; keyboard focus has to reveal it too,
-   as it is the only thing here in the tab order. */
+/* Obsidian fades the arrow in when the pointer is over it. Keyboard focus must
+   show it too, because it is the only thing here in the tab order. */
 .daily-notes-stream-container
     :is(.metadata-properties-heading, .daily-note-mentions-heading)
     > .collapse-indicator:focus-visible {
@@ -286,14 +293,15 @@
 }
 
 /* Linked mentions: under the note, where Obsidian puts a note's backlinks.
-   Empty until a note links here. No rule above, unlike Obsidian's: the note's
-   own bottom border follows, and two lines read as two note ends. */
+   Empty until a note links here. Unlike Obsidian's, there is no line above: the
+   note's own bottom border follows, and two lines would look like the ends of
+   two notes. */
 .daily-note-mentions:not(:empty) {
     margin-top: var(--size-4-8);
 }
 
-/* In the note's margin like the properties heading, so its chevron shares the
-   headings' column. */
+/* In the note's margin, like the properties heading, so its arrow lines up with
+   the headings' arrows. */
 .daily-note-mentions-heading {
     position: relative;
     display: flex;
@@ -309,7 +317,7 @@
     touch-action: manipulation;
 }
 
-/* Obsidian's count beside a tree item. */
+/* Obsidian's count next to an item in a tree. */
 .daily-note-mentions-count {
     padding: 0 var(--size-4-1);
     border-radius: var(--radius-s);
@@ -339,7 +347,8 @@
     text-decoration: underline;
 }
 
-/* An excerpt as Obsidian's search results quote one: a panel per match. */
+/* An excerpt, shown the way Obsidian's search results show one: a panel for
+   each match. */
 .daily-note-mention-excerpt {
     margin-top: var(--size-4-2);
     padding: var(--size-4-2) var(--size-4-3);
@@ -361,16 +370,16 @@
     margin-bottom: 0;
 }
 
-/* Tablet breakpoint */
+/* Tablet width and below. */
 @media (max-width: 768px) {
     .daily-notes-stream-container {
         gap: var(--size-4-8, 2rem);
     }
 }
 
-/* Expand tap targets on touch devices. Growing the box itself would push the
-   chevron into the text beside it — a task's checkbox especially — so the extra
-   area is an overlay that takes no space in layout. */
+/* Bigger tap areas on touch devices. Making the box itself bigger would push
+   the arrow into the text next to it, especially a task's checkbox. So the
+   extra area is an overlay that takes no space in the layout. */
 @media (pointer: coarse) {
     .daily-note-content .collapse-indicator {
         position: relative;
@@ -388,7 +397,7 @@
     width: 100%;
 }
 
-/* Collapsible Elements */
+/* Foldable elements */
 .daily-note-content .is-collapsible {
     position: relative;
 }
@@ -413,11 +422,12 @@
     transform: rotate(0deg);
 }
 
-/* List Item Collapse Alignment
+/* Fold arrow position for list items
 
-   Reading view gives the indicator the whole line box: a line box and its text
-   share a center, so centering the icon in it centers it on the words. `top`
-   clears the item's padding, which absolute positioning measures from inside. */
+   Reading view gives the arrow the whole line box. A line box and its text have
+   the same center, so centering the icon in it centers it on the words. `top`
+   skips the item's padding, because absolute positioning measures from inside
+   the padding. */
 .daily-note-content li.is-collapsible > .collapse-indicator {
     position: absolute;
     left: calc(-1 * var(--size-4-8, 2rem));
@@ -425,8 +435,8 @@
     height: calc(var(--line-height-normal, 1.5) * 1em);
 }
 
-/* A task item hangs its checkbox in the same margin the chevron parks in, so
-   the chevron moves out by another step to clear it. */
+/* A task item puts its checkbox in the same margin as the arrow, so the arrow
+   moves out one more step to make room for it. */
 .daily-note-content li.task-list-item.is-collapsible > .collapse-indicator {
     left: calc(-1 * var(--size-4-16, 4rem));
 }
@@ -435,7 +445,7 @@
     display: none;
 }
 
-/* Header Collapse Alignment */
+/* Fold arrow position for headings */
 .daily-note-content :is(h1, h2, h3, h4, h5, h6).is-collapsible {
     margin-left: calc(-1 * var(--size-4-4));
     padding-left: var(--size-4-4);
@@ -443,14 +453,14 @@
     margin-block-end: calc(var(--p-spacing) * 0.5);
 }
 
-/* A list sits closer: a negative margin collapses into the heading's. */
+/* A list sits closer: a negative margin combines with the heading's. */
 .daily-note-content :is(h1, h2, h3, h4, h5, h6).is-collapsible + :is(ul, ol) {
     margin-block-start: calc(var(--p-spacing) * -0.25);
 }
 
-/* Centered on the first line by offset, so a heading stays one run of text: a
-   flex heading lays a link and the words after it out as columns. The box
-   stays square, as the chevron turns in it. */
+/* Centered on the first line with an offset, so a heading stays one line of
+   text. A flex heading would lay a link and the words after it out as columns.
+   The box stays square, because the arrow rotates inside it. */
 .daily-note-content :is(h1, h2, h3, h4, h5, h6).is-collapsible > .collapse-indicator {
     position: absolute;
     left: 0;
@@ -461,10 +471,10 @@
     color: var(--text-muted);
 }
 
-/* Hidden content, and a run of a long note far from the screen, out of the
-   layout behind a spacer holding its room and outer margins (ADR 0021).
-   Headings, tables and code blocks each carry their own display rule, all of
-   which outrank a single class: each is repeated, to win wherever it lands. */
+/* Hidden content, and a run of a long note far from the screen, taken out of
+   the layout. A spacer keeps its space and outer margins (ADR 0021). Headings,
+   tables and code blocks each have their own display rule, which beats a single
+   class. So each class is repeated, to win wherever it is. */
 .daily-note-content .is-hidden.is-hidden,
 .daily-note-content .is-far.is-far {
     display: none;
@@ -485,27 +495,28 @@
     margin-block-end: 0;
 }
 
-/* A pasted video embed fixes a width wider than a phone. Capped, not clipped:
-   no scroll could reach a clipped edge. */
+/* A pasted video embed sets a width wider than a phone. It is limited, not cut
+   off, because nothing could scroll to a cut-off edge. */
 :is(.daily-note-content, .daily-note-mention-excerpt) iframe {
     max-width: 100%;
 }
 
-/* A frame whose page waits for the scroll to stop (D-087). */
+/* A frame whose page waits for scrolling to stop (D-087). */
 :is(.daily-note-content, .daily-note-mention-excerpt) iframe.is-frame-held {
     background-color: var(--background-secondary);
 }
 
-/* What a touch changes in a note changes at once, never fades (D-167): a fade
-   starting under the finger, a link dimming or a button showing, can stop iOS
-   from scrolling the stream. */
+/* What a touch changes in a note changes at once, without fading (D-167). A
+   fade that starts under the finger, such as a link dimming or a button
+   appearing, can stop iOS from scrolling the stream. */
 .is-mobile .daily-notes-stream-container * {
     transition: none;
 }
 
-/* On mobile a web page in a frame is a preview, a link to the page (D-098):
-   a touch on the page would scroll it, not the stream. The link is the frame's
-   box, without the arrow Obsidian puts after a web link. */
+/* On mobile, a web page in a frame is shown as a preview that links to the page
+   (D-098), because a touch on the page would scroll the page, not the stream.
+   The link has the frame's size, without the arrow Obsidian puts after a web
+   link. */
 .is-mobile :is(.daily-note-content, .daily-note-mention-excerpt) iframe {
     pointer-events: none;
 }
@@ -522,8 +533,9 @@
     display: block;
 }
 
-/* On mobile a YouTube embed is its thumbnail, a link to the video (D-088):
-   the player's box, without the arrow Obsidian puts after a web link. */
+/* On mobile, a YouTube embed is shown as its thumbnail, which links to the
+   video (D-088). It has the player's size, without the arrow Obsidian puts
+   after a web link. */
 .daily-note-video.external-link {
     position: relative;
     display: block;
@@ -553,7 +565,7 @@
 }
 
 /* Desktop: wide content scrolls inside its own box, as in Obsidian's reading
-   view, rather than widen the stream. */
+   view, instead of making the stream wider. */
 body:not(.is-mobile) :is(.daily-note-content, .daily-note-mention-excerpt) :is(table, pre) {
     display: block;
     max-width: 100%;
@@ -561,24 +573,25 @@ body:not(.is-mobile) :is(.daily-note-content, .daily-note-mention-excerpt) :is(t
 }
 
 /* Mobile: nothing in a note scrolls (ADR 0008). Wide content wraps to the
-   stream's width, and what still does not fit is clipped. `clip`, never
-   `hidden` or `auto`: those make a scroll container, and one inside the stream
-   ends an iOS glide early. */
+   stream's width, and what still does not fit is cut off. Use `clip`, never
+   `hidden` or `auto`: those make a scrolling box, and one inside the stream
+   stops iOS's scrolling early. */
 .is-mobile :is(.daily-note-content, .daily-note-mention-excerpt) table {
     width: 100%;
-    /* Obsidian's floor on a column, which seven columns overrun on a phone. */
+    /* Obsidian's minimum column width. Seven columns at that width are wider
+       than a phone. */
     --table-column-min-width: 0px;
     --table-white-space: normal;
 }
 
-/* A column is never narrower than its longest word, and nothing is cut to an
-   ellipsis: a table that cannot fit that way is stacked instead. */
+/* A column is never narrower than its longest word, and nothing is shortened
+   with "…". A table that cannot fit this way is stacked instead. */
 .is-mobile :is(.daily-note-content, .daily-note-mention-excerpt) :is(td, th) {
     overflow-wrap: normal;
     word-break: normal;
 }
 
-/* Specific enough to outrank .markdown-rendered's `overflow: hidden` on cells. */
+/* Specific enough to beat .markdown-rendered's `overflow: hidden` on cells. */
 .is-mobile
     :is(.daily-note-content, .daily-note-mention-excerpt).markdown-rendered
     :is(thead > tr > th, tbody > tr > td) {
@@ -586,8 +599,8 @@ body:not(.is-mobile) :is(.daily-note-content, .daily-note-mention-excerpt) :is(t
     text-overflow: clip;
 }
 
-/* A table too wide for the note: each row a card, each cell under its column's
-   name (src/render/wide-tables.ts). */
+/* A table too wide for the note: each row becomes a card, and each cell is
+   shown under its column's name (src/render/wide-tables.ts). */
 :is(.daily-note-content, .daily-note-mention-excerpt) table.is-stacked,
 :is(.daily-note-content, .daily-note-mention-excerpt) table.is-stacked :is(tbody, tr, td) {
     display: block;
@@ -629,18 +642,19 @@ body:not(.is-mobile) :is(.daily-note-content, .daily-note-mention-excerpt) :is(t
     overflow: clip;
 }
 
-/* A diagram scales down to the note rather than widen it. */
+/* A diagram shrinks to fit the note instead of making it wider. */
 :is(.daily-note-content, .daily-note-mention-excerpt) .mermaid svg {
     max-width: 100%;
     height: auto;
 }
 
-/* An equation wider than the note shrinks to fit (src/render/wide-equations.ts). */
+/* An equation wider than the note shrinks to fit
+   (src/render/wide-equations.ts). */
 .is-mobile :is(.daily-note-content, .daily-note-mention-excerpt) .MathJax[display="true"] > [display="true"] {
     zoom: var(--daily-note-equation-zoom, 1);
 }
 
-/* An embedded note grows instead of scrolling inside a capped height. */
+/* An embedded note grows, instead of scrolling inside a limited height. */
 .is-mobile :is(.daily-note-content, .daily-note-mention-excerpt) .markdown-embed-content {
     max-height: none;
 }
@@ -653,14 +667,14 @@ body:not(.is-mobile) :is(.daily-note-content, .daily-note-mention-excerpt) :is(t
     overflow: clip;
 }
 
-/* A Dataview query and whatever the scroll box guard found or cleared an inline
-   overflow-x from (src/stream/scroll-box-guard.ts, D-172). */
+/* A Dataview query, and anything the scroll box guard found scrolling or
+   removed an inline overflow-x from (src/stream/scroll-box-guard.ts, D-172). */
 .is-mobile .daily-note-block :is(.block-language-dataview, .block-language-dataviewjs, .is-scroll-clipped) {
     overflow: clip;
 }
 
-/* A PDF is a preview of its first page, opened by a tap (D-083): its toolbar
-   reaches nothing, and the tap goes past the viewer to the embed. */
+/* A PDF is a preview of its first page, which a tap opens (D-083). Its toolbar
+   would do nothing, and the tap goes through the viewer to the embed. */
 .is-mobile .daily-note-block .pdf-embed .pdf-toolbar {
     display: none;
 }
@@ -669,20 +683,20 @@ body:not(.is-mobile) :is(.daily-note-content, .daily-note-mention-excerpt) :is(t
     pointer-events: none;
 }
 
-/* A card's border is a ring Bases draws just outside it, which the grid ends
-   on; the view around the grid still clips, in its padding. */
+/* A card's border is a ring Bases draws just outside the card, where the grid
+   ends. The view around the grid still cuts things off, in its padding. */
 .is-mobile .daily-note-block :is(.bases-cards-container, .bases-cards-group) {
     overflow: visible;
 }
 
-/* A tag pill's padding reaches past the line it sits in; Bases leaves its
-   wrappers unclipped, so it shows whole. */
+/* A tag pill's padding goes beyond its line. Bases does not cut off its
+   wrappers, so the whole pill shows. */
 .is-mobile .daily-note-block :is(.value-list-container, .value-list-element) {
     overflow: visible;
 }
 
 /* Cards and the header's first icon line up with the note's text (D-089). The
-   view keeps 1px each side for the cards' ring; the header gives back its own
+   view keeps 1px on each side for the cards' ring. The header removes its own
    padding and its first button's. */
 .is-mobile .daily-note-block .bases-view[data-view-type="cards"] {
     --bases-view-padding: var(--size-4-3) 1px;
@@ -692,14 +706,14 @@ body:not(.is-mobile) :is(.daily-note-content, .daily-note-mention-excerpt) :is(t
     margin-inline-start: calc(-1 * (var(--bases-header-padding-start) + var(--size-2-2)));
 }
 
-/* A Base's New button: its room is the view name's on a phone (D-097). */
+/* A Base's New button. On a phone, its space goes to the view name (D-097). */
 .is-mobile .daily-note-block .bases-toolbar .bases-toolbar-new-item-menu {
     display: none;
 }
 
-/* Bases shrinks the view name and count to fit through overflow: hidden, down
-   to the label's ellipsis; a clip above leaves each at its content's width,
-   past the toolbar. */
+/* Bases shrinks the view name and count to fit using overflow: hidden, down to
+   the label's "…". A clip on a parent would leave each at its content's width,
+   wider than the toolbar. */
 .is-mobile .daily-note-block .bases-toolbar :is(.bases-toolbar-views-menu, .bases-toolbar-result-count),
 .is-mobile
     .daily-note-block
@@ -709,29 +723,30 @@ body:not(.is-mobile) :is(.daily-note-content, .daily-note-mention-excerpt) :is(t
     min-width: 0;
 }
 
-/* Clipped, a Base has no scroll box to pin its header and summaries to
-   (D-059). */
+/* Once cut off, a Base has no scrolling box to keep its header and summaries in
+   place against (D-059). */
 .is-mobile .daily-note-block .bases-thead {
     position: static;
 }
 
-/* Bases' own rule keeps the summaries sticky; with no inset they never stick. */
+/* Bases' own rule makes the summaries sticky. Without an inset, they never
+   stick. */
 .is-mobile .daily-note-block .bases-table-footer {
     bottom: auto;
 }
 
-/* Bases fixes a card's line at 24px, which a tag pill outgrows at a larger
-   font. Its ratio to the default font, kept at every size; Bases lays cards
-   out from this. */
+/* Bases fixes a card's line height at 24px, which a tag pill is taller than at
+   a larger font size. This keeps the same ratio to the default font at every
+   size. Bases lays out cards from this value. */
 .is-mobile .daily-note-block {
     --bases-cards-line-height: calc(var(--font-preferred-size) * 1.5);
 }
 
-/* Obsidian pins the copy button to a code block's top-right corner and wraps
-   rendered code, so a long first line runs under the icon — its last few
-   characters unreadable. An empty float in that corner is the one thing text
-   wraps around: only the lines beside the button lose width, the rest of the
-   block keeps it. */
+/* Obsidian fixes the copy button to a code block's top-right corner, and wraps
+   drawn code, so a long first line runs under the icon and its last few
+   characters cannot be read. An empty float in that corner is the only thing
+   text wraps around: only the lines next to the button lose width, and the rest
+   of the block keeps it. */
 .daily-note-content pre::before {
     content: "";
     float: right;
@@ -739,26 +754,28 @@ body:not(.is-mobile) :is(.daily-note-content, .daily-note-mention-excerpt) :is(t
     height: 1.5em;
 }
 
-/* Obsidian's mobile stylesheet styles this icon as a button — in its own
+/* Obsidian's mobile stylesheet styles this icon as a button, because in its own
    properties editor it opens a type menu. The stream is read-only, so the
-   pointer would promise an interaction that does not exist here. */
+   pointer cursor would suggest something that does not happen here. */
 .daily-note-block .metadata-property-icon {
     cursor: default;
 }
 
-/* Centered on its label's words at any text size. Obsidian nudges the box by
-   a fixed 0.2em of its own 13.33px font, and the box grows with the text: it
-   drifts 3px off at 28px on a phone (D-104). `middle` centers the box half an
-   x-height above the baseline; -0.12em of the text lifts it to the words'
-   center, a measure of the font's.
+/* Centered on its label's words at any text size. Obsidian moves the box by a
+   fixed 0.2em of its own 13.33px font, and the box grows with the text, so it
+   is 3px off at 28px on a phone (D-104). `middle` centers the box half an
+   x-height above the baseline. Moving it up by 0.12em of the text brings it to
+   the words' center; that value depends on the font.
 
-   Margins: hung out by its width and the gap after it, so the first line of
-   words starts where the wrapped ones do. Obsidian hangs it 1.5 widths out,
-   which matches only at a 12px box: 10px adrift at 28px on a phone (D-106).
+   Margins: the box sits out to the left by its width and the gap after it, so
+   the first line of words starts where the wrapped lines do. Obsidian moves it
+   out by 1.5 widths, which only matches for a 12px box, and is 10px off at 28px
+   on a phone (D-106).
 
-   `pointer-events`: the browser toggles this real `<input>` on click, and only
-   reading view writes that back. Here the tick is DOM-only and the next
-   re-render drops it, so the box shows state without offering to change it. */
+   `pointer-events`: the browser ticks this real `<input>` when it is clicked,
+   and only reading view saves that to the note. Here the tick would only change
+   the DOM, and the next render would remove it. So the box shows the state
+   without offering to change it. */
 .daily-note-content li.task-list-item input.task-list-item-checkbox {
     font-size: inherit;
     vertical-align: middle;
@@ -768,16 +785,16 @@ body:not(.is-mobile) :is(.daily-note-content, .daily-note-mention-excerpt) :is(t
     pointer-events: none;
 }
 
-/* Obsidian pads the near side of a pill's word and leaves the far side to the
-   remove button's margin — an editing control a read-only pill never draws, so
-   its last letter would sit on the border. */
+/* Obsidian pads one side of a pill's word, and leaves the other side to the
+   remove button's margin. A read-only pill never draws that editing button, so
+   its last letter would touch the border. */
 .daily-notes-stream-container .multi-select-pill-content {
     margin-inline-end: var(--pill-padding-x);
 }
 
-/* A tag pill searches, like a tag anywhere else in Obsidian; the read-only
-   panel draws a div rather than the editable input Obsidian points at. An
-   invalid one names no tag, so it searches nothing. */
+/* A tag pill starts a search, like a tag anywhere else in Obsidian. The
+   read-only panel draws a div, not the editable input Obsidian's rule targets.
+   A tag that is not valid names no tag, so it searches nothing. */
 .daily-notes-stream-container .daily-note-tags-value .multi-select-pill {
     cursor: var(--cursor-link);
 }
@@ -786,12 +803,12 @@ body:not(.is-mobile) :is(.daily-note-content, .daily-note-mention-excerpt) :is(t
     cursor: default;
 }
 
-/* The jump suggester's calendar button, in the prompt beside the query. The
-   offset clears the prompt's own clear button, which is absolutely positioned
-   over the rightmost 48px on phone and desktop alike. The date input covers
-   the icon, unseen, so a tap lands on it: iOS opens its wheel for nothing else.
-   The clip holds it there: iOS draws a date input at its own width, and one
-   spilling over the clear button takes its taps. */
+/* The calendar button in the jump list, in the prompt next to the search field.
+   The offset keeps it clear of the prompt's own clear button, which covers the
+   rightmost 48px on both phone and desktop. The date input covers the icon,
+   invisibly, so a tap lands on the input: iOS only opens its date picker from a
+   tap on the input. The clip keeps it there: iOS draws a date input at its own
+   width, and one that spreads over the clear button would take its taps. */
 .prompt-input-container .daily-notes-jump-calendar {
     position: absolute;
     overflow: clip;
@@ -800,8 +817,9 @@ body:not(.is-mobile) :is(.daily-note-content, .daily-note-mention-excerpt) :is(t
     transform: translateY(-50%);
 }
 
-/* Scoped to outrank Obsidian's input[type="date"], whose position: relative
-   would keep the picker in the row and push the clear button out of the box. */
+/* Specific enough to beat Obsidian's input[type="date"], whose position:
+   relative would keep the picker in the row and push the clear button out of
+   the box. */
 .prompt-input-container .daily-notes-jump-picker {
     position: absolute;
     inset: 0;
@@ -813,15 +831,16 @@ body:not(.is-mobile) :is(.daily-note-content, .daily-note-mention-excerpt) :is(t
     cursor: var(--cursor);
 }
 
-/* The line under a date no note carries, saying where the jump will land. */
+/* The line under a date with no note, which says where the jump will go. */
 .daily-notes-jump-fallback {
     color: var(--text-muted);
     font-size: var(--font-ui-smaller);
 }
 
-/* Search. The bar is Obsidian's own find bar, drawn by its stylesheet; only
-   closing it is ours. Matches paint through the CSS highlight API, in the
-   colors Obsidian's editor search uses; the current one is a selection. */
+/* Search. The bar is Obsidian's own search bar, styled by its stylesheet; only
+   closing it is styled here. Matches are colored with the CSS highlight API, in
+   the colors Obsidian's editor search uses. The current match looks like a
+   selection. */
 .daily-notes-search.is-closed {
     display: none;
 }
@@ -835,8 +854,9 @@ body:not(.is-mobile) :is(.daily-note-content, .daily-note-mention-excerpt) :is(t
     background-color: var(--text-selection);
 }
 
-/* On a phone, Obsidian pads its find bar to clear the floating header, and the
-   view content clears it again. Above the content, the bar clears it alone. */
+/* On a phone, Obsidian pads its search bar to make room for the floating
+   header, and the view content makes room for it again. Above the content, only
+   the bar needs to make room. */
 .is-mobile .daily-notes-search {
     padding-top: var(--size-4-2);
 }
@@ -849,8 +869,8 @@ body:not(.is-mobile) :is(.daily-note-content, .daily-note-mention-excerpt) :is(t
     margin-top: 0;
 }
 
-/* The hidden header src/render/bases/note-bases.ts reads Bases' header font and
-   padding from, once. */
+/* The hidden header that src/render/bases/note-bases.ts reads Bases' header
+   font and padding from, once. */
 .daily-note-bases-probe {
     position: absolute;
     visibility: hidden;

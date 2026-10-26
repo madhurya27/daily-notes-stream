@@ -40,7 +40,7 @@ describe("PLUGIN_ID", () => {
 describe("stopObsidian", () => {
     const pattern = `user-data-dir=${join(repoRoot, ".dev", "obsidian-userdata")}`;
 
-    /** A stand-in for execFileSync: pgrep finds the instance until pkill runs. */
+    /** Replaces execFileSync. pgrep finds the running copy until pkill runs. */
     function commands(running: boolean) {
         let alive = running;
         return vi.fn((command: string, args: string[]) => {
@@ -78,7 +78,9 @@ describe("stopObsidian", () => {
 describe("installBuild", () => {
     const assets = ["main.js", "manifest.json", "styles.css"];
 
-    /** A repo stand-in holding the build files named, each containing its own name. */
+    /**
+     * A fake repo holding the named build files, each containing its own name.
+     */
     function built(files: readonly string[]) {
         const repo = mkdtempSync(join(tmpdir(), "build-"));
         for (const file of files) writeFileSync(join(repo, file), file);
@@ -104,7 +106,10 @@ describe("installBuild", () => {
         expect(() => readFileSync(join(vault, ".obsidian", "plugins", PLUGIN_ID, "manifest.json"))).toThrow();
     });
 
-    /** A vault whose plugin folder links each build file to `target(asset)`, as an older demo run left it. */
+    /**
+     * A vault whose plugin folder links each build file to `target(asset)`, as
+     * an older demo run left it.
+     */
     function linkedTo(target: (asset: string) => string) {
         const vault = mkdtempSync(join(tmpdir(), "vault-"));
         const pluginDir = join(vault, ".obsidian", "plugins", PLUGIN_ID);

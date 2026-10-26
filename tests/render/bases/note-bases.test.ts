@@ -10,7 +10,7 @@ import { FakeWidths } from "../fake-widths";
 
 const lines = (...l: string[]) => l.join("\n");
 
-/** Three columns; the fake metrics below make its headers 3 × 100px. */
+/** Three columns. The fake measurements below make its headers 3 × 100px. */
 const TABLE = lines(
     "views:",
     "  - type: table",
@@ -24,7 +24,7 @@ const BLOCK = lines("```base", TABLE, "```");
 const KANBAN = lines("```base", "views:", "  - type: kanban", "    name: K", "```");
 const CARDS_ONLY = lines("```base", "views:", "  - type: cards", "    name: C", "```");
 
-/** Each header draws 100px: 66 of text and 34 of padding, icon and gap. */
+/** Each header is 100px: 66 of text, and 34 of padding, icon and gap. */
 const metrics: HeaderMetrics = { chrome: 34, textWidth: () => 65 };
 
 class FakeResizeObserver {
@@ -35,15 +35,15 @@ class FakeResizeObserver {
         FakeResizeObserver.instances.push(this);
     }
     observe(target: Element) {
-        // As the real one: nothing but an element can be watched.
+        // Like the real one, only an element can be watched.
         if (!(target instanceof Element)) throw new TypeError("Failed to execute 'observe': not an Element");
         this.targets.push(target);
     }
-    /** Reports every observed element as resized. */
+    /** Reports that every observed element changed size. */
     resized() {
         this.callback(this.targets.map((target) => ({ target })));
     }
-    /** Reports `target` alone as resized, if it is observed. */
+    /** Reports that only `target` changed size, if it is observed. */
     resizedOnly(target: Element) {
         if (this.targets.includes(target)) this.callback([{ target }]);
     }
@@ -64,7 +64,7 @@ let noteWidth: number;
 let oneCardPerRow: boolean;
 let widths: FakeWidths;
 
-/** A note's content element holding `markdown`'s Bases, rendered. */
+/** A note's content element holding `markdown`'s Bases, drawn. */
 async function renderNote(markdown: string, component = loaded()): Promise<HTMLElement> {
     const { markdown: body, bases: sources } = extractBases(markdown);
     const content = document.createElement("div");
@@ -85,7 +85,9 @@ function loaded(): Component {
 /** What the Base in `slot` was last drawn from. */
 const drawn = (slot: Element) => render.mock.calls.filter((call) => call[2] === slot).at(-1)?.[1];
 
-/** Lays a table out in `slot` as Bases does: its width on the header row. */
+/**
+ * Lays out a table in `slot` as Bases does: its width is set on the header row.
+ */
 function layOut(slot: Element, tableWidth: number, viewWidth = noteWidth): HTMLElement {
     const view = slot.createDiv({ cls: "bases-view" });
     Object.defineProperty(view, "clientWidth", { get: () => viewWidth });
@@ -93,7 +95,10 @@ function layOut(slot: Element, tableWidth: number, viewWidth = noteWidth): HTMLE
     return view;
 }
 
-/** Lays a kanban out in `slot` as Bases does: its board's width on its container. */
+/**
+ * Lays out a kanban in `slot` as Bases does: its board's width is set on its
+ * container.
+ */
 function layOutKanban(slot: Element, boardWidth: number): HTMLElement {
     const view = slot.createDiv({ cls: "bases-view" });
     Object.defineProperty(view, "clientWidth", { get: () => noteWidth });
@@ -101,7 +106,7 @@ function layOutKanban(slot: Element, boardWidth: number): HTMLElement {
     return view;
 }
 
-/** Bases laid `view` out, and the task after it ran. */
+/** Bases laid out `view`, and the next task ran. */
 function reportLayout(view: HTMLElement): void {
     bases.onLayout(view);
     vi.advanceTimersByTime(0);
@@ -155,7 +160,8 @@ describe("NoteBases drawing a note's Bases", () => {
         expect(drawn(slotOf(content))).not.toContain("cardSize");
     });
 
-    // Bases fits as many cards to a row as their size allows: at its largest, one.
+    // Bases fits as many cards in a row as their size allows. At the largest
+    // size, that is one.
     it("draws cards one to a row when the settings ask", async () => {
         noteWidth = 299;
         oneCardPerRow = true;
@@ -180,7 +186,7 @@ describe("NoteBases drawing a note's Bases", () => {
         expect(drawn(slotOf(content, 1))).toBe(CARDS_ONLY);
     });
 
-    // Resolved as Obsidian resolves the embed: from the note.
+    // Resolved the way Obsidian resolves the embed: from the note.
     it("draws an embedded Base from its file, its named view first", async () => {
         noteWidth = 50;
         app.vault.cachedRead.mockResolvedValue(
@@ -193,7 +199,8 @@ describe("NoteBases drawing a note's Bases", () => {
         expect(drawn(slotOf(content))).toMatch(/views:\n {2}- type: cards\n {4}name: Second/);
     });
 
-    // A table-drawn embed stays an embed: its toolbar edits save to its file.
+    // An embed drawn as a table stays an embed, so changes made in its toolbar
+    // save to its file.
     it("draws an embed that fits as the embed it is", async () => {
         const content = await renderNote("![[Views.base]]");
 
@@ -232,7 +239,7 @@ describe("NoteBases drawing a note's Bases", () => {
         expect(drawn(slotOf(again))).toBe(CARDS_ONLY);
     });
 
-    // Headers are measured with a style read, so once, not per note.
+    // Headers are measured by reading styles, so only once, not for each note.
     it("measures headers once", async () => {
         await renderNote(BLOCK);
         await renderNote(BLOCK);
@@ -283,8 +290,9 @@ describe("NoteBases measuring a drawn table", () => {
         expect(slotOf(content).querySelector(".bases-view")).toBeNull();
     });
 
-    // Bases lays a table out inside a resize report: emptying the placeholder
-    // there resizes the note a round late, which WebKit logs as an error.
+    // Bases lays out a table inside a resize report. Emptying the placeholder
+    // there would resize the note one round late, which WebKit logs as an
+    // error.
     it("redraws it after the layout, not inside it", async () => {
         const content = await renderNote(BLOCK);
 
@@ -317,7 +325,7 @@ describe("NoteBases measuring a drawn table", () => {
         expect(render).toHaveBeenCalledOnce();
     });
 
-    // A note comes back after unloading; the double draw happens once.
+    // A note comes back after being emptied. Drawing twice only happens once.
     it("draws it straight as cards next time, at that width", async () => {
         reportLayout(layOut(slotOf(await renderNote(BLOCK)), 900));
 
@@ -326,7 +334,7 @@ describe("NoteBases measuring a drawn table", () => {
         expect(drawn(slotOf(again))).toContain("type: cards");
     });
 
-    // Back rebuilds the stream's view, and its NoteBases with it.
+    // Back builds the stream's view again, and its NoteBases with it.
     it("draws it straight as cards in a view sharing what this one measured", async () => {
         const measured = new BaseMeasurements();
         bases = new NoteBases(asApp(app), measured, widths, () => oneCardPerRow, measure);
@@ -395,7 +403,7 @@ describe("NoteBases measuring a drawn table", () => {
         expect(cap(view)).not.toBe("");
     });
 
-    // An embedded note's Base, or one inside a callout: not extracted.
+    // An embedded note's Base, or one inside a callout, is not taken out.
     it("fits a Base it did not draw", () => {
         const view = layOut(document.createElement("div"), 900, 400);
 
@@ -406,7 +414,7 @@ describe("NoteBases measuring a drawn table", () => {
 });
 
 describe("NoteBases when the note's width changes", () => {
-    /** The width reported, and the task after it run. */
+    /** Reports the width, and runs the next task. */
     const resize = (width: number) => {
         report(width);
         vi.advanceTimersByTime(0);
@@ -419,8 +427,8 @@ describe("NoteBases when the note's width changes", () => {
     beforeEach(() => vi.useFakeTimers());
     afterEach(() => vi.useRealTimers());
 
-    // Inside the report, emptying the placeholder resizes the note a round
-    // late, which WebKit logs as an error.
+    // Emptying the placeholder inside the report would resize the note one
+    // round late, which WebKit logs as an error.
     it("redraws after the report, not inside it", async () => {
         noteWidth = 200;
         const content = await renderNote(BLOCK);
@@ -533,7 +541,7 @@ describe("NoteBases when an embedded Base's file changes", () => {
 
     beforeEach(() => app.metadataCache.getFirstLinkpathDest.mockReturnValue(base));
 
-    // A cards copy cannot save, so nothing else would bring it up to date.
+    // A copy drawn as cards cannot save, so nothing else would update it.
     it("redraws a cards copy from the file as it now is", async () => {
         noteWidth = 200;
         const content = await renderNote("![[Views.base]]");
@@ -568,7 +576,7 @@ describe("NoteBases when an embedded Base's file changes", () => {
         vi.useRealTimers();
     });
 
-    // Obsidian redraws a real embed when its file changes.
+    // Obsidian draws a real embed again when its file changes.
     it("leaves an embed drawn as a table to redraw itself", async () => {
         await renderNote("![[Views.base]]");
 
@@ -613,22 +621,26 @@ describe("NoteBases when an embedded Base's file changes", () => {
         await bases.onBaseModified(base);
 
         expect(render).toHaveBeenCalledOnce();
-        // Nothing left to redraw: the file is not read for it.
+        // There is nothing left to draw again, so the file is not read.
         expect(app.vault.cachedRead).toHaveBeenCalledTimes(reads);
     });
 });
 
 /**
- * Bases fills a view after drawing it, and refills it on a live update: a Base
- * is held at the height it showed until what is drawn in it holds still.
+ * Bases fills a view after drawing it, and fills it again on a live update. So
+ * a Base is held at the height it showed until what is drawn in it stops
+ * changing.
  */
 describe("NoteBases holding a Base while it refills", () => {
-    /** Lays `slot` out at `height`, as a drawn Base would. */
+    /** Lays out `slot` at `height`, as a drawn Base would be. */
     const tall = (slot: Element, height: number) => {
         slot.getBoundingClientRect = () => ({ height }) as DOMRect;
     };
     const resized = () => FakeResizeObserver.instances.forEach((observer) => observer.resized());
-    /** `slot` lays out at `height`, the observers report it, then the next task runs. */
+    /**
+     * `slot` is laid out at `height`, the observers report it, then the next
+     * task runs.
+     */
     const layOutAt = (slot: Element, height: number) => {
         tall(slot, height);
         resized();
@@ -654,7 +666,8 @@ describe("NoteBases holding a Base while it refills", () => {
         expect(held(slotOf(content))).toBe("112px");
     });
 
-    // A live update empties the view and refills it: the dip is never drawn.
+    // A live update empties the view and fills it again, and the dip is never
+    // drawn.
     it("holds a Base that shrinks by itself at the height it had", async () => {
         const content = await renderNote(BLOCK);
         layOutAt(slotOf(content), 300);
@@ -664,8 +677,9 @@ describe("NoteBases holding a Base while it refills", () => {
         expect(held(slotOf(content))).toBe("300px");
     });
 
-    // Held before it shrinks, not on hearing it did: holding it back inside
-    // the report resizes the note a round late, which WebKit logs as an error.
+    // Held before it shrinks, not after hearing that it did. Setting the height
+    // back inside the report would resize the note one round late, which WebKit
+    // logs as an error.
     it("holds a Base where it lays out, before any shrink", async () => {
         const content = await renderNote(BLOCK);
 
@@ -684,8 +698,8 @@ describe("NoteBases holding a Base while it refills", () => {
     });
 
     // Bases adds rows inside its own ResizeObserver callback. A Base grown
-    // there would resize its note too late for that round, and WebKit logs
-    // an error.
+    // there would resize its note too late for that round, and WebKit logs an
+    // error.
     it("holds a Base at what it drew, as the draw ends", async () => {
         render.mockImplementation(async (_app, _markdown, el) => {
             el.createDiv();
@@ -701,7 +715,7 @@ describe("NoteBases holding a Base while it refills", () => {
         const content = await renderNote(BLOCK);
         const slot = slotOf(content) as HTMLElement;
         layOutAt(slot, 300);
-        // As in styles.css: while held, it lays out at its hold.
+        // As in styles.css: while held, it is laid out at its held height.
         slot.getBoundingClientRect = () => ({ height: held(slot) ? 300 : 500 }) as DOMRect;
 
         resized();
@@ -749,7 +763,7 @@ describe("NoteBases holding a Base while it refills", () => {
         expect(held(slotOf(content))).toBe("40px");
     });
 
-    // It lost rows: once let go, the shorter height is the one it has.
+    // It lost rows, so once released, it has the shorter height.
     it("holds it at what it was let go into", async () => {
         const content = await renderNote(BLOCK);
         layOutAt(slotOf(content), 300);
@@ -761,7 +775,7 @@ describe("NoteBases holding a Base while it refills", () => {
         expect(held(slotOf(content))).toBe("40px");
     });
 
-    // A Base updating live never holds still.
+    // A Base that updates live never stops changing.
     it("lets go after a while regardless, from the first change it held", async () => {
         const content = await renderNote(BLOCK);
         layOutAt(slotOf(content), 300);
@@ -819,7 +833,8 @@ describe("NoteBases holding a Base while it refills", () => {
         expect(held(slotOf(content))).toBe("");
     });
 
-    // The note holds a Base coming back: a Base's own height is never kept.
+    // The note keeps the height of a Base that comes back. A Base's own height
+    // is never saved.
     it("keeps no height across renders", async () => {
         const component = loaded();
         const content = await renderNote(BLOCK, component);
@@ -835,8 +850,9 @@ describe("NoteBases holding a Base while it refills", () => {
 });
 
 /**
- * Its note is pinned (ADR 0013): a height the Base takes by the hold, its
- * note hears of in the same task; any other waits on a report a frame late.
+ * Its note has a fixed height (ADR 0013). When the Base takes a height through
+ * its hold, the note hears about it in the same task. Any other height change
+ * waits for a report one frame later.
  */
 describe("NoteBases changing a Base's height in a pinned note", () => {
     const tall = (slot: Element, height: number) => {
@@ -850,14 +866,17 @@ describe("NoteBases changing a Base's height in a pinned note", () => {
     };
     const held = (slot: Element) => (slot as HTMLElement).style.getPropertyValue("--daily-note-held-height");
     const measuring = (slot: Element) => slot.classList.contains("is-measuring");
-    /** How many times `slot` told its note it set a height. */
+    /** How many times `slot` told its note that it set a height. */
     const told = (slot: Element) => {
         const heard = { count: 0 };
         slot.addEventListener(BASE_RESIZED, () => heard.count++);
         return heard;
     };
 
-    /** A Base drawn as cards at 300px, redrawn as written for a note that has grown wide enough. */
+    /**
+     * A Base drawn as cards at 300px, then drawn again as written for a note
+     * that became wide enough.
+     */
     async function redrawnAsWritten(): Promise<Element> {
         noteWidth = 299;
         const content = await renderNote(BLOCK);
@@ -966,8 +985,9 @@ describe("NoteBases changing a Base's height in a pinned note", () => {
         expect(heard.count).toBe(0);
     });
 
-    // Bases draws a board or table at its own height: shown, the text below
-    // in the note moves a frame before the note hears of it.
+    // Bases draws a board or table at its own height. If that were shown, the
+    // text below it in the note would move one frame before the note hears
+    // about it.
     it("clips a Base redrawn as written at the height it showed while it is measured", async () => {
         const slot = await redrawnAsWritten();
 
@@ -998,7 +1018,8 @@ describe("NoteBases changing a Base's height in a pinned note", () => {
     it("draws it as cards at that height once measured too wide", async () => {
         const slot = await redrawnAsWritten();
         layOutAt(slot, 800);
-        // Just drawn, the cards are shorter than the table until they fill in.
+        // Just after drawing, the cards are shorter than the table until they
+        // fill in.
         tall(slot, 120);
 
         reportLayout(layOut(slot, 900, 800));
@@ -1048,7 +1069,8 @@ describe("NoteBases changing a Base's height in a pinned note", () => {
         expect(heard.count).toBe(1);
     });
 
-    // Nothing above it in the note to clip: a Base drawn at 0px would vanish.
+    // There is nothing above it in the note to cut off, and a Base drawn at 0px
+    // would disappear.
     it("clips nothing on a first draw", async () => {
         const content = await renderNote(BLOCK);
 
@@ -1093,10 +1115,12 @@ describe("measureHeaderMetrics", () => {
         expect(measureHeaderMetrics(document.createElement("div"))).toBeNull();
     });
 
-    // A header is its name's text, in Bases' font, plus what surrounds it.
+    // A header's width is its name's text, in Bases' font, plus what surrounds
+    // it.
     it("reads Bases' header font and what surrounds the name", () => {
         const host = document.body.createDiv();
-        // Read inside the host, the probe takes the styles a header there would.
+        // Read inside the host, the hidden header gets the same styles a real
+        // header there would.
         let readInHost = false;
         vi.spyOn(window, "getComputedStyle").mockImplementation((el) => {
             readInHost = host.contains(el);
@@ -1116,7 +1140,7 @@ describe("measureHeaderMetrics", () => {
         expect(context.font).toBe("14px Inter");
         expect(measured.chrome).toBe(34);
         expect(measured.textWidth("mood")).toBe(28);
-        // The probe leaves nothing behind.
+        // The hidden header leaves nothing behind.
         expect(host.children).toHaveLength(0);
         host.remove();
     });

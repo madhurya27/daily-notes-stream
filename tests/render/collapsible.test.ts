@@ -15,7 +15,10 @@ function makeStore(collapsedByDefault = false): CollapsibleStateStore {
     });
 }
 
-/** Wires delegation the way the view does, then builds the chevrons. */
+/**
+ * Sets up the shared listeners the way the view does, then adds the fold
+ * arrows.
+ */
 const delegateComponent = new Component();
 
 function makeCollapsible(manager: CollapsibleManager, content: HTMLElement, filePath: string): void {
@@ -23,7 +26,7 @@ function makeCollapsible(manager: CollapsibleManager, content: HTMLElement, file
     CollapsibleManager.prototype.makeCollapsible.call(manager, content, filePath);
 }
 
-/** Collapse toggles are bound to the chevron, not the whole heading/list item. */
+/** Fold toggles are bound to the arrow, not the whole heading or list item. */
 function clickChevron(el: HTMLElement): void {
     (el.querySelector(":scope > .collapse-indicator") as HTMLElement).click();
 }
@@ -218,7 +221,7 @@ describe("CollapsibleManager — keys by the heading above", () => {
         expect(keysOf(`<h2>Day 35</h2>${list("Errands")}`)).toEqual(["day-35", "day-35/li-1-errands"]);
     });
 
-    // Deleting the first would otherwise hand its saved state to the second.
+    // Otherwise, deleting the first would pass its saved state to the second.
     it("numbers a repeated list item only under the same heading", () => {
         expect(keysOf(`<h2>Mon</h2>${list("Errands")}<h2>Tue</h2>${list("Errands")}`)).toEqual([
             "mon",
@@ -251,7 +254,8 @@ describe("CollapsibleManager — keys by the heading above", () => {
         expect(keysOf(`<h2>Plan</h2><div>${list("Errands")}</div>`)).toEqual(["plan", "plan/li-1-errands"]);
     });
 
-    // A heading inside a list item is no section of its own (Obsidian's reading view folds none there).
+    // A heading inside a list item is not a section of its own (Obsidian's
+    // reading view folds none there).
     it("keys a list item by the heading above the list, past one inside an item", () => {
         expect(keysOf(`<h2>Plan</h2><ul><li><h3>Aside</h3></li><li>Errands<ul><li>a</li></ul></li></ul>`)).toEqual([
             "plan",
@@ -317,8 +321,8 @@ describe("CollapsibleManager — headers", () => {
     });
 
     it("toggles the heading once and stops the click at the stream root", () => {
-        // Delegation means the click does travel through the heading to reach
-        // the root; what must not happen is it carrying on past the stream.
+        // With a shared listener, the click does pass through the heading to
+        // reach the root. It must not go any further than the stream.
         const outer = document.createElement("div");
         const content = outer.appendChild(document.createElement("div"));
         content.innerHTML = "<h1>Title</h1><p>Body</p>";
@@ -398,8 +402,8 @@ describe("CollapsibleManager — headers", () => {
         expect(store.setCollapsed).toHaveBeenCalledWith("file.md", "hello-world", true);
     });
 
-    // Slugged to "", every such heading was keyed by its place, and its fold
-    // moved to another heading once one was added above.
+    // With a slug of "", every such heading was keyed by its position, and its
+    // fold moved to another heading once one was added above.
     it.each([
         ["Задачи на день", "задачи-на-день"],
         ["今日のメモ", "今日のメモ"],
@@ -418,7 +422,8 @@ describe("CollapsibleManager — headers", () => {
         content.innerHTML = "<h1>---Section---</h1>";
         makeCollapsible(manager, content, "file.md");
         clickChevron(content.querySelector("h1") as HTMLElement);
-        // "---Section---" → lowercase "---section---" → replace non-alphanumeric runs → "-section-" → strip edges → "section"
+        // "---Section---" → lower case "---section---" → replace runs of other
+        // characters → "-section-" → remove dashes at the ends → "section"
         expect(store.setCollapsed).toHaveBeenCalledWith("file.md", "section", true);
     });
 
@@ -427,7 +432,8 @@ describe("CollapsibleManager — headers", () => {
         content.innerHTML = "<h1>Top</h1><h2>Sub</h2><p>Body</p>";
         makeCollapsible(manager, content, "file.md");
         clickChevron(content.querySelector("h1") as HTMLElement);
-        // h2 level (2) > h1 level (1): NOT a break — h2 must be hidden
+        // An h2 (level 2) is lower than an h1 (level 1), so it does not end the
+        // section, and the h2 must be hidden.
         expect(content.querySelector("h2")!.classList.contains("is-hidden")).toBe(true);
         expect(content.querySelector("p")!.classList.contains("is-hidden")).toBe(true);
     });
@@ -619,8 +625,8 @@ describe("CollapsibleManager — delegated listeners", () => {
     }
 
     it("binds nothing to the chevron itself", () => {
-        // Chevrons are rebuilt on every re-render; a listener per chevron would
-        // pile registrations on the view until it closes.
+        // Fold arrows are created again every time a note is drawn again. A
+        // listener for each arrow would pile up on the view until it closes.
         heading().click();
         expect(store.setCollapsed).not.toHaveBeenCalled();
     });
@@ -795,7 +801,8 @@ describe("CollapsibleManager — refreshing after sections re-render in place", 
         expect(content.querySelectorAll(".collapse-indicator")).toHaveLength(3);
     });
 
-    // As a whole render would: the element takes the key, and that key's saved state.
+    // As drawing the whole note would: the element takes the key, and that
+    // key's saved state.
     it("re-keys a kept list item whose key moved, showing and saving that key's state", () => {
         const store = makeStore();
         vi.mocked(store.collapsedOr).mockImplementation((_path, key) => key === "li-1-errands#2");
@@ -814,7 +821,8 @@ describe("CollapsibleManager — refreshing after sections re-render in place", 
         expect(store.setCollapsed).toHaveBeenCalledWith("file.md", "li-1-errands#2", false);
     });
 
-    // D-136: the key names the heading above, so a renamed heading reopens what sits under it.
+    // D-136: the key includes the heading above, so renaming a heading unfolds
+    // what is under it.
     it("opens a kept list item under a renamed heading, whose key has no saved state", () => {
         const store = makeStore();
         vi.mocked(store.collapsedOr).mockImplementation((_path, key) => key === "errands/li-1-shopping");
@@ -837,7 +845,8 @@ describe("CollapsibleManager — runs hidden when far (ADR 0021)", () => {
     const p = (text: string) => Array.from(content.querySelectorAll("p")).find((el) => el.textContent === text)!;
 
     beforeEach(() => {
-        // Every element shown, a line tall: jsdom lays nothing out.
+        // Every element is shown and one line tall, because jsdom has no
+        // layout.
         manager = new CollapsibleManager(
             makeStore(),
             new FarRuns(() => ({ top: 0, bottom: 20, marginTop: 0, marginBottom: 0 }))

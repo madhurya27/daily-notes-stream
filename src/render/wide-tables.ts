@@ -2,15 +2,16 @@ import type { Component } from "obsidian";
 import type { WidthWatch } from "./note-widths";
 
 /**
- * Names each body cell after its column and stacks a table wider than the note
- * as cards, re-checked when the note's width changes. A table may not scroll
- * sideways inside the stream (ADR 0008). Tables drawn later, as Dataview's
- * are, get the same.
+ * Labels each body cell with its column's name, and stacks a table wider than
+ * the note as cards. This is checked again when the note's width changes. A
+ * table may not scroll sideways inside the stream (ADR 0008). Tables drawn
+ * later, as Dataview's are, get the same treatment.
  */
 export function stackWideTables(contentEl: HTMLElement, noteComponent: Component, widths: WidthWatch): void {
     const fit = (tables: HTMLTableElement[]) => {
         for (const table of tables) {
-            // Measured as a grid: stacked, it is exactly as wide as the note.
+            // Measure it as a grid, because stacked it is exactly as wide as
+            // the note.
             table.removeClass("is-stacked");
             table.toggleClass("is-stacked", table.offsetWidth > contentEl.clientWidth + 1);
         }
@@ -21,7 +22,8 @@ export function stackWideTables(contentEl: HTMLElement, noteComponent: Component
     };
     stack(Array.from(contentEl.querySelectorAll("table")));
 
-    // Dataview fills its table over several renders: a header first, rows later.
+    // Dataview fills its table over several renders: the header first, the rows
+    // later.
     const added = new MutationObserver((records) => {
         const tables = new Set<HTMLTableElement>();
         for (const record of records) {
@@ -43,7 +45,10 @@ function tablesIn(el: HTMLElement): HTMLTableElement[] {
     return el.instanceOf(HTMLTableElement) ? [el] : Array.from(el.querySelectorAll("table"));
 }
 
-/** A stacked cell shows its column's name, read from `data-column` by the stylesheet. */
+/**
+ * A stacked cell shows its column's name, which the stylesheet reads from
+ * `data-column`.
+ */
 function labelColumns(table: HTMLTableElement): void {
     const names = Array.from(table.querySelectorAll("thead th")).map(columnName);
     for (const row of Array.from(table.querySelectorAll("tbody tr"))) {
@@ -54,7 +59,7 @@ function labelColumns(table: HTMLTableElement): void {
     }
 }
 
-/** Dataview's first header also holds the row count, in a span of its own. */
+/** Dataview's first header also holds the number of rows, in its own span. */
 const RESULT_COUNT = ".dataview.small-text";
 
 function columnName(th: Element): string {

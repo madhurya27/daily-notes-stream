@@ -16,7 +16,7 @@ function at(start: number, end: number) {
     return { start: { line: 0, col: 0, offset: start }, end: { line: 0, col: 0, offset: end } };
 }
 
-/** A source whose whole text is one paragraph linking to the day. */
+/** A note whose whole text is one paragraph that links to the day. */
 function linkingNote(text: string) {
     const offset = text.indexOf("[[");
     return {
@@ -31,8 +31,8 @@ function linkingNote(text: string) {
 type Source = { text: string; cache: object };
 
 /**
- * A vault of `sources` by path, each linking to the day. `read` stands in
- * for `cachedRead`, so a test can hold a read open.
+ * A vault of `sources` by path, each linking to the day. `read` replaces
+ * `cachedRead`, so a test can keep a read waiting.
  */
 function makeVault(sources: Record<string, Source>) {
     const files = new Map<string, TFile>([[DAY, new TFile(DAY)]]);
@@ -53,7 +53,10 @@ function makeVault(sources: Record<string, Source>) {
         },
     });
     const index = new BacklinkIndex(() => resolvedLinks);
-    /** A source starts linking here, as Obsidian would report once resolved. */
+    /**
+     * A note starts linking here, as Obsidian would report once it resolves
+     * links.
+     */
     const add = (path: string, source: Source) => {
         sources[path] = source;
         files.set(path, new TFile(path));
@@ -76,7 +79,10 @@ function makeStore() {
     );
 }
 
-/** A footer over `vault`, its chevrons live under a delegated root; `collapsible` is its manager. */
+/**
+ * A footer for `vault`, with working fold arrows under a root with shared
+ * listeners. `collapsible` is its manager.
+ */
 function makeFooter(
     vault: ReturnType<typeof makeVault>,
     settings: Partial<DailyNotesStreamSettings> = {},
@@ -355,7 +361,8 @@ describe("LinkedMentionsFooter", () => {
 
         await vi.waitFor(() => expect(block.querySelectorAll(".daily-note-mention")).toHaveLength(3));
         expect(block.querySelectorAll(".daily-note-mentions")).toHaveLength(1);
-        // The first draw, the newest redraw: the one it overtook decorates nothing.
+        // The first draw, then the newest one. The draw it replaced changes
+        // nothing.
         expect(decorate).toHaveBeenCalledTimes(2);
     });
 
@@ -380,7 +387,8 @@ describe("LinkedMentionsFooter", () => {
             };
         });
 
-        // A table too wide for a phone stacks as cards (ADR 0008), in an excerpt as in a note.
+        // A table too wide for a phone is stacked as cards (ADR 0008), in an
+        // excerpt just as in a note.
         it("names each cell of an excerpt's table after its column", async () => {
             vi.spyOn(MarkdownRenderer, "render").mockImplementation((_app, _md, el) => {
                 const table = el.createEl("table");
@@ -412,7 +420,7 @@ describe("LinkedMentionsFooter", () => {
         });
     });
 
-    // A desktop table scrolls sideways, as Obsidian's do (ADR 0008).
+    // On desktop, a table scrolls sideways, as Obsidian's tables do (ADR 0008).
     it("leaves an excerpt's table to Obsidian on desktop", async () => {
         vi.spyOn(MarkdownRenderer, "render").mockImplementation((_app, _md, el) => {
             const table = el.createEl("table");

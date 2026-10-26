@@ -20,7 +20,9 @@ describe("LinkChanges", () => {
         changes.subscribe((paths) => heard.push([...paths].sort()));
     });
 
-    /** `source` now links to `targets`, and the cache says it has resolved it. */
+    /**
+     * `source` now links to `targets`, and the cache says it has resolved it.
+     */
     function resolve(source: string, ...targets: string[]) {
         links[source] = Object.fromEntries(targets.map((target) => [target, 1]));
         changes.onResolve(source);
@@ -115,7 +117,8 @@ describe("LinkChanges", () => {
         expect(heard).toHaveLength(1);
     });
 
-    // A note made again at the path links afresh: what it gains is news.
+    // A note created again at the same path starts with no links, so each link
+    // it gains is new.
     it.each([
         ["deleted", (c: LinkChanges) => c.onDelete("Meeting.md")],
         ["renamed away", (c: LinkChanges) => c.onRename("Meeting.md", "Standup.md")],

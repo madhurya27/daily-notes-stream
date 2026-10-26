@@ -1,12 +1,12 @@
 import { test, expect, openStream, emulatePhoneCpu, seededDate, SEEDED_DAYS } from "./obsidian";
 
 /**
- * On mobile a render awaits each Base, then measures tables and equations
- * (D-068). Needs a vault of three years or more, so it runs
- * under `pnpm run test:memory`.
+ * On mobile, drawing a note waits for each Base, then measures tables and
+ * equations (D-068). Needs a vault of three years or more, so it runs with
+ * `pnpm run test:memory`.
  */
 
-/** Notes given a Base and equations; the scroll crosses all of them. */
+/** Notes given a Base and equations. The scroll goes past all of them. */
 const NOTES = 40;
 
 const JOURNAL_BASE = [
@@ -71,8 +71,9 @@ test.describe("render cost on mobile, a Base and equations per note", () => {
         );
         await page.waitForTimeout(2000);
 
-        // Every Base draw holds the render queue (ADR 0004). Timed on the
-        // prototype, so the view reopened below has it too.
+        // Every time a Base draws, it holds up the render queue (ADR 0004).
+        // Timed on the prototype, so the view opened again below has the timing
+        // too.
         await openStream(page);
         await page.evaluate(() => {
             const view = window.app.workspace.getLeavesOfType("daily-notes-stream-view")[0].view;
@@ -99,7 +100,8 @@ test.describe("render cost on mobile, a Base and equations per note", () => {
         const container = await openStream(page);
         const pane = container.locator("xpath=..");
         const last = container.locator(`.daily-note-block[data-source-path="Notes/${seededDate(NOTES - 1)}.md"]`);
-        // A screen at a time, as a reader would, until the last of them is on screen.
+        // One screen at a time, as a reader would, until the last of them is on
+        // screen.
         const reached = () =>
             pane.evaluate(
                 (el, path) => {
@@ -115,7 +117,7 @@ test.describe("render cost on mobile, a Base and equations per note", () => {
         await expect(last.locator(".daily-note-content")).toBeVisible();
         await page.waitForTimeout(2000);
 
-        // Proof the scroll drew what it claims to measure.
+        // Proof that the scroll drew what it says it measures.
         await last.evaluate((el) =>
             el.querySelector(".bases-view")!.scrollIntoView({ block: "start", behavior: "instant" })
         );
@@ -138,7 +140,6 @@ test.describe("render cost on mobile, a Base and equations per note", () => {
         const ms = (list: TraceEvent[]) => list.reduce((sum, e) => sum + (e.dur ?? 0), 0) / 1000;
         const sorted = [...baseMs].sort((a, b) => a - b);
 
-        // eslint-disable-next-line no-console -- the numbers this test exists to report
         console.log(
             [
                 `[render] last note: ${drawn.rows} Base rows, ${drawn.equations} equations`,
@@ -152,8 +153,8 @@ test.describe("render cost on mobile, a Base and equations per note", () => {
         expect(drawn.rows).toBeGreaterThan(0);
         expect(drawn.equations).toBe(2);
         expect(baseMs.length).toBeGreaterThanOrEqual(NOTES);
-        // About 2x the most measured (D-068). The count holds on any machine;
-        // the times only on one as fast as an M5.
+        // About twice the most measured (D-068). The count is correct on any
+        // machine. The times are only correct on one as fast as an M5.
         expect(ours.length).toBeLessThan(1700);
         expect(sorted.at(-1)).toBeLessThan(150);
         expect(ms(ours)).toBeLessThan(580);

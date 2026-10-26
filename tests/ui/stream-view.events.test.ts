@@ -3,9 +3,13 @@ import { TFile } from "../mocks/obsidian";
 import { flushPromises, makeApp, makeStubbedView, makeViewSetup } from "../stream-view-fixture";
 import { LinkChanges } from "../../src/notes/link-changes";
 
-// What each event does to the stream is note-stream.test.ts's; this is the wiring.
+// What each event does to the stream is tested in note-stream.test.ts. This
+// tests how the events are connected.
 describe("DailyNotesStreamView — vault events", () => {
-    /** Opens a view whose vault and metadataCache capture the callbacks registered with them. */
+    /**
+     * Opens a view whose vault and metadataCache keep the callbacks registered
+     * with them.
+     */
     async function makeWiredView() {
         const app = makeApp();
         const { view } = await makeViewSetup(app);
@@ -21,8 +25,8 @@ describe("DailyNotesStreamView — vault events", () => {
         expect(spy).toHaveBeenCalledWith(file);
     });
 
-    // vault 'modify' fires before metadataCache catches up, so re-rendering on
-    // it strips frontmatter at a stale offset.
+    // vault 'modify' fires before metadataCache is updated, so drawing the note
+    // again then would remove the frontmatter at an old position.
     it("does not re-render a note on vault 'modify'", async () => {
         const { view, callbacks } = await makeWiredView();
         const spy = vi.spyOn(view["stream"], "onFileModify");
@@ -30,7 +34,8 @@ describe("DailyNotesStreamView — vault events", () => {
         expect(spy).not.toHaveBeenCalled();
     });
 
-    // A Base has no metadata to wait for; its copies drawn as cards redraw.
+    // A Base file has no metadata to wait for. Its copies drawn as cards are
+    // drawn again.
     it("vault 'modify' callback hands the file to the renderer's Bases", async () => {
         const { view, callbacks } = await makeWiredView();
         const spy = vi.spyOn(view["renderer"], "onBaseModified").mockResolvedValue();
@@ -64,7 +69,10 @@ describe("DailyNotesStreamView — vault events", () => {
     });
 
     describe("while the notes are still being listed", () => {
-        /** A view whose `initialize` waits for `listed`, its callbacks registered so far. */
+        /**
+         * A view whose `initialize` waits for `listed`, and the callbacks
+         * registered so far.
+         */
         function openSlowly() {
             const app = makeApp();
             const { view, service } = makeStubbedView(app);
@@ -75,8 +83,8 @@ describe("DailyNotesStreamView — vault events", () => {
             return { service, callbacks, listed, opened };
         }
 
-        // A note synced in, or deleted, as the stream opens: missed, it stayed
-        // wrong until a refresh.
+        // A note synced or deleted while the stream opens. If the event was
+        // missed, the stream stayed wrong until a refresh.
         it("applies a delete heard meanwhile once the stream opens", async () => {
             const { service, callbacks, listed, opened } = openSlowly();
 
@@ -105,7 +113,8 @@ describe("DailyNotesStreamView — vault events", () => {
         });
     });
 
-    // Mermaid's "Allow" fires it, as does a plugin adding or removing a post-processor.
+    // Mermaid's "Allow" fires it, and so does a plugin adding or removing a
+    // post-processor.
     it("workspace 'post-processor-change' re-renders the stream", async () => {
         const app = makeApp();
         const { view } = await makeViewSetup(app);
@@ -117,7 +126,10 @@ describe("DailyNotesStreamView — vault events", () => {
 });
 
 describe("DailyNotesStreamView — links to daily notes", () => {
-    /** A view opened on the plugin's link changes, and a way to make `source` link to `targets`. */
+    /**
+     * A view opened with the plugin's link changes, and a way to make `source`
+     * link to `targets`.
+     */
     async function openLinked(existing: (path: string) => boolean = () => true) {
         const app = makeApp();
         app.vault.getFileByPath.mockImplementation((path: string) => (existing(path) ? new TFile(path) : null));

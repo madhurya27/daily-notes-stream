@@ -1,5 +1,5 @@
 /**
- * Seeds the demo vault, or the test vault with --test; each takes its own
+ * Fills the demo vault, or the test vault with --test. Each takes its own
  * options, listed in its script.
  *
  *   node scripts/seed.mjs [--test] [vault] [options]

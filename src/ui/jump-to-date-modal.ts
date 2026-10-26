@@ -2,34 +2,45 @@ import { App, Platform, SuggestModal, setIcon } from "obsidian";
 import type { DailyNoteService } from "../notes/daily-note-service";
 import { moment, type Moment } from "../notes/moment";
 
-/** The one format every reader can fall back on, whatever their vault uses. */
+/** One format every reader can use, whatever format their vault uses. */
 const ISO_FORMAT = "YYYY-MM-DD";
 
-/** About two months of notes on open: the list draws fast on a phone (D-128). */
+/**
+ * About two months of notes when the list opens, so it is drawn fast on a phone
+ * (D-128).
+ */
 export const JUMP_OPEN_LIMIT = 62;
-/** About a year once a query is typed, so a year lists all its notes. */
+/** About a year once the reader types, so typing a year lists all its notes. */
 export const JUMP_SEARCH_LIMIT = 366;
 
-/** A date the reader can jump to; `fallback` when no note carries it. */
+/**
+ * A date the reader can jump to. `fallback` is set when no note has that date.
+ */
 interface JumpChoice {
     date: Moment;
-    /** The date as this vault's filenames spell it. */
+    /** The date written as this vault's file names write it. */
     label: string;
-    /** What the jump will do instead, when the date itself has no note. */
+    /** What the jump will do instead, when there is no note on the date. */
     fallback: string | null;
-    /** The label, lowercased, and the ISO date: what a query is found in, spelled once per open. */
+    /**
+     * The label in lower case, and the ISO date: the text a query is searched
+     * in, built once each time the list opens.
+     */
     searchText: string;
 }
 
 /**
- * Offers the days this vault actually has a note for, so a jump lands on one
- * the reader chose rather than on the silent nearest older note. A date with no
- * note is still reachable — as one entry that says what it will do.
+ * Lists the days this vault has a note for, so a jump goes to a note the reader
+ * chose, not quietly to the nearest older note. A date with no note can still
+ * be chosen, as one entry that says what it will do.
  */
 export class JumpToDateModal extends SuggestModal<JumpChoice> {
     private readonly service: DailyNoteService;
     private readonly onSubmit: (_target: Moment) => void;
-    /** Snapshotted on open: the vault cannot change under a modal. */
+    /**
+     * Copied when the list opens, because the vault cannot change while a modal
+     * is open.
+     */
     private readonly choices: JumpChoice[];
 
     constructor(app: App, service: DailyNoteService, onSubmit: (_target: Moment) => void) {
@@ -45,8 +56,8 @@ export class JumpToDateModal extends SuggestModal<JumpChoice> {
     }
 
     /**
-     * On a phone, the list opens without the keyboard covering half of it; the
-     * reader taps the query to type, or the calendar.
+     * On a phone, the list opens without the keyboard covering half of it. The
+     * reader taps the search field to type, or taps the calendar.
      */
     open(): void {
         super.open();
@@ -77,7 +88,7 @@ export class JumpToDateModal extends SuggestModal<JumpChoice> {
         this.contentEl.empty();
     }
 
-    /** This vault's own spelling first, then ISO. */
+    /** Reads the date in this vault's own format first, then as ISO. */
     private readDate(text: string): Moment | null {
         const own = this.service.parseNoteDate(text);
         if (own) return own;
@@ -87,22 +98,23 @@ export class JumpToDateModal extends SuggestModal<JumpChoice> {
 
     private choice(date: Moment, fallback: string | null): JumpChoice {
         const label = this.service.formatDate(date);
-        // Both: the reader may reach for ISO whatever their own filenames look
-        // like. The separator keeps a query from spanning the two.
+        // Both, because the reader may type an ISO date, whatever their file
+        // names look like. The separator stops a query from matching across the
+        // two.
         return { date, label, fallback, searchText: `${label.toLowerCase()}\u0000${date.format(ISO_FORMAT)}` };
     }
 
     /**
-     * The platform's own date wheel, beside the query rather than instead of
-     * it: typing is faster for a date the reader knows, and picking is easier
-     * for one they are looking for. The icon's tap target is the date input
-     * itself, invisible over it: iOS has `showPicker()` but opens nothing from
-     * it, only for a tap on the input. Desktop needs `showPicker()`, since a
-     * click on a date input's text only focuses it.
+     * The device's own date picker, next to the search field, not instead of
+     * it. Typing is faster for a date the reader knows, and picking is easier
+     * for one they are looking for. What the reader taps on the icon is the
+     * date input itself, invisible over the icon: iOS has `showPicker()` but
+     * opens nothing from it, only from a tap on the input. Desktop needs
+     * `showPicker()`, because a click on a date input's text only focuses it.
      */
     private addCalendarButton(): void {
-        // SuggestModal always wraps its input in the prompt's container; the
-        // cast states that contract rather than branch on it.
+        // SuggestModal always puts its input inside the prompt's container. The
+        // cast states this, instead of checking for it.
         const container = this.inputEl.parentElement as HTMLElement;
         const icon = container.createDiv({ cls: "clickable-icon daily-notes-jump-calendar" });
         setIcon(icon, "calendar");
@@ -115,16 +127,17 @@ export class JumpToDateModal extends SuggestModal<JumpChoice> {
         picker.onclick = () => {
             if (typeof picker.showPicker === "function") picker.showPicker();
         };
-        // A property, not a registration: the picker dies with the modal, and
-        // one handler is all a single element can hold.
+        // Set as a property, not registered, because the picker is removed with
+        // the modal, and one element only needs one handler.
         picker.onchange = () => {
-            // Stryker disable next-line BooleanLiteral: a date input's value is a whole ISO date or empty.
+            // Stryker disable next-line BooleanLiteral: a date input's value is a complete ISO date or empty.
             const picked = moment(picker.value, ISO_FORMAT, true);
             if (!picked.isValid()) return;
-            // Through the query, not straight to the jump: the reader sees what
-            // they picked, and can correct it without reopening the wheel.
-            // Focus stays: iOS fires this as its wheel opens, and moving focus
-            // would close it. Enter still reaches the modal from the picker.
+            // Put the date in the search field instead of jumping at once, so
+            // the reader sees what they picked, and can correct it without
+            // opening the picker again. The focus stays where it is: iOS fires
+            // this when its picker opens, and moving the focus would close it.
+            // Enter still reaches the modal from the picker.
             this.inputEl.value = this.service.formatDate(picked);
             this.inputEl.dispatchEvent(new Event("input"));
         };

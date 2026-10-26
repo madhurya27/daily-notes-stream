@@ -1,7 +1,7 @@
 import { test, expect, type Phone } from "./phone";
 
 const HEADER = '.workspace-leaf-content[data-type="daily-notes-stream-view"] .view-header';
-/** An old note: every note between it and the top was never drawn. */
+/** An old note. Every note between it and the top was never drawn. */
 const OLD = "2026-09-10";
 
 test("a tap on the title glides to the newest note and holds it at the very top", async ({ phone }) => {
@@ -30,13 +30,16 @@ for (const [action, opened] of [
         await expect.poll(() => phone.has(opened), `${action} did not open`).toBe(true);
         await phone.rest();
 
-        // As the turn checks allow: a pixel's rounding is not a jump.
+        // As the turn checks allow: one pixel of rounding is not a jump.
         expect(Math.abs((await phone.scrollTop()) - before)).toBeLessThan(5);
         await phone.escape(opened);
         await expect.poll(() => phone.has(opened)).toBe(false);
     });
 
-/** A day's entries, `lines` long: headings, prose, lists, tasks, code and a table. */
+/**
+ * A day's entries, `lines` long: headings, prose, lists, tasks, code and a
+ * table.
+ */
 function longNote(lines: number): string {
     const entry = (n: number) => [
         `## Entry ${n}`,
@@ -62,7 +65,10 @@ function longNote(lines: number): string {
         .join("\n");
 }
 
-/** Writes each of `notes`, `[days back, lines]`, as a long note; returns what to restore. */
+/**
+ * Writes each of `notes`, given as `[days back, lines]`, as a long note.
+ * Returns what to restore.
+ */
 async function writeNotes(phone: Phone, notes: readonly (readonly [number, number])[]): Promise<Written[]> {
     const written: Written[] = [];
     for (const [back, lines] of notes) {
@@ -84,9 +90,9 @@ async function restoreNotes(phone: Phone, written: Written[]): Promise<void> {
  */
 const CASES = [
     {
-        // The glide up passed a 10,000-line note, which drew to its end a
-        // second after it had gone by, while the top of the stream stayed
-        // blank. Measured: 750–1,170 ms; none once it gives up.
+        // The scroll up went past a 10,000-line note, which kept drawing to its
+        // end for a second after it had gone by, while the top of the stream
+        // stayed blank. Measured: 750–1,170 ms, and none once it gives up.
         name: "a tap on the title over long notes draws the newest at once",
         notes: [
             [0, 5000],
@@ -97,9 +103,10 @@ const CASES = [
         within: 400,
     },
     {
-        // Under a short newest note, a long one never measured ends the glide
-        // in the render margin, and drew to its end first. Measured: 333–341
-        // ms; 44–49 once a note on screen goes ahead of it.
+        // Under a short newest note, a long note never measured is within the
+        // drawing distance when the scroll ends, and it drew to its end first.
+        // Measured: 333–341 ms, and 44–49 ms once a note on screen is drawn
+        // before it.
         name: "a tap on the title draws a short newest note before a long one near it",
         notes: [
             [0, 30],
@@ -117,13 +124,15 @@ for (const { name, notes, measured, within } of CASES)
         try {
             if (!measured) await phone.forgetHeights();
             await phone.openStream();
-            // Each drawn once, so its height is known, as for a reader who has scrolled past them.
+            // Each is drawn once, so its height is known, as for a reader who
+            // has scrolled past them.
             if (measured) for (const { path } of written) await phone.jumpTo(path.slice(8, 18));
             const fourth = await phone.run(
                 () => document.querySelectorAll<HTMLElement>(".daily-note-block")[3]!.dataset.sourcePath!
             );
             await phone.placeAt(`.daily-note-block[data-source-path="${fourth}"]`, 0);
-            // Far past it, the newest note unloads once the scroll is still: the tap has it draw again.
+            // Far past it, the newest note is emptied once scrolling stops, so
+            // the tap makes it draw again.
             await expect
                 .poll(() =>
                     phone.run(
@@ -152,7 +161,7 @@ for (const { name, notes, measured, within } of CASES)
             });
 
             await phone.tap(`${HEADER} .view-header-title`);
-            // The driver hands back undefined as null.
+            // The driver returns undefined as null.
             await expect
                 .poll(() => phone.run(() => (window as unknown as { drawnAtTop?: number }).drawnAtTop ?? 0))
                 .toBeGreaterThan(0);
@@ -167,9 +176,9 @@ for (const { name, notes, measured, within } of CASES)
         }
     });
 
-// A glide up from inside it draws it from its end (ADR 0022), and it lands
-// with the scroll at the top. Held by the text drawn there, it stood 156 px
-// short of its title in 3 of 4 runs.
+// Scrolling up from inside it draws it from its end (ADR 0022), and it finishes
+// with the scroll at the top. When the place was kept by the text drawn there,
+// it ended up 156 px below its title in 3 out of 4 runs.
 test("a tap on the title from inside a long newest note glides to its title", async ({ phone }) => {
     await phone.openStream();
     const top = await phone.newestOffset();

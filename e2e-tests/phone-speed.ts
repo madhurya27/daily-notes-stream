@@ -1,13 +1,15 @@
 /// <reference path="./global.d.ts" />
 
 /**
- * The phone the specs time against: slower than any iPhone iOS 26 runs on,
- * the iPhone 11 half an iPhone 16 Pro's single-core speed on Geekbench 6, and
- * as fast as the quicker mid-range Androids (D-131). A laptop is slowed until
- * the same workload takes it as long.
+ * The phone the tests' timings are compared against: slower than any iPhone
+ * that runs iOS 26. The iPhone 11 has half an iPhone 16 Pro's single-core speed
+ * on Geekbench 6, and is as fast as the faster mid-range Android phones
+ * (D-131). A laptop is slowed down until the same work takes it as long.
  */
 
-/** A day's entries, about 5,000 characters: a note the stream draws whole. */
+/**
+ * A day's entries, about 5,000 characters: a note the stream draws all at once.
+ */
 export const WORKLOAD_NOTE = Array.from({ length: 10 }, (_, n) =>
     [
         `## Entry ${n}`,
@@ -30,19 +32,25 @@ export const WORKLOAD_NOTE = Array.from({ length: 10 }, (_, n) =>
     ].join("\n")
 ).join("\n\n");
 
-/** What the workload takes that phone, in ms: an iPhone 16 Pro's, about 2.3 times. */
+/**
+ * How long the work takes that phone, in ms: about 2.3 times as long as an
+ * iPhone 16 Pro.
+ */
 export const TARGET_PHONE_WORKLOAD_MS = 20;
 
-/** How much to slow a machine whose workload takes `machineMs` to one taking `targetMs`. */
+/**
+ * How much to slow a machine whose work takes `machineMs`, so it takes
+ * `targetMs`.
+ */
 export function cpuSlowdown(machineMs: number, targetMs: number): number {
     return Math.max(1, targetMs / machineMs);
 }
 
 /**
- * Runs in the page, open stream required: the ms the stream's renderer takes
+ * Runs in the page, with a stream open: how many ms the stream's renderer takes
  * to draw `text` as a note and lay it out, the median of three batches of ten.
- * Timed by the batch: Safari rounds the clock to a millisecond. The first draw
- * warms caches and is not counted.
+ * Timed for each batch, because Safari rounds the clock to a millisecond. The
+ * first draw fills caches and is not counted.
  */
 export async function timeWorkload(text: string): Promise<number> {
     const { vault, metadataCache, workspace } = window.app;

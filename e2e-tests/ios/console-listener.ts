@@ -1,9 +1,11 @@
-/** Keeps the XCUITest driver to one console listener at a time (D-144). */
+/**
+ * Makes the XCUITest driver use only one console listener at a time (D-144).
+ */
 
 const START = /^( *)this\.remote\.startConsole\(eventListener\);$/m;
 const STOP = "this.remote.stopConsole();";
 
-/** `context.js` of the driver, with one console listener at a time. */
+/** The driver's `context.js`, changed to use one console listener at a time. */
 export function oneConsoleListener(source: string): string {
     const start = START.exec(source);
     if (!start)

@@ -16,7 +16,7 @@ describe("LayoutTable", () => {
         expect(values.entries("400:16px")).toEqual([]);
     });
 
-    // Every pane width and font size is a layout of its own.
+    // Every pane width and font size is a separate layout.
     it("forgets the layout used longest ago, past its limit", () => {
         const values = table(undefined, 2);
         values.set("a", "x.md", 1);
@@ -30,7 +30,7 @@ describe("LayoutTable", () => {
         expect(values.get("c", "x.md")).toBe(3);
     });
 
-    // A Base's key is its note's path, a newline, and what tells it apart.
+    // A Base's key is its note's path, a newline, and what makes it unique.
     it("carries a note's entries across a rename, in every layout", () => {
         const values = table();
         values.set("a", "old.md", 1);
@@ -105,7 +105,8 @@ describe("LayoutTable", () => {
             [[1, []]],
             [["a", [[1, 1]]]],
             [["a", 5]],
-            // One bad entry spoils the rest: a table half restored is not what was saved.
+            // One bad entry spoils the rest, because a half-restored table is
+            // not what was saved.
             [["a", [["x.md", 1]]], ["b"]],
             [
                 [

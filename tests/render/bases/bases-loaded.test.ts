@@ -9,7 +9,7 @@ describe("basesLoaded", () => {
     let note: HTMLElement;
     let loaded: boolean;
 
-    /** A Base as Bases first draws it: its query not yet run. */
+    /** A Base as Bases first draws it, before its query has run. */
     function loadingBase(): HTMLElement {
         return note.createDiv({ cls: BASE_SLOT_CLASS }).createDiv({ cls: "bases-cards-container is-loading" });
     }
@@ -78,7 +78,8 @@ describe("basesLoaded", () => {
         expect(loaded).toBe(true);
     });
 
-    // A table too wide for its note is redrawn as cards once it lays out.
+    // A table too wide for its note is drawn again as cards once it is laid
+    // out.
     it("waits on for a Base redrawn within the frame", async () => {
         const view = loadingBase();
         waitForBases();
@@ -120,7 +121,7 @@ describe("basesLoaded", () => {
         await vi.advanceTimersByTimeAsync(FRAME_MS);
         expect(loaded).toBe(true);
 
-        // Redrawn after, it asks for no frame.
+        // Drawn again afterwards, so it asks for no frame.
         view.addClass("is-loading");
         view.removeClass("is-loading");
         await vi.advanceTimersByTimeAsync(0);

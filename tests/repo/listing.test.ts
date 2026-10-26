@@ -9,7 +9,9 @@ const listing = read("docs/LISTING.md");
 const manifest = JSON.parse(read("manifest.json")) as { description: string };
 const pkg = JSON.parse(read("package.json")) as { description: string };
 
-/** The paragraph under `## <heading>` in docs/LISTING.md, unwrapped to one line. */
+/**
+ * The paragraph under `## <heading>` in docs/LISTING.md, joined into one line.
+ */
 function section(heading: string): string {
     const body = listing.split(`## ${heading}\n`)[1]?.split("\n## ")[0] ?? "";
     return body.trim().replace(/\s*\n\s*/g, " ");

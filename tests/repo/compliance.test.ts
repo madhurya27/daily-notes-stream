@@ -3,14 +3,16 @@ import { existsSync, readdirSync, readFileSync } from "fs";
 import { resolve } from "path";
 
 /**
- * Obsidian's community-plugin reviewers check these by hand on submission, and
- * no lint rule does (eslint.config.mts holds the rest), so a regression fails
- * here, not in review.
+ * Obsidian's community plugin reviewers check these by hand when a plugin is
+ * submitted, and no lint rule does (eslint.config.mts has the other checks). So
+ * a mistake fails here, not in review.
  */
 const repoRoot = resolve(__dirname, "../..");
 const srcDir = resolve(repoRoot, "src");
 const manifest = JSON.parse(readFileSync(resolve(repoRoot, "manifest.json"), "utf8")) as { fundingUrl?: string };
-/** Every `.ts` file under `dir`, folders included, relative to it. */
+/**
+ * Every `.ts` file under `dir`, including subfolders, as paths relative to it.
+ */
 const tsFilesUnder = (dir: string) =>
     readdirSync(dir, { recursive: true, encoding: "utf8" }).filter((name) => name.endsWith(".ts"));
 
@@ -36,7 +38,7 @@ describe("plugin submission compliance", () => {
         }
     });
 
-    // The field is optional; an empty or placeholder one is rejected.
+    // The field is optional, but an empty or placeholder value is rejected.
     it("claims no funding page it does not have", () => {
         if ("fundingUrl" in manifest) expect(manifest.fundingUrl).toMatch(/^https:\/\/\S+$/);
     });
@@ -55,9 +57,9 @@ describe("plugin submission compliance", () => {
         }
     });
 
-    // The directory's scanner lints every .ts it does not skip, test helpers
-    // included; these are its skip patterns that cover our folders. The root's
-    // config files are linted, and clean.
+    // The directory's scanner lints every .ts file it does not skip, including
+    // test helpers. These are the skip patterns that match our folders. The
+    // config files at the root are linted, and pass.
     // https://github.com/obsidianmd/eslint-plugin/blob/master/docs/configuration.md#community-plugin-scanner-configuration
     it("keeps every TypeScript folder but src/ where the review scanner skips it", () => {
         const skipped = /^(tests|e2e-tests|scripts|docs)\//;

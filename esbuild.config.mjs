@@ -15,7 +15,7 @@ const context = await esbuild.context({
         js: banner,
     },
     entryPoints: ["src/main.ts"],
-    // `pnpm run build:device` names the build; a release leaves it empty.
+    // `pnpm run build:device` names the build. A release leaves it empty.
     define: { BUILD_LABEL: JSON.stringify(process.env.BUILD_LABEL ?? "") },
     bundle: true,
     external: [

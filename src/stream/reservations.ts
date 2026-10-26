@@ -1,36 +1,47 @@
 import type { TFile } from "obsidian";
 import type { NoteHeights } from "./note-heights";
 
-/** An unloaded note, as far as what it reserves goes. */
+/** The parts of an empty note's window that decide its height. */
 export interface Reserving {
     file: TFile;
-    /** What it reserves: measured on the last unload, or the estimate. */
+    /**
+     * The height it keeps: measured when it was last emptied, or the estimate.
+     */
     height: number;
-    /** `height` was measured, this session or an earlier one, not guessed. */
+    /**
+     * Whether `height` was measured, in this session or an earlier one, rather
+     * than guessed.
+     */
     measured: boolean;
 }
 
-/** What a re-reserve at rest changes. */
+/** What changes when empty blocks get new heights after scrolling stops. */
 export interface ReservePlan {
-    /** The blocks to reserve their note's `height` now. */
+    /** The blocks that should now get their note's `height`. */
     changed: [HTMLElement, Reserving][];
-    /** How far the blocks wholly above the pane move: the anchor draws it first (ADR 0015). */
+    /**
+     * How far the blocks entirely above the pane move. The anchor shows this
+     * move first (ADR 0015).
+     */
     movedAbove: number;
 }
 
 /**
- * What each unloaded note reserves, and whether the placeholders are owed a
- * re-reserve: the heights learned more, or the layout changed (ADR 0014).
+ * The height each empty note keeps, and whether the empty blocks need new
+ * heights because more heights were measured, or the layout changed (ADR 0014).
  */
 export class Reservations {
-    /** The layout the unloaded notes expect heights in. */
+    /** The layout the empty notes expect heights for. */
     private expectedIn: string | null = null;
-    /** What the placeholders were last reserved from: the heights' revision, and the layout. */
+    /**
+     * What the empty blocks' heights were last based on: the heights' revision,
+     * and the layout.
+     */
     private reservedFrom: string;
 
     constructor(
         private readonly heights: NoteHeights,
-        /** What a note not measured at a layout reserves there (D-092). */
+        /** The height for a note not measured in a layout (D-092). */
         private readonly estimate: (layout: string, path: string) => number | undefined
     ) {
         this.reservedFrom = this.key();
@@ -41,9 +52,9 @@ export class Reservations {
     }
 
     /**
-     * What `note` last measured in `layout`, or the estimate there. With
-     * none, as just turned, it keeps what it reserves until the notes on
-     * screen are measured.
+     * Sets `note`'s height to what it last measured in `layout`, or the
+     * estimate there. If there is neither, as just after the screen turned, it
+     * keeps its height until the notes on screen are measured.
      */
     expect(note: Reserving, layout: string): void {
         const remembered = this.heights.heightOf(layout, note.file.path);
@@ -51,7 +62,10 @@ export class Reservations {
         note.measured = remembered !== undefined;
     }
 
-    /** A new note, reserved from what is known now; the others too, unless one is owed. */
+    /**
+     * A new note, given a height from what is known now. The others too, unless
+     * they already need new heights.
+     */
     add(note: Reserving, layout: string): void {
         const owed = this.owed;
         this.expectedIn = layout;
@@ -59,7 +73,10 @@ export class Reservations {
         if (!owed) this.reservedFrom = this.key();
     }
 
-    /** Whether `layout` is new: the unloaded notes are owed what they measured there. */
+    /**
+     * Whether `layout` is new. If so, the empty notes need the heights they
+     * measured there.
+     */
     expectLayout(layout: string): boolean {
         if (layout === this.expectedIn) return false;
         this.expectedIn = layout;
@@ -67,9 +84,10 @@ export class Reservations {
     }
 
     /**
-     * Each unloaded note's block, to reserve what it is now expected at. Null
-     * while the rest would shrink the stream by more than `roomBelow` the
-     * pane: the browser would clamp the scroll. Planned, nothing is owed.
+     * Each empty note's block, to give it the height it is now expected to
+     * have. Null while the new heights would make the stream shorter by more
+     * than `roomBelow` the pane, because the browser would then pull the scroll
+     * back. Once planned, nothing more is needed.
      */
     plan(
         unloaded: Iterable<[HTMLElement, Reserving]>,
@@ -99,7 +117,10 @@ export class Reservations {
     }
 }
 
-/** Wholly above the pane's top; a block not laid out, in a hidden tab, is nowhere. */
+/**
+ * Whether the block is entirely above the pane's top. A block not laid out, in
+ * a hidden tab, is nowhere.
+ */
 function isAbove(block: HTMLElement, paneTop: number): boolean {
     const { bottom, height } = block.getBoundingClientRect();
     return height > 0 && bottom <= paneTop;

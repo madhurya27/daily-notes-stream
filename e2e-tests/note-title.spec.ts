@@ -1,7 +1,10 @@
 import type { Page } from "@playwright/test";
 import { test, expect, openStream } from "./obsidian";
 
-/** Where each open note sits: its path, and whether its leaf shares the stream's tab group. */
+/**
+ * Where each open note is: its path, and whether its leaf is in the stream's
+ * tab group.
+ */
 function openNotes(page: Page) {
     return page.evaluate(() => {
         const stream = window.app.workspace.getLeavesOfType("daily-notes-stream-view")[0];
@@ -19,14 +22,16 @@ async function streamIsOpen(page: Page) {
 }
 
 test.describe("note title", () => {
-    // Tests share the instance: a note left open would take the screen from the next test's stream.
+    // Tests share the instance, so a note left open would cover the next test's
+    // stream.
     test.afterEach(async ({ obsidian }) => {
         await obsidian.page.evaluate(() => window.app.workspace.detachLeavesOfType("markdown"));
     });
 
     test("matches the size of the note's own inline title, at any text size", async ({ obsidian }) => {
         const { page } = obsidian;
-        // Off the 16px default, so a title sized off anything but the text size shows.
+        // Not the 16px default, so a title sized from anything other than the
+        // text size would show up.
         await page.evaluate(() => document.body.style.setProperty("--font-text-size", "21px"));
         const fontSize = (el: Element) => getComputedStyle(el).fontSize;
 
@@ -95,7 +100,8 @@ test.describe("note title", () => {
 
     test("offers the file menu on right-click", async ({ obsidian, mobileLayout }) => {
         const { page } = obsidian;
-        // A native menu (the macOS default) never reaches the DOM to be read.
+        // A native menu (the macOS default) is never in the DOM, so it cannot
+        // be read.
         await page.evaluate(() => window.app.vault.setConfig("nativeMenus", false));
         const container = await openStream(page);
 
@@ -103,11 +109,12 @@ test.describe("note title", () => {
 
         const menu = page.locator(".menu");
         await expect(menu.getByText("Open in new tab")).toBeVisible();
-        // Added by Obsidian's own file-menu handlers, not by the plugin.
+        // Added by Obsidian's own file menu handlers, not by the plugin.
         await expect(menu.getByText("Bookmark...")).toBeVisible();
-        // Obsidian adds its own "Open in new window" wherever windows exist; ours would double it.
+        // Obsidian adds its own "Open in new window" wherever windows exist, so
+        // ours would add a second one.
         await expect(menu.getByText("Open in new window")).toHaveCount(mobileLayout ? 0 : 1);
-        // A phone's menu is a sheet over a backdrop, and ignores Escape.
+        // A phone's menu is a sheet over a background, and ignores Escape.
         if (mobileLayout) await page.locator(".suggestion-bg").click({ position: { x: 5, y: 5 } });
         else await page.keyboard.press("Escape");
         await expect(menu).toBeHidden();

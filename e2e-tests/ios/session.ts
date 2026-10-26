@@ -3,13 +3,16 @@ import { remote } from "webdriverio";
 export const APPIUM_PORT = 4723;
 export const OBSIDIAN = "md.obsidian";
 
-/** A WebDriverAgent session on the phone `global-setup.ts` found, `app` in front. */
+/**
+ * A WebDriverAgent session on the phone `global-setup.ts` found, with `app` in
+ * front.
+ */
 export async function connect(app = OBSIDIAN): Promise<WebdriverIO.Browser> {
     const driver = await remote({
         hostname: "127.0.0.1",
         port: APPIUM_PORT,
         logLevel: "warn",
-        // A command that fails on the phone fails the same way again.
+        // A command that fails on the phone fails the same way if tried again.
         connectionRetryCount: 0,
         capabilities: {
             platformName: "iOS",

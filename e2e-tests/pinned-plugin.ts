@@ -4,7 +4,10 @@ import { dirname, join, resolve } from "path";
 import { fileURLToPath } from "url";
 import type { Page } from "@playwright/test";
 
-/** A community plugin at a pinned release, so a new one cannot change what the specs see. */
+/**
+ * A community plugin at a fixed release, so a new release cannot change what
+ * the tests see.
+ */
 export interface PinnedPlugin {
     /** Its manifest id, and its folder under `.obsidian/plugins/`. */
     id: string;
@@ -28,7 +31,10 @@ export const DATAVIEW: PinnedPlugin = {
     },
 };
 
-/** The release the community directory installs; 1.0's betas keep their settings in another shape. */
+/**
+ * The release the community directory installs. 1.0's beta versions save their
+ * settings in a different format.
+ */
 export const PERIODIC_NOTES: PinnedPlugin = {
     id: "periodic-notes",
     name: "Periodic Notes",
@@ -53,7 +59,7 @@ export const TEMPLATER: PinnedPlugin = {
     },
 };
 
-/** Every plugin a spec installs, fetched before the run. */
+/** Every plugin a test installs, downloaded before the run. */
 export const PINNED_PLUGINS = [DATAVIEW, PERIODIC_NOTES, TEMPLATER];
 
 const dirOf = (plugin: PinnedPlugin) =>
@@ -61,7 +67,10 @@ const dirOf = (plugin: PinnedPlugin) =>
 
 const sha256 = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 
-/** Downloads the release once into .dev/, verified; later runs need no network. */
+/**
+ * Downloads and checks the release once, into .dev/. Later runs need no
+ * network.
+ */
 export async function fetchPinned(plugin: PinnedPlugin): Promise<void> {
     const dir = dirOf(plugin);
     mkdirSync(dir, { recursive: true });
@@ -79,8 +88,8 @@ export async function fetchPinned(plugin: PinnedPlugin): Promise<void> {
 }
 
 /**
- * Installs and enables the plugin in the vault, starting from `data` as its
- * saved settings when given; the returned function disables and removes it.
+ * Installs and turns on the plugin in the vault, starting from `data` as its
+ * saved settings if given. The returned function turns it off and removes it.
  */
 export async function installPinned(page: Page, plugin: PinnedPlugin, data?: object): Promise<() => Promise<void>> {
     const files = Object.fromEntries(

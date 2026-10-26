@@ -29,7 +29,10 @@ export class DailyNotesStreamSettingTab extends PluginSettingTab {
         this.plugin = plugin;
     }
 
-    /** Drawn by Obsidian, which reads `plugin.settings` and lists each toggle in its settings search. */
+    /**
+     * Obsidian draws these. It reads `plugin.settings`, and lists each switch
+     * in its settings search.
+     */
     getSettingDefinitions(): SettingDefinitionItem<SettingKey>[] {
         return [
             toggle(
@@ -67,13 +70,16 @@ export class DailyNotesStreamSettingTab extends PluginSettingTab {
         ];
     }
 
-    /** Saved through the plugin, which redraws every open stream. */
+    /** Saved through the plugin, which draws every open stream again. */
     async setControlValue(key: string, value: unknown): Promise<void> {
         this.plugin.settings[key as SettingKey] = value as boolean;
         await this.plugin.saveSettings();
     }
 
-    /** A group under `heading`; `collapsed` is drawn only while the section shows (D-114). */
+    /**
+     * A group under `heading`. `collapsed` is only drawn while the section is
+     * shown (D-114).
+     */
     private section(heading: string, show: Toggle, collapsed: Toggle): SettingDefinitionItem<SettingKey> {
         const key = show.control.key;
         return { type: "group", heading, items: [show, { ...collapsed, visible: () => this.plugin.settings[key] }] };

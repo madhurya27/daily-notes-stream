@@ -50,13 +50,15 @@ describe("testVault", () => {
             expect(paths).toContain(`Bases/${base}.base`);
     });
 
-    // Grouped by extension: wider than a phone either way up, so cards (D-107).
+    // Grouped by file type, which is wider than a phone in either orientation,
+    // so it shows as cards (D-107).
     it("embeds a kanban grouped by file extension in the newest note", () => {
         expect(note("Bases/Kanban.base")).toMatch(/type: kanban[\s\S]*groupBy:\n {6}property: file\.ext/);
         expect(note("Notes/2026-08-30.md")).toContain("![[Kanban.base]]");
     });
 
-    // docs/TESTING.md, "Mobile": a phone draws page 1 and opens the PDF on a tap (D-083).
+    // docs/TESTING.md, "Mobile": a phone draws page 1, and a tap opens the PDF
+    // (D-083).
     it("embeds a PDF of several pages and a video wider than a phone in the newest note", () => {
         expect(note("Attachments/Manual.pdf")).toContain("/Count 3");
         expect(note("Notes/2026-08-30.md")).toContain("![[Manual.pdf]]");
@@ -75,7 +77,8 @@ describe("testVault", () => {
         expect(targets.filter((target) => !names.has(target))).toEqual(["Someday"]);
     });
 
-    // One note of each linked-mention case docs/TESTING.md lists, all on the newest note.
+    // One note of each linked-mention case docs/TESTING.md lists, all on the
+    // newest note.
     describe("links to the newest note, for its linked mentions", () => {
         const newest = "[[2026-08-29]]";
         const linking = paths.filter((path) => !path.startsWith("Notes/") && note(path).includes(newest));

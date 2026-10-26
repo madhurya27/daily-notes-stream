@@ -48,7 +48,7 @@ describe("warnIfStalled", () => {
     });
 
     it("says when a stalled task ends, and after how long", async () => {
-        // Timed from its own start, not the page's.
+        // Timed from when the task started, not from when the page loaded.
         await vi.advanceTimersByTimeAsync(60_000);
         const { task, finish } = pending();
         const watched = warnIfStalled("Drawing Notes/2026-03-14.md", task);

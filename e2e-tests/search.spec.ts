@@ -20,10 +20,12 @@ async function openSearch(page: Page): Promise<Locator> {
     return bar;
 }
 
-/** How many ranges the named highlight paints. */
+/** How many ranges the named highlight colors. */
 const painted = (page: Page, name: string) => page.evaluate((n) => CSS.highlights.get(n)?.size ?? 0, name);
 
-/** The current match's text, and whether it lies inside the pane's visible area. */
+/**
+ * The current match's text, and whether it is inside the pane's visible area.
+ */
 const currentMatch = (page: Page) =>
     page.evaluate(() => {
         const [range] = [...(CSS.highlights.get("daily-notes-search-current") ?? [])] as Range[];
@@ -50,13 +52,15 @@ test.describe("search the stream", () => {
         await expect(page.locator(".prompt")).toBeVisible();
     });
 
-    // The stream caches the binding and re-reads it on config writes, so this
-    // proves a rebind saves under the config dir and the stream hears it.
+    // The stream keeps the hotkey and reads it again when settings are saved.
+    // So this proves that a changed hotkey is saved in the config folder, and
+    // that the stream hears it.
     test("follows a rebind of the search hotkey while open", async ({ obsidian }) => {
         const { page } = obsidian;
         await openStream(page);
 
-        // What the Hotkeys settings tab does when the reader records a chord.
+        // What the Hotkeys settings tab does when the reader records a key
+        // combination.
         await page.evaluate(async () => {
             const { hotkeyManager } = window.app;
             hotkeyManager.setHotkeys("editor:open-search", [{ modifiers: ["Mod", "Shift"], key: "J" }]);
@@ -85,10 +89,11 @@ test.describe("search the stream", () => {
         await openStream(page);
         const bar = await openSearch(page);
 
-        // Every seeded note says "km" twice; one run a day.
+        // Every test note says "km" twice, from one run a day.
         await bar.locator("input").fill("km");
 
-        // One is marked at once, being on screen; the total is what counts.
+        // One is marked at once, because it is on screen. The total is what
+        // matters.
         await expect(bar.locator(".document-search-count")).toHaveText(new RegExp(`/ ${SEEDED_DAYS}$`));
     });
 
@@ -125,8 +130,8 @@ test.describe("search the stream", () => {
         }
     });
 
-    // Obsidian pads its find bar to clear the floating header, and the view
-    // content clears it again: two clearances leave a gap.
+    // Obsidian pads its search bar to make room for the floating header, and
+    // the view content makes room for it again. Making room twice leaves a gap.
     test("on a phone, sits under the floating header with no gap above the notes", async ({
         obsidian,
         mobileLayout,
@@ -202,7 +207,7 @@ test.describe("search the stream", () => {
             await obsidian.page.evaluate((p) => window.app.vault.delete(window.app.vault.getFileByPath(p)!), path);
         });
 
-        /** Steps to the match, and waits for every Base above it to fill in. */
+        /** Moves to the match, and waits for every Base above it to fill in. */
         async function stepToMatch(page: Page) {
             const bar = await openSearch(page);
             await bar.locator("input").fill("Quokka");
@@ -226,7 +231,8 @@ test.describe("search the stream", () => {
             await expect.poll(() => currentMatch(page)).toEqual({ text: "Quokka", onScreen: true });
         });
 
-        // Scrolled to before they load, Bases show "0 results", then fill in.
+        // If scrolled to before they load, Bases show "0 results", then fill
+        // in.
         test("shows no Base on screen before it fills in", async ({ obsidian }) => {
             const { page } = obsidian;
             await openStream(page);
@@ -257,10 +263,11 @@ test.describe("search the stream", () => {
             await expect.poll(() => currentMatch(page)).toEqual({ text: "Quokka", onScreen: true });
         });
 
-        // A remembered note is held at that height, so the Bases fill in
-        // inside it and the stream around it never resizes. Remembered taller
-        // than it draws, as after a Base lost rows, no rounding resizes it
-        // either. iOS anchors the scroll nowhere, as the stream does here.
+        // A note with a remembered height is held at that height, so the Bases
+        // fill in inside it, and the stream around it never changes size. If
+        // the remembered height is taller than it draws, as after a Base lost
+        // rows, rounding does not resize it either. iOS does not keep the
+        // scroll position, and neither does the stream here.
         test("keeps the match on screen in a note held taller", async ({ obsidian }) => {
             const { page } = obsidian;
             await scrollThroughStream(await openStream(page));
@@ -284,8 +291,9 @@ test.describe("search the stream", () => {
         });
     });
 
-    // Typing marks what the reader already sees, as Obsidian's own bar does,
-    // and scrolls nowhere: the first match on screen is the newest note's run.
+    // Typing marks what the reader already sees, as Obsidian's own search bar
+    // does, and does not scroll. The first match on screen is the newest note's
+    // run.
     test("marks the first match on screen as you type, moving nothing", async ({ obsidian }) => {
         const { page } = obsidian;
         const container = await openStream(page);
@@ -308,7 +316,8 @@ test.describe("search the stream", () => {
         await bar.locator("input").fill("km");
         await expect(count).toHaveText(`1 / ${SEEDED_DAYS}`);
 
-        // The newest note says "km" twice: its run, marked as typed, then its table.
+        // The newest note says "km" twice: in its run, marked while typing,
+        // then in its table.
         await page.keyboard.press("Enter");
         await expect(count).toHaveText(`1 / ${SEEDED_DAYS}`);
         await page.keyboard.press("Enter");
@@ -334,7 +343,7 @@ test.describe("search the stream", () => {
         await expect(bar.locator(".document-search-count")).toHaveText(`1 / ${SEEDED_DAYS}`);
         await expect.poll(() => currentMatch(page)).toEqual({ text: "Stretching", onScreen: true });
         await expect(heading).not.toHaveClass(/is-collapsed/);
-        // Unsaved: the fold still stands in the vault's own storage.
+        // Not saved: the fold is still in the vault's own storage.
         const saved = await page.evaluate(() =>
             JSON.stringify(window.app.loadLocalStorage("daily-notes-stream:collapse")).includes("true")
         );
@@ -345,7 +354,8 @@ test.describe("search the stream", () => {
         const { page } = obsidian;
         await openStream(page);
         const bar = await openSearch(page);
-        // Frontmatter source: the properties panel draws "mood", never "mood:".
+        // The frontmatter text: the properties panel draws "mood", never
+        // "mood:".
         await bar.locator("input").fill("mood:");
 
         await page.keyboard.press("Enter");
@@ -378,7 +388,7 @@ test.describe("search the stream", () => {
             await page.evaluate(
                 async ({ path, text }) => {
                     await window.app.vault.createFolder("Recipes");
-                    // Listed by the Base only, and embedded only.
+                    // Only listed by the Base, and only embedded.
                     await window.app.vault.create("Recipes/Gazpacho.md", "");
                     await window.app.vault.create("Recipes/Borscht.md", "Chilled beetroot, blended smooth");
                     await window.app.vault.modify(window.app.vault.getFileByPath(path)!, text);
@@ -396,10 +406,13 @@ test.describe("search the stream", () => {
             );
         });
 
-        /** Searches once the note draws `shown`, which no daily note's source holds. */
+        /**
+         * Searches once the note draws `shown`, which no daily note's text
+         * contains.
+         */
         async function searchFor(page: Page, query: string, shown: Locator) {
             await openStream(page);
-            // Bases draws the rows on screen only.
+            // Bases only draws the rows that are on screen.
             await expect(async () => {
                 await page
                     .locator(`[data-source-path="${path}"] .daily-note-content > *`)

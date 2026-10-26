@@ -1,16 +1,18 @@
 /**
- * Shows a capture of the stream's pane as a window: rounded corners, a hairline
- * edge and a soft shadow on a transparent page, as the listing's cards show it
- * (D-126). Run by `e2e-tests/screenshots.spec.ts` for the README's desktop stills.
+ * Shows a screenshot of the stream's pane as a window: rounded corners, a thin
+ * edge and a soft shadow on a transparent page, as the directory images show it
+ * (D-126). `e2e-tests/screenshots.spec.ts` runs it for the README's desktop
+ * screenshots.
  */
 import { webkit } from "@playwright/test";
 import { readFileSync } from "fs";
 
-/** Room around the window for its shadow, in CSS pixels. */
+/** Space around the window for its shadow, in CSS pixels. */
 const PAD = 24;
 
 /**
- * Writes `raw`, a capture `width` by `height` CSS pixels taken at 2x, to `out` as a window.
+ * Writes `raw`, a screenshot `width` by `height` CSS pixels taken at 2x, to
+ * `out` as a window.
  * @param {string} raw
  * @param {string} out
  * @param {{ width: number, height: number }} size

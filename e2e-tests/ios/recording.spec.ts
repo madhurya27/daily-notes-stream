@@ -7,25 +7,31 @@ import { test, expect, type Phone, type Point } from "./phone";
 import { FRAMES, type Scene } from "./screen-capture";
 
 /**
- * Records the README's animated WebP of the stream on a real iPhone, its
- * screen captured over USB: flicks that glide, search, a jump to a date, and a
- * tap on the title back to the top. Opt-in, through
+ * Records the README's animated WebP of the stream on a real iPhone, with its
+ * screen recorded over USB: flicks that keep scrolling, search, a jump to a
+ * date, and a tap on the title back to the top. Only runs when asked, through
  * `pnpm run capture:recording:ios`.
  */
 
 const HEADER = '.workspace-leaf-content[data-type="daily-notes-stream-view"] .view-header';
 const SEARCH = ".daily-notes-search";
-/** A reader's flick, not the harness's hard one: shorter and slower, so the glide fits the thumb. */
+/**
+ * A reader's flick, not the tests' hard one: shorter and slower, so the
+ * scrolling matches the thumb.
+ */
 const FLICK = { share: 0.4, ms: 220 };
 const DAY = ".prompt .suggestion-item:nth-child(2)";
-/** Keys typed per gesture in the scene: pairs, a thumb's bursts at a reader's pace (`Phone.type`). */
+/**
+ * Keys typed in each gesture in the scene: pairs, as a thumb types, at a
+ * reader's speed (`Phone.type`).
+ */
 const PAIRS = 2;
 
 /**
- * Plays the search and the jump once, before the scene: iOS's keyboard is
- * read off the screen the first time each layout shows, some seconds a
- * layout, and each button looked up the first time it is tapped. Returns
- * where the scene taps.
+ * Plays the search and the jump once, before the scene. iOS's keyboard is read
+ * from the screen the first time each layout shows, which takes a few seconds
+ * for each layout, and each button is looked up the first time it is tapped.
+ * Returns where the scene taps.
  */
 async function rehearse(
     phone: Phone
@@ -38,7 +44,8 @@ async function rehearse(
     await phone.type("Mara");
     const next = await phone.pointOf(`${SEARCH} .document-search-button[aria-label="Next"]`);
     const close = await phone.pointOf(`${SEARCH} .document-search-close-button`);
-    // Emptied: the bar keeps its query, and would open on it selected.
+    // Emptied, because the bar keeps its query, and would open with it
+    // selected.
     await phone.run((bar: string) => {
         const input = document.querySelector<HTMLInputElement>(bar)!;
         input.value = "";
@@ -66,16 +73,18 @@ test("README recording on the phone", async ({ phone }) => {
     await phone.openStream();
     const at = await rehearse(phone);
     await phone.openStream();
-    // The frames to keep: global-setup.ts captures the screen and encodes this scene.
+    // The frames to keep: global-setup.ts records the screen and encodes this
+    // scene.
     phone.logTouches();
     const start = Date.now() / 1000;
     await pause(1000);
 
-    // Reading down through a few days: three flicks, each catching the last glide as a thumb does.
+    // Reading down through a few days: three flicks, each catching the last
+    // scroll, as a thumb does.
     await phone.flick("up", 3, FLICK);
     await pause(300);
 
-    // Search: typed on the phone's own keyboard, then stepped note to note.
+    // Search: typed on the phone's own keyboard, then moved from note to note.
     await phone.tapAt(at.search);
     await expect.poll(() => phone.keyboardShown()).toBe(true);
     await pause(150);
@@ -90,7 +99,8 @@ test("README recording on the phone", async ({ phone }) => {
     await phone.rest();
     await pause(300);
 
-    // Jump: the list first, the keyboard on a tap, a few keys to narrow it, a tap on the day.
+    // Jump: the list first, then the keyboard on a tap, a few keys to narrow
+    // the list, and a tap on the day.
     await phone.tapAt(at.jump);
     await expect.poll(() => phone.has(".prompt .suggestion-item")).toBe(true);
     await pause(400);
@@ -104,7 +114,8 @@ test("README recording on the phone", async ({ phone }) => {
     expect((await phone.place()).path).toBe("Journal/2026-09-08.md");
     await pause(900);
 
-    // Back to the newest, as on any iPhone screen: a tap on the title at the top.
+    // Back to the newest note, as on any iPhone screen: a tap on the title at
+    // the top.
     await phone.tapAt(at.title);
     await phone.rest();
     await pause(1200);

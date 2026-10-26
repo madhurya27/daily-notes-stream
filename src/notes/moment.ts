@@ -1,10 +1,11 @@
 import { moment as obsidianMoment } from "obsidian";
 
 /**
- * The part of moment the plugin uses. Obsidian's types reach moment's through
- * its own dependency, which the community scorecard's lint cannot resolve
- * (D-152); a test holds the real moment to this type. Another moment is passed
- * as its milliseconds, which moment takes as readily.
+ * The part of moment the plugin uses. Obsidian's types get moment's types
+ * through Obsidian's own dependency, which the directory scorecard's lint
+ * cannot find (D-152). A test checks that the real moment matches this type. To
+ * pass one moment to another, pass its milliseconds, which moment accepts just
+ * as well.
  */
 export interface Moment {
     add(amount: number, unit: "day"): Moment;

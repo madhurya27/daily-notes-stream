@@ -1,22 +1,28 @@
 import { App } from "obsidian";
 import { saveLoggingOnce } from "../local-storage";
 
-/** Vault-scoped, as the layout memory is. */
+/** Kept for each vault, like the layout memory. */
 export const COLLAPSE_STATE_KEY = "daily-notes-stream:collapse";
-/** A save that no longer reads what is stored bumps this, and the old one is dropped. */
+/**
+ * Change this when the saved format changes. The old data is then thrown away.
+ */
 const VERSION = 1;
 
 type Sections = Map<string, boolean>;
 
-/** A key builds before D-121 saved: one per section, and an index per note. */
+/**
+ * A key saved by builds before D-121: one for each section, and an index for
+ * each note.
+ */
 export function isOldCollapseKey(name: string): boolean {
     return /^collapse(-idx)?:.*\.md(:|$)/.test(name);
 }
 
 /**
- * Collapse state, one per plugin, read once and saved whole on each change.
- * Keys: slugified text for headers, `li-{depth}-{own text}` for list items,
- * each under the heading above it (D-136).
+ * Which sections are folded. There is one for the plugin. It is read once, and
+ * saved in full on each change. The keys are the slug of the text for headings,
+ * and `li-{depth}-{own text}` for list items, each under the heading above it
+ * (D-136).
  */
 export class CollapsibleStateStore {
     private readonly files: Map<string, Sections>;
@@ -30,12 +36,18 @@ export class CollapsibleStateStore {
         return this.collapsedOr(filePath, sectionKey, false);
     }
 
-    /** Saved state, or `fallback` — the properties panel defaults to a setting. */
+    /**
+     * The saved state, or `fallback`. The properties panel's default comes from
+     * a setting.
+     */
     collapsedOr(filePath: string, sectionKey: string, fallback: boolean): boolean {
         return this.files.get(filePath)?.get(sectionKey) ?? fallback;
     }
 
-    /** Both states are persisted: "expanded" has to outlive a re-render too. */
+    /**
+     * Both states are saved, because "unfolded" must also last when the note is
+     * drawn again.
+     */
     setCollapsed(filePath: string, sectionKey: string, collapsed: boolean): void {
         const sections = this.files.get(filePath) ?? new Map<string, boolean>();
         if (sections.get(sectionKey) === collapsed) return;
@@ -44,7 +56,9 @@ export class CollapsibleStateStore {
         this.save();
     }
 
-    /** Carries collapse state across a rename or move, so nothing re-expands. */
+    /**
+     * Moves the fold state when a note is renamed or moved, so nothing unfolds.
+     */
     migrate(oldPath: string, newPath: string): void {
         const sections = this.files.get(oldPath);
         if (!sections) return;
@@ -53,7 +67,10 @@ export class CollapsibleStateStore {
         this.save();
     }
 
-    /** Forgets the note's sections outside `keep` — headings and lists it no longer has. */
+    /**
+     * Forgets the note's sections not in `keep`: headings and lists it no
+     * longer has.
+     */
     retainSections(filePath: string, keep: ReadonlySet<string>): void {
         const sections = this.files.get(filePath);
         if (!sections) return;
@@ -64,7 +81,7 @@ export class CollapsibleStateStore {
         this.save();
     }
 
-    /** Forgets notes deleted while the plugin was not running to hear it. */
+    /** Forgets notes deleted while the plugin was not running to see it. */
     retainOnly(paths: ReadonlySet<string>): void {
         const gone = [...this.files.keys()].filter((path) => !paths.has(path));
         if (gone.length === 0) return;
@@ -72,7 +89,7 @@ export class CollapsibleStateStore {
         this.save();
     }
 
-    /** Starts over from nothing folded, as on a new device. */
+    /** Starts again with nothing folded, as on a new device. */
     forgetAll(): void {
         this.files.clear();
         this.saveLogged(() => this.app.saveLocalStorage(COLLAPSE_STATE_KEY, null));

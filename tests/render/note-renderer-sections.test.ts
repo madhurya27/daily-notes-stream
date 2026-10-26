@@ -11,10 +11,13 @@ import { NoteBases } from "../../src/render/bases/note-bases";
 import { BacklinkIndex } from "../../src/notes/backlink-index";
 import { asApp } from "../stream-view-fixture";
 
-/** A day's words, past the twelve characters the fake render keeps. */
+/** A day's words, longer than the twelve characters the fake renderer keeps. */
 const FILLER = " lorem".repeat(3);
 
-/** A note's text and the cache Obsidian would index for it: sections split by blank lines. */
+/**
+ * A note's text and the cache Obsidian would build for it, with sections split
+ * by blank lines.
+ */
 function note(sections: string[], frontmatter = "") {
     const markdown = frontmatter + sections.join("\n\n");
     let offset = frontmatter.length;
@@ -45,7 +48,10 @@ function note(sections: string[], frontmatter = "") {
 
 const days = (count = 10) => Array.from({ length: count }, (_, i) => `Day ${i}.${FILLER}`);
 
-/** Renders each paragraph as a `p` holding its first twelve characters, each heading at its level. */
+/**
+ * Draws each paragraph as a `p` holding its first twelve characters, and each
+ * heading at its level.
+ */
 function renderParagraphs() {
     return vi
         .spyOn(MarkdownRenderer, "render")
@@ -93,14 +99,19 @@ describe("NoteRenderer, a note by section", () => {
         ({ component } = (await renderer.renderInto(block, file))!);
     }
 
-    /** As the window manager renders a note saved since it opened: whole again, by section now. */
+    /**
+     * As the window manager draws a note saved since it opened: all of it
+     * again, now by section.
+     */
     async function rerender() {
         renderer.discard(component);
         block.empty();
         ({ component } = (await renderer.renderInto(block, file))!);
     }
 
-    /** Open, then saved once: from then on its saves can update it in part. */
+    /**
+     * Opened, then saved once. From then on its saves can update part of it.
+     */
     async function openSaved(sections: string[], frontmatter = "") {
         await open(sections, frontmatter);
         expect(await save(sections, frontmatter)).toBe(false);
@@ -135,7 +146,10 @@ describe("NoteRenderer, a note by section", () => {
         );
     }
 
-    /** Every reading of the clock 10 ms on; the thread given back through a timer, run at once. */
+    /**
+     * Each time the clock is read, it is 10 ms later. Giving the thread back
+     * uses a timer, which runs at once.
+     */
     function slowClock(onYield: () => void = () => {}) {
         let now = 0;
         vi.spyOn(performance, "now").mockImplementation(() => (now += 10));
@@ -152,10 +166,11 @@ describe("NoteRenderer, a note by section", () => {
             vault: { cachedRead: () => Promise.resolve(current.markdown), getFileByPath: () => file },
             metadataCache: { getFileCache: () => current.cache, getFirstLinkpathDest: () => null, on: () => ({}) },
         };
-        // Every element shown, a line tall: jsdom lays nothing out.
+        // Every element is shown and one line tall, because jsdom has no
+        // layout.
         farRuns = new FarRuns(() => ({ top: 0, bottom: 20, marginTop: 0, marginBottom: 0 }));
         collapsible = new CollapsibleManager(new CollapsibleStateStore(asApp(storage())), farRuns);
-        // Chevrons answer through the stream's delegated listener.
+        // Fold arrows respond through the stream's shared listener.
         collapsible.delegate(new Component(), document.body);
         highlighter = new SearchHighlighter();
         renderer = makeRenderer();
@@ -191,7 +206,8 @@ describe("NoteRenderer, a note by section", () => {
         expect(await save(changed)).toBe(true);
     });
 
-    // In slices, a short note fits one anyway: it would only draw later (ADR 0020).
+    // A short note fits in one slice anyway, so drawing it in slices would only
+    // draw it later (ADR 0020).
     it("renders a note under 6,000 characters in one call", async () => {
         expect(note(days(200)).markdown.length).toBeLessThan(6000);
         const render = renderParagraphs();
@@ -266,7 +282,8 @@ describe("NoteRenderer, a note by section", () => {
             await openFromEnd(days(400));
             expect(marked.length).toBeGreaterThan(1);
             expect(marked.every(Boolean)).toBe(true);
-            // The stream lays it out from its top again in the task it lands in.
+            // The stream lays it out from its top again in the task where
+            // drawing finishes.
             expect(block.hasClass("is-drawing-from-end")).toBe(true);
         });
 
@@ -319,7 +336,7 @@ describe("NoteRenderer, a note by section", () => {
         expect(children).toHaveBeenCalled();
     });
 
-    // The stream draws a note on screen there, ahead of the rest of this one.
+    // There, the stream draws a note on screen before the rest of this one.
     it("draws on only once what runs between slices is done", async () => {
         renderer = makeRenderer(today);
         const render = renderParagraphs();
@@ -434,7 +451,8 @@ describe("NoteRenderer, a note by section", () => {
         expect(forget).toHaveBeenCalledWith(file, expect.any(Array));
     });
 
-    // A section rendering nothing, as a comment, has no node to stand before.
+    // A section that draws nothing, such as a comment, has no node to insert
+    // before.
     it("puts a changed section before the next that drew something", async () => {
         vi.spyOn(MarkdownRenderer, "render").mockImplementation(async (_app, markdown, el) => {
             if (!markdown.startsWith("Day 5.")) el.createEl("p", { text: markdown.slice(0, 12) });
@@ -554,7 +572,7 @@ describe("NoteRenderer, a note by section", () => {
 
     it("updates in place when a kept heading's collapse key moved", async () => {
         await openSaved(["## Morning", "## Notes", ...days()]);
-        // A "Notes" before the kept one takes the bare key from it.
+        // A "Notes" heading before the kept one takes the plain key from it.
         expect(await save(["## Notes", "## Notes", ...days()])).toBe(true);
     });
 
@@ -650,8 +668,8 @@ describe("NoteRenderer, a note by section", () => {
             expect(elementsOf(runs)).toEqual(texts());
         });
 
-        // Drawn from its end, the stream hides runs between slices: one hidden
-        // then must be a run still once the note is drawn.
+        // When a note is drawn from its end, the stream hides runs between
+        // slices. A run hidden then must still be a run once the note is drawn.
         it("hold as a note drawn from its end grows at its top, all but the topmost", async () => {
             renderer = makeRenderer(today);
             renderParagraphs();
@@ -752,7 +770,10 @@ describe("NoteRenderer, a note by section", () => {
             const textsOf = (runs: Element[][]) => runs.map((run) => run.map((el) => el.textContent));
             const shown = () => texts().filter((t) => t !== "");
 
-            /** Each spacer stands just above its own hidden run, and nothing hidden stands elsewhere. */
+            /**
+             * Each spacer is just above its own hidden run, and nothing hidden
+             * is anywhere else.
+             */
             function spacersInPlace() {
                 const children = Array.from(content().children);
                 children.forEach((el, i) => {

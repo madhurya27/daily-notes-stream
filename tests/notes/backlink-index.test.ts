@@ -3,7 +3,7 @@ import { BacklinkIndex } from "../../src/notes/backlink-index";
 
 type ResolvedLinks = Record<string, Record<string, number>>;
 
-/** An index over `links`, counting how often it read them. */
+/** An index of `links`, which counts how often it read them. */
 function indexOver(links: ResolvedLinks) {
     let reads = 0;
     const index = new BacklinkIndex(() => {

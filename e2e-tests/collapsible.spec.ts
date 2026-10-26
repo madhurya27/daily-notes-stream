@@ -1,7 +1,7 @@
 import type { Locator, Page } from "@playwright/test";
 import { test, expect, openStream, STREAM } from "./obsidian";
 
-/** Newer than every seeded note, so it opens the stream. */
+/** Newer than every test note, so it is first in the stream. */
 const NOTE = "Notes/2026-03-20.md";
 const TEXT = [
     "## Outer",
@@ -39,7 +39,10 @@ async function write(page: Page, text: string, mtime?: number) {
     );
 }
 
-/** The note's heading reading exactly `text`; `nth` picks among same-text ones. */
+/**
+ * The note's heading whose text is exactly `text`. `nth` chooses among headings
+ * with the same text.
+ */
 const heading = (note: Locator, text: string, nth = 0) =>
     note
         .locator(".daily-note-content :is(h2, h3)")
@@ -48,7 +51,7 @@ const heading = (note: Locator, text: string, nth = 0) =>
 
 const chevron = (host: Locator) => host.locator(".collapse-indicator").first();
 
-/** The section's state as saved, null when none is. */
+/** The section's saved state, or null if none is saved. */
 const stored = (page: Page, sectionKey: string) =>
     page.evaluate(
         ({ path, key }) => {
@@ -117,8 +120,9 @@ test.describe("collapsing sections of a note", () => {
     test("leaves a heading open when its text is selected", async ({ obsidian }) => {
         const { page } = obsidian;
         const host = heading(note, "Outer");
-        // The heading's box runs past its word: drag across the word itself.
-        // One drag is one click; a double-click would toggle twice, hiding a toggle.
+        // The heading's box is wider than its word, so drag across the word
+        // itself. One drag is one click. A double-click would fold and unfold,
+        // which would hide a fold.
         const word = await host.evaluate((h) => {
             const text = [...h.childNodes].find(
                 (node) => node.nodeType === Node.TEXT_NODE && node.textContent?.trim()
@@ -143,7 +147,8 @@ test.describe("collapsing sections of a note", () => {
         const { page } = obsidian;
         const host = heading(note, "Read Reading list tonight");
 
-        // A new tab keeps the stream's DOM, which a plain click would navigate away.
+        // A new tab keeps the stream's DOM, which a plain click would navigate
+        // away from.
         await host.locator(".internal-link").click({ modifiers: ["ControlOrMeta"] });
 
         await expect
@@ -161,7 +166,8 @@ test.describe("collapsing sections of a note", () => {
 
         await expect(heading(note, "Renamed")).not.toHaveClass(/is-collapsed/);
         await expect(note.getByText("Outer text.")).toBeVisible();
-        // Mid-edit, the old name may come back: kept until the note is a day old (D-027).
+        // During an edit, the old name may come back, so it is kept until the
+        // note is a day old (D-027).
         expect(await stored(page, "outer")).toBe(true);
 
         await write(page, TEXT.replace("## Outer", "## Renamed"), Date.now() - 2 * 24 * 60 * 60 * 1000);

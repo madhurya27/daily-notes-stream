@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { buildName } from "../../scripts/build-name.mjs";
 
-// A build on the phone names itself in a notice: two words are easier to
-// match than a commit and a time.
+// A build on the phone shows its name in a notice. Two words are easier to
+// compare than a commit and a time.
 describe("buildName", () => {
     it("names a build in two lowercase words", () => {
         expect(buildName("4b0df87")).toMatch(/^[a-z]+ [a-z]+$/);

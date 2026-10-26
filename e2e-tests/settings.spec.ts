@@ -24,7 +24,7 @@ test.describe("Obsidian's daily-notes settings change under a live stream", () =
 
         writeDailyNotesConfig(vaultPath, { folder: "Journal", format: "YYYY-MM-DD" });
 
-        // The whole stream is replaced: the old folder's notes are gone.
+        // The whole stream is replaced, and the old folder's notes are gone.
         await expect(container.locator(".daily-note-title")).toHaveText(["2026-06-05"]);
     });
 
@@ -68,7 +68,10 @@ test.describe("Obsidian's daily-notes settings change under a live stream", () =
     });
 });
 
-/** Opens the plugin's settings tab and returns the page drawing it: desktop gives settings a window of their own. */
+/**
+ * Opens the plugin's settings tab and returns the page that draws it, because
+ * on desktop, settings have their own window.
+ */
 async function openPluginSettings(page: Page, mobileLayout: boolean): Promise<Page> {
     const settingsWindow = mobileLayout ? page : page.context().waitForEvent("page");
     await page.evaluate(() => {
@@ -111,7 +114,8 @@ test.describe("The plugin's settings tab", () => {
 
     test("lists its toggles in Obsidian's settings search", async ({ obsidian, mobileLayout }) => {
         const settings = await openPluginSettings(obsidian.page, mobileLayout);
-        // A phone shows one page at a time, and the search sits on the list of tabs.
+        // A phone shows one page at a time, and the search is on the list of
+        // tabs.
         if (mobileLayout) await settings.locator(".modal-setting-back-button").click();
 
         await settings.locator('input[type="search"][placeholder="Search settings..."]').fill("linked mentions");
@@ -147,7 +151,8 @@ test("redraws the stream on a setting's change, keeping the note being read at t
 
     await setShowProperties(false);
     try {
-        // Every note above lost its properties panel, and so its height.
+        // Every note above lost its properties panel, and so its height
+        // changed.
         await expect(container.locator(".metadata-container")).toHaveCount(0);
         await expect.poll(offset).toBeCloseTo(0, 0);
     } finally {

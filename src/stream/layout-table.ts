@@ -1,22 +1,26 @@
 /**
- * How many layouts are remembered. Each pane width and font size is a layout
- * of its own, and everything is measured again in each.
+ * How many layouts are remembered. Each pane width and font size is a separate
+ * layout, and everything is measured again in each one.
  */
 const LAYOUTS_KEPT = 4;
 
-/** Values by key, per layout; the layout used longest ago comes first. */
+/** Values by key, for each layout. The layout used longest ago comes first. */
 export type SavedLayoutTable<V> = [layout: string, entries: [key: string, value: V][]][];
 
 /**
- * What was measured, per layout, keyed by note: a key is a note's path, or
- * starts with it and a newline. A rename carries a note's entries along, a
- * delete takes them, and the layout used longest ago is forgotten first.
+ * What was measured, for each layout, by note. A key is a note's path, or
+ * starts with the path and a newline. Renaming a note moves its entries with
+ * it, deleting it removes them, and the layout used longest ago is forgotten
+ * first.
  */
 export class LayoutTable<V> {
     private layouts = new Map<string, Map<string, V>>();
 
     constructor(
-        /** Whether a saved value is one `V`, so `restore` can refuse the rest. */
+        /**
+         * Whether a saved value is a `V`, so `restore` can refuse anything
+         * else.
+         */
         private readonly isValue: (value: unknown) => value is V,
         /** Called with each layout that changed. */
         private readonly changed: (layout: string) => void,
@@ -38,17 +42,20 @@ export class LayoutTable<V> {
         this.changed(layout);
     }
 
-    /** `layout`'s keys and values, without counting as a use of it. */
+    /** `layout`'s keys and values. Reading them does not count as using it. */
     entries(layout: string): [key: string, value: V][] {
         return [...(this.layouts.get(layout) ?? [])];
     }
 
-    /** Every layout, the one used longest ago first. */
+    /** Every layout, starting with the one used longest ago. */
     layoutNames(): string[] {
         return [...this.layouts.keys()];
     }
 
-    /** `key`'s value in each layout holding one, without counting as a use of any. */
+    /**
+     * `key`'s value in each layout that has one. Reading them does not count as
+     * using any layout.
+     */
     valuesOf(key: string): [layout: string, value: V][] {
         return [...this.layouts].flatMap(([layout, entries]): [string, V][] =>
             entries.has(key) ? [[layout, entries.get(key)!]] : []
@@ -70,7 +77,7 @@ export class LayoutTable<V> {
         this.removeWhere((notePath) => notePath === path);
     }
 
-    /** Forgets notes deleted while the plugin was not running to hear it. */
+    /** Forgets notes deleted while the plugin was not running to see it. */
     retainOnly(paths: ReadonlySet<string>): void {
         this.removeWhere((notePath) => !paths.has(notePath));
     }
@@ -79,14 +86,20 @@ export class LayoutTable<V> {
         return [...this.layouts].map(([layout, entries]) => [layout, [...entries]]);
     }
 
-    /** Replaces what it holds with `saved`, or with nothing when `saved` is not what `toJSON` wrote. */
+    /**
+     * Replaces what it holds with `saved`, or with nothing if `saved` is not
+     * what `toJSON` wrote.
+     */
     restore(saved: unknown): void {
         this.layouts = this.isSaved(saved)
             ? new Map(saved.map(([layout, entries]) => [layout, new Map(entries)]))
             : new Map<string, Map<string, V>>();
     }
 
-    /** `layout`'s entries, moved to the back of the line to be forgotten. */
+    /**
+     * `layout`'s entries. Marks the layout as just used, so it is forgotten
+     * last.
+     */
     private use(layout: string): Map<string, V> | undefined {
         const entries = this.layouts.get(layout);
         if (entries) {
@@ -106,7 +119,10 @@ export class LayoutTable<V> {
         });
     }
 
-    /** Applies `change` to every layout; true from it means that layout changed. */
+    /**
+     * Applies `change` to every layout. If `change` returns true, that layout
+     * changed.
+     */
     private edit(change: (entries: Map<string, V>) => boolean): void {
         for (const [layout, entries] of this.layouts) {
             if (change(entries)) this.changed(layout);

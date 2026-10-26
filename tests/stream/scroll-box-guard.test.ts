@@ -7,7 +7,7 @@ const still = () => vi.advanceTimersByTimeAsync(SCROLL_IDLE_MS);
 let container: HTMLElement;
 let guard: ScrollBoxGuard;
 
-/** An element that would be a scroll container, as Obsidian's CSS makes some. */
+/** An element that would be a scrolling box, as Obsidian's CSS makes some. */
 function scrollBox(overflow = "auto"): HTMLElement {
     const el = document.createElement("div");
     el.setAttribute("style", `overflow-y: ${overflow}`);
@@ -40,7 +40,10 @@ afterEach(() => {
     vi.useRealTimers();
 });
 
-/** A table's wrapper, as Obsidian's reading view leaves it: scrolling sideways, inline. */
+/**
+ * A table's wrapper, as Obsidian's reading view leaves it: set to scroll
+ * sideways with an inline style.
+ */
 function tableWrapper(): HTMLElement {
     const el = document.createElement("div");
     el.style.setProperty("overflow-x", "auto");
@@ -50,8 +53,8 @@ function tableWrapper(): HTMLElement {
 
 const clipped = (el: HTMLElement) => el.style.getPropertyValue("overflow-x") === "" && el.hasClass("is-scroll-clipped");
 
-// An inline overflow-x outranks the stylesheet's clip (D-153), and a box left
-// scrolling until the stream is still ends the glide it appeared in.
+// An inline overflow-x wins over the stylesheet's clip (D-153), and a box left
+// scrolling until scrolling stops would stop the scroll it appeared during.
 describe("ScrollBoxGuard, an inline overflow-x", () => {
     it("is cleared and clipped as it is added, mid-scroll", async () => {
         guard.onScroll();
@@ -102,7 +105,7 @@ describe("ScrollBoxGuard, an inline overflow-x", () => {
         expect(section.hasClass("is-scroll-clipped")).toBe(false);
     });
 
-    // The stylesheet clips everything in a Base already.
+    // The stylesheet already clips everything in a Base.
     it("is left alone inside a Base", async () => {
         const embed = document.createElement("div");
         embed.addClass("bases-embed");
@@ -137,7 +140,8 @@ describe("ScrollBoxGuard safety net", () => {
         expect(note.classList.contains("is-scroll-clipped")).toBe(false);
     });
 
-    // Reading styles mid-glide forces a page-wide recalc right before a stall.
+    // Reading styles while scrolling makes the browser recalculate the whole
+    // page's styles, just before a pause.
     it("waits while the stream scrolls", async () => {
         const box = container.appendChild(scrollBox());
         await vi.advanceTimersByTimeAsync(SCROLL_IDLE_MS - 1);
@@ -158,7 +162,7 @@ describe("ScrollBoxGuard safety net", () => {
         expect(box.classList.contains("is-scroll-clipped")).toBe(false);
     });
 
-    // An SVG's overflow is how far it paints, not a scroll box.
+    // An SVG's overflow is how far it draws, not a scrolling box.
     it("skips SVG", async () => {
         const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
         svg.setAttribute("style", "overflow: hidden");
@@ -169,7 +173,7 @@ describe("ScrollBoxGuard safety net", () => {
         expect(svg.classList.contains("is-scroll-clipped")).toBe(false);
     });
 
-    // The stylesheet clips everything in a Base already.
+    // The stylesheet already clips everything in a Base.
     it("skips what is added inside a Base", async () => {
         const embed = container.appendChild(document.createElement("div"));
         embed.addClass("bases-embed");
@@ -242,7 +246,7 @@ describe("ScrollBoxGuard safety net", () => {
 });
 
 describe("ScrollBoxGuard Bases", () => {
-    /** Appends a Base's view, then forgets that it was reported. */
+    /** Adds a Base's view, then forgets that it was reported. */
     async function mounted(): Promise<{ view: HTMLElement; thead: HTMLElement }> {
         const base = baseView("300px");
         container.appendChild(base.view);
@@ -296,7 +300,8 @@ describe("ScrollBoxGuard Bases", () => {
         expect(laidOut).toHaveBeenCalledExactlyOnceWith(view);
     });
 
-    // A fitted cap is a style write on the view itself; reacting to it would loop.
+    // A maximum width set when fitting is a style change on the view itself,
+    // and reacting to it would loop forever.
     it("ignores other style changes in a Base", async () => {
         const { view } = await mounted();
 

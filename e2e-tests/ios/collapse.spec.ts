@@ -9,18 +9,22 @@ const PROPERTIES = `${NOTE} .metadata-container`;
 const collapsed = (phone: Phone, section: string) =>
     phone.run((s: string) => document.querySelector(s)!.classList.contains("is-collapsed"), section);
 
-/** The note's first heading a little below the pane's top, every chevron of the note on screen. */
+/**
+ * The note's first heading a little below the pane's top, with every fold arrow
+ * of the note on screen.
+ */
 async function openNote(phone: Phone): Promise<void> {
     await phone.openStream();
     await phone.placeAt(`${NOTE} .daily-note-title`, -20);
 }
 
-// A chevron's icon is 16 px; a finger lands anywhere in the 44 px around it
-// (styles.css). 12 px off its middle, the finger misses the icon.
+// A fold arrow's icon is 16 px, and a finger can land anywhere in the 44 px
+// around it (styles.css). 12 px from its middle, the finger misses the icon.
 for (const [what, section, target, offset] of [
     ["a heading's chevron", HEADING, `${HEADING} > .collapse-indicator`, { x: 12, y: 0 }],
     ["a list item's chevron", LIST_ITEM, `${LIST_ITEM} > .collapse-indicator`, { x: -12, y: 0 }],
-    // Its chevron shows only on hover, so the whole row is the target.
+    // Its arrow only shows when the pointer is over it, so the whole row is the
+    // target.
     ["the properties row", PROPERTIES, `${PROPERTIES} .metadata-properties-heading`, { x: 0, y: 0 }],
 ] as const)
     test(`a tap on ${what}, off the icon, folds the section and a second unfolds it`, async ({ phone }) => {

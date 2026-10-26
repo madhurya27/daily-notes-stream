@@ -2,42 +2,46 @@
 
 - **Status:** Accepted
 - **Date:** 2026-09-24
-- **Supersedes:** [0007](0007-nothing-in-the-stream-scrolls.md), which applied
-  the rule everywhere
+- **Replaces:** [0007](0007-nothing-in-the-stream-scrolls.md), which applied the
+  rule everywhere
 
 ## Context
 
-ADR 0007 banned scroll containers inside the stream: on iOS one ends a glide
-early once notes unload. The stall is WebKit's, and desktop has none. On
-desktop, cards and fitted columns replaced a table the reader could scroll with
-one that is cropped or reshaped, and gained nothing.
+ADR 0007 did not allow scrolling boxes inside the stream, because on iOS one
+stops scrolling early once notes are emptied. The problem is WebKit's, and
+desktop does not have it. On desktop, cards and fitted columns replaced a table
+the reader could scroll with one that is cut off or changed in shape, and gained
+nothing.
 
 ## Decision
 
 On mobile (`Platform.isMobile`: iOS and Android, phones and tablets), ADR 0007's
-rule holds: no scroll containers, wide tables and Bases as cards, code wrapped,
-the rest clipped. Android is held to it too, unverified, so the two platforms
-behave alike.
+rule applies: no scrolling boxes, wide tables and Bases as cards, code wrapped,
+and everything else cut off. Android follows it too, without being checked, so
+the two platforms behave the same.
 
-On desktop the stream draws wide content as Obsidian's reading view does: a
+On desktop, the stream draws wide content as Obsidian's reading view does: a
 table scrolls inside its own box, a Base draws its own table with its own scroll
-bar, an embedded note keeps its height cap.
+bar, and an embedded note keeps its maximum height.
 
-Everywhere, nothing widens the page itself: diagrams scale, URLs wrap.
+Everywhere, nothing makes the page itself wider: diagrams scale down, and URLs
+wrap.
 
 ## Consequences
 
-- The e2e census is mobile-only; desktop e2e checks that a wide table and Base
-  scroll inside themselves and the page does not.
-- Stylesheet rules for the mobile case sit under `.is-mobile`.
+- The e2e check of every element is mobile only. Desktop e2e checks that a wide
+  table and a wide Base scroll inside themselves, and that the page does not.
+- Stylesheet rules for mobile are under `.is-mobile`.
 
 ## Rejected alternatives
 
-- **One rule everywhere (0007)** — desktop loses scroll bars to fix a bug it
-  lacks.
-- **iOS only (`Platform.isIosApp`)** — iPhone and Android phone would differ.
-- **Sideways scrolling for wide Bases and tables on mobile** — rechecked
-  2026-10-09 on an iPhone 16 Pro, deep in the stream with notes unloaded, 24
-  flicks over Bases and tables per build: today's build glided in full each time
-  (3.4–3.8 s); with Bases and tables that scroll, 13 stopped short, 8 within 0.8
-  s. Spike: tag `archive/sideways-scroll`.
+- **One rule everywhere (0007)** — desktop loses its scroll bars, to fix a bug
+  it does not have.
+- **iOS only (`Platform.isIosApp`)** — iPhone and Android phones would behave
+  differently.
+- **Sideways scrolling for wide Bases and tables on mobile** — checked again on
+  2026-10-09 on an iPhone 16 Pro, deep in the stream with notes emptied, with 24
+  flicks over Bases and tables for each build. The current build scrolled all
+  the way every time (3.4–3.8 s). With Bases and tables that scroll, 13 flicks
+  stopped early, 8 of them within 0.8 s. Experiment: tag
+  `archive/sideways-scroll`.

@@ -2,10 +2,13 @@ import type { Page } from "@playwright/test";
 import { SEEDED_DAYS, openStream } from "./obsidian";
 import { test, expect } from "./webkit";
 
-/** A day after the newest seeded note, so the stream opens on it. */
+/** A day after the newest test note, so the stream opens on it. */
 const MATH_NOTE = "Notes/2026-03-15.md";
 
-/** Whether clearing the page's highlights changes the pixels under the `index`th range of `name`. */
+/**
+ * Whether removing the page's highlights changes the pixels under range number
+ * `index` of `name`.
+ */
 async function paints(page: Page, name: string, index = 0): Promise<boolean> {
     const clip = await page.evaluate(
         ([n, i]) => {
@@ -23,7 +26,7 @@ async function paints(page: Page, name: string, index = 0): Promise<boolean> {
 test.describe("in iOS's engine", () => {
     test.beforeEach(({ mobileLayout }) => test.skip(!mobileLayout, "a snapshot of the phone layout"));
 
-    /** Searches the stream for `query`, found once in every seeded note. */
+    /** Searches the stream for `query`, which is in every test note once. */
     async function search(page: Page, query: string) {
         await openStream(page);
         await page.locator('.view-action[aria-label="Search"]').click();
@@ -36,16 +39,16 @@ test.describe("in iOS's engine", () => {
         await obsidian.page.keyboard.press("Escape");
     });
 
-    // WebKit paints no highlight on text the reader cannot select, and reads
-    // only -webkit-user-select, which Obsidian sets to none.
+    // WebKit draws no highlight on text the reader cannot select, and only
+    // reads -webkit-user-select, which Obsidian sets to none.
     test("paints the search's highlights", async ({ obsidian, inWebKit }) => {
         await search(obsidian.page, "km");
 
         expect(await paints(await inWebKit(), "daily-notes-search-match")).toBe(true);
     });
 
-    // Obsidian 1.14 renamed the variable the match color read: the first
-    // match is also the current one, painted in a color of its own.
+    // Obsidian 1.14 renamed the variable the match color used. The first match
+    // is also the current one, drawn in its own color.
     test("paints a match that is not the current one", async ({ obsidian, inWebKit }) => {
         // The second "then" in the newest note's reading list item.
         await search(obsidian.page, "then");
@@ -53,8 +56,8 @@ test.describe("in iOS's engine", () => {
         expect(await paints(await inWebKit(), "daily-notes-search-match", 1)).toBe(true);
     });
 
-    // Nor on text sharing its parent with a block: a list item's own words
-    // above its sub-list.
+    // Nor on text that shares its parent with a block element, such as a list
+    // item's own words above its nested list.
     test("paints a match in a list item holding a sub-list", async ({ obsidian, inWebKit }) => {
         await search(obsidian.page, "groceries");
 
@@ -94,7 +97,8 @@ test.describe("in iOS's engine", () => {
         }
     });
 
-    // WebKit restyles every element inheriting a custom property that changed (D-129).
+    // WebKit restyles every element that inherits a custom property that
+    // changed (D-129).
     test("keeps a pinned height from the elements inside the note", async ({ obsidian, inWebKit }) => {
         const container = await openStream(obsidian.page);
         await expect(container.locator(".daily-note-block.is-pinned").first()).toBeAttached();
@@ -108,8 +112,9 @@ test.describe("in iOS's engine", () => {
         expect(inside).toBe("");
     });
 
-    // MathJax 3 put each equation on a layer of its own, in WebKit only: on an
-    // iPhone, a flick begun on a note holding math then stopped dead (D-085).
+    // MathJax 3 put each equation on its own layer, only in WebKit. On an
+    // iPhone, a flick that started on a note with math then stopped completely
+    // (D-085).
     test("puts no equation on a layer of its own", async ({ obsidian, inWebKit }) => {
         const { page } = obsidian;
         await page.evaluate(async (path) => void (await window.app.vault.create(path, "Effort: $CO_2$.")), MATH_NOTE);

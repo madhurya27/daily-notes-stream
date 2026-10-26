@@ -1,24 +1,27 @@
 import { parseLinktext, type App, type CachedMetadata, type Pos, type TFile } from "obsidian";
 import type { BacklinkIndex } from "./backlink-index";
 
-/** Offsets into a source's text. */
+/** Positions in a linking note's text. */
 export interface Excerpt {
     start: number;
     end: number;
 }
 
-/** A note linking here, and where. */
+/** A note that links here, and where. */
 export interface Mention {
     source: TFile;
-    /** The list item or section around each link in the body, each once, in source order. */
+    /**
+     * The list item or section around each link in the body, each only once, in
+     * the order of the text.
+     */
     excerpts: Excerpt[];
-    /** Each property linking here, as `key: value` markdown. */
+    /** Each property that links here, as `key: value` Markdown. */
     properties: string[];
 }
 
 /**
- * The notes linking to `file`, sorted by path, from the cache alone: nothing
- * is read, so a footer can draw its count before any snippet.
+ * The notes that link to `file`, sorted by path, using only the cache. No file
+ * is read, so a footer can draw its count before any excerpt.
  */
 export function linkedMentions(app: App, index: BacklinkIndex, file: TFile): Mention[] {
     const mentions: Mention[] = [];
@@ -40,13 +43,17 @@ export function linkedMentions(app: App, index: BacklinkIndex, file: TFile): Men
                     .map((ref) => `${ref.key.split(".")[0]}: ${ref.original}`)
             ),
         ];
-        // The index can run ahead of this source's cache while it re-resolves.
+        // The index can be ahead of this note's cache while the cache resolves
+        // links again.
         if (excerpts.length > 0 || properties.length > 0) mentions.push({ source, excerpts, properties });
     }
     return mentions;
 }
 
-/** Changes whenever what a footer shows could: a source added or gone, linking more or less, or written. */
+/**
+ * Changes whenever what a footer shows might change: a linking note added or
+ * removed, linking more or less, or edited.
+ */
 export function mentionsSignature(mentions: readonly Mention[]): string {
     return mentions
         .map(
@@ -56,7 +63,10 @@ export function mentionsSignature(mentions: readonly Mention[]): string {
         .join("|");
 }
 
-/** Each link's innermost list item, else its section, else itself; de-duplicated. */
+/**
+ * Each link's innermost list item, otherwise its section, otherwise the link
+ * itself, with no duplicates.
+ */
 function excerptsOf(cache: CachedMetadata, refs: readonly { position: Pos }[]): Excerpt[] {
     const byStart = new Map<number, Excerpt>();
     for (const { position } of refs) {
@@ -67,7 +77,10 @@ function excerptsOf(cache: CachedMetadata, refs: readonly { position: Pos }[]): 
     return [...byStart.values()].sort((a, b) => a.start - b.start);
 }
 
-/** The cache lists items in source order, a parent before its children: the last one holding `offset` is innermost. */
+/**
+ * The cache lists items in the order of the text, a parent before its children,
+ * so the last one that holds `offset` is the innermost.
+ */
 function innermost(items: readonly { position: Pos }[], offset: number): Pos | undefined {
     for (let i = items.length - 1; i >= 0; i--) {
         const { position } = items[i]!;

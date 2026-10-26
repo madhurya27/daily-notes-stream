@@ -34,15 +34,22 @@ describe("DailyNotesStreamView — search", () => {
     const bar = () => view.containerEl.querySelector<HTMLElement>(".daily-notes-search")!;
     const input = () => bar().querySelector("input")!;
     const count = () => bar().querySelector(".document-search-count")!.textContent;
-    /** What the view's scope does with a keydown, as Obsidian's keymap would ask it. */
+    /**
+     * What the view's scope does with a key press, when Obsidian's keymap asks
+     * it.
+     */
     const press = (init: KeyboardEventInit) => {
         const handler = view.scope!.registered.find((h) => h.key === null && h.modifiers === null)!;
         return handler.callback(new KeyboardEvent("keydown", init), { key: null, modifiers: null, vkey: "" });
     };
-    /** Past every debounce, with the reads and the queue behind them drained. */
+    /**
+     * Waits past every delay, and lets the reads and the queue after them
+     * finish.
+     */
     const settle = () => vi.advanceTimersByTimeAsync(1000);
 
-    // Obsidian's own search is a plain magnifier, in the phone's navbar right under the header.
+    // Obsidian's own search is a plain magnifying glass icon, in the phone's
+    // navigation bar just under the header.
     it("draws its header action as text with a magnifier, not Obsidian's search icon", () => {
         expect(view.actions.find((a) => a.title === "Search")?.icon).toBe("text-search");
     });
@@ -64,7 +71,10 @@ describe("DailyNotesStreamView — search", () => {
         expect(bar().hasClass("is-closed")).toBe(true);
     });
 
-    /** Fires the vault's undeclared "raw" event, as Obsidian saving hotkeys.json would. */
+    /**
+     * Fires the vault's undocumented "raw" event, as Obsidian saving
+     * hotkeys.json would.
+     */
     const writeHotkeys = () => {
         for (const [name, callback] of app.vault.on.mock.calls) {
             if (name === "raw") (callback as (p: string) => void)(".obsidian/hotkeys.json");
@@ -120,7 +130,10 @@ describe("DailyNotesStreamView — search", () => {
         expect(count()).toBe("2 notes");
     });
 
-    /** The stream tells the view its notes changed, as it does once a change is applied. */
+    /**
+     * The stream tells the view its notes changed, as it does once a change is
+     * applied.
+     */
     const notesChanged = () => view["stream"]["notesChanged"]();
 
     it("recounts once the stream's notes change under an open search", async () => {
@@ -183,12 +196,13 @@ describe("DailyNotesStreamView — search", () => {
         input().value = "dentist";
         input().dispatchEvent(new Event("input"));
 
-        // Before the typing pause: Enter searches first, then steps.
+        // Before the typing pause: Enter searches first, then moves to the next
+        // match.
         input().dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
         await settle();
 
         expect(ready).toHaveBeenCalledWith(NOTES[0]);
-        // The mocked ready draws no block, so the match is hidden.
+        // The fake `ready` draws no block, so the match is hidden.
         expect(count()).toBe("1 / 2 · hidden");
     });
 

@@ -1,4 +1,6 @@
-/** A shown element's border box, and the margins it collapses with its neighbours. */
+/**
+ * A shown element's border box, and the margins it shares with its neighbours.
+ */
 export interface Box {
     top: number;
     bottom: number;
@@ -6,7 +8,7 @@ export interface Box {
     marginBottom: number;
 }
 
-/** Null where the element is not shown: a collapse hid it. */
+/** Null if the element is not shown, for example because a fold hid it. */
 function boxOf(el: Element): Box | null {
     if (el.getClientRects().length === 0) return null;
     const { top, bottom } = el.getBoundingClientRect();
@@ -22,25 +24,29 @@ interface Run {
 }
 
 /**
- * Runs of a long note's elements taken out of the layout, each behind a
- * spacer of the room it took (ADR 0021). The elements stay in the note, so
- * collapsing, search and an update in place still find them.
+ * Runs (groups of a long note's elements) taken out of the layout, each
+ * replaced by a spacer as tall as the run was (ADR 0021). The elements stay in
+ * the note, so folding, search and an update in place still find them.
  */
 export class FarRuns {
-    /** Each hidden element, and each spacer, to its run. */
+    /** Maps each hidden element, and each spacer, to its run. */
     private readonly runs = new WeakMap<Element, Run>();
-    /** Hears each run shown again, by whatever showed it: it is watched again (ADR 0023). */
+    /**
+     * Called for each run shown again, whatever showed it, so it is watched
+     * again (ADR 0023).
+     */
     onShown: (run: Element[]) => void = () => {};
 
-    /** jsdom lays nothing out, so measurement is the one seam tests replace. */
+    /** jsdom has no layout, so tests replace this function to measure. */
     constructor(private readonly box: (el: Element) => Box | null = boxOf) {}
 
     /**
-     * Hides `elements`, consecutive siblings, behind one spacer; null where
-     * none is shown. The spacer carries the outer margins of the first and
-     * last shown, so they collapse with the neighbours as before. A caller
-     * hiding several measures each first: a hide between two reads lays the
-     * note out again.
+     * Hides `elements`, which are siblings next to each other, behind one
+     * spacer. Returns null if none of them is shown. The spacer has the outer
+     * margins of the first and last shown element, so they combine with the
+     * neighbours' margins as before. A caller hiding several runs must measure
+     * each one first: hiding one between two measurements lays the note out
+     * again.
      */
     hide(elements: Element[], box: Box | null = this.measure(elements)): HTMLElement | null {
         if (!box) return null;
@@ -62,8 +68,8 @@ export class FarRuns {
     }
 
     /**
-     * Where `elements` lie, from the first shown to the last, with the outer
-     * margins of those two; null where none is shown.
+     * Where `elements` are, from the first shown one to the last, with the
+     * outer margins of those two. Null if none is shown.
      */
     measure(elements: Element[]): Box | null {
         const boxes = elements.map((el) => this.box(el)).filter((box): box is Box => box !== null);
@@ -77,7 +83,9 @@ export class FarRuns {
         return this.runOf(node) !== undefined;
     }
 
-    /** Shows again the run holding `node`, or the one it is the spacer of. */
+    /**
+     * Shows again the run that holds `node`, or the run whose spacer `node` is.
+     */
     reveal(node: Node): void {
         const run = this.runOf(node);
         if (!run) return;

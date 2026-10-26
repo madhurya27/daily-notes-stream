@@ -3,12 +3,15 @@ import { Component } from "obsidian";
 import { fitWideEquations } from "../../src/render/wide-equations";
 import { FakeWidths } from "./fake-widths";
 
-/** jsdom lays nothing out, so each test sets the widths it needs. */
+/** jsdom has no layout, so each test sets the widths it needs. */
 function setWidth(el: HTMLElement, prop: "offsetWidth" | "clientWidth", width: () => number): void {
     Object.defineProperty(el, prop, { configurable: true, get: width });
 }
 
-/** A display equation as MathJax draws it: the math inside a block-wide container. */
+/**
+ * A display equation as MathJax draws it: the math inside a container as wide
+ * as the block.
+ */
 function equation(naturalWidth: number): HTMLElement {
     const container = content.createEl("mjx-container" as keyof HTMLElementTagNameMap);
     container.setAttribute("display", "true");
@@ -47,7 +50,8 @@ describe("fitWideEquations", () => {
         expect(zoom(math)).toBe("0.5");
     });
 
-    // MathJax 4 pads a display equation's container 2px each side.
+    // MathJax 4 adds 2px of padding on each side of a display equation's
+    // container.
     it("shrinks an equation to fit inside its container's padding", () => {
         const math = equation(800);
         math.parentElement!.style.padding = "4.8px 2px";
@@ -65,7 +69,8 @@ describe("fitWideEquations", () => {
         expect(zoom(math)).toBe("");
     });
 
-    // A shrunk equation is exactly as wide as the note, which would say it fits.
+    // A shrunk equation is exactly as wide as the note, which would say it
+    // fits.
     it("measures a shrunk equation at its own size", () => {
         const math = equation(800);
         fitWideEquations(content, component, widths);

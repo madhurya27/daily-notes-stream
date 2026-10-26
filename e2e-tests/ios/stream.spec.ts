@@ -1,10 +1,16 @@
 import { test, expect, type Phone } from "./phone";
 import { FREE_DAYS } from "./vault";
 
-/** A trip to the oldest note starts this many notes above it, as long as the default journal. */
+/**
+ * A trip to the oldest note starts this many notes above it, the length of the
+ * default journal.
+ */
 const TRIP_NOTES = 21;
 
-/** Jumps to the note `TRIP_NOTES` above the oldest, or to the newest; that note's path. */
+/**
+ * Jumps to the note `TRIP_NOTES` above the oldest, or to the newest. Returns
+ * that note's path.
+ */
 async function startTrip(phone: Phone): Promise<string> {
     const dates = await phone.run(() =>
         window.app.workspace
@@ -34,8 +40,8 @@ test("flicks reach the oldest note, each note once, newest first", async ({ phon
     expect(paths).toEqual([...paths].sort().reverse());
 });
 
-// Unmeasured, every note grows from its estimate as it renders, the Bases
-// among them (EMBEDS_NOTE in vault.ts) as they fill in (ADR 0013).
+// With no measured heights, every note grows from its estimate as it is drawn,
+// including the Bases (EMBEDS_NOTE in vault.ts) as they fill in (ADR 0013).
 test("flicks to the oldest note and back change a rendered note's height only as it re-pins", async ({ phone }) => {
     await phone.forgetHeights();
     await phone.openStream();
@@ -53,8 +59,8 @@ test("flicks to the oldest note and back change a rendered note's height only as
     expect(unpinned).toEqual([]);
 });
 
-// Each flick starts on the newest notes, which hold what once stopped a
-// glide dead within 0.4 s (STALLERS in vault.ts).
+// Each flick starts on the newest notes, which hold the things that used to
+// stop scrolling completely within 0.4 s (STALLERS in vault.ts).
 test("flicks from the top glide on", async ({ phone }) => {
     for (const flick of [1, 2, 3]) {
         await phone.openStream();
@@ -64,7 +70,7 @@ test("flicks from the top glide on", async ({ phone }) => {
 
 for (const [what, target, depth] of [
     ["text", ".daily-note-content > p", -20],
-    // A Base redraws on each turn, as cards or a table.
+    // A Base is drawn again on each turn, as cards or as a table.
     ["a Base", ".daily-note-base", 300],
 ] as const)
     test(`a turn and back leaves what was in view, with ${what} at the top`, async ({ phone }) => {
@@ -77,18 +83,20 @@ for (const [what, target, depth] of [
         await phone.turn(found === "PORTRAIT" ? "LANDSCAPE" : "PORTRAIT");
         await phone.turn(found);
 
-        // As e2e-tests/turn.spec.ts allows: a pixel's rounding is not a jump.
+        // As e2e-tests/turn.spec.ts allows: one pixel of rounding is not a
+        // jump.
         const now = await phone.topOf(seen);
         expect(Math.abs(now - seen.top), `"${seen.text}" moved from ${seen.top} to ${now}`).toBeLessThan(5);
     });
 
-// Deep in the stream, as a reader looking for an old note:
-// the finger lands on a Base, which once ended a glide where it started. Its
-// cards run some 1,250 px, so from 300 px in, it fills the screen under both strokes.
+// Deep in the stream, as for a reader looking for an old note. The finger lands
+// on a Base, which used to stop scrolling where it started. Its cards are about
+// 1,250 px tall, so from 300 px in, it fills the screen under both strokes.
 for (const direction of ["up", "down"] as const)
     test(`a flick ${direction} over a Base deep in the stream glides on`, async ({ phone }) => {
-        // Three: what stops a glide stops some flicks, not all (D-085). Each
-        // from the top: placeAt looks down the stream, and a glide may pass the Base.
+        // Three times, because what stops scrolling stops some flicks, not all
+        // (D-085). Each from the top, because placeAt looks down the stream,
+        // and a scroll may go past the Base.
         for (const flick of [1, 2, 3]) {
             await phone.openStream();
             await phone.placeAt('.daily-note-block[data-source-path="Journal/2026-09-13.md"] .daily-note-base', 300);
@@ -96,9 +104,10 @@ for (const direction of ["up", "down"] as const)
         }
     });
 
-// A touch dims a link, or shows a date's daily-note button, and Obsidian
-// fades the change in: started under the finger, with a blended callout
-// further down (the vault has one), the fade held the stream still (D-167).
+// A touch dims a link, or shows a date's daily note button, and Obsidian fades
+// the change in. When the fade started under the finger, with a blended callout
+// further down (the vault has one), it stopped the stream from scrolling
+// (D-167).
 for (const [what, target] of [
     ["a link in a Base", ".daily-note-base .bases-rendered-value .internal-link"],
     ["a date in a Base", '.daily-note-base [data-property-type="date"] input'],
@@ -116,7 +125,10 @@ for (const [what, target] of [
         expect(await phone.scrollTop()).toBeGreaterThan(before + 100);
     });
 
-/** A web page taller than its frame, so it could scroll inside it, in a note deep in the stream. */
+/**
+ * A web page taller than its frame, so it could scroll inside it, in a note
+ * deep in the stream.
+ */
 const PAGE = "Pages/Tall page.html";
 const FRAMED = FREE_DAYS[0];
 
@@ -141,7 +153,8 @@ for (const direction of ["up", "down"] as const)
             for (const flick of [1, 2, 3]) {
                 await phone.openStream();
                 await phone.placeAt(`.daily-note-block[data-source-path="${FRAMED}"] iframe`, 300);
-                // The frame loads its page once the stream is still (D-087).
+                // The frame loads its page once the stream stops scrolling
+                // (D-087).
                 await expect
                     .poll(() =>
                         phone.run((note: string) => {

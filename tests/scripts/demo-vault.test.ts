@@ -31,7 +31,8 @@ describe("demoVault", () => {
         expect(bodies.size).toBe(written.length);
     });
 
-    // Unwritten days are what "Hide empty notes" leaves out (ADR 0011).
+    // Days with nothing written are what "Hide empty notes" leaves out (ADR
+    // 0011).
     describe("unwritten days", () => {
         it("writes the daily-notes template", () => {
             expect(template).toMatch(/^---\ntags:\n {2}- daily\n/);
@@ -50,10 +51,12 @@ describe("demoVault", () => {
         });
     });
 
-    // Several notes fit one screen, and a reader scrolls months: a line seen twice reads as filler.
+    // Several notes fit on one screen, and a reader scrolls through months, so
+    // a line seen twice looks like filler.
     describe("repetition", () => {
         const dates = dailyPaths.map((path) => path.slice("Journal/".length, -".md".length)).sort();
-        // Sentences, not task lines, table rows or properties: a recurring chore is how journals read.
+        // Sentences, not task lines, table rows or properties: real journals do
+        // repeat chores.
         const prose = (date: string) =>
             new Set(
                 daily(date)
@@ -116,7 +119,8 @@ describe("demoVault", () => {
         expect(all).toMatch(/^\| .+ \|$/m);
     });
 
-    // The newest days open the stream, so they are the ones worth a footer.
+    // The newest days are what the stream opens on, so they are the ones worth
+    // a footer.
     it("links the newest days from other notes, in the body and in a property", () => {
         const others = paths.filter((path) => !dailyPaths.includes(path)).map((path) => vault[path]!);
         const linking = (date: string) => others.filter((body) => body.includes(`[[${date}]]`));
@@ -136,7 +140,8 @@ describe("demoVault", () => {
     });
 });
 
-// An iCloud vault: a note deleted and written again while a device holds it comes back as "Mara 2.md".
+// In an iCloud vault, a note deleted and written again while a device has it
+// open comes back as "Mara 2.md".
 describe("writeVault", () => {
     const FOLDERS = ["Journal", "People"];
 

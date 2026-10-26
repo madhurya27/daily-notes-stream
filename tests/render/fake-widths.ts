@@ -1,7 +1,10 @@
 import type { Component } from "obsidian";
 import type { WidthWatch } from "../../src/render/note-widths";
 
-/** A `WidthWatch` without layout: `resize` hands a width to what watches an element. */
+/**
+ * A `WidthWatch` without layout. `resize` passes a width to whatever watches an
+ * element.
+ */
 export class FakeWidths implements WidthWatch {
     readonly watched = new Map<HTMLElement, Set<(width: number) => void>>();
 
@@ -12,12 +15,12 @@ export class FakeWidths implements WidthWatch {
         note.register(() => refits.delete(refit));
     }
 
-    /** `el` changed width: as `NoteWidths` reports it. */
+    /** Reports that `el` changed width, as `NoteWidths` does. */
     resize(el: HTMLElement, width: number): void {
         for (const refit of this.watched.get(el) ?? []) refit(width);
     }
 
-    /** How many refits watch `el`. */
+    /** How many functions watch `el` to fit it again. */
     watching(el: HTMLElement): number {
         return this.watched.get(el)?.size ?? 0;
     }

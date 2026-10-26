@@ -46,7 +46,10 @@ function handlers(source: { on: { mock: { calls: unknown[][] } } }, name: string
         .map(([, callback]) => callback as (...args: unknown[]) => void);
 }
 
-/** Fires `name` at every callback onload() gave `source.on`, as Obsidian does. */
+/**
+ * Calls every callback that onload() gave `source.on` for `name`, as Obsidian
+ * does.
+ */
 function fire(source: { on: { mock: { calls: unknown[][] } } }, name: string, ...args: unknown[]): void {
     for (const handler of handlers(source, name)) handler(...args);
 }
@@ -60,16 +63,21 @@ async function loadPlugin(data: unknown = null) {
     const app = makeApp();
     const plugin = new DailyNotesStreamPlugin(asApp(app), { id: "daily-notes-stream" } as PluginManifest);
     plugin.data = data;
-    // Obsidian marks a plugin loaded before onload runs, so it unloads even one whose onload failed.
+    // Obsidian marks a plugin as loaded before onload runs, so it even unloads
+    // one whose onload failed.
     plugin.load();
     await plugin.onload();
     return { plugin, app };
 }
 
-/** A leaf whose view is not the stream, for callers that only need a leaf back. */
+/**
+ * A leaf whose view is not the stream, for callers that only need a leaf back.
+ */
 const leafWithoutStream = { view: {} } as unknown as Leaf;
 
-/** Flushes microtasks so the .catch() on a fire-and-forget promise runs. */
+/**
+ * Runs waiting microtasks, so the .catch() on a promise nobody waits for runs.
+ */
 function flushPromises(): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, 0));
 }
@@ -103,8 +111,9 @@ describe("DailyNotesStreamPlugin — onload", () => {
         expect(view).toBeInstanceOf(DailyNotesStreamView);
     });
 
-    // Each view still owns its service (.claude/rules/invariants.md); only the
-    // parsed dates carry over, so a second open parses nothing it has seen.
+    // Each view still has its own service (.claude/rules/invariants.md). Only
+    // the dates read from file names are shared, so opening a second view reads
+    // no date it has already read.
     it("hands every view one date cache, so a later open parses no name again", async () => {
         __setMockNotes(["Notes/2025-01-01.md", "Notes/2025-01-02.md"]);
         const { plugin, app } = await loadPlugin();
@@ -140,7 +149,7 @@ describe("DailyNotesStreamPlugin — onload", () => {
             { icon: "gallery-vertical-end", title: "Open daily notes stream" },
         ]);
         expect(plugin.commands.map((c) => c.id)).toEqual(["open-stream", "jump-to-date", "scroll-to-top"]);
-        // The README tells readers to run them by these names.
+        // The README tells readers to run these commands by these names.
         expect(plugin.commands.map((c) => c.name)).toEqual(["Open stream", "Jump to date", "Scroll to top"]);
         expect(plugin.settingTabs).toHaveLength(1);
     });
@@ -213,7 +222,7 @@ describe("DailyNotesStreamPlugin — empty notes", () => {
         expect(await listed(plugin, app)).toEqual(["Notes/2025-01-01.md"]);
     });
 
-    // A later session reads only what changed since (D-072).
+    // A later session only reads what changed since (D-072).
     it("keeps which notes are empty on this device, saving them as the plugin unloads", async () => {
         const { plugin, app } = await loadPlugin(HIDING);
         await listed(plugin, app);
@@ -287,7 +296,8 @@ describe("DailyNotesStreamPlugin — link changes", () => {
         ]);
     });
 
-    // A view's footers and hidden notes both read the backlink index on `resolved`.
+    // A view's footers and hidden notes both read the backlink index on
+    // `resolved`.
     it("tells the views only after the backlink index is told the links changed", async () => {
         const { plugin, app } = await loadPlugin();
         const order: string[] = [];
@@ -326,8 +336,8 @@ describe("DailyNotesStreamPlugin — link changes", () => {
 });
 
 describe("DailyNotesStreamPlugin — collapse state", () => {
-    // Heard by the plugin, not a view: with no stream open, a rename lost the
-    // note's folds and left its old keys behind.
+    // Handled by the plugin, not a view. When no stream was open, a rename lost
+    // the note's folds and left its old keys behind.
     it("carries a note's collapse state across a rename, and forgets a deleted note's, with no view open", async () => {
         const { plugin, app } = await loadPlugin();
         const migrate = vi.spyOn(plugin.collapseStore, "migrate");
@@ -339,7 +349,8 @@ describe("DailyNotesStreamPlugin — collapse state", () => {
         expect(clear).toHaveBeenCalledWith("Notes/gone.md");
     });
 
-    // A note deleted while the plugin was off, or on another device, was never heard of.
+    // A note deleted while the plugin was off, or on another device, was never
+    // seen.
     it("forgets notes no longer in the vault once it is indexed", async () => {
         __setMockNotes(["Notes/2025-01-01.md"]);
         const app = makeApp();
@@ -382,7 +393,8 @@ describe("DailyNotesStreamPlugin — layout memory", () => {
         expect(forget).toHaveBeenCalledWith("Notes/gone.md");
     });
 
-    // A note deleted while the plugin was off, or on another device, was never heard of.
+    // A note deleted while the plugin was off, or on another device, was never
+    // seen.
     it("forgets notes no longer in the vault once it is indexed", async () => {
         __setMockNotes(["Notes/2025-01-01.md"]);
         const app = makeApp();
@@ -410,7 +422,8 @@ describe("DailyNotesStreamPlugin — layout memory", () => {
         expect(plugin.layoutMemory.notes.toJSON().heights).toEqual([["600:16px", [["Notes/2025-01-01.md", 300]]]]);
     });
 
-    // Measured before the edit: estimated from its text until it renders again (ADR 0017).
+    // Measured before the edit, so it is estimated from its text until it is
+    // drawn again (ADR 0017).
     it("forgets a note's heights as it is edited, before any view hears of it", async () => {
         const { plugin, app } = await loadPlugin();
         plugin.layoutMemory.notes.keep("600:16px", "Notes/a.md", 300);
@@ -439,7 +452,8 @@ describe("DailyNotesStreamPlugin — layout memory", () => {
     });
 });
 
-// A build put on a phone to test names itself, so the right one is known to be running.
+// A build put on a phone for testing shows its name, so you know the right one
+// is running.
 describe("DailyNotesStreamPlugin — build label", () => {
     beforeEach(() => Notice.reset());
     afterEach(() => vi.unstubAllGlobals());
@@ -508,11 +522,12 @@ describe.each([
 describe("DailyNotesStreamPlugin — jump-to-date command", () => {
     const trigger = (p: DailyNotesStreamPlugin) => void p.commands.find((c) => c.id === "jump-to-date")!.callback!();
 
-    /** A leaf holding a stream view, without standing up the real one. */
+    /** A leaf holding a stream view, without creating the real one. */
     function makeViewLeaf() {
         const view = Object.create(DailyNotesStreamView.prototype) as DailyNotesStreamView;
         view.promptJumpToDate = vi.fn();
-        // The mock ItemView is no View in the type world, though it is one to main.ts.
+        // The mock ItemView is not a View to the type checker, though main.ts
+        // treats it as one.
         return { leaf: { view } as unknown as Leaf, view };
     }
 
@@ -725,7 +740,7 @@ describe("DailyNotesStreamPlugin — scroll-to-top command", () => {
     });
 });
 
-// A testing aid: only a build put on a device offers it.
+// A help for testing, which only a build put on a device offers.
 describe("DailyNotesStreamPlugin — forget-note-heights command", () => {
     afterEach(() => vi.unstubAllGlobals());
     const offered = (p: DailyNotesStreamPlugin) => p.commands.some((c) => c.id === "forget-note-heights");
@@ -765,9 +780,10 @@ describe("DailyNotesStreamPlugin — forget-note-heights command", () => {
     });
 });
 
-// A testing aid, to start from no folds: only a build put on a device offers it.
+// A help for testing, to start with nothing folded. Only a build put on a
+// device offers it.
 describe("DailyNotesStreamPlugin — forget-collapse-state command", () => {
-    /** The browser's localStorage, which jsdom here leaves out. */
+    /** The browser's localStorage, which jsdom does not provide here. */
     const stored = new Map<string, string>();
     beforeEach(() => {
         Notice.reset();

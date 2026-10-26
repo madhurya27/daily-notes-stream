@@ -10,9 +10,11 @@ const still = () => vi.advanceTimersByTimeAsync(SCROLL_IDLE_MS);
 
 let container: HTMLElement;
 let frames: FrameDeferral;
-/** What a frame shows in its place, if anything; none unless a test sets one. */
+/** What replaces a frame, if anything. Nothing unless a test sets it. */
 let standIn: (frame: HTMLIFrameElement, src: string) => HTMLElement | null;
-/** What a held frame is wrapped in, if anything; none unless a test sets one. */
+/**
+ * What a held frame is wrapped in, if anything. Nothing unless a test sets it.
+ */
 let wrapper: (frame: HTMLIFrameElement, src: string) => HTMLElement | null;
 
 function frame(src = PAGE): HTMLIFrameElement {
@@ -70,7 +72,7 @@ describe("FrameDeferral", () => {
         expect(added.hasAttribute("src")).toBe(false);
     });
 
-    // The stylesheet draws a placeholder in its place meanwhile.
+    // Meanwhile, the stylesheet draws a placeholder in its place.
     it("marks a frame held back", async () => {
         const added = container.appendChild(frame());
 
@@ -193,7 +195,7 @@ describe("FrameDeferral", () => {
         expect(vi.getTimerCount()).toBe(0);
     });
 
-    // Set again, a frame's page loads again.
+    // When its page is set again, a frame loads the page again.
     it("loads each page once", async () => {
         const first = container.appendChild(frame());
         await observed();

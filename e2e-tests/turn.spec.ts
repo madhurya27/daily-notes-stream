@@ -17,7 +17,10 @@ async function turn(page: Page, { width, height }: { width: number; height: numb
     await cdp.send("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: 1, mobile: false });
 }
 
-/** Each note's height as laid out now, by path: a placeholder's is what it reserves. */
+/**
+ * Each note's height as laid out now, by path. An empty block's height is the
+ * height it keeps.
+ */
 function heights(container: Locator): Promise<Record<string, number>> {
     return container.evaluate((stream) =>
         Object.fromEntries(
@@ -29,7 +32,7 @@ function heights(container: Locator): Promise<Record<string, number>> {
     );
 }
 
-/** What each unloaded note reserves, by path. */
+/** The height each empty note keeps, by path. */
 function reserved(container: Locator): Promise<Record<string, number>> {
     return container.evaluate((stream) =>
         Object.fromEntries(
@@ -53,12 +56,13 @@ function place(container: Locator): Promise<{ path: string; top: number }> {
 }
 
 /**
- * Long enough for a turn to be over: Obsidian reports it to the view a few
- * hundred ms late, and the scroll counts as still 300 ms after that.
+ * Long enough for a turn to be over. Obsidian reports it to the view a few
+ * hundred ms late, and scrolling counts as stopped 300 ms after that.
  */
 const rest = (page: Page) => page.waitForTimeout(1500);
 
-// iOS turns: Chromium stands in, without its own scroll anchoring.
+// Turning the screen as on iOS: Chromium acts as iOS, without keeping the
+// scroll position itself.
 test.describe("a phone turned", () => {
     test.beforeEach(async ({ obsidian, mobileLayout }) => {
         test.skip(!mobileLayout, "a phone's turn");
@@ -69,7 +73,10 @@ test.describe("a phone turned", () => {
         await restoreScrollAnchoring(obsidian.page);
     });
 
-    /** Every note measured in landscape, then the stream opened in portrait: what landscape measured. */
+    /**
+     * Every note measured in landscape, then the stream opened in portrait.
+     * Returns what landscape measured.
+     */
     async function measuredBothWays(page: Page) {
         await turn(page, LANDSCAPE);
         let container = await openStream(page);
@@ -116,8 +123,8 @@ test.describe("a phone turned", () => {
         expect(Math.abs(after.top)).toBeLessThan(5);
     });
 
-    // At the stream's end, the notes above shrink by more than lies below: drawn
-    // as a shift first, the scroll is not clamped (ADR 0015).
+    // At the stream's end, the notes above shrink by more than there is below.
+    // Shown as a shift first, the scroll is not pulled back (ADR 0015).
     test("re-reserves at the stream's end, keeping the note at the pane's top", async ({ obsidian }) => {
         const { page } = obsidian;
         const { container, landscape } = await measuredBothWays(page);

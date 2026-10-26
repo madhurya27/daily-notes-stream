@@ -1,7 +1,7 @@
 import type { Locator, Page } from "@playwright/test";
 import { test, expect, atTextScale, atTextSize, openStream, LAYOUT_VIEWPORT, unloadFar } from "./obsidian";
 
-/** Newer than every seeded note, so it opens the stream. */
+/** Newer than every test note, so it is first in the stream. */
 const NOTE = "Notes/2026-03-15.md";
 
 function table(name: string, columns: string[], ...extra: string[]): string[] {
@@ -10,12 +10,18 @@ function table(name: string, columns: string[], ...extra: string[]): string[] {
 
 const block = (...lines: string[]) => ["```base", ...lines, "```", ""];
 
-/** Its headers alone overrun a phone and a desktop note. */
+/** Its headers alone are wider than a phone and a desktop note. */
 const HEADERS_WIDE = ["file.name", "file.path", "file.folder", "file.ext", "file.size", "file.ctime", "file.mtime"];
-/** Fits a tablet's note, not a phone's: headers overrun only the phone. */
+/**
+ * Fits a tablet's note but not a phone's: the headers are only wider than the
+ * phone.
+ */
 const MIDDLE = ["file.name", "file.path", "file.folder", "file.ext", "file.size"];
 
-/** Short headers, long values: only a drawn table shows it is too wide. */
+/**
+ * Short headers and long values: only the drawn table shows that it is too
+ * wide.
+ */
 const VALUES_WIDE = [
     "formulas:",
     ...["a", "b", "c", "d"].map((f) => `  ${f}: file.path + " " + file.path`),
@@ -23,7 +29,7 @@ const VALUES_WIDE = [
     ...table("Values", ["formula.a", "formula.b", "formula.c", "formula.d"]),
 ];
 
-/** An embed names its second view; `this` is the embedding note. */
+/** An embed names its second view. `this` is the note that embeds it. */
 const TWO_VIEWS = [
     "views:",
     ...table("First", ["file.name"]),
@@ -45,7 +51,10 @@ async function seed(page: Page, body: string[]): Promise<string> {
 
 const read = (page: Page, path: string) => page.evaluate((p) => window.app.vault.adapter.read(p), path);
 
-/** Bases keeps a hidden card to measure with; the drawn ones drag. */
+/**
+ * Bases keeps a hidden card to measure with. Only the drawn cards are
+ * `draggable`.
+ */
 const cards = (base: Locator) => base.locator(".bases-cards-item[draggable]");
 
 /** Wide enough that `MIDDLE` fits. */
@@ -61,7 +70,7 @@ async function resize(page: Page, width: number): Promise<void> {
     });
 }
 
-// Mobile only: desktop draws Bases as Obsidian does (ADR 0008).
+// Mobile only. Desktop draws Bases as Obsidian does (ADR 0008).
 test.describe("Bases on mobile", () => {
     test.beforeEach(({ mobileLayout }) => test.skip(!mobileLayout, "desktop draws Bases as Obsidian does"));
     test.afterEach(async ({ obsidian }) => {
@@ -76,7 +85,7 @@ test.describe("Bases on mobile", () => {
         );
     });
 
-    // The rule a Markdown table follows: cards only when wider than the note.
+    // The same rule as a Markdown table: cards only when wider than the note.
     test("draws a Base too wide for the note as cards, one that fits as a table", async ({ obsidian }) => {
         const { page } = obsidian;
         await seed(page, [
@@ -107,7 +116,7 @@ test.describe("Bases on mobile", () => {
         expect(second!.y).toBeGreaterThan(first!.y + first!.height - 1);
     });
 
-    // Its headers alone decide it: measured from Bases' own header, once.
+    // Its headers alone decide it, measured once from Bases' own header.
     test("draws a Base whose headers overrun the note straight as cards", async ({ obsidian }) => {
         const { page } = obsidian;
         await page.evaluate(() => {
@@ -131,7 +140,8 @@ test.describe("Bases on mobile", () => {
         expect(await page.evaluate(() => (window as unknown as { tablesDrawn: number }).tablesDrawn)).toBe(0);
     });
 
-    // Bases draws a card's border as a 1px ring outside it: nothing clips that.
+    // Bases draws a card's border as a 1px ring outside the card, and nothing
+    // may cut that off.
     test("shows each card's whole border", async ({ obsidian }) => {
         const { page } = obsidian;
         await seed(page, block("views:", ...table("Wide", HEADERS_WIDE)));
@@ -152,8 +162,8 @@ test.describe("Bases on mobile", () => {
         expect(clipped).toEqual([]);
     });
 
-    // Bases insets its cards and its header's first icon; the note's text does
-    // not. The ring is the card's border.
+    // Bases moves its cards and its header's first icon inwards, but the note's
+    // text is not moved. The ring is the card's border.
     test("lines a card's border and the header's first icon up with the note's text", async ({ obsidian }) => {
         const { page } = obsidian;
         await seed(page, block("views:", ...table("Wide", HEADERS_WIDE)));
@@ -162,7 +172,8 @@ test.describe("Bases on mobile", () => {
 
         const offsets = await base.evaluate((el) => {
             const text = el.closest(".daily-note-content")!.getBoundingClientRect();
-            // A phone may fit two cards to a row: the ring is the row's.
+            // A phone may fit two cards in a row, so the ring belongs to the
+            // row.
             const row = [...el.querySelectorAll(".bases-cards-item[draggable]")]
                 .map((card) => card.getBoundingClientRect())
                 .filter((card, _, [first]) => card.top === first!.top);
@@ -176,8 +187,8 @@ test.describe("Bases on mobile", () => {
         expect(offsets).toEqual({ ringLeft: 0, ringRight: 0, icon: 0 });
     });
 
-    // Obsidian shrinks the view name and the count to fit the toolbar; clipped
-    // instead of hidden (ADR 0008), neither would shrink.
+    // Obsidian shrinks the view name and the count to fit the toolbar. If they
+    // were clipped instead of hidden (ADR 0008), neither would shrink.
     test("fits every toolbar item in a Base's header, shortening a long view name", async ({ obsidian }) => {
         const { page } = obsidian;
         await seed(page, block("views:", ...table("A view name far too long for any phone's toolbar", HEADERS_WIDE)));
@@ -189,14 +200,15 @@ test.describe("Bases on mobile", () => {
             const right = bar.getBoundingClientRect().right;
             const name = bar.querySelector(".bases-toolbar-views-menu")!;
             return {
-                // An item's margin overhangs its button: the button, as the item clips it.
+                // An item's margin goes past its button, so use the button, as
+                // the item cuts it off.
                 cut: [...bar.children]
                     .filter((item) => {
                         const button = item.firstElementChild!.getBoundingClientRect().right;
                         return Math.min(button, item.getBoundingClientRect().right) > right + 1;
                     })
                     .map((item) => item.className),
-                // Its label shortens, not the chevron after it.
+                // Its label gets shorter, not the arrow after it.
                 chevronShown:
                     name.querySelector(".mod-aux")!.getBoundingClientRect().right <=
                     name.getBoundingClientRect().right + 1,
@@ -205,7 +217,8 @@ test.describe("Bases on mobile", () => {
         expect(toolbar).toEqual({ cut: [], chevronShown: true });
     });
 
-    // D-097: New takes the room a short view name and the count need on a phone.
+    // D-097: on a phone, New takes the space that a short view name and the
+    // count need.
     test("hides a Base's New button, leaving a short view name and the count whole", async ({ obsidian }) => {
         const { page } = obsidian;
         await seed(page, block("views:", ...table("Books", HEADERS_WIDE)));
@@ -221,7 +234,10 @@ test.describe("Bases on mobile", () => {
         expect(shortened).toEqual([]);
     });
 
-    /** Draws a card holding a tag pill below its title; returns whatever clips the pill short, up to its card. */
+    /**
+     * Draws a card holding a tag pill below its title. Returns whatever cuts
+     * off the pill, up to its card.
+     */
     async function tagPillClippedBy(page: Page): Promise<string[]> {
         await seed(page, [
             "---",
@@ -249,7 +265,8 @@ test.describe("Bases on mobile", () => {
             for (let e = el.parentElement; e && !e.matches(".bases-cards-item"); e = e.parentElement) {
                 if (getComputedStyle(e).overflow === "visible") continue;
                 const clip = e.getBoundingClientRect();
-                // Within a pixel: inline layout leaves the pill a fraction of one past its line's top.
+                // Within a pixel, because inline layout leaves the pill a
+                // fraction of a pixel above its line's top.
                 const cut = Math.max(
                     clip.top - box.top,
                     box.bottom - clip.bottom,
@@ -262,8 +279,8 @@ test.describe("Bases on mobile", () => {
         });
     }
 
-    // Bases draws a card's line at a fixed height, which a pill outgrows as
-    // the font grows.
+    // Bases draws a card's line at a fixed height, and a pill becomes taller
+    // than that as the font grows.
     test("shows a tag pill whole in its card at a large font", async ({ obsidian }) => {
         const { page } = obsidian;
         await atTextSize(page, 22, async () => {
@@ -271,7 +288,8 @@ test.describe("Bases on mobile", () => {
         });
     });
 
-    // On a phone, Obsidian scales a pill's text by iOS's text size setting.
+    // On a phone, Obsidian changes a pill's text size with iOS's text size
+    // setting.
     test("shows a tag pill whole in its card at iOS's larger text sizes", async ({ obsidian }) => {
         const { page } = obsidian;
         await atTextScale(page, 1.5, async () => {
@@ -279,9 +297,10 @@ test.describe("Bases on mobile", () => {
         });
     });
 
-    // Bases fills a view after it is drawn. A note coming back holds its
-    // height until its Bases refill it, or everything below jumps and
-    // returns — plainly on iOS, which has no scroll anchoring.
+    // Bases fills a view after it is drawn. A note that comes back keeps its
+    // height until its Bases fill in again, or everything below jumps away and
+    // back. This is easy to see on iOS, which does not keep the scroll
+    // position.
     test("holds a note's height while its Bases redraw on scrolling back", async ({ obsidian }) => {
         const { page } = obsidian;
         await seed(page, block("views:", ...table("Wide", HEADERS_WIDE)));
@@ -295,8 +314,8 @@ test.describe("Bases on mobile", () => {
         await unloadFar(top);
         const height = (await top.boundingBox())!.height;
 
-        // Read after every change to the note: layout is forced, so no frame
-        // is needed to catch a dip.
+        // Read after every change to the note. Reading forces a layout, so no
+        // frame is needed to catch a dip.
         await top.evaluate((el) => {
             const w = window as unknown as { lowest: number };
             w.lowest = Infinity;
@@ -312,7 +331,8 @@ test.describe("Bases on mobile", () => {
         expect(lowest).toBeGreaterThanOrEqual(height - 1);
     });
 
-    // Custom properties inherit: a note's hold would hold each Base as tall.
+    // Custom properties are inherited, so a note's held height would also hold
+    // each Base at that height.
     test("holds a note without holding the Bases in it", async ({ obsidian }) => {
         const { page } = obsidian;
         await seed(page, block("views:", ...table("Wide", HEADERS_WIDE)));
@@ -321,7 +341,8 @@ test.describe("Bases on mobile", () => {
         const base = top.locator(".daily-note-base").first();
         await expect(cards(base).first()).toBeVisible();
 
-        // A Base holds itself where it laid out, which is not the note's hold.
+        // A Base keeps its own height where it was laid out, which is not the
+        // note's held height.
         const holds = await top.evaluate((el) => {
             el.style.setProperty("--daily-note-held-height", "5000px");
             const base = el.querySelector<HTMLElement>(".daily-note-base")!;
@@ -347,13 +368,14 @@ test.describe("Bases on mobile", () => {
         await seed(page, ["![[Two.base#This note]]", ""]);
         const base = (await openStream(page)).locator(".daily-note-base").first();
 
-        // The view the embed names, filtered by `this`: the note, not the Base.
+        // The view the embed names, filtered by `this`, which is the note, not
+        // the Base.
         await base.scrollIntoViewIfNeeded();
         await expect(cards(base)).toHaveCount(1);
         await expect(cards(base)).toContainText("2026-03-15");
     });
 
-    // Cards are a copy, so they would not follow the file on their own.
+    // Cards are a copy, so they would not update with the file by themselves.
     test("redraws an embed drawn as cards when its file changes", async ({ obsidian }) => {
         const { page } = obsidian;
         await seed(page, ["![[Two.base#This note]]", ""]);
@@ -398,7 +420,8 @@ test.describe("Bases on mobile", () => {
         expect(await read(page, "Two.base")).toBe(TWO_VIEWS);
     });
 
-    // Bases saves a block through the editor that holds it; the stream has none.
+    // Bases saves a code block through the editor that holds it, and the stream
+    // has no editor.
     test("saves no toolbar edit over the note", async ({ obsidian }) => {
         const { page } = obsidian;
         const body = await seed(page, block("views:", ...table("Narrow", ["file.name"])));
@@ -406,9 +429,9 @@ test.describe("Bases on mobile", () => {
 
         await note.locator(".bases-toolbar-views-menu").first().click();
         await page.locator(".menu").getByText("Add view").click();
-        // The view was added: Bases opens its settings.
+        // The view was added, so Bases opens its settings.
         await expect(page.locator(".menu")).toContainText("Configure view");
-        // Bases saves 100 ms after an edit; give a save the time to land.
+        // Bases saves 100 ms after an edit, so give a save time to happen.
         await page.waitForTimeout(1000);
 
         expect(await read(page, NOTE)).toBe(body);

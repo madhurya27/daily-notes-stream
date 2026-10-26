@@ -1,20 +1,24 @@
-/** Bases' own cap on an automatically sized column. */
+/** Bases' own maximum width for a column sized automatically. */
 const DEFAULT_MAX_COLUMN_PX = 300;
-/** Narrower than this, a column shows nothing useful; the table clips instead. */
+/**
+ * A column narrower than this shows nothing useful, so the table is cut off
+ * instead.
+ */
 const MIN_COLUMN_PX = 40;
 
-/** The cap last set on each view. */
+/** The maximum column width last set on each view. */
 const caps = new WeakMap<HTMLElement, number>();
 
 /**
- * Shrinks the cap Bases puts on automatically sized columns until the table
- * fits its view, which must not scroll sideways (ADR 0008). Bases reads the cap
- * from a CSS variable when it lays out; a hand-resized column ignores it.
+ * Lowers the maximum width Bases gives columns sized automatically, until the
+ * table fits its view, which must not scroll sideways (ADR 0008). Bases reads
+ * this maximum from a CSS variable when it lays out. A column resized by hand
+ * ignores it.
  */
 export function fitBaseToWidth(view: HTMLElement): void {
     const width = tableWidth(view);
     const available = view.clientWidth;
-    // Stryker disable next-line EqualityOperator: a table exactly as wide as its view is capped where it is.
+    // Stryker disable next-line EqualityOperator: for a table exactly as wide as its view, the maximum stays where it is.
     if (!(width > available) || available <= 0) return;
 
     const current = caps.get(view) ?? DEFAULT_MAX_COLUMN_PX;
@@ -24,20 +28,26 @@ export function fitBaseToWidth(view: HTMLElement): void {
     caps.set(view, next);
     view.style.setProperty("--bases-table-column-max-width", `${next}px`);
     view.style.setProperty("--bases-table-column-min-width", `${MIN_COLUMN_PX}px`);
-    // Bases lays the table out again on a scroll event on its view.
+    // Bases lays the table out again when its view gets a scroll event.
     view.dispatchEvent(new Event("scroll"));
 }
 
-/** Where Bases sets the width it laid a view out at: a table's header row, a kanban's board. */
+/**
+ * Where Bases sets the width it laid out a view at: a table's header row, or a
+ * kanban's board.
+ */
 export const LAID_OUT = ".bases-thead, .bases-kanban-container";
 
-/** The width Bases laid the view out at; NaN before. */
+/** The width Bases laid out the view at. NaN before it is laid out. */
 export function laidOutWidth(view: HTMLElement): number {
     const laidOut = view.querySelector<HTMLElement>(LAID_OUT);
     return laidOut ? parseFloat(laidOut.style.width) : NaN;
 }
 
-/** The width Bases laid the view's table out at, set on its header row; NaN before. */
+/**
+ * The width Bases laid out the view's table at, set on its header row. NaN
+ * before it is laid out.
+ */
 function tableWidth(view: HTMLElement): number {
     const thead = view.querySelector<HTMLElement>(".bases-thead");
     return thead ? parseFloat(thead.style.width) : NaN;
