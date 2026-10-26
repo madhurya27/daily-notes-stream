@@ -5,6 +5,12 @@
 Most important first. Problems on iOS that last only a frame or two wait until
 there is a screen recording of them (D-099).
 
+- [ ] A flick up over a web page in a frame sometimes stops dead mid-stream: 1
+      of 30 runs on an iPad of "a flick up over a web page in a frame glides on"
+      (`stream.spec.ts`). The glide was slowing evenly, at 59 px a frame, when
+      the stream began to owe a shift. One step later it stopped, and the shift
+      was only moved into the scroll 300 ms later, so the stream's own stop did
+      not fire. Find what changed size above the reader then.
 - [ ] On the iPad, which Obsidian gives the phone layout:
     - [ ] Show the scroll-to-top button, as on desktop: the header has room.
           Decide whether a tap on the title still scrolls to the top (this

@@ -92,8 +92,8 @@ const CASES = [
     {
         // The glide up went past a 10,000-line note, which kept rendering to
         // its end for a second after it had gone by, while the top of the
-        // stream stayed blank. Measured: 750–1,170 ms, and none once it gives
-        // up.
+        // stream stayed blank. On an iPhone: 750–1,170 ms, and none once it
+        // gives up.
         name: "a tap on the title over long notes draws the newest at once",
         notes: [
             [0, 5000],
@@ -101,13 +101,12 @@ const CASES = [
             [3, 1000],
         ],
         measured: true,
-        within: 400,
     },
     {
         // Under a short newest note, a long note never measured is within the
         // rendering distance when the glide ends, and it rendered to its end
-        // first. Measured: 333–341 ms, and 44–49 ms once a note on screen is
-        // rendered before it.
+        // first. On an iPhone: 333–341 ms, and 44–49 ms once a note on screen
+        // is rendered before it.
         name: "a tap on the title draws a short newest note before a long one near it",
         notes: [
             [0, 30],
@@ -115,11 +114,14 @@ const CASES = [
             [3, 1000],
         ],
         measured: false,
-        within: 200,
     },
 ] as const;
 
-for (const { name, notes, measured, within } of CASES)
+// How long the top stays blank depends on the device's speed. What made it
+// blank was other notes rendering first, so this counts their slices (ADR
+// 0020) while the top was blank. The slice running when the glide arrives may
+// finish first.
+for (const { name, notes, measured } of CASES)
     test(name, async ({ phone }) => {
         const written = await writeNotes(phone, notes);
         try {
@@ -145,21 +147,44 @@ for (const { name, notes, measured, within } of CASES)
                     )
                 )
                 .toBe(true);
-            await phone.run(() => {
-                const w = window as unknown as { atTop?: number; drawnAtTop?: number };
+            await phone.run((newest: string) => {
+                const w = window as unknown as { atTop?: number; drawnAtTop?: number; slicesWhileBlank: string[] };
                 delete w.atTop;
                 delete w.drawnAtTop;
+                w.slicesWhileBlank = [];
+                const { renderer } = window.app.workspace.getLeavesOfType("daily-notes-stream-view")[0].view;
+                const renderInto = renderer.renderInto;
+                // Between two slices, a long note asks whether to go on.
+                renderer.renderInto = (
+                    block: HTMLElement,
+                    file: { path: string },
+                    goOn: () => Promise<boolean>,
+                    ...rest: unknown[]
+                ) =>
+                    renderInto.call(
+                        renderer,
+                        block,
+                        file,
+                        () => {
+                            if (w.atTop !== undefined && w.drawnAtTop === undefined && file.path !== newest)
+                                w.slicesWhileBlank.push(file.path);
+                            return goOn();
+                        },
+                        ...rest
+                    );
                 const pane = document.querySelector(".daily-notes-stream-container")!.parentElement!;
                 const watch = () => {
                     const now = performance.now();
                     if (pane.scrollTop <= 0) w.atTop ??= now;
                     const r = pane.getBoundingClientRect();
                     const el = document.elementFromPoint(r.left + r.width / 2, r.top + 150);
-                    if (w.atTop !== undefined && el?.closest(".daily-note-content")) w.drawnAtTop = now;
-                    else requestAnimationFrame(watch);
+                    if (w.atTop !== undefined && el?.closest(".daily-note-content")) {
+                        w.drawnAtTop = now;
+                        renderer.renderInto = renderInto;
+                    } else requestAnimationFrame(watch);
                 };
                 requestAnimationFrame(watch);
-            });
+            }, written[0]!.path);
 
             await phone.tap(`${HEADER} .view-header-title`);
             // The driver returns undefined as null.
@@ -167,11 +192,11 @@ for (const { name, notes, measured, within } of CASES)
                 .poll(() => phone.run(() => (window as unknown as { drawnAtTop?: number }).drawnAtTop ?? 0))
                 .toBeGreaterThan(0);
 
-            const waited = await phone.run(() => {
-                const w = window as unknown as { atTop: number; drawnAtTop: number };
-                return w.drawnAtTop - w.atTop;
+            const { waited, slices } = await phone.run(() => {
+                const w = window as unknown as { atTop: number; drawnAtTop: number; slicesWhileBlank: string[] };
+                return { waited: Math.round(w.drawnAtTop - w.atTop), slices: w.slicesWhileBlank };
             });
-            expect(waited).toBeLessThan(within);
+            expect(slices.length, `blank for ${waited} ms, while drawing ${slices.join(", ")}`).toBeLessThanOrEqual(1);
         } finally {
             await restoreNotes(phone, written);
         }

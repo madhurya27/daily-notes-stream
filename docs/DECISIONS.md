@@ -2342,7 +2342,7 @@ few readers with long notes, where its problems would only be found late.
 **Decision:** `emulatePhoneCpu` times a fixed piece of work
 (`e2e-tests/phone-speed.ts`) on the machine, then slows its CPU until the work
 takes 20 ms. That is about 2.3 times as long as an iPhone 16 Pro's 7.6–9.0 ms.
-`e2e-tests/ios/phone-speed.spec.ts` checks that ratio against the real phone.
+`e2e-tests/ios/phone-speed.spec.ts` checks that a real iPhone is faster.
 
 **Why:** the fixed 4x slowed an M5 to 22–29 ms, and a slower laptop ran slower
 still. 20 ms is slower than an iPhone 11 (about 18 ms, half a 16 Pro's

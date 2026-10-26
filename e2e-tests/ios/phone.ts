@@ -753,7 +753,8 @@ export class Phone {
      * One stroke, and how its scrolling ended (`glide.ts`), once the pane is
      * still. A full scroll lasts 1–3.5 s. It is read on every frame from when
      * the finger lifts, so a stall can be told apart from a stop. The longest
-     * stall is noted on the test.
+     * stall is noted on the test, and the frames of a glide cut short are
+     * attached to it.
      */
     async glideEnding(direction: "up" | "down", { share = 0.7, ms = 60 } = {}): Promise<GlideEnding> {
         await this.run((s: string) => {
@@ -782,7 +783,13 @@ export class Phone {
         });
         if (heard.length === 0) throw new Error("The stroke never lifted.");
         base.info().annotations.push({ type: "longest stall", description: `${longestStall(heard)} ms` });
-        return glideEnding(heard);
+        const ending = glideEnding(heard);
+        // To read why, when a test fails on it.
+        if (ending === "cut short")
+            await base
+                .info()
+                .attach("cut-short glide", { body: JSON.stringify(heard), contentType: "application/json" });
+        return ending;
     }
 
     /**

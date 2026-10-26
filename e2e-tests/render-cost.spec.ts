@@ -153,8 +153,9 @@ test.describe("render cost on mobile, a Base and equations per note", () => {
         expect(drawn.rows).toBeGreaterThan(0);
         expect(drawn.equations).toBe(2);
         expect(baseMs.length).toBeGreaterThanOrEqual(NOTES);
-        // About twice the most measured (D-068). The count is correct on any
-        // machine. The times are only correct on one as fast as an M5.
+        // About twice the most measured (D-068). The CPU runs at the target
+        // phone's speed (D-131), so the times hold on any machine at least that
+        // fast.
         expect(ours.length).toBeLessThan(1700);
         expect(sorted.at(-1)).toBeLessThan(150);
         expect(ms(ours)).toBeLessThan(580);
