@@ -1,5 +1,7 @@
 import { test, expect, type Phone } from "./phone";
-import { A_MONTH, KANBAN, KANBAN_FILE, MIDDLE, SHORT_KANBAN, SHORT_NOTE } from "./vault";
+import { A_MONTH, KANBAN, KANBAN_FILE, MIDDLE, SHORT_KANBAN, SHORT_NOTE, SHORT_NOTE_WITH_BASE } from "./vault";
+
+const STREAM = ".daily-notes-stream-container";
 
 /** A file the Base lists, because it shows every note in `Books/`. */
 const NEW_ROW = "Books/A new book.md";
@@ -185,3 +187,43 @@ for (const [what, slot, file, body] of [
 
         expect(Math.max(...tops.map(Math.abs)), `on screen at ${path(tops).join(", ")}`).toBeLessThan(2);
     });
+
+// A glide can draw a note just ahead of the screen and carry it past the
+// hiding distance before Bases lays out its rows (ADR 0023). Bases adds them
+// inside its own ResizeObserver callback when the note is shown again, so the
+// Base's box must still hold its height then, or the note grows too late for
+// that round and WebKit logs an error (D-159).
+test("a Base drawn and hidden before it laid out shows its rows without a resize error", async ({ phone }) => {
+    await phone.openStream();
+    await phone.jumpTo(SHORT_NOTE_WITH_BASE.slice("Journal/".length, -".md".length));
+    const steps = await phone.runAsync(
+        async (s: string, path: string) => {
+            const pane = document.querySelector(s)!.parentElement!;
+            const block = () => document.querySelector(`.daily-note-block[data-source-path="${path}"]`)!;
+            const offset = () => block().getBoundingClientRect().top - pane.getBoundingClientRect().top;
+            const wait = (ms: number) => new Promise((done) => setTimeout(done, ms));
+            const frame = () => new Promise((done) => requestAnimationFrame(done));
+            const steps: string[] = [];
+            // Far enough away to be unloaded once scrolling stops.
+            pane.scrollTop += offset() - 16 * pane.clientHeight;
+            await wait(2000);
+            if (block().classList.contains("is-unloaded")) steps.push("unloaded");
+            // Inside the rendering distance, but not on screen.
+            pane.scrollTop += offset() - 2 * pane.clientHeight;
+            for (let i = 0; i < 300 && !block().querySelector(".daily-note-base .bases-view"); i++) await frame();
+            if (block().querySelector(".daily-note-base .bases-view")) steps.push("rendered");
+            // Past the hiding distance at once, until the Base lets go.
+            pane.scrollTop += offset() - 7 * pane.clientHeight;
+            await wait(1500);
+            if (block().classList.contains("is-far")) steps.push("hidden");
+            pane.scrollTop += offset();
+            await wait(1500);
+            return steps;
+        },
+        STREAM,
+        SHORT_NOTE_WITH_BASE
+    );
+
+    expect(steps).toEqual(["unloaded", "rendered", "hidden"]);
+    expect(await phone.consoleErrors(), "errors in Obsidian's console").toEqual([]);
+});

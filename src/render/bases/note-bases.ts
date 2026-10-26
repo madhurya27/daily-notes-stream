@@ -354,6 +354,10 @@ class BaseSlot {
         this.letGoOnceStill.cancel();
         window.clearTimeout(this.limit);
         this.limit = 0;
+        // Out of the layout, in a note far from the screen (ADR 0023), it has
+        // no height to let go into. It keeps its hold, so rows Bases adds when
+        // the note is shown again stay inside it (D-159).
+        if (this.placeholder.getClientRects().length === 0) return;
         this.measure(false);
         this.placeholder.style.removeProperty("--daily-note-held-height");
         this.holdAt(this.height());

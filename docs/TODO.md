@@ -20,12 +20,6 @@ there is a screen recording of them (D-099).
       D-173, a stall in rendering does not count as a stop, so a reported stop
       is real. In the next burst, compare the stream with a test page that does
       the same rendering and shifts, to find what stops the scroll.
-- [ ] On the iPad, Obsidian's console sometimes logs "ResizeObserver loop
-      completed with undelivered notifications." while `far-runs.spec.ts` flicks
-      through a long note: 2 of 86 runs on 2026-10-26, both in a probe that read
-      every spacer's position on every frame. A probe that wrapped every
-      `ResizeObserver` to log the callbacks before the error saw no error in 35
-      runs.
 - [ ] On the iPad, every flick down the stream over a Base stops rendering for
       330–410 ms, about 0.55 s after the finger lifts (D-173; the test "flick up
       over a Base" in `stream.spec.ts`, named for the finger's direction). The

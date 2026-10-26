@@ -2846,7 +2846,8 @@ measured that (`pnpm run test:memory`), but the phone did not.
 Base has been since it last settled. Anything taller is cut off. When the Base
 grows, the box grows to match in the next task, and tells its note, which then
 updates its pinned height (ADR 0013). A Base drawn as a table to measure whether
-it fits grows the same way once that is decided.
+it fits grows the same way once that is decided. A Base in a note far from the
+screen (ADR 0023) has no box, so it keeps its hold instead of letting go.
 
 **Why:** Bases adds a table's rows from inside its own ResizeObserver callback.
 This happens when a note hidden far off screen (ADR 0023) is shown again after
@@ -2854,7 +2855,9 @@ its Base's data arrived while it was hidden. ResizeObserver had already reported
 the note's size in that frame, so the note growing then made WebKit log the
 D-095 error. With a box of fixed height, the rows grow inside the box, and the
 note only changes size in the next task. The cost: a Base's growth shows one
-frame late.
+frame late. A glide can draw a note and carry it out of the layout before Bases
+lays out its rows. Letting go there held nothing, so the rows grew the note
+inside Bases' callback when it came back (`e2e-tests/ios/bases.spec.ts`).
 
 **Rejected:**
 

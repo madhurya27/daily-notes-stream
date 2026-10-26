@@ -67,7 +67,7 @@ const NEWEST = Object.keys(DEMO)
  * for a place inside it, and the one below it has no Base. 2026-09-20, a
  * Sunday, has its own Base.
  */
-const SHORT_NOTE_WITH_BASE = "Journal/2026-09-22.md";
+export const SHORT_NOTE_WITH_BASE = "Journal/2026-09-22.md";
 export const SHORT_NOTE = "Journal/2026-09-21.md";
 /** The kanban in the short note with Bases, the note above `SHORT_NOTE`. */
 export const SHORT_KANBAN = `.daily-note-block[data-source-path="${SHORT_NOTE_WITH_BASE}"] .daily-note-base:has(+ .daily-note-base)`;

@@ -640,6 +640,15 @@ describe("NoteBases holding a Base while it refills", () => {
      */
     const tall = (slot: Element, height: number) => {
         slot.getBoundingClientRect = () => ({ height }) as DOMRect;
+        slot.getClientRects = () => [{ height }] as unknown as DOMRectList;
+    };
+    /**
+     * `slot`'s note is far from the screen, so it has no box: `display: none`
+     * (ADR 0023).
+     */
+    const outOfLayout = (slot: Element) => {
+        tall(slot, 0);
+        slot.getClientRects = () => [] as unknown as DOMRectList;
     };
     const resized = () => FakeResizeObserver.instances.forEach((observer) => observer.resized());
     /**
@@ -754,6 +763,20 @@ describe("NoteBases holding a Base while it refills", () => {
         expect(held(slotOf(content))).toBe("");
     });
 
+    // A note far from the screen has its content out of the layout (ADR 0023).
+    // Let go there, the Base would hold nothing, and Bases laying out its rows
+    // when the note is shown again would resize the note inside its own
+    // callback.
+    it("keeps its hold when let go while its note is out of the layout", async () => {
+        const content = await renderNote(BLOCK);
+        layOutAt(slotOf(content), 112);
+        outOfLayout(slotOf(content));
+
+        vi.advanceTimersByTime(SETTLE_MS);
+
+        expect(held(slotOf(content))).toBe("112px");
+    });
+
     it("lets go once what is drawn holds still", async () => {
         const content = await renderNote(BLOCK);
         layOutAt(slotOf(content), 300);
@@ -862,6 +885,7 @@ describe("NoteBases holding a Base while it refills", () => {
 describe("NoteBases changing a Base's height in a pinned note", () => {
     const tall = (slot: Element, height: number) => {
         slot.getBoundingClientRect = () => ({ height }) as DOMRect;
+        slot.getClientRects = () => [{ height }] as unknown as DOMRectList;
     };
     const resized = () => FakeResizeObserver.instances.forEach((observer) => observer.resized());
     const layOutAt = (slot: Element, height: number) => {
