@@ -2,8 +2,8 @@ import type { Page } from "@playwright/test";
 import { test, expect, openStream, seededDate } from "./obsidian";
 
 /**
- * How much of the screen is not yet drawn when a reader scrolls with the wheel
- * on a slowed desktop. Uses real wheel input, sent from outside the page,
+ * How much of the screen is not yet painted when a reader scrolls with the
+ * wheel on a slowed desktop. Uses real wheel input, sent from outside the page,
  * because a scroll set from inside the page waits whenever the page is busy,
  * and a wheel does not. Only runs when asked: SCROLL_COST=1 pnpm exec
  * playwright test scroll-cost --project=desktop. RATES, SPEEDS, SECONDS,
@@ -82,7 +82,9 @@ interface Measured {
     /** How long each note that showed undrawn stayed undrawn. */
     noteBlankMs: number[];
     draws: number[];
-    /** Draws that finished after the note had already been scrolled past. */
+    /**
+     * Renders that finished after the note had already been scrolled past.
+     */
     behind: number;
     longestFrame: number;
 }

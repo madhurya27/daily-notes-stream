@@ -23,7 +23,7 @@ export function basesLoaded(note: HTMLElement): Promise<void> {
         const loading = () => note.querySelector(LOADING) !== null;
         let frame = 0;
         const check = () => {
-            // Wait one frame for all the changes in it, because a Base makes
+            // Wait one frame for all the mutations in it, because a Base makes
             // many.
             cancelAnimationFrame(frame);
             frame = window.requestAnimationFrame(() => loading() || done());

@@ -51,7 +51,7 @@ const frames = (phone: Phone) => phone.run(() => (window as unknown as { streamF
 // Empty blocks that are far too short leave the scroll less room than there is
 // above. It bounced at the top, still owing the rest, and a pull on the bounce
 // opened Obsidian's pull-down action over the stream (D-143). Stopped early,
-// the scroll halts while still fast. This is the cost of estimates that are too
+// the glide halts while still fast. This is the cost of estimates that are too
 // short (D-092).
 test("a glide owing the notes above stops before its scroll runs out, the text never jumping", async ({ phone }) => {
     await phone.openStream();
@@ -92,8 +92,8 @@ test("a glide that reaches the newest note with scroll to spare stops there", as
     // Opened again, because an earlier test may have made the notes' empty
     // heights shorter.
     await phone.openStream();
-    // Edited far from the reader, because a drawn note is drawn short again at
-    // once, or while scrolling, when its metadata is updated.
+    // Edited far from the reader, because a rendered note re-renders short at
+    // once, or mid-glide, when its metadata is updated.
     await phone.jumpTo("2026-09-12");
     const texts = await phone.runAsync(
         (paths: string[]) => Promise.all(paths.map((path) => window.app.vault.adapter.read(path))),

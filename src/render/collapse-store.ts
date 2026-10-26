@@ -46,7 +46,7 @@ export class CollapsibleStateStore {
 
     /**
      * Both states are saved, because "unfolded" must also last when the note is
-     * drawn again.
+     * re-rendered.
      */
     setCollapsed(filePath: string, sectionKey: string, collapsed: boolean): void {
         const sections = this.files.get(filePath) ?? new Map<string, boolean>();

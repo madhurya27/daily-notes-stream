@@ -1,7 +1,7 @@
 /**
  * Lets everything already waiting run before the caller continues: input,
- * drawing and timers. `scheduler.yield()` would put the caller first, and delay
- * every timer until a long render ends (ADR 0020).
+ * painting and timers. `scheduler.yield()` would put the caller first, and
+ * delay every timer until a long render ends (ADR 0020).
  */
 export function yieldToMain(): Promise<void> {
     return new Promise((resolve) => window.setTimeout(resolve, 0));

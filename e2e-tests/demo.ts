@@ -29,8 +29,8 @@ export async function prepareDemo(page: Page): Promise<void> {
             if (folder && !vault.getAbstractFileByPath(folder)) await vault.createFolder(folder);
             await vault.create(path, text);
         }
-        // The stream draws from metadataCache, which is updated after the file
-        // is written.
+        // The stream renders from metadataCache, which is updated after the
+        // file is written.
         await new Promise((r) => setTimeout(r, 1000));
     }, files);
     await page.evaluate(() => window.app.workspace.leftSplit?.collapse?.());

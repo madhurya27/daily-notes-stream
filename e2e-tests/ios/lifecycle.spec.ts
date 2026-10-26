@@ -19,8 +19,8 @@ test("back from the Home Screen, the stream is where it was, and a flick still g
     expect(await phone.glideEnding("up")).not.toBe("cut short");
 });
 
-// The scroll up ends at the top while the notes above are drawn. Once the
-// scroll stops, the stream must not keep the reader's place below the top (ADR
+// The glide up ends at the top while the notes above are rendered. Once the
+// glide stops, the stream must not keep the reader's place below the top (ADR
 // 0013).
 test("after a quit and a jump to an old date, flicks up stop on the newest note, and it stays", async ({ phone }) => {
     await phone.openStream();

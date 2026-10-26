@@ -38,8 +38,8 @@ describe("glideEnding", () => {
         expect(glideEnding(heard(cut, still(4380, 64, 400)))).toBe("cut short");
     });
 
-    // The page was blocked for 370 ms by Bases drawn while scrolling, and iOS
-    // kept scrolling meanwhile.
+    // The page was blocked for 370 ms by Bases drawn mid-glide, and iOS kept
+    // scrolling meanwhile.
     it("tells a glide that carried on through a stall, then slowed", () => {
         const before = frames([1000, 1180, 1340, 1480]);
         const after = frames([2280, 2300, 2316, 2328, 2336, 2340, 2341], { from: 48 + 370 });

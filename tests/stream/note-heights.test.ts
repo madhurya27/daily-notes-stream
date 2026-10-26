@@ -103,7 +103,7 @@ describe("NoteHeights", () => {
             expect(heights.estimate("a", "tiny.md", 1_700)).toBe(900);
         });
 
-        // A Base is drawn tall from a few bytes, so the limit leans tall, as
+        // A Base is rendered tall from a few bytes, so the limit leans tall, as
         // D-092 wants.
         it("rates by the densest note, so a note never comes out shorter than any measured would at its size", () => {
             const heights = new NoteHeights(undefined, statOf);

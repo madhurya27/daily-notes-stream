@@ -158,9 +158,9 @@ describe("scrollIntoPlace", () => {
     });
 
     it("keeps scrolling while the stream is still rendering, top or not", async () => {
-        // It is at the top from the first try, but notes are still being drawn,
-        // and each one above the block will move it again. Three tries see the
-        // count change, and the fourth sees it stay the same.
+        // It is at the top from the first try, but notes are still being
+        // rendered, and each one above the block will move it again. Three
+        // tries see the count change, and the fourth sees it stay the same.
         const block = blockMoving([0]);
 
         await scrollIntoPlace(block, "start", pane, layoutCounting([0, 1, 1, 2, 2, 3, 3, 3]));

@@ -59,7 +59,7 @@ test("keeps each height with its note's mtime, and forgets it as the note is edi
     }, path);
     try {
         expect((await stored()).heights).toBe(0);
-        // When drawn, it is measured again, at the edit's change time.
+        // When rendered, it is measured again, at the edit's change time.
         await expect.poll(async () => (await stored()).heights).toBeGreaterThan(0);
         const after = await stored();
         expect(after.mtime).toBe(after.now);

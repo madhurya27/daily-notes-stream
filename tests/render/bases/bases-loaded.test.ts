@@ -78,7 +78,7 @@ describe("basesLoaded", () => {
         expect(loaded).toBe(true);
     });
 
-    // A table too wide for its note is drawn again as cards once it is laid
+    // A table too wide for its note is re-rendered as cards once it is laid
     // out.
     it("waits on for a Base redrawn within the frame", async () => {
         const view = loadingBase();

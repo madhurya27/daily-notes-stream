@@ -14,7 +14,7 @@ export const HOLD_LIMIT_MS = 2000;
  * Keeps an element at least `height` tall while its contents fill in again, so
  * a dip is never drawn. On iOS, which does not keep the scroll position, the
  * text below would jump away and back. The owner releases it once the contents
- * stop changing, or the time limit does if they never stop.
+ * settle, or the time limit does if they never stop.
  */
 export class HeightHold {
     private readonly timer: number;

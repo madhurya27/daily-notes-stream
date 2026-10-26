@@ -121,8 +121,8 @@ describe("DailyNotesStreamView — view API", () => {
 });
 
 describe("DailyNotesStreamView — today's note", () => {
-    // Today's note is the one written in. It is drawn by section, so its saves
-    // draw only part of it again (ADR 0019).
+    // Today's note is the one written in. It is rendered by section, so its
+    // saves render only part of it again (ADR 0019).
     it("asks the service whether a note it renders is today's", async () => {
         const plugin = makePlugin();
         const service = makeService();
@@ -146,8 +146,8 @@ describe("DailyNotesStreamView — onResize", () => {
 });
 
 describe("DailyNotesStreamView — scroll", () => {
-    // Emptying notes waits for scrolling to stop, so the window must hear every
-    // scroll.
+    // Unloading notes waits for scrolling to stop, so the window must hear
+    // every scroll.
     it("tells the window the stream scrolled", async () => {
         const { view } = await makeViewSetup();
         view.contentEl.dispatchEvent(new Event("scroll"));
@@ -163,8 +163,7 @@ describe("DailyNotesStreamView — scroll", () => {
         expect(view["stream"]["window"].onTouch).toHaveBeenCalledWith(touched);
     });
 
-    // Its note's height is fixed again in the same task the Base set its height
-    // in (D-108).
+    // Its note re-pins in the same task the Base set its height in (D-108).
     it("tells the window which Base set its height", async () => {
         const { view } = await makeViewSetup();
         const slot = view.contentEl.createDiv();

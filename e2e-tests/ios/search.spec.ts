@@ -83,8 +83,9 @@ test.afterEach(async ({ phone }) => {
     if (await phone.has(BAR)) await phone.escape(BAR);
 });
 
-// WebKit draws no highlight on text the reader cannot select
-// (e2e-tests/webkit.spec.ts). Only the phone shows what iOS's own WebKit draws.
+// WebKit paints no highlight on text the reader cannot select
+// (e2e-tests/webkit.spec.ts). Only the phone shows what iOS's own WebKit
+// paints.
 test("a search paints every match on screen, the current one apart from the rest", async ({ phone }) => {
     await phone.openStream();
     // Twice in each of the newest notes' Stallers section, so more than one is

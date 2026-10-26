@@ -19,7 +19,7 @@ const overflow = (phone: Phone) =>
             .filter((el) => {
                 const box = el.getBoundingClientRect();
                 let shown = box.right;
-                // Cut off inside the text, as a Base's table cell cuts off its
+                // Clipped inside the text, as a Base's table cell clips its
                 // header. This looks past the text's own clip.
                 for (let clip = el.parentElement; clip && clip !== content; clip = clip.parentElement)
                     if (getComputedStyle(clip).overflowX !== "visible")
@@ -32,8 +32,8 @@ const overflow = (phone: Phone) =>
     }, NOTE);
 
 /**
- * The items of each Base's toolbar in the note that the toolbar cuts off.
- * Obsidian shrinks the view name and count to fit.
+ * The items of each Base's toolbar in the note that the toolbar clips. Obsidian
+ * shrinks the view name and count to fit.
  */
 const toolbarCut = (phone: Phone) =>
     phone.run((note: string) => {

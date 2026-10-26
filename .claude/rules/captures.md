@@ -41,7 +41,7 @@ pnpm run capture:listing       # the desktop and mobile images for the plugin di
   them, and that would show as seconds where nothing moves.
 - Touch circles are drawn onto the frames from the touches the tests sent
   (`draw-touches.swift`), not from the page's touch events: a touch that stops a
-  scroll never reaches the page. Key taps get no circle, because iOS already
+  glide never reaches the page. Key taps get no circle, because iOS already
   shows a bubble over each key.
 - `Phone.type` presses at most two keys at a time. WebDriverAgent presses the
   keys of one gesture about 30 ms apart, and each gesture takes about 560 ms.

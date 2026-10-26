@@ -46,15 +46,16 @@ export class ScrollAnchor {
     private readonly watched = new Set<Element>();
     /**
      * Watched blocks whose size is not observed: their height only changes when
-     * it is fixed again, and the anchor is told.
+     * it is re-pinned, and the anchor is told.
      */
     private readonly pins = new Set<Element>();
     /**
      * The elements from a block down to the element at the top of the pane,
-     * each with its position. Drawing the note again may replace the deeper
+     * each with its position. Re-rendering the note may replace the deeper
      * ones; then the deepest one left is used instead.
      */
-    // Stryker disable next-line ArrayDeclaration: attach calls detach first, which empties it.
+    // Stryker disable next-line ArrayDeclaration: attach calls detach first,
+    // which unloads it.
     private place: Place = [];
     /**
      * The same, for the first element that starts inside the pane. This one is
@@ -63,8 +64,8 @@ export class ScrollAnchor {
     // Stryker disable next-line ArrayDeclaration: only read while the text reflows, and no element of an old one is in the pane.
     private reflowPlace: Place = [];
     /**
-     * What is drawn by the Base at the top of the pane. It fills in after it is
-     * drawn, inside a box kept at a fixed height.
+     * What is rendered by the Base at the top of the pane. It fills in after it
+     * is rendered, inside a box kept at a fixed height.
      */
     private drawnBase: Element | null = null;
     /**
@@ -85,7 +86,7 @@ export class ScrollAnchor {
      * The width changed since the shift was last moved into the scroll. The
      * text reflows over several frames, and `reflowPlace`, as read before, is
      * kept through all of them. Read again during the reflow, it was whatever
-     * was being drawn again.
+     * was being re-rendered.
      */
     // Stryker disable next-line BooleanLiteral: attach calls detach first, which resets it.
     private reflowing = false;
@@ -149,7 +150,7 @@ export class ScrollAnchor {
     }
 
     /**
-     * `block`'s height only changes when it is fixed again, which calls
+     * `block`'s height only changes when it is re-pinned, which calls
      * `resized()` (ADR 0013). If it were observed, its report would come one
      * round after the report of the content that caused it, and WebKit logs
      * that as an error.
@@ -160,7 +161,9 @@ export class ScrollAnchor {
         this.observer!.unobserve(block);
     }
 
-    /** `block` was emptied, or has no height: observe its size again. */
+    /**
+     * `block` was unloaded, or has no height: observe its size again.
+     */
     unpinned(block: HTMLElement): void {
         if (this.pins.delete(block)) this.observer!.observe(block);
     }
@@ -187,10 +190,10 @@ export class ScrollAnchor {
     /**
      * What is at the top of the pane is about to move inside its block, which
      * has not scrolled or changed height since the place was last read. So read
-     * the place now. `drawn` is a note drawn from its end. If its top is in the
-     * upper half of the pane, its text is what the reader is reading, so its
-     * text is kept in place. The top of the pane is then in the note above,
-     * which drawing this note never moves (ADR 0022). With the scroll at the
+     * the place now. `drawn` is a note rendered from its end. If its top is in
+     * the upper half of the pane, its text is what the reader is reading, so
+     * its text is kept in place. The top of the pane is then in the note above,
+     * which rendering this note never moves (ADR 0022). With the scroll at the
      * top, there is no note above, so the stream's top is kept.
      */
     readPlace(drawn?: HTMLElement): void {
@@ -281,7 +284,7 @@ export class ScrollAnchor {
         this.bouncing = this.scrollRoot.scrollTop < 0 || (this.bouncing && this.touching);
         if (this.owed !== 0 && bounced) this.handOver();
         else if (this.topDueInView(moved)) this.stopGlide(0);
-        // One step further: iOS draws one step past the scroll position it
+        // One step further: iOS paints one step past the scroll position it
         // reports, and stopping there moved the text back against the scroll.
         else if (this.owed !== 0 && (this.endDueInView(moved) || this.scrollRunsOutAbove(moved)))
             this.stopGlide(this.scrollRoot.scrollTop + this.owed - moved);
@@ -290,8 +293,8 @@ export class ScrollAnchor {
     }
 
     /**
-     * Stops a scroll at `scrollTop`, where the stream's top or end is drawn, by
-     * making its last step shorter. iOS keeps scrolling after the scroll
+     * Stops a scroll at `scrollTop`, where the stream's top or end is rendered,
+     * by making its last step shorter. iOS keeps scrolling after the scroll
      * position is set, and undoes it in the next frame. If nothing can scroll
      * for that frame, the scroll ends where it was set.
      */
@@ -423,8 +426,8 @@ export class ScrollAnchor {
     /**
      * The deepest element of `place` still in the stream. Not a note's content
      * element once the element inside it is gone, as a spacer goes when the
-     * hidden part it stands for is shown. A note drawn from its end has a
-     * content top that rises with every slice drawn (ADR 0022).
+     * hidden part it stands for is shown. A note rendered from its end has a
+     * content top that rises with every slice rendered (ADR 0022).
      */
     private pointOf(place: Place): Place[number] | undefined {
         const kept = place.filter(({ el }) => this.scrollRoot!.contains(el));
@@ -434,10 +437,10 @@ export class ScrollAnchor {
     }
 
     /**
-     * Reads the place: the element drawn at the top of the pane, ignoring
+     * Reads the place: the element rendered at the top of the pane, ignoring
      * anything on top of the stream, and the elements up to its block. It stops
      * at an element whose height is held, because its text is not yet where it
-     * will be, and at a Base, because a Base reflows and is drawn again as a
+     * will be, and at a Base, because a Base reflows and is re-rendered as a
      * whole.
      */
     private pick(): void {
@@ -471,7 +474,7 @@ export class ScrollAnchor {
 
     /**
      * If the top of the pane is in a gap in a note's content, the text below
-     * it. The content element's own top rises as a note drawn from its end
+     * it. The content element's own top rises as a note rendered from its end
      * grows above it (ADR 0022), but its text does not move. If the top of the
      * pane is in the gap at a note's end, the next note: a Base filling in
      * above moves the next note, not the top of this one.
@@ -483,8 +486,8 @@ export class ScrollAnchor {
     }
 
     /**
-     * Whether everything drawn in `block` ends above `paneTop`. An empty block
-     * has nothing drawn, so it doesn't.
+     * Whether everything rendered in `block` ends above `paneTop`. An empty
+     * block has nothing rendered, so it doesn't.
      */
     private endsAbove(block: Element, paneTop: number): boolean {
         const drawn = Array.from(block.children);
@@ -541,8 +544,8 @@ export class ScrollAnchor {
     }
 
     /**
-     * A Base's height is the height of what it draws, not of the box kept at a
-     * fixed height for it.
+     * A Base's height is the height of what it renders, not of the box kept at
+     * a fixed height for it.
      */
     private heightOf(el: Element): number {
         const drawn = el.hasClass(BASE_SLOT_CLASS) ? (el.lastElementChild ?? el) : el;
@@ -617,9 +620,9 @@ export class ScrollAnchor {
 
     /**
      * styles.css turns the custom property into a transform, which moves what
-     * is drawn without changing the scroll. The names are written out in full
-     * in both places, because the compliance rule searches the source text for
-     * them.
+     * is rendered without changing the scroll. The names are written out in
+     * full in both places, because the compliance rule searches the source text
+     * for them.
      */
     private shift(content: HTMLElement): void {
         this.shifted = content;

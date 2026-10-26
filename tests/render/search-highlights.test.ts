@@ -186,8 +186,8 @@ describe("SearchHighlighter", () => {
         expect([...CSS.highlights.get("daily-notes-search-current")!]).toEqual([second]);
     });
 
-    // Overlapping ranges are drawn by priority: the current match on top of the
-    // others.
+    // Overlapping ranges are painted by priority: the current match on top of
+    // the others.
     it("paints the current match over the other matches", () => {
         const { block, component } = renderedBlock("<p>milk</p>");
         highlighter.setQuery("milk");

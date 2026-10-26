@@ -10,7 +10,7 @@ Rules:
 
 - One page, about 300 words, and one line for each rejected option. If it is
   longer, it is usually two decisions.
-- Numbered in order, and the numbers never change. A decision that is replaced
-  gets a new record, and the old one is marked as replaced. Records are a
+- Numbered in order, and the numbers never change. A decision that is superseded
+  gets a new record, and the old one is marked as superseded. Records are a
   history that is only added to, not a description of the current system.
 - Written in the branch that makes the decision, together with the code.

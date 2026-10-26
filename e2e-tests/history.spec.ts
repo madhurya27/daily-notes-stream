@@ -41,8 +41,8 @@ function measurePlaces(page: Page) {
 const place = (page: Page) => page.evaluate(() => window.streamPlace!());
 
 /**
- * Waits until the stream's place stops changing, because drawing moves it, and
- * a Base fills in even later.
+ * Waits until the stream's place stops changing, because rendering moves it,
+ * and a Base fills in even later.
  */
 async function settledPlace(page: Page) {
     let before = await place(page);
@@ -63,8 +63,8 @@ async function settledPlace(page: Page) {
 
 /**
  * Scrolls the stream `past` the top of the note `daysBack` days back, and waits
- * for it to stop changing. Twice, because the first scroll is measured against
- * empty blocks, and the notes it draws move the target.
+ * for it to settle. Twice, because the first scroll is measured against empty
+ * blocks, and the notes it renders move the target.
  */
 async function scrollPast(page: Page, daysBack: number, past = 150) {
     const container = await openStream(page);
@@ -88,8 +88,8 @@ async function goBack(page: Page) {
     const { target } = await scrollPast(page, 3);
     const title = await target.locator(".daily-note-title").elementHandle();
 
-    // In one task, because on a phone the notes around it may still be drawing,
-    // so the place is read the moment it is left.
+    // In one task, because on a phone the notes around it may still be
+    // rendering, so the place is read the moment it is left.
     const { left, frames } = await page.evaluate(async (title) => {
         const nextFrame = () => new Promise((resolve) => requestAnimationFrame(resolve));
 

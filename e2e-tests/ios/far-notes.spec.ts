@@ -4,9 +4,9 @@ const STREAM = ".daily-notes-stream-container";
 
 // Like e2e-tests/ios/far-runs.spec.ts for a long note's parts: a note hidden
 // because it is far away keeps its height but shows nothing, so one on screen
-// is a blank. A pause may keep one on screen for a frame, and the next frame
-// shows it (ADR 0023). Turning back within the emptying distance, the reader
-// finds the notes it hid, not emptied ones.
+// is a blank. A stall may keep one on screen for a frame, and the next frame
+// shows it (ADR 0023). Turning back within the unloading distance, the reader
+// finds the notes it hid, not unloaded ones.
 test("flicks back up to notes hidden on the way down show none two frames running", async ({ phone }) => {
     await phone.openStream();
     await phone.run((s: string) => {

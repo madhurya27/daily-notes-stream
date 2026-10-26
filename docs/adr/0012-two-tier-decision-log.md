@@ -2,7 +2,7 @@
 
 - **Status:** Accepted
 - **Date:** 2026-09-29
-- **Replaces:** [0001](0001-record-decisions.md), which rejected a single
+- **Supersedes:** [0001](0001-record-decisions.md), which rejected a single
   decisions file
 
 ## Context
@@ -21,8 +21,8 @@ reference did not say which entry it meant.
 - **Log entry:** anything smaller, in `docs/DECISIONS.md`: the decision, why,
   and what was rejected, in a few lines. Each has an ID, from `D-001` on, in the
   order the entries were written. The date stays in its heading.
-- Both are only ever added to. A decision that is replaced is marked as
-  replaced, with a link to what replaced it.
+- Both are only ever added to. A decision that is superseded is marked as
+  superseded, with a link to what superseded it.
 - A reference is the ID alone (`D-023`), never a date. IDs only exist in the
   log, so the path adds nothing.
 

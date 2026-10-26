@@ -193,7 +193,7 @@ const VALUES_WIDE = [
 ];
 
 /**
- * Bases appear all the way down, for the check that scrolling does not pause.
+ * Bases appear all the way down, for the check that scrolling does not stall.
  */
 SHAPES.push((index) => [
     ...frontmatter(index),

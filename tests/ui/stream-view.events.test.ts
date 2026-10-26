@@ -25,8 +25,8 @@ describe("DailyNotesStreamView — vault events", () => {
         expect(spy).toHaveBeenCalledWith(file);
     });
 
-    // vault 'modify' fires before metadataCache is updated, so drawing the note
-    // again then would remove the frontmatter at an old position.
+    // vault 'modify' fires before metadataCache is updated, so re-rendering the
+    // note then would remove the frontmatter at an old position.
     it("does not re-render a note on vault 'modify'", async () => {
         const { view, callbacks } = await makeWiredView();
         const spy = vi.spyOn(view["stream"], "onFileModify");

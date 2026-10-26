@@ -625,7 +625,7 @@ describe("CollapsibleManager — delegated listeners", () => {
     }
 
     it("binds nothing to the chevron itself", () => {
-        // Fold arrows are created again every time a note is drawn again. A
+        // Fold arrows are created again every time a note is re-rendered. A
         // listener for each arrow would pile up on the view until it closes.
         heading().click();
         expect(store.setCollapsed).not.toHaveBeenCalled();
@@ -801,7 +801,7 @@ describe("CollapsibleManager — refreshing after sections re-render in place", 
         expect(content.querySelectorAll(".collapse-indicator")).toHaveLength(3);
     });
 
-    // As drawing the whole note would: the element takes the key, and that
+    // As rendering the whole note would: the element takes the key, and that
     // key's saved state.
     it("re-keys a kept list item whose key moved, showing and saving that key's state", () => {
         const store = makeStore();

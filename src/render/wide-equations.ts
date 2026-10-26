@@ -4,9 +4,9 @@ import type { WidthWatch } from "./note-widths";
 /**
  * Shrinks a display equation wider than the note until it fits. This is checked
  * again when the note's width changes. It may not scroll sideways inside the
- * stream (ADR 0008), and if it were cut off, its end would be lost. MathJax
+ * stream (ADR 0008), and if it were clipped, its end would be lost. MathJax
  * draws HTML, which CSS cannot scale to fit, so this measures it. `within`
- * limits it to part of the note: a section drawn again on its own (ADR 0019).
+ * limits it to part of the note: a section re-rendered on its own (ADR 0019).
  */
 export function fitWideEquations(
     contentEl: HTMLElement,

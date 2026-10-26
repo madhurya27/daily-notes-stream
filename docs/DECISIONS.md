@@ -4,8 +4,8 @@ Smaller design decisions. A decision that would need data to be moved, or code
 to be rewritten across layers, to undo it belongs in [`adr/`](adr/) instead.
 
 Entries are numbered in order, and the numbers never change. Refer to one by its
-ID alone (`D-023`). When a decision is replaced, the old entry is marked as
-replaced by the new one, not rewritten.
+ID alone (`D-023`). When a decision is superseded, the old entry is marked as
+superseded by the new one, not rewritten.
 
 ## D-001 — Editing is an action on the note, not an editor in the stream (2026-09-15)
 
@@ -13,7 +13,7 @@ replaced by the new one, not rewritten.
 open the file in a split, or add to today's note.
 
 **Why:** live updates, folding and the e2e tests all depend on the stream
-drawing the Markdown itself.
+rendering the Markdown itself.
 
 **Rejected:** an editor inside each note, as
 [Daily Notes Editor](https://github.com/Quorafind/Obsidian-Daily-Notes-Editor)
@@ -47,35 +47,35 @@ empty block, and `styles.css` decides what to do with it. The compliance rule
 against styling from JavaScript now allows `style.setProperty("--…")` and, since
 D-172, `style.removeProperty("overflow-x")`.
 
-**Why:** the height is whatever the note measured before it was emptied, so no
+**Why:** the height is whatever the note measured before it was unloaded, so no
 class can hold it, and the rule is worth keeping for everything else.
 
 **Rejected:** setting `style.height` directly — the same inline style, but
 without the one place where a reader can see which rule uses it.
 
 **Rejected:** the same height for every empty block — the scroll bar jumps by
-the difference as soon as a note is drawn.
+the difference as soon as a note is rendered.
 
 ## D-004 — Task checkboxes cannot be ticked (2026-09-21)
 
-**Decision:** `pointer-events: none` on a drawn task's checkbox. It shows the
+**Decision:** `pointer-events: none` on a rendered task's checkbox. It shows the
 file's state and ignores the click.
 
 **Why:** `MarkdownRenderer.render` makes a real `<input>`, which the browser
 ticks, and only Obsidian's own reading view saves that to the file. Here the
-tick only exists in the DOM, and emptying the note or drawing it again quietly
+tick only exists in the DOM, and unloading the note or re-rendering it quietly
 undoes it.
 
 **Rejected:** saving the tick to the file — the stream is read-only, and finding
-the line of the file that a drawn element came from is a feature of its own.
+the line of the file that a rendered element came from is a feature of its own.
 
 ## D-005 — The stream moves the checkbox the way reading view does (2026-09-21)
 
 **Decision:** `top: 0.2em` on a task checkbox in `styles.css`, the value
 `.markdown-preview-view` sets.
 
-**Why:** the stream draws under `markdown-rendered` only, so the preview pane's
-own styles never apply, and the box sits 3px above its label.
+**Why:** the stream renders under `markdown-rendered` only, so the preview
+pane's own styles never apply, and the box sits 3px above its label.
 
 **Rejected:** adding `markdown-preview-view` to the content element — it brings
 the whole pane's stylesheet, including padding and line width.
@@ -125,7 +125,7 @@ and Obsidian puts it above.
 the arrow forced visible, which Obsidian hides on purpose.
 
 **Rejected:** `tabindex="0"` on the heading, so the keyboard can reach it —
-Obsidian draws a ring around it on `:focus`, so a click left that ring around
+Obsidian renders a ring around it on `:focus`, so a click left that ring around
 the row. The arrow takes the focus instead, and shows itself on
 `:focus-visible`.
 
@@ -151,10 +151,10 @@ about.
 **Decision:** `emulateDevice` marks the window before calling `emulateMobile`,
 and waits for a document that no longer has the mark.
 
-**Why:** the reload happens in the background, and the old document answers
-`layoutReady` until the reload is done. So waiting for that alone returned while
-the window was still switching, and it switched seconds after the script
-reported the layout it was leaving.
+**Why:** the reload is asynchronous, and the old document answers `layoutReady`
+until the reload is done. So waiting for that alone returned while the window
+was still switching, and it switched seconds after the script reported the
+layout it was leaving.
 
 **Rejected:** waiting for the reload as a navigation — the same result, but it
 reads like page internals, not like the thing being waited for.
@@ -184,7 +184,7 @@ port 30ms _after_ it comes to the front, so nothing outside the app can be ready
 in time. Not worth copying and signing again 1GB to save one 150ms flash per
 launch.
 
-## D-011 — List properties are drawn as Obsidian's pills (2026-09-21)
+## D-011 — List properties are rendered as Obsidian's pills (2026-09-21)
 
 **Decision:** `tags` and other list properties use the `multi-select-pill`
 markup, with `data-property-type="tags"` on a tag value so its pills get the tag
@@ -266,10 +266,10 @@ what happens behind it.
 
 **Rejected:** an error instead of the older note.
 
-**Rejected:** drawing only the target — it breaks the rule that `state.notes`
+**Rejected:** rendering only the target — it breaks the rule that `state.notes`
 and `_sorted` load in the same order.
 
-## D-016 — The jump sets its scroll again until the stream stops drawing (2026-09-22)
+## D-016 — The jump sets its scroll again until the stream stops rendering (2026-09-22)
 
 **Decision:** up to eight tries. It ends when the target is at the top of the
 pane _and_ `NoteWindowManager.layoutChanges` did not change during the try, or
@@ -371,9 +371,9 @@ matches each note's title and text, including frontmatter, counts notes ("3 /
 note. Typing marks the highest match on screen and never scrolls.
 
 **Why:** notes off screen have no DOM (ADR 0006), so the browser's find in page
-only sees a few days. A note's text and what is drawn from it differ, so only a
-count of notes stays correct. Obsidian searches hidden frontmatter too (checked
-2026-09-23).
+only sees a few days. A note's text and what is rendered from it differ, so only
+a count of notes stays correct. Obsidian searches hidden frontmatter too
+(checked 2026-09-23).
 
 **Rejected:**
 
@@ -410,7 +410,7 @@ compliance test already reads every file.
 ## D-024 — Search unfolds sections without saving, and labels what it cannot show (2026-09-23)
 
 **Decision:** moving to a match inside a folded heading, list item or properties
-panel unfolds it without saving that. Drawing the note again folds it again.
+panel unfolds it without saving that. Re-rendering the note folds it again.
 Typing never unfolds anything. A note that matches but has nothing drawn to mark
 (hidden frontmatter, Markdown syntax) is counted as `3 / 12 · hidden`.
 
@@ -457,7 +457,7 @@ that could throw an error.
 
 ## D-027 — Old fold state is removed a day after the note was last written (2026-09-23)
 
-**Decision:** when a note is drawn without errors, saved sections the note no
+**Decision:** when a note is rendered without errors, saved sections the note no
 longer has are forgotten, once its change time is 24 hours old. The properties
 key is kept.
 
@@ -547,25 +547,25 @@ other notes).
   each view — it does work while no stream is open, and keeps state that nothing
   shows.
 
-## D-032 — Emptying notes waits for scrolling to stop (2026-09-23)
+## D-032 — Unloading notes waits for scrolling to stop (2026-09-23)
 
-Partly replaced by [ADR 0023](adr/0023-hide-far-content-as-it-leaves.md): hiding
-no longer waits, but emptying still does.
+Superseded in part by [ADR 0023](adr/0023-hide-far-content-as-it-leaves.md):
+hiding no longer waits, but unloading still does.
 
-**Decision:** a drawn block that goes past the emptying distance waits until
+**Decision:** a rendered block that goes past the unloading distance waits until
 scrolling has stopped for `SCROLL_IDLE_MS` (300 ms). If it comes back before
-then, it stays drawn.
+then, it stays rendered.
 
-**Why:** on an iPhone, a third of the recorded flicks paused while scrolling
-when notes were emptied, and none did with emptying turned off. A scroll moves
-on every frame, so a pause means it ended.
+**Why:** on an iPhone, a third of the recorded flicks stalled mid-glide when
+notes were unloaded, and none did with unloading turned off. A scroll moves on
+every frame, so a pause means it ended.
 
 **Rejected:**
 
-- A larger emptying distance — a long scroll goes past any distance, so it only
-  delays the pause.
+- A larger unloading distance — a long scroll goes past any distance, so it only
+  delays the stall.
 - Empty blocks with exact heights — not proven to be the cause.
-- Scrolling an element inside `.view-content` — not needed once emptying waits
+- Scrolling an element inside `.view-content` — not needed once unloading waits
   (tested on a phone).
 
 ## D-033 — A Base too wide for its note is drawn as cards, on mobile (2026-09-24)
@@ -573,32 +573,32 @@ on every frame, so a pause means it ended.
 **Decision:** on mobile, a Base follows the rule for Markdown tables: cards when
 its table is wider than the note, checked again when the width changes. Desktop
 draws Bases as Obsidian does (ADR 0008). Each `base` code block, and each
-`![[X.base]]` on a line of its own, is drawn into its own placeholder, so one
-Base can be drawn again on its own. If the headers alone are wider than the
+`![[X.base]]` on a line of its own, is rendered into its own placeholder, so one
+Base can be re-rendered on its own. If the headers alone are wider than the
 note, cards are drawn straight away (measured once, from Bases' header font and
 padding). Otherwise the table is drawn and measured when it is first laid out.
 The result is kept for each note and layout.
 
 The cards are a copy only for display: Bases only saves a code block through an
 editor, and a save would write `type: cards` into the file. A copy of an
-embedded Base is drawn again when its file changes. An embed drawn as a table
+embedded Base is re-rendered when its file changes. An embed drawn as a table
 stays the real embed, and changes made in its toolbar save to the `.base` file,
 as in reading view.
 
-**Why:** to be consistent with Markdown tables. The measured cost of drawing
-again, with 7 columns over a 3–10 year vault: table 100 ms (205–235 at 4× slower
-CPU), cards 62–64 ms (84–104). The size of the vault adds less than 30 ms. The
-check on the headers skips drawing the table in the usual case: many columns in
-a narrow note.
+**Why:** to be consistent with Markdown tables. The measured cost of
+re-rendering, with 7 columns over a 3–10 year vault: table 100 ms (205–235 at 4×
+slower CPU), cards 62–64 ms (84–104). The size of the vault adds less than 30
+ms. The check on the headers skips drawing the table in the usual case: many
+columns in a narrow note.
 
 **Rejected:**
 
 - Cards on every phone (`Platform.isPhone`) — cards even where the table fits.
-- Cards on desktop too — desktop has no pauses, and a scroll bar keeps the
+- Cards on desktop too — desktop has no stalls, and a scroll bar keeps the
   table.
 - Taller rows with `rowHeight` — the table is still cramped.
 - Styling the table as cards with CSS — Bases positions its rows absolutely.
-- Drawing the whole note again when switching between table and cards — draws
+- Re-rendering the whole note when switching between table and cards — renders
   everything else in the note again too.
 - Drawing every embed as a copy, so no change saves — inline embeds and Bases in
   callouts would still save, and every copy would need drawing again on every
@@ -615,15 +615,15 @@ against about 24pt in reading view.
 
 **Rejected:** full width on phones — wider than every other note.
 
-## D-035 — A Base drawn again keeps its last height until Bases fills it in (2026-09-24)
+## D-035 — A Base re-rendered keeps its last height until Bases fills it in (2026-09-24)
 
-Partly replaced by D-054: heights are no longer saved.
+Superseded in part by D-054: heights are no longer saved.
 
 **Decision:** `NoteBases` saves the height each Base last had, for each note,
 layout and digest of its source. When the Base is drawn again, it is held at
 that height as `min-height` until the drawn view reaches it, or for 2s. A height
 is saved once nothing in its note has changed size for 300ms without a held
-height, and never when the note is emptied or before it is drawn again: a
+height, and never when the note is unloaded or before it is re-rendered: a
 closing view is not laid out, and a Base left half filled keeps the height it
 had. The heights, and which Bases were too wide, are kept between sessions in
 `LayoutMemory` ([ADR 0010](adr/0010-layout-memory.md)), because Back builds the
@@ -640,15 +640,15 @@ away and back.
 
 **Rejected:**
 
-- Holding the whole block until it stops changing — nothing says when a note is
-  done, and only Bases were measured causing a dip.
+- Holding the whole block until it settles — nothing says when a note is done,
+  and only Bases were measured causing a dip.
 - Each Base waiting only for its own size changes — tried: on a phone, notes
   flickered as they scrolled back into view.
 
 ## D-036 — The stream keeps its own scroll position where the platform does not (2026-09-24)
 
-Partly replaced by D-053, which changes what is moved, and by D-090, which moves
-the shift into the scroll when a bounce at the top ends.
+Superseded in part by D-053, which changes what is moved, and by D-090, which
+moves the shift into the scroll when a bounce at the top ends.
 
 **Decision:** in the iOS app, and wherever
 `CSS.supports("overflow-anchor", "auto")` is false, `ScrollAnchor` turns the
@@ -656,8 +656,8 @@ browser's own anchoring off. It watches the height of every block, and makes up
 for the change of any block entirely above the pane: first as a `transform` on
 the stream, and then, once scrolling stops, as `scrollTop` in the same frame.
 
-**Why:** a note above the reader that was drawn taller than its estimated height
-pushed the text down: e2e mobile, with anchoring off, measured 2673px.
+**Why:** a note above the reader that was rendered taller than its estimated
+height pushed the text down: e2e mobile, with anchoring off, measured 2673px.
 Chromium's own anchoring absorbs this. iOS's WebKit says yes to `CSS.supports`
 but keeps no place: a trace from a phone's Web Inspector showed the anchor never
 turned on. Tested on a phone, the shift kept the place, while setting
@@ -676,8 +676,8 @@ smoothly to its top. `ScrollAnchor` is told first, and a scroll that reaches the
 top drops what it owes instead of moving it into the scroll position.
 
 **Why:** in iOS apps, a tap on the title bar scrolls to the top. Notes above the
-reader are drawn on the way up, and moving their growth into the scroll stopped
-the scroll 23,386px before the top in e2e.
+reader are rendered on the way up, and moving their growth into the scroll
+stopped the scroll 23,386px before the top in e2e.
 
 **Rejected:**
 
@@ -687,23 +687,23 @@ the scroll 23,386px before the top in e2e.
 
 ## D-038 — Text next to a block element is wrapped in a span (2026-09-25)
 
-**Decision:** after a note is drawn, each piece of loose text that shares its
+**Decision:** after a note is rendered, each piece of loose text that shares its
 parent with a block element, such as a list item's words above its nested list,
 is wrapped in `span.daily-note-text-run`, before sections are made foldable.
 
-**Why:** WebKit draws no CSS highlight on such text, and no layout of the parent
-changes that, so search on iOS marked nothing in list items with children. The
-wrapping happens once each time a note is drawn, so folding, keys
-(`textContent`) and search see the same DOM from the start, unlike the `<mark>`
-wrappers for each search that D-022 rejects.
+**Why:** WebKit paints no CSS highlight on such text, and no layout of the
+parent changes that, so search on iOS marked nothing in list items with
+children. The wrapping happens once each time a note is rendered, so folding,
+keys (`textContent`) and search see the same DOM from the start, unlike the
+`<mark>` wrappers for each search that D-022 rejects.
 
 **Rejected:**
 
-- A CSS layout for the item — with flow-root, flex, grid or block, WebKit draws
+- A CSS layout for the item — with flow-root, flex, grid or block, WebKit paints
   no highlight.
 - Wrapping only on WebKit — two different DOM structures, and desktop e2e would
   test the other one.
-- Wrapping inline elements too — WebKit already draws highlights inside them.
+- Wrapping inline elements too — WebKit already paints highlights inside them.
 
 ## D-039 — Release tags are annotated from 1.0.0 (2026-09-25)
 
@@ -790,7 +790,7 @@ be made again.
 
 ## D-045 — The README recording is an animated PNG, made with ImageIO (2026-09-25)
 
-Replaced by D-116: the recordings are animated WebPs.
+Superseded by D-116: the recordings are animated WebPs.
 
 **Decision:** the e2e tests record the scene, and `scripts/frames-to-apng.swift`
 encodes the frames with macOS's ImageIO. It writes the APNG chunks itself, each
@@ -807,21 +807,20 @@ MB that way, and 2.5 MB as changed rectangles.
 - MP4 — GitHub only plays videos uploaded by hand, not ones in the repo.
 - ffmpeg or gifski — something to install for what the system already does.
 
-## D-046 — A note is drawn again on every save, even while typing (2026-09-25)
+## D-046 — A note is re-rendered on every save, even while typing (2026-09-25)
 
-**Decision:** the stream draws a note again on each metadataCache `changed`
+**Decision:** the stream re-renders a note on each metadataCache `changed`
 event, even while someone is typing in it. It catches up save by save, about two
 seconds behind the editor.
 
 **Why:** the README promises live updates, and Obsidian's own panes update as
-you type. The cost of the extra drawing has not been measured.
+you type. The cost of the extra rendering has not been measured.
 
 **Rejected:**
 
-- Waiting to draw again until typing stops (`editor-change` plus a 2.5 s timer)
-  — a minute of steady typing would leave the stream out of date for that
-  minute. Think again if drawing again is seen to shake the stream next to an
-  editor.
+- Waiting to re-render until typing stops (`editor-change` plus a 2.5 s timer) —
+  a minute of steady typing would leave the stream out of date for that minute.
+  Think again if re-rendering is seen to shake the stream next to an editor.
 
 ## D-047 — A build for a phone shows its name when it loads (2026-09-25)
 
@@ -857,22 +856,22 @@ note flashed on desktop, and older ones on a phone.
 
 **Rejected:**
 
-- Hiding the stream until it stops changing — up to a second of blank screen on
-  a phone.
+- Hiding the stream until it settles — up to a second of blank screen on a
+  phone.
 - Opening titles in a new tab so the stream stays open — then Back no longer
   returns to it.
-- Saving the heights in the place — replaced by ADR 0010, which keeps them for
+- Saving the heights in the place — superseded by ADR 0010, which keeps them for
   every view and session.
 - Only note heights, without what Bases measured — a Base inside a note is still
-  drawn empty and fills in again, whatever height its note has. (Replaced by
+  drawn empty and fills in again, whatever height its note has. (Superseded by
   D-054.)
 
-## D-049 — A note's height is remembered once it stops changing (2026-09-25)
+## D-049 — A note's height is remembered once it settles (2026-09-25)
 
-**Decision:** a drawn note's height is saved in `LayoutMemory` once nothing in
-it has changed size for 300ms, as a Base's is. When a note is emptied, it keeps
-the height it measures then, and that height is only remembered if the note had
-stopped changing.
+**Decision:** a rendered note's height is saved in `LayoutMemory` once nothing
+in it has changed size for 300ms, as a Base's is. When a note is unloaded, it
+keeps the height it measures then, and that height is only remembered if the
+note had stopped changing.
 
 **Why:** a Base that is filling in, or an image that is loading, is too short
 until it is done. If that short height were saved, it would be the next
@@ -921,7 +920,7 @@ to the note's width (`src/render/wide-equations.ts`).
 
 **Rejected:**
 
-- `overflow: clip`, as for code blocks — it cuts off the end of the equation.
+- `overflow: clip`, as for code blocks — it clips the end of the equation.
 - Inline math — it is part of a line of text, and shrinking it there would
   change the line's text size in the middle of a sentence.
 
@@ -938,7 +937,7 @@ finds the block by binary search on the list of blocks.
 
 - It stops at anything with a held height, because a held note's text is not yet
   where Back measured the place.
-- Before each new choice, it records what moved as owed, because a note drawn
+- Before each new choice, it records what moved as owed, because a note rendered
   between frames reaches the scroll event before its resize report.
 - If the element is replaced, the anchor uses its block instead.
 
@@ -949,20 +948,20 @@ screen only changes what is below it.
 
 **Rejected:**
 
-- Holding a Base's growth — the same move happens later, with rows cut off in
+- Holding a Base's growth — the same move happens later, with rows clipped in
   the meantime.
 - Going down through the note — reads every paragraph on each scroll frame.
 - `IntersectionObserver` — reports one frame late.
 
-## D-054 — Notes and Bases are held until they stop changing (2026-09-26)
+## D-054 — Notes and Bases are held until they settle (2026-09-26)
 
 **Decision:** each is held at `min-height` until nothing in it changes size for
 300ms, and for 2s at most:
 
-- a drawn note, at a height it measured before (remembered, or shown before it
-  was drawn again), never at a guess. A touch releases it, so a fold shows at
+- a rendered note, at a height it measured before (remembered, or shown before
+  it was re-rendered), never at a guess. A touch releases it, so a fold shows at
   once.
-- a Base, at the height it showed, when it is drawn again, or when it shrinks by
+- a Base, at the height it showed, when it is re-rendered, or when it shrinks by
   itself (a live Bases refresh). It grows without a hold.
 
 Base heights are no longer saved: a Base that comes back is held by its note.
@@ -978,12 +977,12 @@ each Base were a second cache.
 
 ## D-055 — A new width does not change an empty block's height (2026-09-26)
 
-Partly replaced by ADR 0014: empty blocks get new heights once scrolling stops.
-The anchor is still kept when the distances are computed again.
+Superseded in part by ADR 0014: empty blocks get new heights once scrolling
+stops. The anchor is still kept when the distances are computed again.
 
 **Decision:** when the width changes, an empty note keeps its height until it is
-drawn. Only the height it is held at when it is drawn comes from the new width.
-The scroll anchor is kept when the distances are computed again.
+rendered. Only the height it is held at when it is rendered comes from the new
+width. The scroll anchor is kept when the distances are computed again.
 
 **Why:** shrinking empty blocks makes the stream shorter under the scroll. The
 browser pulls the scroll back at once, `ScrollAnchor` counted that as the
@@ -997,7 +996,7 @@ keep while the notes on screen reflow, and the reader's place moved 120 px.
 - Only for those above the pane — the browser pulls the scroll back once they
   shrink by more than the content below the pane.
 
-## D-056 — A Base drawn again under the pane's top keeps the reader the same fraction of the way through (2026-09-27)
+## D-056 — A Base re-rendered under the pane's top keeps the reader the same fraction of the way through (2026-09-27)
 
 **Decision:** when the pane's top is inside a Base, `ScrollAnchor` keeps the
 reader the same fraction of the way through the Base, not at the Base's top. The
@@ -1005,7 +1004,7 @@ fraction is of what the Base draws, not of the box held at a fixed height for
 it. When the browser pulls the scroll back to the stream's end, that is not the
 reader's own scroll.
 
-**Why:** a turned phone draws cards again as a table, so the entry being read is
+**Why:** a turned phone re-renders cards as a table, so the entry being read is
 gone, and kept at the Base's top, the reader ended up anywhere. Cards and rows
 are in the same order, so the fraction still works. Below a note the reader had
 jumped to, the stream shrank by more than the content below the pane, and the
@@ -1044,7 +1043,7 @@ fully visible for the same reason.
 - Only the first report after the width changes — the text reflows over several
   frames.
 - A card, or a heading below a Base — on a phone, the cards reflow before the
-  Base is drawn again, and a card's position says nothing about the reader's.
+  Base is re-rendered, and a card's position says nothing about the reader's.
 - Reading the place again on each frame — during a turn, the place read was a
   Base emptied to be drawn again, and then the Base's note, whose top never
   moved as the Base shrank.
@@ -1058,9 +1057,9 @@ anything above the match in its note, changes size, until nothing changes for
 height is held at it, so a Base filling in inside it changes the size of nothing
 outside it.
 
-**Why:** Bases fill in after the note is drawn, which `scrollIntoPlace` does not
-count, and a Base above the match pushed it off screen, leaving the reader on
-the Base.
+**Why:** Bases fill in after the note is rendered, which `scrollIntoPlace` does
+not count, and a Base above the match pushed it off screen, leaving the reader
+on the Base.
 
 **Rejected:**
 
@@ -1068,20 +1067,20 @@ the Base.
   them, and so would every step.
 - Scroll anchoring — it keeps the note's top, not the match.
 - Checking the match's position on each frame — a change made after that frame's
-  `requestAnimationFrame` callback is drawn with the match off screen for one
-  frame, while a resize report comes before the frame is drawn.
+  `requestAnimationFrame` callback is painted with the match off screen for one
+  frame, while a resize report comes before the frame is painted.
 
 ## D-059 — A Base's header and summaries scroll with it, on mobile (2026-09-27)
 
 **Decision:** on mobile, a Base table's header is `position: static`, and its
 summary row is `bottom: auto`, sticky with no inset (`styles.css`, D-153).
 
-**Why:** Bases fixes both to its own scrolling box. ADR 0008 removes that box,
-so they were fixed to the stream's instead, and floated over the notes.
+**Why:** Bases pins both to its own scroll container. ADR 0008 removes that box,
+so they were pinned to the stream's instead, and floated over the notes.
 
 **Rejected:**
 
-- Leaving them fixed to the stream — they cover other notes' text.
+- Leaving them pinned to the stream — they cover other notes' text.
 - Giving the Base back its scrolling box — ADR 0008.
 
 ## D-060 — Submission rules are in ESLint where a lint rule can check them (2026-09-27)
@@ -1113,15 +1112,15 @@ be held until then, and it needs no internals.
 - Using Obsidian's internal backlinks component — it brings Better Search Views
   and unlinked mentions, but fills in on its own schedule, and can only be
   reached through internals.
-- Going through every note's links for each drawn note — the index answers from
-  one pass.
+- Going through every note's links for each rendered note — the index answers
+  from one pass.
 
-## D-062 — Drawing a note never waits for its footer; the held height does (2026-09-28)
+## D-062 — Rendering a note never waits for its footer; the held height does (2026-09-28)
 
 **Decision:** `renderInto` returns while the footer is still reading the linking
 notes. `NoteWindow` keeps the note's `HeightHold` until the footer finishes,
-then waits for the note to stop changing as before. The footer draws itself
-again on `resolved`, for each note, until the note is emptied.
+then waits for the note to settle as before. The footer renders itself again on
+`resolved`, for each note, until the note is unloaded.
 
 **Why:** the render queue also handles vault events, and a footer reads other
 notes. Ending the hold before the footer draws let a returning note dip, which
@@ -1131,8 +1130,8 @@ jumps on iOS.
 
 - Waiting for the footer in the queue — every render and vault event would wait
   while other notes are read.
-- Queuing the footer's drawing through the view (ADR 0004) — a footer changes no
-  stream state, and emptying its note already stops it.
+- Queuing the footer's rendering through the view (ADR 0004) — a footer changes
+  no stream state, and unloading its note already stops it.
 
 ## D-063 — The demo vault is the default; the test vault needs `--test` (2026-09-28)
 
@@ -1216,10 +1215,10 @@ would be just as empty when the view opens. Its documentation only promises
 - Dropping a search once a newer one replaces it — at 5 ms there is nothing to
   save.
 
-## D-068 — Bases and wide content stay part of drawing the note (2026-09-28)
+## D-068 — Bases and wide content stay part of rendering the note (2026-09-28)
 
-**Decision:** on mobile, drawing a note still waits for each Base, then measures
-its tables and equations in place.
+**Decision:** on mobile, rendering a note still waits for each Base, then
+measures its tables and equations in place.
 
 **Why:** scrolling through 40 notes, each embedding a Base over 1,825 notes,
 plus equations and a wide table (`e2e-tests/render-cost.spec.ts`, CPU slowed 4x
@@ -1273,7 +1272,7 @@ either.
 ## D-071 — A failure only breaks one thing, and is logged (2026-09-28)
 
 **Decision:** every asynchronous entry point and every localStorage save catches
-errors, logs them to the console, and carries on. A note that cannot be drawn
+errors, logs them to the console, and carries on. A note that cannot be rendered
 says so, a read that fails shows its note, a refused save is logged once
 (`saveLoggingOnce`), saved state that cannot be read counts as none, and a list
 that fails to build lists nothing until the next refresh. Only a failed jump
@@ -1303,7 +1302,7 @@ next check. A check that left any note unread saves nothing.
 
 **Why:** the first open only reads the notes that could be empty, and a later
 open only reads what changed. A written note costs nothing to save, and an empty
-one about 40 bytes. A note emptied on another device, and synced with a change
+one about 40 bytes. A note unloaded on another device, and synced with a change
 time older than the last check, is shown until it next changes.
 
 **Rejected:**
@@ -1353,8 +1352,8 @@ the end is closest when nothing older is left.
 
 ## D-078 — Settings are grouped under headings; a hidden section hides its fold switch (2026-09-30)
 
-Partly replaced by D-114: groups instead of heading rows, and nothing is drawn
-again.
+Superseded in part by D-114: groups instead of heading rows, and nothing is
+re-rendered.
 
 **Decision:** the settings tab puts Properties and Linked mentions under
 `Setting.setHeading()` rows, with Hide empty notes above them. A section's
@@ -1371,7 +1370,7 @@ did not make that clear.
 
 ## D-079 — An empty block never measured here gets a height estimated from its text (2026-09-30)
 
-Replaced by D-092.
+Superseded by D-092.
 
 **Decision:** a note with no height saved for the layout gets the first of these
 that applies:
@@ -1383,7 +1382,7 @@ that applies:
   embeds × a height per embed learned in this layout (the pane's height until
   one is learned);
 - otherwise the layout's median. The number of lines comes from the metadata
-  cache, so adding a block still happens immediately. Benchmark:
+  cache, so adding a block stays synchronous. Benchmark:
   `e2e-tests/estimates.spec.ts`, scored by `scripts/score-estimates.mjs`.
 
 **Why:** a turn only changes a text note by wrapping it again, and every note is
@@ -1401,7 +1400,7 @@ never measured, from about 330px (a fixed 400px) to about 50px.
 
 ## D-080 — After a turn, a note's Bases change by what the same Base changed in other notes (2026-10-01)
 
-Replaced by D-092.
+Superseded by D-092.
 
 **Decision:** a note estimated from its height at another width (D-079) adds,
 for each Base it embeds, the median change for that Base, apart from text
@@ -1423,7 +1422,7 @@ note. The error for embeds after a turn went from 378px to 35px.
 
 ## D-081 — After a turn to a wider screen, a note with an unknown Base is estimated from its template (2026-10-01)
 
-Replaced by D-092.
+Superseded by D-092.
 
 **Decision:** a note measured only at a narrower width, embedding a Base whose
 change D-080 has not learned yet, is estimated from the template and its lines
@@ -1431,10 +1430,10 @@ change D-080 has not learned yet, is estimated from the template and its lines
 then, it is estimated as D-080 says.
 
 **Why:** cards at the narrower width may be a table here, up to about 1,400px
-shorter, and until a note with that Base has stopped changing at both widths,
-nothing says so. In the demo journal, with notes containing Bases turned to
-landscape, the average error went from 782px to 224px, and the worst
-overestimate from 1,408px to 353px.
+shorter, and until a note with that Base has settled at both widths, nothing
+says so. In the demo journal, with notes containing Bases turned to landscape,
+the average error went from 782px to 224px, and the worst overestimate from
+1,408px to 353px.
 
 **Rejected:**
 
@@ -1447,7 +1446,7 @@ overestimate from 1,408px to 353px.
 
 ## D-082 — A jump or search step draws its whole note before scrolling (2026-10-01)
 
-**Decision:** the target note is drawn off screen, and the jump waits for its
+**Decision:** the target note is rendered off screen, and the jump waits for its
 Bases' queries (`is-loading` removed, one frame later, at most
 `BASES_LOAD_LIMIT_MS`). Then it scrolls once: a jump to the note's top, and a
 search step to the match (`basesLoaded`, `NoteStream.ready`).
@@ -1461,17 +1460,17 @@ centering.
 - Hiding a Base until it fills in — blank space, then cards suddenly appearing.
 - Remembering each Base's height — the space is right, but the "0 results" bar
   still shows.
-- Also drawing the notes around it first — the Bases that matter are in the
-  match's own note, and the notes around it are drawn as on any scroll.
+- Also rendering the notes around it first — the Bases that matter are in the
+  match's own note, and the notes around it are rendered as on any scroll.
 
 ## D-083 — On mobile, a PDF embed shows its first page, and a tap opens it (2026-10-01)
 
-**Decision:** under `.is-mobile`, a PDF embed is cut off like a Base, with its
+**Decision:** under `.is-mobile`, a PDF embed is clipped like a Base, with its
 toolbar hidden, and a tap anywhere on it opens the PDF at the embed's page,
-through the link handlers (`NoteRenderer.linkAt`). A frame is limited to the
+through the link handlers (`NoteRenderer.linkAt`). An `iframe` is limited to the
 note's width everywhere.
 
-**Why:** once cut off, Obsidian's viewer shows page 1, and its toolbar cannot
+**Why:** once clipped, Obsidian's viewer shows page 1, and its toolbar cannot
 reach any other page. A pasted video embed's fixed width made the page scroll
 sideways on a phone.
 
@@ -1482,25 +1481,25 @@ sideways on a phone.
 - Leaving the viewer working — it is a scrolling box, which stops iOS's
   scrolling (ADR 0008).
 
-## D-084 — Dataview's queries are cut off and stacked like the note's own content (2026-10-01)
+## D-084 — Dataview's queries are clipped and stacked like the note's own content (2026-10-01)
 
 **Decision:**
 
-- On mobile, the stylesheet cuts off Dataview's blocks, which Dataview's own
+- On mobile, the stylesheet clips Dataview's blocks, which Dataview's own
   stylesheet makes scroll.
 - `stackWideTables` stacks a table whenever one is added or filled in, not only
-  when the note is drawn.
-- e2e uses a fixed Dataview release, downloaded once into `.dev/`
+  when the note is rendered.
+- e2e uses a pinned Dataview release, downloaded once into `.dev/`
   (`e2e-tests/dataview.ts`).
 
 **Why:** Dataview draws after the note is drawn, in several passes. Its wide
-tables were cut off instead of stacked, and each block was a scrolling box until
+tables were clipped instead of stacked, and each block was a scrolling box until
 the guard caught it after scrolling stopped.
 
 **Rejected:**
 
-- Only the scroll box guard — it cuts off blocks once scrolling stops, so a
-  block drawn while scrolling scrolls during that scroll.
+- Only the scroll box guard — it clips blocks once scrolling stops, so a block
+  drawn while scrolling scrolls during that scroll.
 - A fake plugin that draws tables late in e2e — proves nothing about Dataview's
   own stylesheet or render passes.
 - Dataview saved in the repo — 2.3 MB of someone else's build.
@@ -1525,7 +1524,7 @@ in v4 as not needed. Obsidian came with v3.
 - Overriding with the same specificity as MathJax — its stylesheet comes later
   and wins.
 
-Replaced 2026-10-07: Obsidian 1.14 comes with MathJax 4, which sets no
+Superseded 2026-10-07: Obsidian 1.14 comes with MathJax 4, which sets no
 `will-change`, and the plugin needs 1.14 (D-100). The rule is gone. The WebKit
 check stays, in case MathJax brings the layers back.
 
@@ -1544,16 +1543,17 @@ phone for them left it never locking if they forgot `pnpm run ios:release`.
   went through Settings pages that have Delete buttons, failed in Low Power Mode
   and on an iPad, and took about 18 s each session.
 
-## D-087 — On mobile, a frame loads its page once scrolling stops (2026-10-03)
+## D-087 — On mobile, an `iframe` loads its page once scrolling stops (2026-10-03)
 
-**Decision:** `FrameDeferral` removes the `src` from each frame a note draws,
-using a mutation observer, and puts it back once scrolling has stopped for
-`SCROLL_IDLE_MS`. Meanwhile, the frame has a background color, as a placeholder.
+**Decision:** `FrameDeferral` removes the `src` from each `iframe` a note
+renders, using a mutation observer, and puts it back once scrolling has stopped
+for `SCROLL_IDLE_MS`. Meanwhile, the frame has a background color, as a
+placeholder.
 
-**Why:** a YouTube frame drawn while scrolling stopped 10–13 of 20 iPhone flicks
+**Why:** a YouTube frame rendered mid-glide stopped 10–13 of 20 iPhone flicks
 completely. With its `src` held back, 0 of 20. A page that is already loading
 when a flick starts stops none. The same frame on `about:blank`, or a box of the
-same size, stops none: starting to load the page is what stops the scroll.
+same size, stops none: starting to load the page is what stops the glide.
 
 **Rejected:**
 
@@ -1561,16 +1561,16 @@ same size, stops none: starting to load the page is what stops the scroll.
 - A tap to load every frame, like the PDF (D-083) — hides a page that can work
   in place. YouTube's player does not work in the app, so it is a thumbnail
   (D-088).
-- Changing `src` in the Markdown before drawing — a code block that shows a
+- Changing `src` in the Markdown before rendering — a code block that shows a
   frame would show the change.
 
 ## D-088 — On mobile, a YouTube embed is its thumbnail, which links to the video (2026-10-03)
 
-**Decision:** on mobile, `FrameDeferral` replaces a YouTube embed's frame with
-`youtubeThumbnail`: the video's thumbnail under the play button of YouTube's
-player, at the player's size, linking to the video at the embed's start time.
-The thumbnail is the 1,280 px one, or otherwise the 480 px one every video has.
-Desktop keeps the player.
+**Decision:** on mobile, `FrameDeferral` replaces a YouTube embed's `iframe`
+with `youtubeThumbnail`: the video's thumbnail under the play button of
+YouTube's player, at the player's size, linking to the video at the embed's
+start time. The thumbnail is the 1,280 px one, or otherwise the 480 px one every
+video has. Desktop keeps the player.
 
 **Why:** in the iOS app, the player only shows "Error 153", and a frame held
 back (D-087) is a grey box that names nothing. A tap opens YouTube, or its app.
@@ -1602,13 +1602,13 @@ text column, which looks like an extra margin under a heading.
 - From edge to edge, as Obsidian's reading view draws a Base — wider than the
   text column on both sides, unlike everything else in the stream's notes.
 
-## D-090 — When a scroll bounces at the top, the shift moves into the scroll as the bounce ends (2026-10-03)
+## D-090 — When a glide bounces at the top, the shift moves into the glide as the bounce ends (2026-10-03)
 
 **Decision:** after the scroll goes past the top, `ScrollAnchor.onScroll` moves
 what it owes into the scroll position at the first scroll event back at or below
 the top, instead of waiting until scrolling has stopped for `SCROLL_IDLE_MS`.
 
-**Why:** scrolling up past notes that are drawn taller than their estimated
+**Why:** scrolling up past notes that are rendered taller than their estimated
 height runs out of scroll first, and bounces at the top while still owing their
 growth (ADR 0010). On a phone, moving the shift into the scroll came 328 ms
 after the bounce, and a flick made in the meantime reached the same top and
@@ -1617,10 +1617,10 @@ position does not cut a scroll short.
 
 **Rejected:**
 
-- Moving the shift into the scroll as the scroll reaches the top — iOS undid it
-  in the next frame, during the bounce, and the stream jumped 3,000 px.
+- Moving the shift into the glide as the glide reaches the top — iOS undid it in
+  the next frame, during the bounce, and the stream jumped 3,000 px.
 
-## D-091 — A scroll stops at the stream's top while the stream is shifted (2026-10-03)
+## D-091 — A glide stops at the stream's top while the stream is shifted (2026-10-03)
 
 **Decision:** while `ScrollAnchor` owes a shrink, a scroll that will bring the
 stream's top into the pane within two more steps the size of its last step sets
@@ -1629,8 +1629,8 @@ frame (`is-scroll-frozen`, `overflow: hidden`), so the scroll stops with the
 newest note at the top. When the browser pulls the scroll back to the stream's
 end, that does not count as a step.
 
-**Why:** when notes above are drawn shorter than their estimated height, the
-scroll has more room left than there is content above. The scroll reached the
+**Why:** when notes above are rendered shorter than their estimated height, the
+scroll has more room left than there is content above. The glide reached the
 newest note with room left, and went on into empty space: 1.7–4.6k px in the
 iPhone tests. iOS keeps scrolling after the scroll position is set, and undoes
 it in the next frame, but with nothing left to scroll, the scroll ends. The
@@ -1661,7 +1661,7 @@ D-079–D-081's estimates from each note's text, template and Bases.
 **Why:** an estimate only matters away from the usual path: after a jump,
 search, Back or turn, when scrolling up through notes not drawn yet. Scrolling
 down from the top measures every note before it is passed. There, too tall is
-safe, because D-091 stops the scroll on the newest note, while too short costs
+safe, because D-091 stops the glide on the newest note, while too short costs
 one more flick (D-090). It only uses the vault's own notes, so nothing is tuned
 to a journal we made up.
 
@@ -1701,18 +1701,19 @@ which is what breaks most often on iOS.
 
 **Decision:** tables, equations and Bases hear about a note's width change
 through one `ResizeObserver` for each view (`note-widths.ts`), not one each for
-every drawn note. `NoteWindowManager` and `ScrollAnchor` keep one observer each.
+every rendered note. `NoteWindowManager` and `ScrollAnchor` keep one observer
+each.
 
 **Why:** the three width observers were the same code written three times,
 waking up on every height change only to find the width the same. A screen of
-notes on a phone ran about 24 observers, and now runs about 6. The fixed heights
-and the anchor watch different sets: the anchor watches every block, and the
-fixed heights only drawn ones. So one observer would need to count who watches
-what.
+notes on a phone ran about 24 observers, and now runs about 6. The pinned
+heights and the anchor watch different sets: the anchor watches every block, and
+the pinned heights only rendered ones. So one observer would need to count who
+watches what.
 
 **Rejected:**
 
-- One observer for the fixed heights and the anchor — saves one observer per
+- One observer for the pinned heights and the anchor — saves one observer per
   view, at the cost of rewriting the anchor's tests and sharing bookkeeping in
   ADR 0013's code.
 
@@ -1720,19 +1721,18 @@ what.
 
 **Decision:**
 
-- A block with a fixed height is not observed. Such a block is a drawn note held
-  at a fixed height (ADR 0013). Its height only changes in `repin`, which tells
-  the scroll anchor directly. The anchor only observes a block while its height
-  is not fixed.
+- A pinned block is not observed: a rendered note held at a fixed height (ADR
+  0013). Its height only changes in `repin`, which tells the scroll anchor
+  directly. The anchor only observes a block while it is not pinned.
 - A Base is held at the tallest height it has had since it was first laid out. A
   shrink is then already covered by the hold, so nothing has to change size in a
   callback. The Base's callback only raises the hold. A timer releases the hold
   once the Base stops changing, or after `HOLD_LIMIT_MS`.
-- When a Base must be drawn again because its width changed or Bases reported
-  its layout, it is drawn again in the next task, not in the callback.
+- When a Base must be re-rendered because its width changed or Bases reported
+  its layout, it is re-rendered in the next task, not in the callback.
 
-Partly replaced by D-159: a Base's box now has a fixed height, and grows in the
-next task instead of in its callback.
+Superseded in part by D-159: a Base's box now has a fixed height, and grows in
+the next task instead of in its callback.
 
 **Why:** WebKit logs "ResizeObserver loop completed with undelivered
 notifications" as an error when a ResizeObserver callback changes the size of an
@@ -1744,8 +1744,8 @@ turned. The late size report did no harm; the logged error was the only cost.
 
 - Ignoring the error in the iPhone tests' console check — the error is the
   plugin's own, and it came on every scroll.
-- Fixing the height again one frame later — the block's height would change
-  without the anchor being told in the same task, which breaks ADR 0013.
+- Re-pinning one frame later — the block's height would change without the
+  anchor being told in the same task, which breaks ADR 0013.
 - `requestAnimationFrame` for drawing again — it never runs in the e2e tests'
   hidden window.
 
@@ -1772,7 +1772,7 @@ and result count shrink and end in "…" as in Obsidian, which the stream's
 
 **Why:** a Base in the stream is as wide as the text, 354px on a phone, while
 Obsidian's is 402px from edge to edge (D-089). So the toolbar was up to 41px too
-wide: New was cut off, and shrinking alone left "Resized" as "R…". Without New,
+wide: New was clipped, and shrinking alone left "Resized" as "R…". Without New,
 it shows "Resiz…", and a short name, such as "Books", shows in full with its
 count. New creates `Untitled.md` with one tap, without asking, which is easy to
 hit while scrolling. Opening the note or the `.base` file still shows it.
@@ -1784,9 +1784,9 @@ hit while scrolling. Opening the note or the `.base` file still shows it.
   Properties change the `.base` file anyway.
 - Wrapping the toolbar onto two lines — adds a row's height to every Base.
 
-## D-098 — On mobile, a web page in a frame is a preview that links to the page (2026-10-05)
+## D-098 — On mobile, a web page in an `iframe` is a preview that links to the page (2026-10-05)
 
-**Decision:** on mobile, a frame in the stream gets no touches
+**Decision:** on mobile, an `iframe` in the stream gets no touches
 (`pointer-events: none`), and `FrameDeferral` wraps a frame showing an `http(s)`
 page in a link to it (`webPageLink`). The page loads once scrolling stops, as
 before (D-087). Desktop keeps frames working.
@@ -1811,17 +1811,17 @@ opens.
 fixed:
 
 - A Base's table draws rows blank for one frame when a note above it is drawn
-  while scrolling, because Bases only chooses its visible rows again after the
-  frame is drawn. Found by `src/probe.ts` in commit `d9cdb4f`.
+  mid-glide, because Bases only chooses its visible rows again after the frame
+  is drawn. Found by `src/probe.ts` in commit `d9cdb4f`.
 - An image loading inside the note at the pane's top may jump for one frame (ADR
-  0013's consequences). Never seen, because notes are drawn a screen ahead, so
-  their images have usually loaded.
+  0013's consequences). Never seen, because notes are rendered a screen ahead,
+  so their images have usually loaded.
 - D-091's stop may set the scroll while a finger is on the screen, during a slow
   drag past the newest note. The tests only use flicks.
 
 **Why:** each lasts one frame, while things are moving. A fix depends on
 undocumented Bases or iOS behavior, and only a phone recording can confirm it,
-because the tests take their measurements before the height is fixed again.
+because the tests take their measurements before the re-pin.
 
 **Rejected:**
 
@@ -1876,9 +1876,9 @@ lost the place.
 the scroll position before it reads the reader's place.
 
 **Why:** while something is owed, the stream is shifted, not where the scroll
-position says. At the stream's end, a pulled-back scroll kept as a shift drew
-every note above the pane, so `place()` found no note in the pane, and hiding
-empty notes there reloaded at the top.
+position says. At the stream's end, a pulled-back scroll kept as a shift
+rendered every note above the pane, so `place()` found no note in the pane, and
+hiding empty notes there reloaded at the top.
 
 **Rejected:**
 
@@ -1923,10 +1923,10 @@ in the other direction.
 **Decision:** `NoteHeights` keeps heights rounded to 1/64px, the unit browsers
 lay out in, not to whole pixels.
 
-**Why:** an empty block got a whole-pixel height, and its note was drawn up to
-half a pixel different. The anchor owed the difference, and scrolling up by hand
-stopped 1px before the top. With exact heights, a note not changed since it was
-measured owes nothing. An edited note is estimated (ADR 0017), and a changed
+**Why:** an empty block got a whole-pixel height, and its note was rendered up
+to half a pixel different. The anchor owed the difference, and scrolling up by
+hand stopped 1px before the top. With exact heights, a note not changed since it
+was measured owes nothing. An edited note is estimated (ADR 0017), and a changed
 embed owes whatever it changed, either way. Keeping sizes as measured is normal
 practice: browsers add up anchoring corrections smaller than a pixel
 (web-platform-tests' `device-pixel-adjustment.html`), and TanStack Virtual keeps
@@ -1956,10 +1956,10 @@ others: 3px at 16px, and 10px at 28px on an iPhone, in reading view too.
 ## D-107 — On mobile, a kanban Base too wide for its note is drawn as cards (2026-10-07)
 
 **Decision:** a kanban view follows D-033. Measured by the width Bases sets on
-its board, it is drawn again as cards, with its `groupBy` kept, so each column
+its board, it is re-rendered as cards, with its `groupBy` kept, so each column
 becomes a group.
 
-**Why:** when cut off (ADR 0008), a phone showed the first of a board's 280px
+**Why:** when clipped (ADR 0008), a phone showed the first of a board's 280px
 columns, and none of the others.
 
 **Rejected:**
@@ -1970,26 +1970,26 @@ columns, and none of the others.
   found for tables.
 - Cards for every kanban, without measuring — a board with one column fits.
 
-## D-108 — When a Base changes its own height, its note's height is fixed again in the same task (2026-10-08)
+## D-108 — When a Base changes its own height, its note re-pins in the same task (2026-10-08)
 
-Partly replaced by D-159: each Base's box now has a fixed height.
+Superseded in part by D-159: each Base's box now has a fixed height.
 
-**Decision:** a Base's box tells its note, with an immediate `BASE_RESIZED`
+**Decision:** a Base's box tells its note, with a synchronous `BASE_RESIZED`
 event, when its hold is released, or when a draw that was being measured turns
-out to fit. The note's height is then fixed again, and the anchor shifts, in
-that task (ADR 0013). A Base drawn as written in place of cards, so it can be
-measured, is cut off at the cards' height until it is measured.
+out to fit. The note then re-pins, and the anchor shifts, in that task (ADR
+0013). A Base rendered as written in place of cards, so it can be measured, is
+clipped at the cards' height until it is measured.
 
 **Why:** both changes reached the note through a `ResizeObserver` report, which
-iOS draws one frame later, so text below a Base in the same note jumped away and
-back: 1219px for a table drawn again as cards, and 510px each way for a kanban
-(D-107).
+iOS paints one frame later, so text below a Base in the same note jumped away
+and back: 1219px for a table painted again as cards, and 510px each way for a
+kanban (D-107).
 
 **Rejected:**
 
-- Fixing the height of every Base's box, as notes' heights are fixed — this
-  would also cut off Bases' own live growth for a frame, and would be a bigger
-  change to the hold (D-035, D-054) than these two cases needed.
+- Pinning every Base's box, as notes are pinned — this would also clip Bases'
+  own live growth for a frame, and would be a bigger change to the hold (D-035,
+  D-054) than these two cases needed.
 - A callback from `NoteBases` to `NoteWindowManager` — connects the renderer to
   the stream, which is created after it. The event needs no reference.
 
@@ -2031,10 +2031,10 @@ tests.
 **Decision:** `getSettingDefinitions()` returns Hide empty notes, then a group
 for each section. Obsidian draws each group as a card, hides a fold switch while
 its section is off (`visible`), and lists every switch in its settings search.
-`setControlValue` saves through `saveSettings()`, which draws the streams again.
+`setControlValue` saves through `saveSettings()`, which re-renders the streams.
 
-**Why:** the settings search finds them, and Obsidian draws the tab again
-itself, so the tab has no code for drawing, saving or drawing again.
+**Why:** the settings search finds them, and Obsidian re-renders the tab itself,
+so the tab has no code for rendering, saving or re-rendering.
 
 **Rejected:**
 
@@ -2155,8 +2155,8 @@ old `collapse:*` and `collapse-idx:*` keys are never read. A device build's
 
 **Why:** with one key for each section, the keys could not be listed, so a note
 deleted while the plugin was not listening left its keys forever, without a
-prefix, next to other plugins' keys. Every heading, every time a note was drawn,
-read and parsed one key.
+prefix, next to other plugins' keys. Every heading, every time a note was
+rendered, read and parsed one key.
 
 **Rejected:**
 
@@ -2305,15 +2305,14 @@ in November.
 `@property`, `inherits: false`.
 
 **Why:** a custom property is inherited by default, so each change restyled
-every element under the one it was set on: the whole note each time its height
-was fixed again, and the whole stream at each shift. Fixing the height of a
-10,000-line note again took 140 ms on an M5, and 570 ms with the CPU slowed 4x;
-not inherited, it takes 2–3 ms. A save of that note at phone speed froze the
-page for 4.9 s, and now for 1.8 s. A 200-line note's save froze it for 55 ms,
-and now for less than the 50 ms that makes a task long. A note drawn inside its
-empty block's height (ADR 0020) drops that height once it is done; while the
-property was inherited, that cost one more restyle of the whole note, about 520
-ms at phone speed.
+every element under the one it was set on: the whole note at each re-pin, and
+the whole stream at each shift. Re-pinning a 10,000-line note took 140 ms on an
+M5, and 570 ms with the CPU slowed 4x; not inherited, it takes 2–3 ms. A save of
+that note at phone speed froze the page for 4.9 s, and now for 1.8 s. A 200-line
+note's save froze it for 55 ms, and now for less than the 50 ms that makes a
+task long. A note drawn inside its empty block's height (ADR 0020) drops that
+height once it is done; while the property was inherited, that cost one more
+restyle of the whole note, about 520 ms at phone speed.
 
 **Rejected:**
 
@@ -2321,20 +2320,20 @@ ms at phone speed.
   fast (2 ms), but it needs a rule for each property at every level where
   inheriting must stop.
 
-## D-130 — Every saved note is drawn by section, whatever its length (2026-10-13)
+## D-130 — Every saved note is rendered by section, whatever its length (2026-10-13)
 
-**Decision:** there is no length limit. Any note saved while drawn only draws
-again the sections a save changed, from then on (ADR 0019).
+**Decision:** there is no length limit. Any note saved while rendered only
+re-renders the sections a save changed, from then on (ADR 0019).
 
 **Why:** at phone speed (CPU slowed 4x, `e2e-tests/edit-cost.spec.ts`), a
 200-line note's first save by section causes one task of 61–96 ms, against none
-when drawn all at once. Each save after that costs nothing, against 35 ms. A
+when rendered all at once. Each save after that costs nothing, against 35 ms. A
 length limit tied who uses this path to an M5's speed, and left the path to the
 few readers with long notes, where its problems would only be found late.
 
 **Rejected:**
 
-- From 8,000 characters, where drawing the whole note again first caused a 50 ms
+- From 8,000 characters, where re-rendering the whole note first caused a 50 ms
   task — that number is only true on one machine, and few readers would use the
   path.
 
@@ -2360,7 +2359,7 @@ to the faster mid-range Android phones (about 29 ms estimated for a Galaxy A35).
 
 ## D-132 — The estimate is never just the tallest note (2026-10-13)
 
-Partly replaced by D-135: a note measured alone no longer sets the estimate.
+Superseded in part by D-135: a note measured alone no longer sets the estimate.
 
 **Decision:** D-092's height that 90% of notes are below is taken without the
 tallest note measured in the layout, unless it is the only one.
@@ -2379,19 +2378,20 @@ scrolling next stopped. With more notes measured, nothing changes.
 
 ## D-133 — A frontmatter change only draws the properties again (2026-10-14)
 
-**Decision:** a save that changes a note's frontmatter draws its properties box
-again and updates its body in place (ADR 0019). On mobile, a note with a Base is
-still drawn all at once.
+**Decision:** a save that changes a note's frontmatter renders its properties
+box again and updates its body in place (ADR 0019). On mobile, a note with a
+Base is still rendered all at once.
 
-**Why:** when drawn all at once, a long note lost the elements the anchor uses
-to keep the reader's place. On the iPhone, a reader at the end of a 5,000-line
-note saw 10 blank frames, and the text moved 125 px for good. No section reads
-the frontmatter when drawn, but a Base's formulas may, through `this`.
+**Why:** when rendered all at once, a long note lost the elements the anchor
+uses to keep the reader's place. On the iPhone, a reader at the end of a
+5,000-line note saw 10 blank frames, and the text moved 125 px for good. No
+section reads the frontmatter when rendered, but a Base's formulas may, through
+`this`.
 
 **Rejected:**
 
-- Keeping the reader's distance from the note's end when drawing the whole note
-  — wrong for an edit below the reader, and the blank frames stay.
+- Keeping the reader's distance from the note's end when rendering the whole
+  note — wrong for an edit below the reader, and the blank frames stay.
 
 ## D-134 — A drawn note's runs keep their sections (2026-10-14)
 
@@ -2461,9 +2461,9 @@ again (D-027).
 `FarRuns`, and the renderer and the window reach it through the renderer.
 
 **Why:** the flags are three separate things that combine: what is drawn,
-whether it is out of the layout, and whether emptying is waiting. So a note
-being updated in place can be hidden and waiting to be emptied at the same time.
-Passing `FarRuns` down from `StreamView` would add a parameter to two
+whether it is out of the layout, and whether unloading is waiting. So a note
+being updated in place can be hidden and waiting to be unloaded at the same
+time. Passing `FarRuns` down from `StreamView` would add a parameter to two
 constructors, only to remove one getter.
 
 **Rejected:**
@@ -2474,7 +2474,7 @@ constructors, only to remove one getter.
 
 ## D-138 — Every drawn note on mobile watches for tables drawn later (2026-10-15)
 
-**Decision:** `stackWideTables` gives each drawn note on mobile its own
+**Decision:** `stackWideTables` gives each rendered note on mobile its own
 MutationObserver, whether or not it has a table.
 
 **Why:** tables arrive after drawing in three ways: Dataview's tables, embeds
@@ -2503,7 +2503,7 @@ save four targets, with no frame time to gain.
   next one stays hidden (after a search step or a save) would have no end
   watched.
 
-## D-140 — A scroll stops at the stream's shifted end once every note is loaded (2026-10-15)
+## D-140 — A glide stops at the stream's shifted end once every note is loaded (2026-10-15)
 
 **Decision:** once every note is loaded, `ScrollAnchor` stops a scroll two steps
 before the stream's end comes into the pane, while the end is shifted higher
@@ -2516,9 +2516,9 @@ scrolling stopped.
 **Rejected:**
 
 - Stopping while notes are still loading — a batch added below would let the
-  scroll go on.
+  glide go on.
 - Limiting the shift to the space below on every frame — the reader's text would
-  move while scrolling.
+  move mid-glide.
 
 ## D-141 — Mutation testing runs when asked, and only for what changed (2026-10-15)
 
@@ -2557,7 +2557,7 @@ top, as a reader would.
 
 **Why:** it used to set the scroll of a stream left open to the top, which
 nothing in the app does. The anchor still kept a place from further down, so
-over a long newest note, the stream drew it from its end and ended up about
+over a long newest note, the stream rendered it from its end and ended up about
 250,000 px down.
 
 **Rejected:**
@@ -2585,8 +2585,8 @@ palette, over the stream.
 
 - Moving the shift into the scroll once the bounce ends — the bounce, and the
   pull on it, come first.
-- Setting what is owed while scrolling, so the scroll reaches the top — iOS
-  undoes it ([ADR 0013](adr/0013-pin-rendered-note-heights.md)).
+- Setting what is owed mid-glide, so the glide reaches the top — iOS undoes it
+  ([ADR 0013](adr/0013-pin-rendered-note-heights.md)).
 
 ## D-144 — The phone tests change Appium to use one console listener (2026-10-15)
 
@@ -2610,42 +2610,42 @@ was caught.
 - A new session for each test file — limits the copies for each file, not for
   each test, so a long file can still lose one.
 
-## D-145 — A scroll fixes the height of the note at the pane's top again if its content moved (2026-10-16)
+## D-145 — A scroll re-pins the note at the pane's top if its content moved (2026-10-16)
 
 **Decision:** `NoteWindowManager.onScroll` first measures where the content of
 the note at the pane's top ends, relative to the note's top, and compares that
-with where it ended when the note's height was fixed. If that moved, the note's
-height is fixed again before the anchor reads its place.
+with where it ended when the note was pinned. If that moved, the note re-pins
+before the anchor reads its place.
 
 **Why:** Bases fills a view in a task of its own, which moves the text below it
-inside the fixed height. When a scroll came before the `ResizeObserver` report,
-the anchor read its place in the text that had already moved, so fixing the
-height again later owed nothing, and the next note dropped by the growth: 603 px
-in about 1 flick in 5 (D-108 only covers a Base's own holds).
+inside the pin. When a scroll came before the `ResizeObserver` report, the
+anchor read its place in the text that had already moved, so re-pinning later
+owed nothing, and the next note dropped by the growth: 603 px in about 1 flick
+in 5 (D-108 only covers a Base's own holds).
 
 **Rejected:**
 
 - A `MutationObserver` on each Base — only covers Bases, and misses growth with
   no DOM change.
-- Fixing the height of every drawn note on each scroll — a forced layout for
-  each note on each frame (ADR 0023).
+- Re-pinning every rendered note on each scroll — a forced layout for each note
+  on each frame (ADR 0023).
 - Notes marked as on screen by the `IntersectionObserver` — it lags behind, so a
   note ending at the pane's top is not yet marked when the scroll arrives.
 
-## D-146 — A scroll stopped early is stopped one step further on (2026-10-16)
+## D-146 — A glide stopped early is stopped one step further on (2026-10-16)
 
 **Decision:** D-140's and D-143's stops set the scroll position one scroll step
 beyond the position the page last heard, plus what is owed.
 
 **Why:** iOS has already drawn one step beyond the scroll position the page
 hears. Stopped at the heard position, the text moved back 40–52 px against the
-scroll in every stop recorded on an iPhone. Stopped one step further, 1 stop in
+glide in every stop recorded on an iPhone. Stopped one step further, 1 stop in
 25 moved back, by 88 px.
 
 **Rejected:**
 
 - Two steps further — no stop moves back, but each moves forward one frame more
-  than the scroll would have.
+  than the glide would have.
 - Stopping without setting the scroll, only by freezing it — what is owed is
   moved into the scroll on the next frame, which is a jump of its own.
 
@@ -2804,7 +2804,7 @@ day looked like a bug. Hiding them is still one switch away.
 largest size, on the cards that a Base too wide for its note is drawn as
 (D-033), so one card fills any row. A view written as cards keeps its own size.
 Turning the setting on or off leaves remembered heights out of date until each
-note is drawn again, as turning Show note properties on or off does.
+note is re-rendered, as turning Show note properties on or off does.
 
 **Why:** on a phone, Bases fits two cards in a row, which cuts each card's
 values short.
@@ -2813,7 +2813,7 @@ values short.
 
 - A card size slider — how many cards fit in a row still depends on the screen.
 - Cards per row, from 1 to 3 — needs a size worked out from each width, and
-  drawing again whenever the width changes.
+  re-rendering whenever the width changes.
 - Resizing cards that the note itself wrote — the note chose that size.
 - Including the setting in the layout key — a second set of heights for one
   setting.
@@ -2843,10 +2843,10 @@ measured that (`pnpm run test:memory`), but the phone did not.
 ## D-159 — A Base is held at a fixed height (2026-10-19)
 
 **Decision:** the box each Base is drawn in has a fixed height: the tallest the
-Base has been since it last stopped changing. Anything taller is cut off. When
-the Base grows, the box grows to match in the next task, and tells its note,
-which then updates its fixed height (ADR 0013). A Base drawn as a table to
-measure whether it fits grows the same way once that is decided.
+Base has been since it last settled. Anything taller is cut off. When the Base
+grows, the box grows to match in the next task, and tells its note, which then
+updates its pinned height (ADR 0013). A Base drawn as a table to measure whether
+it fits grows the same way once that is decided.
 
 **Why:** Bases adds a table's rows from inside its own ResizeObserver callback.
 This happens when a note hidden far off screen (ADR 0023) is shown again after
@@ -3008,7 +3008,7 @@ context, WebKit then composites every positioned element after it. Among them is
 a callout, which dark themes blend (`mix-blend-mode: lighten`). If that happens
 before iOS starts the pan, about 1 ms after the touch, the touch never scrolls.
 Reading view does the same with a blended callout after the link. It only seemed
-not to, because it draws few sections at once.
+not to, because it renders few sections at once.
 
 **Rejected:**
 
@@ -3060,9 +3060,9 @@ scroll event, before the stream reacts to it. A scroll step against the
 scrolling, which moves the text on by no more than the scroll's last step, was
 set by the stream and is not drift: `ScrollAnchor.stopGlide` sets the scroll one
 step further, because iOS has already drawn that step. A test of the tests grows
-a note above the reader while scrolling, without a shift, and the follower must
-report it. The test of a scroll that owes checks that the scroll was stopped
-while owing, not that it ended within 400 px of the top.
+a note above the reader mid-glide, without a shift, and the follower must report
+it. The test of a glide that owes checks that the glide was stopped while owing,
+not that it ended within 400 px of the top.
 
 **Why:** iOS keeps scrolling for frames that the page never hears about. Read
 once a frame, that step and the stop's change to the scroll came together, and
@@ -3077,39 +3077,39 @@ are twice as big as an iPhone's.
   covers the whole run, and its frames are dropped and repeated (D-099).
 - A fixed limit on a step — it only fits one device's speed and one vault.
 
-## D-171 — A scroll is judged by how it ends, not by a time (2026-10-21)
+## D-171 — A glide is judged by how it ends, not by a time (2026-10-21)
 
 **Decision:** `Phone.glideEnding` lets a flick's scroll run out, and reads every
 frame the page drew from when the finger lifts (`e2e-tests/ios/glide.ts`,
-D-173). It passes if the scroll slowed to less than a tenth of its fastest
-speed, as iOS ends a scroll, or if it ended at the top, at the stream's end, or
-at the stream's stop. A scroll stopped while still fast anywhere else fails. It
+D-173). It passes if the glide slowed to less than a tenth of its fastest speed,
+as iOS ends a glide, or if it ended at the top, at the stream's end, or at the
+stream's stop. A scroll stopped while still fast anywhere else fails. It
 replaces `glidesPast`, which checked whether the stream was still moving 500 ms
 after the finger lifted.
 
 **Why:** the stream's own stop (D-143) ended the jump test's scroll 390 ms after
 the finger lifted on an iPhone, in every run, and 500–1,100 ms after on an iPad,
-so how soon depends on the device and the vault. A pause ends a scroll while it
+so how soon depends on the device and the vault. A stall ends a glide while it
 is fast, but the stream's stop and iOS do not, wherever they happen.
 
 **Rejected:**
 
 - Taller empty blocks, or a jump with more notes above — ties the test to the
   vault's size.
-- A scroll that reaches the top — most flicks end in the middle of the stream.
+- A glide that reaches the top — most flicks end in the middle of the stream.
 
 ## D-172 — The scroll box guard removes an inline overflow-x at once (2026-10-25)
 
 **Decision:** on mobile, `ScrollBoxGuard` removes an inline `overflow-x` from
 each element as soon as it is added or its style changes, outside a Base, and
-cuts it off (`src/stream/scroll-box-guard.ts`). This is the only exception to
+clips it (`src/stream/scroll-box-guard.ts`). This is the only exception to
 D-003: `style.removeProperty("overflow-x")`.
 
 **Why:** Obsidian's reading view sets `overflow-x: auto` inline on a table's
 wrapper, which only `!important` can beat, and the scorecard warns about that
 (D-153). Its style rule flags setting a style, not removing one. Reading the
-inline style does not make the browser recalculate styles, so the box is cut off
-before it is drawn, even while scrolling, where the check after scrolling
+inline style does not make the browser recalculate styles, so the box is clipped
+before it is painted, even while scrolling, where the check after scrolling
 stopped used to leave it scrolling.
 
 **Rejected:**
@@ -3118,28 +3118,28 @@ stopped used to leave it scrolling.
 - Removing it in the check once scrolling stops — the box scrolls until then,
   and can stop the scroll it appeared in (ADR 0008).
 
-## D-173 — A scroll is read frame by frame, so a pause is not a stop (2026-10-25)
+## D-173 — A glide is read frame by frame, so a stall is not a stop (2026-10-25)
 
 **Decision:** `Phone.glideEnding` reads the scroll position on every animation
 frame from when the finger lifts, not on each scroll event, and judges each step
-by its speed. A frame more than 100 ms late is a pause. A scroll that moved
-across a pause kept going, and one whose last move covers a pause is reported as
-"ended in a stall", which no test fails. The longest pause is noted on the test.
+by its speed. A frame more than 100 ms late is a stall. A glide that moved
+across a stall kept going, and one whose last move covers a stall is reported as
+"ended in a stall", which no test fails. The longest stall is noted on the test.
 
 **Why:** on an iPad, `2026-08-30`'s seven Bases block the page for 330–410 ms
-while scrolling, on every flick up over a Base, while iOS keeps scrolling.
-Measured by scroll events, that silence lasted longer than the 300 ms wait
-before the shift moves into the scroll, and looked like a cut. That happened in
-6 of 18 recorded flicks, each of which scrolled 4.6–5.4k px and slowed to 1 px a
-frame. A frame proves the page is running, so a scroll that does not move over
-frames has stopped.
+mid-glide, on every flick up over a Base, while iOS keeps scrolling. Measured by
+scroll events, that silence lasted longer than the 300 ms wait before the shift
+moves into the scroll, and looked like a cut. That happened in 6 of 18 recorded
+flicks, each of which scrolled 4.6–5.4k px and slowed to 1 px a frame. A frame
+proves the page is running, so a scroll that does not move over frames has
+stopped.
 
 **Rejected:**
 
-- A longer wait before moving the shift into the scroll — a longer pause would
+- A longer wait before moving the shift into the scroll — a longer stall would
   still look like a cut, and the stream setting the scroll after it stops would
   count as a step.
-- Judging only by distance — a scroll cut short far into a long scroll also goes
+- Judging only by distance — a glide cut short far into a long scroll also goes
   a long way.
 
 ## D-174 — The iPad tests type on iOS's keyboard, even with one attached (2026-10-25)

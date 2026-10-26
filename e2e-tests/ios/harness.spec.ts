@@ -59,7 +59,7 @@ test("a stream opened from deep in it is at its top, over a long newest note", a
 });
 
 // The follower checks every scrolling test. A recording showed this jump, and
-// no jump where a scroll that owes stops (jump.spec.ts).
+// no jump where a glide that owes stops (jump.spec.ts).
 test("the reader's follower reports a note above growing mid-glide, unshifted", async ({ phone }) => {
     await phone.openStream();
     await phone.flick("up");
@@ -67,8 +67,8 @@ test("the reader's follower reports a note above growing mid-glide, unshifted", 
     await phone.run(() => {
         const pane = document.querySelector(".daily-notes-stream-container")!.parentElement!;
         let heard = 0;
-        // With a fixed height, its size is not observed, so the anchor never
-        // hears about it (ADR 0013).
+        // A pinned block's size is not observed, so the anchor never hears
+        // about it (ADR 0013).
         const grow = () => {
             if (++heard < 5) return;
             pane.removeEventListener("scroll", grow);

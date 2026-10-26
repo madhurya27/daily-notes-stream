@@ -50,8 +50,8 @@ describe("HeightHold", () => {
         later.release();
     });
 
-    // A block with a fixed height keeps its height after a release, until it is
-    // told (ADR 0013).
+    // A pinned block keeps its height after a release, until it is told (ADR
+    // 0013).
     it("says it let go, by release or by the limit, once each", async () => {
         const released = vi.fn();
         const hold = new HeightHold(el, 812, released);

@@ -8,14 +8,14 @@ export type Heard = { at: number; top: number; owing: boolean; bottom: number };
  * How a scroll ended: slowing down almost to a stop, as iOS ends one; at the
  * top or the stream's end, because it ran out of scroll or the stream stopped
  * it there (D-091, D-143); while still fast, anywhere else, because something
- * in the stream stopped it (ADR 0008); or during a pause, with the page too
+ * in the stream stopped it (ADR 0008); or during a stall, with the page too
  * busy to see it end.
  */
 export type GlideEnding = "slowed" | "at an edge" | "cut short" | "ended in a stall";
 
 /**
- * iOS slows a scroll from its fastest speed to below this fraction before
- * ending it. Measured: 1/180.
+ * iOS slows a glide from its fastest speed to below this fraction before ending
+ * it. Measured: 1/180.
  */
 const SLOWED = 0.1;
 /**

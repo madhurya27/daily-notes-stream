@@ -5,7 +5,7 @@ import type { NoteHeights } from "./note-heights";
 export interface Reserving {
     file: TFile;
     /**
-     * The height it keeps: measured when it was last emptied, or the estimate.
+     * The height it keeps: measured when it was last unloaded, or the estimate.
      */
     height: number;
     /**

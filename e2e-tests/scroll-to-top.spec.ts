@@ -18,8 +18,8 @@ const title = (page: Page) =>
 
 /**
  * Jumps to the oldest note, so the notes between it and the top are empty
- * blocks that were never drawn. Each one grows taller than its estimate as the
- * scroll back up passes it.
+ * blocks that were never rendered. Each one grows taller than its estimate as
+ * the scroll back up passes it.
  */
 async function scrollToOldest(page: Page, container: Locator) {
     await page.locator('.view-action[aria-label="Jump to date"]').click();
@@ -138,7 +138,7 @@ test.describe("tapping the header title", () => {
             });
 
             // Each note between the oldest and the top gets the height it last
-            // measured (ADR 0010), so nothing is owed that the scroll cannot
+            // measured (ADR 0010), so nothing is owed that the glide cannot
             // reach.
             test("lets a scroll up by hand from a jump reach the newest note", async ({ obsidian }) => {
                 const { page } = obsidian;

@@ -29,7 +29,7 @@ export class LinkedMentionsFooter {
 
     /**
      * Adds the footer to `block`. Resolves once it is drawn, so its note's
-     * height can be held until then. It draws itself again when the cache
+     * height can be held until then. It renders itself again when the cache
      * resolves a change it shows, until `note` unloads.
      */
     render(block: HTMLElement, file: TFile, note: Component): Promise<void> {
@@ -60,7 +60,9 @@ export class LinkedMentionsFooter {
         return fill(linkedMentions(this.app, this.index, file));
     }
 
-    /** Draws the heading, and the mentions under it once unfolded. */
+    /**
+     * Renders the heading, and the mentions under it once unfolded.
+     */
     private drawHeaded(
         el: HTMLElement,
         file: TFile,

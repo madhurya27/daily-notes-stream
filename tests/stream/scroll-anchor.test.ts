@@ -144,7 +144,7 @@ function makePane(layout: (number | number[])[]) {
             return drawn;
         };
         /**
-         * Holds its box at `height`, as `NoteBases` holds a Base drawn again.
+         * Holds its box at `height`, as `NoteBases` holds a Base re-rendered.
          */
         const holdAt = (height: number) => {
             base.dataset.heldAt = String(height);
@@ -210,7 +210,7 @@ describe("ScrollAnchor", () => {
         expect(readerTop(blocks)).toBe(-100);
     });
 
-    // While scrolling, iOS draws a resize before it reports it. Told in the
+    // While scrolling, iOS paints a resize before it reports it. Told in the
     // task that made the change, the shift is drawn together with it (ADR
     // 0013).
     it("shifts the moment it is told a block resized, before any report of it", () => {
@@ -313,8 +313,8 @@ describe("ScrollAnchor", () => {
         expect(() => anchor.resized()).not.toThrow();
     });
 
-    // Drawn from its end, a note's text appears under the reader without any
-    // scroll or resize. When drawing finishes, the rest of it appears above.
+    // Rendered from its end, a note's text appears under the reader without any
+    // scroll or resize. When rendering finishes, the rest of it appears above.
     it("holds text drawn in a block since the place was read, once told to read it", () => {
         const { content, blocks, add } = watch([400, 1000, 400], 900);
         const note = blocks[1]!;
@@ -387,8 +387,8 @@ describe("ScrollAnchor", () => {
     });
 
     // Scrolling to the top reached the newest note above the pane, and drew it
-    // from its end. When drawing finished, it was 156 px below its title on an
-    // iPhone.
+    // from its end. When rendering finished, it was 156 px below its title on
+    // an iPhone.
     it("holds the stream's top, where a note drawn from its end lands with the scroll at the top", () => {
         // The stream's padding above its newest note.
         const { pane, content, blocks, add } = watch([8, 1000, 400], 0);
@@ -442,7 +442,7 @@ describe("ScrollAnchor", () => {
         expect(text.getBoundingClientRect().top).toBe(0);
     });
 
-    // Drawn from its end, a note's content grows above the reader. Its top
+    // Rendered from its end, a note's content grows above the reader. Its top
     // rises with every slice, while the text under the reader stays still.
     it("holds the text below a gap in a note's content, not the content itself", () => {
         const { pane, content, blocks } = watch([400, 1000, 400], 900);
@@ -500,7 +500,7 @@ describe("ScrollAnchor", () => {
         expect(shift(content)).toBe(-50);
     });
 
-    // Emptying a note removes the element at the pane's top with it.
+    // Unloading a note removes the element at the pane's top with it.
     it("holds nothing once the block at the pane's top is gone", () => {
         const { content, blocks } = watch([400, 400, 400], 900);
 
@@ -560,7 +560,7 @@ describe("ScrollAnchor", () => {
         expect(shift(content)).toBe(0);
     });
 
-    // A note drawing from its end hides its title, which is then not found at
+    // A note rendering from its end hides its title, which is then not found at
     // any point.
     it("holds the note where something in it crosses the pane's top unhit", () => {
         const { pane, content, blocks, resize } = watch([400, [300, 300], 400], 400);
@@ -908,7 +908,7 @@ describe("ScrollAnchor", () => {
             expect(shift(content)).toBe(-100);
         });
 
-        // A note drawn again replaces what it held, but its own top is still
+        // A note re-rendered replaces what it held, but its own top is still
         // there.
         it("holds the note's top when the text there was replaced", () => {
             const { content, blocks, resize, add } = watch([400, [400, 400]], 500);
@@ -979,7 +979,7 @@ describe("ScrollAnchor", () => {
         });
 
         // From a phone's log: after a turn, the cards reflow wider before the
-        // Base is drawn again, and a card below the pane's top says nothing
+        // Base is re-rendered, and a card below the pane's top says nothing
         // about the place.
         it("keeps how far the pane's top was through a Base whose cards re-flow as the width changes", () => {
             const { pane, content, blocks, addBase, turn, resize } = makePane([[400], 400]);
@@ -999,9 +999,9 @@ describe("ScrollAnchor", () => {
             expect(base.getBoundingClientRect().top).toBe(-200);
         });
 
-        // From a phone's log: during a turn, the Base was emptied to be drawn
-        // again, without a held height. The place read again then was its note,
-        // whose top never moved.
+        // From a phone's log: during a turn, the Base was unloaded to be
+        // re-rendered, without a held height. The place read again then was its
+        // note, whose top never moved.
         it("keeps the place read before the width changed through a Base emptied and redrawn", () => {
             const { pane, content, blocks, addBase, turn, resize } = makePane([[400], 400]);
             const { base, draw } = addBase(blocks[0]!);
@@ -1386,7 +1386,7 @@ describe("ScrollAnchor", () => {
 
     // A scroll that reaches the top before what it owes bounces there. iOS
     // undoes any change to the scroll during a bounce. Once the bounce ends,
-    // the scroll has ended too, and a flick within the idle wait hit the same
+    // the glide has ended too, and a flick within the idle wait hit the same
     // top again.
     it("hands over the moment a bounce at the top ends", () => {
         const { pane, content, blocks, resize } = watch([400, 400, 400], 900);
@@ -1434,7 +1434,7 @@ describe("ScrollAnchor", () => {
     });
 
     // The finger dragged the stream back into view. What follows may be a
-    // scroll, which setting the scroll position would stop.
+    // glide, which setting the scroll position would stop.
     it("leaves the hand-over to the rest once a finger lifts from a bounce past the top", () => {
         const { pane, content, blocks, resize } = watch([400, 400, 400], 900);
         resize(blocks[0]!, 1300);
@@ -1587,9 +1587,9 @@ describe("ScrollAnchor", () => {
         expect(shift(content)).toBe(0);
     });
 
-    // A resize reported, or a note's height fixed again, at the position of the
-    // next scroll event reads the place there. That step then counted as zero,
-    // and the scroll bounced at the top while still owing.
+    // A resize reported, or a note re-pinned, at the position of the next
+    // scroll event reads the place there. That step then counted as zero, and
+    // the scroll bounced at the top while still owing.
     it("stops a glide whose step is read with a resize, before the scroll hears it", () => {
         const { pane, blocks, resize } = watch([400, 400, 400, 400, 400], 900);
         resize(blocks[0]!, 700);
@@ -1763,8 +1763,8 @@ describe("ScrollAnchor", () => {
         expect(shift(content)).toBe(-100);
     });
 
-    // iOS bounces a scroll past the stream's end. A note above got its height
-    // fixed again during the bounce. Shown at the end, the text jumped back by
+    // iOS bounces a glide past the stream's end. A note above got its height
+    // re-pinned during the bounce. Shown at the end, the text jumped back by
     // the bounce's depth, 286 px on an iPhone.
     it("draws a change above as it is through a bounce past the stream's end, every note loaded", () => {
         const { pane, content, blocks, resize } = watchToEnd([400, 400, 400, 400, 400], 900);
@@ -1787,8 +1787,8 @@ describe("ScrollAnchor", () => {
         pane.scrollTop = 1500;
         anchor.onScroll();
 
-        // The stream is no taller: the growth is inside a note with a fixed
-        // height, before its height is fixed again.
+        // The stream is no taller: the growth is inside a pinned note, before
+        // the re-pin.
         resize(blocks[1]!, 700);
         resize(blocks[4]!, 100);
         observer().resized(blocks[1]!, blocks[4]!);
@@ -1911,8 +1911,7 @@ describe("ScrollAnchor", () => {
         expect(shift(content)).toBe(0);
     });
 
-    // The scroll from a tap on the title stopped before the top, 75,854 px
-    // down.
+    // The glide from a tap on the title stopped before the top, 75,854 px down.
     it("lets a scroll headed for the top glide on to it, owing what grew above", () => {
         const { pane, content, blocks, resize } = watch([400, 400, 400], 900);
         anchor.headForTop();
@@ -1992,9 +1991,9 @@ describe("ScrollAnchor", () => {
         expect(pane.scrollTop).toBe(900);
     });
 
-    // Setting the scroll position, even to the same value, stops a scroll in
+    // Setting the scroll position, even to the same value, stops a glide in
     // progress. A title tapped just after the shift was due to move into the
-    // scroll never left the spot.
+    // glide never left the spot.
     it("leaves the scroll alone when what it owed came back to nothing", () => {
         const { pane, blocks, resize } = watch([400, 400, 400], 900);
         resize(blocks[0]!, 1300);
@@ -2049,9 +2048,8 @@ describe("ScrollAnchor", () => {
         expect(observer().disconnected).toBe(true);
     });
 
-    // A block with a fixed height only changes size when the height is fixed
-    // again, which tells the anchor. Its own report, one round later, makes
-    // WebKit log an error.
+    // A pinned block only changes size when it is re-pinned, which tells the
+    // anchor. Its own report, one round later, makes WebKit log an error.
     it("stops watching a pinned block's size, and watches it again once unpinned", () => {
         const { blocks } = watch([400, 400], 0);
 

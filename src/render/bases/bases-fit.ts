@@ -1,7 +1,7 @@
 /** Bases' own maximum width for a column sized automatically. */
 const DEFAULT_MAX_COLUMN_PX = 300;
 /**
- * A column narrower than this shows nothing useful, so the table is cut off
+ * A column narrower than this shows nothing useful, so the table is clipped
  * instead.
  */
 const MIN_COLUMN_PX = 40;

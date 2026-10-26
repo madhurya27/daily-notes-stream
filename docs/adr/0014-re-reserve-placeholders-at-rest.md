@@ -1,13 +1,13 @@
 # 0014. Give empty blocks new heights once scrolling stops
 
-- **Status:** Accepted. Replaces D-055. Partly replaced by
+- **Status:** Accepted. Supersedes D-055. Superseded in part by
   [0015](0015-shift-before-shrinking-above.md)
 - **Date:** 2026-10-01
 
 ## Context
 
 An empty block kept the height it was given when it was added, until its note
-was drawn (D-055). After a turn, notes above the reader kept the heights from
+was rendered (D-055). After a turn, notes above the reader kept the heights from
 the old width, and recordings showed a blank gap of 1.75–4.75 s at the top of
 the stream in landscape. A better estimate learned later (D-079, D-080) never
 reached the empty blocks already made. D-055 left them alone because shrinking

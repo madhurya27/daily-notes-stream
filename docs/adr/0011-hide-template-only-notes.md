@@ -1,6 +1,6 @@
 # 0011. Hide daily notes that only hold their template
 
-- **Status:** Accepted. How a Templater block is read was replaced by D-117
+- **Status:** Accepted. How a Templater block is read was superseded by D-117
 - **Date:** 2026-09-28
 
 ## Context
@@ -47,6 +47,6 @@ sessions, and D-073 how link changes reach the views.
   template of prompts looks like normal text.
 - **Only the body, ignoring frontmatter** — would hide a note whose only entry
   is a property.
-- **Hiding after drawing** — notes appear, then disappear, which moves the
+- **Hiding after rendering** — notes appear, then disappear, which moves the
   scroll.
 - **A list of earlier templates** — a setting for a rare case.

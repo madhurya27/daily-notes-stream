@@ -590,8 +590,8 @@ describe("a note modified", () => {
         expect(noteWindow.refresh).not.toHaveBeenCalled();
     });
 
-    // The block stays. Only its content is drawn again, so the note can still
-    // be found by its path, and an empty note is drawn when it comes back.
+    // The block stays. Only its content is re-rendered, so the note can still
+    // be found by its path, and an empty note is rendered when it comes back.
     it("refreshes the note's own block rather than replacing it", async () => {
         const file = note("2025-01-01");
         await load(file);
@@ -678,7 +678,7 @@ describe("links to daily notes changed", () => {
         expect(shown()).toEqual(["Notes/2025-01-03.md", "Notes/2025-01-02.md", "Notes/2025-01-01.md"]);
     });
 
-    // Its linked mentions draw themselves again on `resolved`.
+    // Its linked mentions render themselves again on `resolved`.
     it("leaves a note that stays alone", async () => {
         const file = note("2025-01-01");
         await load(file);
@@ -1120,7 +1120,7 @@ describe("the pane", () => {
         expect(guard.attach).not.toHaveBeenCalled();
     });
 
-    // The renderer drew the Base, so it decides between cards and fitted
+    // The renderer rendered the Base, so it decides between cards and fitted
     // columns.
     it("hands a Base's layout to the renderer", () => {
         const view = document.createElement("div");
@@ -1130,7 +1130,7 @@ describe("the pane", () => {
         expect(renderer.onBaseLayout).toHaveBeenCalledWith(view);
     });
 
-    // Reading styles waits for scrolling to stop, like emptying notes.
+    // Reading styles waits for scrolling to stop, like unloading notes.
     it("passes a scroll on to the scroll box guard", () => {
         stream.onScroll();
         expect(guard.onScroll).toHaveBeenCalled();
@@ -1141,7 +1141,9 @@ describe("Obsidian's daily-notes settings changed", () => {
     beforeEach(() => vi.useFakeTimers());
     afterEach(() => vi.useRealTimers());
 
-    /** Runs the delayed check and empties the change queue. */
+    /**
+     * Runs the debounced check and drains the mutation queue.
+     */
     async function settingsChanged() {
         stream.onDailyNoteSettingsChange();
         await vi.runAllTimersAsync();

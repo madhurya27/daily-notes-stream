@@ -21,7 +21,7 @@ export interface SearchTarget {
     /** The note at the top of the pane, where a search starts from. */
     firstVisibleNote(): TFile | null;
     /**
-     * Centers `range` in the pane, and keeps it there while the stream draws.
+     * Centers `range` in the pane, and keeps it there while the stream renders.
      */
     center(range: Range): Promise<void>;
     /** Whether all of `range` is inside the pane's visible area. */

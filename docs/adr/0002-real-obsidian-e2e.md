@@ -9,7 +9,7 @@ Unit tests run against an `obsidian` mock written by hand, in jsdom. That mock
 is the plugin's own idea of the API, so nothing checked the plugin against the
 real output of `MarkdownRenderer`, real `moment` parsing, or real vault events.
 And jsdom loads no stylesheet at all, so nothing could say whether anything was
-really _visible_. A bug in the indent of drawn lists was released for exactly
+really _visible_. A bug in the indent of rendered lists was released for exactly
 this reason.
 
 ## Decision
@@ -21,7 +21,7 @@ a `desktop` project and as a `mobile` one that applies `emulateMobile(true)` at
 an iPhone Pro's 402px, because Obsidian's mobile stylesheet is different enough
 that a rule can be right in one layout and wrong in the other.
 
-Unit tests keep the mock and keep 100% coverage. Anything about real drawing,
+Unit tests keep the mock and keep 100% coverage. Anything about real rendering,
 real events, or what is visible on screen belongs in e2e.
 
 ## Consequences

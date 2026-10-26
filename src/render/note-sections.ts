@@ -18,8 +18,8 @@ function sectionSpans(markdown: string, cache: CachedMetadata | null): { start: 
 
 /**
  * A note's sections as source text, in order, without the frontmatter. Null
- * when the note must be drawn all at once: it is not indexed yet, or something
- * links one section to another (ADR 0019).
+ * when the note must be rendered all at once: it is not indexed yet, or
+ * something links one section to another (ADR 0019).
  */
 export function noteSections(markdown: string, cache: CachedMetadata | null): string[] | null {
     return sectionSpans(markdown, cache)?.map(({ start, end }) => markdown.slice(start, end)) ?? null;
@@ -27,7 +27,7 @@ export function noteSections(markdown: string, cache: CachedMetadata | null): st
 
 /**
  * A note's body as groups of whole sections, each up to `size` characters and
- * cut from the note's own text, so a long note is drawn one group at a time
+ * cut from the note's own text, so a long note is rendered one group at a time
  * (ADR 0020). Null in the same cases as `noteSections`.
  */
 export function noteChunks(markdown: string, cache: CachedMetadata | null, size: number): string[] | null {

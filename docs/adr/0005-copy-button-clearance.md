@@ -1,11 +1,11 @@
-# 0005. Keep the copy button's corner free in drawn code
+# 0005. Keep the copy button's corner free in rendered code
 
 - **Status:** Accepted
 - **Date:** 2026-08-30
 
 ## Context
 
-Obsidian wraps drawn code (`white-space: pre-wrap`) and places its
+Obsidian wraps rendered code (`white-space: pre-wrap`) and places its
 `.copy-code-button` absolutely in the block's top-right corner, so the end of a
 long first line is under the icon and cannot be read.
 

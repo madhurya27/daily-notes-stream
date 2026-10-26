@@ -5,9 +5,9 @@ import { test, expect, openStream, restoreNote, seededDate, todayNote, writeNote
  * must be the same as drawing the whole saved note.
  */
 /**
- * Today's note is drawn by section from the start. An older note is drawn in
- * groups of sections (ADR 0020), then by section after its first save, so its
- * first render is in groups.
+ * Today's note is rendered by section from the start. An older note is rendered
+ * in groups of sections (ADR 0020), then by section after its first save, so
+ * its first render is in groups.
  */
 const NOTES = [
     ["today's", todayNote],
@@ -89,10 +89,10 @@ for (const [which, pathOf] of NOTES) {
             await expect(content(page)).not.toContainText("entry 35");
             await expect(content(page).locator("h2").first()).toHaveAttribute("data-kept", "");
 
-            // Differences in markup only: drawing the whole note leaves a line
-            // break between blocks; Obsidian marks a table's cells with their
-            // direction when the table is the only thing it draws, as in a
-            // section on its own; and which runs are hidden when far away
+            // Differences in markup only: rendering the whole note leaves a
+            // line break between blocks; Obsidian marks a table's cells with
+            // their direction when the table is the only thing it renders, as
+            // in a section on its own; and which runs are hidden when far away
             // depends on when it is read (ADR 0021).
             const drawn = () =>
                 content(page).evaluate((el) => {
@@ -108,7 +108,7 @@ for (const [which, pathOf] of NOTES) {
                     return copy.innerHTML.replace(/(<t[hd]) dir="(?:ltr|rtl)"/g, "$1");
                 });
             await content(page).evaluate((el) => el.querySelector("[data-kept]")!.removeAttribute("data-kept"));
-            // On mobile, any scrolling boxes are cut off once the stream stops
+            // On mobile, any scrolling boxes are clipped once the stream stops
             // scrolling.
             let inPlace = "";
             await expect

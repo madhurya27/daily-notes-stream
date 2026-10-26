@@ -40,8 +40,9 @@ test("flicks reach the oldest note, each note once, newest first", async ({ phon
     expect(paths).toEqual([...paths].sort().reverse());
 });
 
-// With no measured heights, every note grows from its estimate as it is drawn,
-// including the Bases (EMBEDS_NOTE in vault.ts) as they fill in (ADR 0013).
+// With no measured heights, every note grows from its estimate as it is
+// rendered, including the Bases (EMBEDS_NOTE in vault.ts) as they fill in (ADR
+// 0013).
 test("flicks to the oldest note and back change a rendered note's height only as it re-pins", async ({ phone }) => {
     await phone.forgetHeights();
     await phone.openStream();
@@ -70,7 +71,7 @@ test("flicks from the top glide on", async ({ phone }) => {
 
 for (const [what, target, depth] of [
     ["text", ".daily-note-content > p", -20],
-    // A Base is drawn again on each turn, as cards or as a table.
+    // A Base is re-rendered on each turn, as cards or as a table.
     ["a Base", ".daily-note-base", 300],
 ] as const)
     test(`a turn and back leaves what was in view, with ${what} at the top`, async ({ phone }) => {
@@ -96,7 +97,7 @@ for (const direction of ["up", "down"] as const)
     test(`a flick ${direction} over a Base deep in the stream glides on`, async ({ phone }) => {
         // Three times, because what stops scrolling stops some flicks, not all
         // (D-085). Each from the top, because placeAt looks down the stream,
-        // and a scroll may go past the Base.
+        // and a glide may go past the Base.
         for (const flick of [1, 2, 3]) {
             await phone.openStream();
             await phone.placeAt('.daily-note-block[data-source-path="Journal/2026-09-13.md"] .daily-note-base', 300);

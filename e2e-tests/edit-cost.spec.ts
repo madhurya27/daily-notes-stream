@@ -173,8 +173,8 @@ test.describe("a save of a note open in the stream", () => {
                     );
 
                     const layout = mobileLayout ? "mobile" : "desktop";
-                    // Today's note is drawn by section from the start, and no
-                    // save draws all of it again (ADR 0019).
+                    // Today's note is rendered by section from the start, and
+                    // no save renders all of it again (ADR 0019).
                     expect(saves.renders).toHaveLength(0);
                     // The count is correct on any machine. The times only on
                     // one as fast as an M5.

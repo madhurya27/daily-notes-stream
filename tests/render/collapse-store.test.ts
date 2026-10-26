@@ -226,8 +226,8 @@ describe("CollapsibleStateStore", () => {
         expect(next.collapsedOr("file.md", "properties", true)).toBe(false);
     });
 
-    // Each heading asks every time a note is drawn, so reading and parsing on
-    // every lookup added up.
+    // Each heading asks every time a note is rendered, so reading and parsing
+    // on every lookup added up.
     it("reads storage once, not per lookup", () => {
         store.isCollapsed("file.md", "a");
         store.collapsedOr("file.md", "b", true);

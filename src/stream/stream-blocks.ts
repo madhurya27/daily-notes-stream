@@ -1,16 +1,16 @@
 /**
- * Where the stream's blocks are: in note order, before the empty element at the
- * end that loads more notes, and indexed by the path each was drawn with. A
- * block's children may be emptied (ADR 0006), so blocks are always found
- * through the index, never through a DOM query.
+ * Where the stream's blocks are: in note order, before the sentinel that loads
+ * more notes, and indexed by the path each was rendered with. A block's
+ * children may be unloaded (ADR 0006), so blocks are always found through the
+ * index, never through a DOM query.
  */
 export class StreamBlocks {
     private container!: HTMLElement;
     private readonly byPath = new Map<string, HTMLElement>();
 
     /**
-     * The empty element at the end is created again each time scrolling is
-     * attached, so it is looked up each time.
+     * The sentinel is created again each time scrolling is attached, so it is
+     * looked up each time.
      */
     constructor(private readonly sentinel: () => HTMLElement | null) {}
 
@@ -85,8 +85,7 @@ export class StreamBlocks {
     }
 
     /**
-     * The empty element at the end must stay the last child, so everything is
-     * put before it.
+     * The sentinel must stay the last child, so everything is put before it.
      */
     private insertBeforeSentinel(el: HTMLElement): void {
         // Inserting before null puts the element last.

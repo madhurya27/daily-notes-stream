@@ -220,7 +220,7 @@ test.describe("linked mentions", () => {
         await unloadFar(newest);
 
         // Reading the linking notes now takes longer than the wait for the note
-        // to stop changing, as on a slow disk.
+        // to settle, as on a slow disk.
         const heights = await page.evaluate(async () => {
             const vault = window.app.vault;
             const read = vault.cachedRead.bind(vault);

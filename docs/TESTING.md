@@ -35,7 +35,7 @@ over one batch), and a path to create the vault somewhere else.
 - **2026-08-30**, the newest note: one of each kind of embed the e2e tests
   cover. Bases that are wide, narrow, too wide only because of their values,
   resized by hand, with a named view, as a kanban and inline (the Bases are in
-  `Bases/`). Also embedded notes, a PDF, a video in a frame, display math,
+  `Bases/`). Also embedded notes, a PDF, a video in an `iframe`, display math,
   Mermaid and a wide table.
 - **2026-08-29**, the newest filler note: linked mentions of every kind, from a
   nested list item, a paragraph, a wide table and a property. `[[Agenda]]` in
@@ -169,7 +169,7 @@ Checks:
   **[e2e]**
 - A PDF shows its first page without a toolbar. A tap opens the PDF. **[e2e]**
   **[ios]**
-- A web page in a frame shows. A flick over it scrolls the stream, and a tap
+- A web page in an `iframe` shows. A flick over it scrolls the stream, and a tap
   opens the page. **[e2e]** **[ios]**
 - The video shows its thumbnail under a play button. A tap opens it on YouTube.
   **[e2e]** **[ios]**
@@ -192,7 +192,7 @@ Checks:
 - A kanban just above the top of the screen changes from a board to cards. The
   next note's text stays still. **[ios]**
 - Jump to an old date, then flick up. The text under your finger does not jump
-  as the notes above are drawn, and the scrolling is not cut short. **[ios]**
+  as the notes above are rendered, and the scrolling is not cut short. **[ios]**
 - A Base that fills in just above the top of the screen leaves the text below it
   still. **[e2e]** with scroll anchoring off; **[ios]**.
 - Jump to an old date, then tap "Daily Notes Stream" in the header. The stream
@@ -216,13 +216,13 @@ Checks:
   only the phone shows the blank.
 - Jump to a day below a long note you have not seen yet, then flick up into it.
   Its end shows at once, without a title above, and what is on screen stays
-  still while the rest of the note is drawn. **[e2e]**; only a screen recording
-  shows that the screen stays filled (ADR 0022).
+  still while the rest of the note is rendered. **[e2e]**; only a screen
+  recording shows that the screen stays filled (ADR 0022).
 - A hard flick to the bottom loads the next batch with no repeated notes and no
-  pause. More flicks keep loading. **[ios]**
+  stall. More flicks keep loading. **[ios]**
 - Switching to another app and back keeps the place, and scrolling still works.
   **[ios]**
-- Editing a note that is on screen somewhere else draws it again where it is.
+- Editing a note that is on screen somewhere else re-renders it where it is.
   **[ios]**
 - There are no errors in the console (Safari → Develop). **[ios]**
 

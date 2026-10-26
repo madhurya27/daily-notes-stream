@@ -41,7 +41,7 @@ export interface CollapsibleSection {
 }
 
 /**
- * A section with its fold arrow. Search opens it; drawing the note again closes
+ * A section with its fold arrow. Search opens it; re-rendering the note closes
  * it again or gives it a new key.
  */
 interface Fold {
@@ -74,19 +74,19 @@ export class CollapsibleManager {
 
     /**
      * Maps each element to its toggle. Weak, so elements removed when a note is
-     * drawn again can be freed.
+     * re-rendered can be freed.
      */
     private readonly toggles = new WeakMap<HTMLElement, () => void>();
     /** Maps each fold arrow to its section. */
     private readonly sections = new WeakMap<Element, Fold>();
     /**
-     * Maps each foldable element to its section, so a note drawn again in place
+     * Maps each foldable element to its section, so a note re-rendered in place
      * can tell kept elements from new ones.
      */
     private readonly keyed = new WeakMap<HTMLElement, Fold>();
 
     /**
-     * One pair of listeners for the whole stream, so a fold arrow drawn again
+     * One pair of listeners for the whole stream, so a fold arrow re-rendered
      * needs no listener of its own.
      */
     delegate(component: Component, root: HTMLElement): void {
@@ -208,7 +208,7 @@ export class CollapsibleManager {
     }
 
     /**
-     * After sections are drawn again in place (ADR 0019): adds arrows to what
+     * After sections are re-rendered in place (ADR 0019): adds arrows to what
      * is new, and folds each folded section again over it.
      */
     refreshCollapsible(contentEl: HTMLElement, filePath: string): string[] {
@@ -244,7 +244,7 @@ export class CollapsibleManager {
     /**
      * Whether `el` already has its arrow. If its key changed, because a section
      * with the same text was added or removed before it, it takes the new key
-     * and that key's saved state, as drawing the whole note would.
+     * and that key's saved state, as rendering the whole note would.
      */
     private kept(el: HTMLElement, key: string): boolean {
         const fold = this.keyed.get(el);
@@ -259,7 +259,7 @@ export class CollapsibleManager {
 
     /**
      * Forgets saved sections that `file` no longer has. The panels' keys are
-     * kept, because a hidden panel draws no key.
+     * kept, because a hidden panel renders no key.
      */
     forgetRemovedSections(file: TFile, sectionKeys: readonly string[]): void {
         if (Date.now() - file.stat.mtime < SETTLED_AFTER_MS) return;

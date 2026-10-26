@@ -5,7 +5,7 @@ const STREAM = ".daily-notes-stream-container";
 
 // A blank screen only shows in a recording (scripts/capture-iphone.swift). This
 // checks what causes one: a hidden part's spacer reaching the screen (ADR
-// 0021). A pause, or a scroll that moves further than the drawing distance in
+// 0021). A stall, or a glide that moves further than the rendering distance in
 // one frame, keeps one on screen for a frame, and the next frame shows the part
 // (ADR 0023).
 test("flicks down a long note and back show no hidden run's spacer two frames running", async ({ phone }) => {

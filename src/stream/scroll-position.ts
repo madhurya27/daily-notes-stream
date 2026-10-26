@@ -45,7 +45,7 @@ const MAX_SCROLL_PASSES = 8;
 const SCROLL_TOLERANCE_PX = 2;
 
 /**
- * Waits two frames. In the first, the scroll is drawn. By the second, the
+ * Waits two frames. In the first, the scroll is painted. By the second, the
  * IntersectionObserver's callback for it has run.
  */
 async function observersDelivered(): Promise<void> {
@@ -57,8 +57,8 @@ async function observersDelivered(): Promise<void> {
 /** What can move a block after it has been scrolled to. */
 export interface StreamLayout {
     /**
-     * How many notes were drawn or emptied so far. If it does not change during
-     * a try, the stream has stopped changing.
+     * How many notes were rendered or unloaded so far. If it does not change
+     * during a try, the stream has stopped changing.
      */
     layoutChanges(): number;
     /** Resolves once the renders already queued have run. */
@@ -101,10 +101,10 @@ function elementOf(placed: Placed): Element {
 
 /**
  * Moves `placed` to its place in `scrollEl` and keeps it there. Scrolling to it
- * makes the window manager draw the notes around it. A note drawn *above* it
- * can grow taller than its estimated height and push it down (ADR 0006). So the
- * scroll is set again until `placed` is in place and the stream has stopped
- * drawing.
+ * makes the window manager render the notes around it. A note rendered *above*
+ * it can grow taller than its estimated height and push it down (ADR 0006). So
+ * the scroll is set again until `placed` is in place and the stream has stopped
+ * rendering.
  */
 export async function scrollIntoPlace(
     placed: Placed,
@@ -130,7 +130,7 @@ export async function scrollIntoPlace(
 
         // It is in place the moment it is scrolled to; the renders that will
         // push it down finish later. So it has only arrived when it is in place
-        // *and* nothing was drawn or emptied during this try.
+        // *and* nothing was rendered or unloaded during this try.
         const offset = offsetFromPlace(placed, placement, scrollEl);
         settled = layout.layoutChanges();
         if (Math.abs(offset) <= SCROLL_TOLERANCE_PX && settled === changes) return;
@@ -144,7 +144,7 @@ export async function scrollIntoPlace(
  * sooner, which the reader moving the pane must call. A Base fills in after it
  * is drawn, which `scrollIntoPlace` does not count, and a Base above `placed`
  * pushes it off screen. It is put back in the same frame it moved, because a
- * resize is reported before the frame is drawn.
+ * resize is reported before the frame is painted.
  */
 export function keepInPlace(
     placed: Placed,

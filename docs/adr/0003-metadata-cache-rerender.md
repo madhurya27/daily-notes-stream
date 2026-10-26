@@ -1,19 +1,19 @@
-# 0003. Draw notes again from `metadataCache`, not `vault.modify`
+# 0003. Render notes again from `metadataCache`, not `vault.modify`
 
 - **Status:** Accepted
 - **Date:** 2026-08-20 (recorded 2026-08-30)
 
 ## Context
 
-The view drew a note again on `vault.on("modify")`. That event fires as soon as
+The view re-rendered a note on `vault.on("modify")`. That event fires as soon as
 the file is written, before `metadataCache` is updated, and the renderer reads
-the cache to cut the frontmatter off the body. So the note was drawn again with
+the cache to cut the frontmatter off the body. So the note was re-rendered with
 the frontmatter's old position: old properties, and body text that had been part
 of the frontmatter a moment earlier.
 
 ## Decision
 
-Draw notes again on `metadataCache.on("changed")`, which fires after the cache
+Render notes again on `metadataCache.on("changed")`, which fires after the cache
 has the new reading of that file. The handler replaces the note's DOM element in
 place, instead of building the batch again.
 
@@ -23,10 +23,10 @@ and `removeSorted`, so the sort order and the loaded range stay in step.
 
 ## Consequences
 
-- Drawing again comes after the key press by the cache's own delay. In a
+- Re-rendering comes after the key press by the cache's own delay. In a
   read-only stream, nobody notices.
-- Anything else that reads `metadataCache` while a note is drawn reads the same
-  version the event announced.
+- Anything else that reads `metadataCache` while a note is rendered reads the
+  same version the event announced.
 - The two kinds of event must not be merged again because they look similar.
   They answer different questions.
 
@@ -36,5 +36,5 @@ and `removeSorted`, so the sort order and the loaded range stay in step.
   the renderer already uses, so the position can still disagree.
 - **Keep `vault.modify` with a delay** — a guess at the cache's timing, which is
   wrong when the machine is busy.
-- **Draw the whole batch again on any change** — loses the scroll position and
+- **Render the whole batch again on any change** — loses the scroll position and
   the fold state, for an edit to one note.

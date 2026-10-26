@@ -154,7 +154,7 @@ export default class DailyNotesStreamPlugin extends Plugin {
     }
 
     /**
-     * Every open stream draws again with nothing folded. The keys saved by
+     * Every open stream re-renders with nothing folded. The keys saved by
      * builds before D-121 are removed too.
      */
     private forgetCollapseState(): void {

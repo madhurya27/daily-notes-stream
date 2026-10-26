@@ -39,7 +39,7 @@ test.describe("in iOS's engine", () => {
         await obsidian.page.keyboard.press("Escape");
     });
 
-    // WebKit draws no highlight on text the reader cannot select, and only
+    // WebKit paints no highlight on text the reader cannot select, and only
     // reads -webkit-user-select, which Obsidian sets to none.
     test("paints the search's highlights", async ({ obsidian, inWebKit }) => {
         await search(obsidian.page, "km");
@@ -48,7 +48,7 @@ test.describe("in iOS's engine", () => {
     });
 
     // Obsidian 1.14 renamed the variable the match color used. The first match
-    // is also the current one, drawn in its own color.
+    // is also the current one, painted in its own color.
     test("paints a match that is not the current one", async ({ obsidian, inWebKit }) => {
         // The second "then" in the newest note's reading list item.
         await search(obsidian.page, "then");

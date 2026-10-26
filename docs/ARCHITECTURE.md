@@ -12,7 +12,7 @@ kebab-case, and files are grouped by what they do (D-023).
 main.ts               the plugin: indexes and stores shared by all views, one of each
 └─ ui/stream-view     one for each open tab: passes Obsidian's events to the stream
    ├─ notes/          which files are daily notes, in what order, and which are hidden
-   ├─ stream/         what is loaded, where blocks are, what is drawn, and scrolling
+   ├─ stream/         what is loaded, where blocks are, what is rendered, and scrolling
    └─ render/         one note's DOM: Markdown, properties, Bases and the footer
 ```
 
@@ -50,45 +50,45 @@ So when a view's own handler runs, the shared indexes are already up to date.
    the empty ones ([ADR 0011](adr/0011-hide-template-only-notes.md)). Then it
    waits for `stream.open()`. Vault events that arrive in the meantime wait in
    the view's queue until then.
-2. **Load.** An empty element after the last block (`infinite-scroll.ts`)
-   scrolls into view. `NoteStream` then adds the next batch of 10 notes as empty
-   blocks. `stream-blocks.ts` places them and indexes them by path. The service
-   counts how many notes it has loaded: its `streamLength` (D-118).
+2. **Load.** An sentinel (`infinite-scroll.ts`) scrolls into view. `NoteStream`
+   then adds the next batch of 10 notes as empty blocks. `stream-blocks.ts`
+   places them and indexes them by path. The service counts how many notes it
+   has loaded: its `streamLength` (D-118).
 3. **Render.** `NoteWindowManager` (`note-window.ts`) uses three distances from
-   the screen, measured in heights of the pane. It draws blocks within 1.5
-   panes, hides blocks further than 4, and, once scrolling stops, empties blocks
+   the screen, measured in heights of the pane. It renders blocks within 1.5
+   panes, hides blocks further than 4, and, once scrolling stops, unloads blocks
    further than 12. Every block keeps its height
    ([ADR 0006](adr/0006-unload-off-screen-notes.md),
    [ADR 0023](adr/0023-hide-far-content-as-it-leaves.md)). A hidden note's
-   content is taken out of the layout, while its block keeps its fixed height.
+   content is taken out of the layout, while its block keeps its pinned height.
    Parts of a long note far from the screen are replaced by empty spacers
    (`far-runs.ts`, [ADR 0021](adr/0021-hide-far-runs-of-long-notes.md)), and
    `far-run-watch.ts` watches them. Hidden notes and hidden parts show again
-   when they come back near the screen. Each drawn note owns a child
-   `Component`, which is thrown away when the note is emptied. When the reader
+   when they come back near the screen. Each rendered note owns a child
+   `Component`, which is thrown away when the note is unloaded. When the reader
    scrolls up into a long note, it is drawn from its end
    ([ADR 0022](adr/0022-draw-long-notes-from-the-end-met.md)).
-4. **Change.** Vault and metadata events become changes to `NoteStream`: add a
-   note, remove one, draw one again, or check again whether a note is hidden.
-   Saves to the same path are grouped, with a short delay. An open search
-   searches again once the stream says its notes changed.
+4. **Change.** Vault and metadata events become `NoteStream` mutations: insert a
+   note, remove one, re-render one, or check again whether a note is hidden.
+   Saves to the same path are debounced. An open search searches again once the
+   stream says its notes changed.
 
-Every change to the stream, whether a batch, an event, a render, a jump or a
-rebuild, runs through one promise queue. So no two changes mix at an `await`
+Every mutation of the stream, whether a batch, an event, a render, a jump or a
+rebuild, runs through one promise queue, so none interleaves at an `await`
 ([ADR 0004](adr/0004-serialize-view-mutations.md)).
 
 ## Rendering
 
-- `note-renderer.ts` draws a note with Obsidian's `MarkdownRenderer` into
-  `.markdown-rendered`, and draws it again on the `metadataCache` "changed"
-  event ([ADR 0003](adr/0003-metadata-cache-rerender.md)). A note that was saved
-  after it was opened is drawn one section at a time (`note-sections.ts`), and a
-  save draws again only the sections it changed
+- `note-renderer.ts` renders a note with Obsidian's `MarkdownRenderer` into
+  `.markdown-rendered`, and re-renders it on the `metadataCache` "changed" event
+  ([ADR 0003](adr/0003-metadata-cache-rerender.md)). A note that was saved after
+  it was opened is rendered one section at a time (`note-sections.ts`), and a
+  save re-renders only the sections it changed
   ([ADR 0019](adr/0019-re-render-only-changed-sections.md)). Any other note of
-  6,000 characters or more is drawn in groups of sections, and a shorter one is
-  drawn all at once. Either way, after each section or group, the renderer gives
-  the thread back once it has used up its slice of time (`time-slice.ts`). A
-  note off the screen lets a note waiting on the screen be drawn first
+  6,000 characters or more is rendered in groups of sections, and a shorter one
+  is rendered all at once. Either way, after each section or group, the renderer
+  gives the thread back once it has used up its slice of time (`time-slice.ts`).
+  A note off the screen lets a note waiting on the screen be drawn first
   ([ADR 0020](adr/0020-render-long-notes-in-slices.md)).
 - Taps and clicks on titles, links and fold arrows are handled by one listener
   for each kind of gesture, on the stream's container. The view is the hover
@@ -125,11 +125,11 @@ a Base fills in, an image loads. These parts keep the reader's place:
   measured in a layout gets a height that 90% of the heights measured there are
   below (D-092). It never gets more than its file size times the most pixels per
   byte of any note measured there (D-135).
-- `HeightHold` keeps a note at its earlier height while it is drawn again. A
-  Base's box keeps a fixed height, the tallest it has been, until the Base stops
-  changing (D-095, D-159).
-- `NoteWindowManager` fixes the height of each drawn note, and only changes it
-  in the same task in which it tells `ScrollAnchor`
+- `HeightHold` keeps a note at its earlier height while it is re-rendered. A
+  Base's box keeps a fixed height, the tallest it has been, until the Base
+  settles (D-095, D-159).
+- `NoteWindowManager` pins each rendered note, and only changes it in the same
+  task in which it tells `ScrollAnchor`
   ([ADR 0013](adr/0013-pin-rendered-note-heights.md)). Once scrolling stops, it
   gives unloaded notes the heights they are now expected to have
   (`reservations.ts`, [ADR 0014](adr/0014-re-reserve-placeholders-at-rest.md)).
@@ -141,7 +141,7 @@ a Base fills in, an image loads. These parts keep the reader's place:
 
 Jumps, search steps and Back (`getEphemeralState`) go through
 `scroll-position.ts`. `scrollIntoPlace` sets the scroll again and again until
-the stream stops drawing, and `keepInPlace` keeps a centered match in place
+the stream stops rendering, and `keepInPlace` keeps a centered match in place
 while Bases fill in. A jump or search step first draws its whole note, with its
 Bases filled in (D-082). A jump starts in `jump-to-date-modal.ts`, which lists
 the dates of the vault's notes in the vault's own date format.

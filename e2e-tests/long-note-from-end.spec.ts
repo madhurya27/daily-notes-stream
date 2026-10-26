@@ -24,7 +24,7 @@ const NOTE = `[data-source-path="${LONG}"]`;
 
 /**
  * Each frame from when the reader reaches the note's last screen until it has
- * finished drawing and stopped changing.
+ * finished drawing and settled.
  */
 interface Frame {
     /** It still has its empty height, because drawing has not finished. */
@@ -35,7 +35,7 @@ interface Frame {
     title: boolean;
     /**
      * How far what was under the middle of the pane moved in the frame, after
-     * the scroll's step.
+     * the glide's step.
      */
     jump: number;
     /**
@@ -74,10 +74,10 @@ function comeUpInto(pane: Locator, glide = 0): Promise<{ frames: Frame[]; throug
             const frames: Frame[] = [];
             let held: Element | null = null;
             for (let i = 0; i < 600 && (frames.length === 0 || frames.at(-1)!.drawing || frames.length < 30); i++) {
-                // Down, because the scroll goes up.
+                // Down, because the glide goes up.
                 const glided = glide && block.classList.contains("is-unloaded") ? glide : 0;
                 pane.scrollTop -= glided;
-                // Under the middle after the scroll's step, where the stream
+                // Under the middle after the glide's step, where the stream
                 // reads the reader's place. One step can move the middle off a
                 // note as it finishes drawing.
                 const under = followed(middle());
@@ -124,7 +124,7 @@ function comeUpInto(pane: Locator, glide = 0): Promise<{ frames: Frame[]; throug
 }
 
 /**
- * Below the note, far enough that it is out of the layout and emptied, and not
+ * Below the note, far enough that it is out of the layout and unloaded, and not
  * scrolling.
  */
 async function goBelow(page: Page, pane: Locator, note: Locator) {

@@ -9,7 +9,7 @@ import { FarRuns, type Box } from "../../src/render/far-runs";
 import type { DrawOrder } from "../../src/render/note-renderer";
 
 /**
- * jsdom has no layout, so a drawn element's box is read from its data
+ * jsdom has no layout, so a rendered element's box is read from its data
  * attributes.
  */
 function boxFromData(el: Element): Box | null {
@@ -18,10 +18,10 @@ function boxFromData(el: Element): Box | null {
 }
 
 /**
- * The observers, by the rootMargin they were created with. The drawing one
- * reaches less far than the hiding one, so a block near the edge is not drawn
- * and hidden over and over. The emptying one reaches furthest. The screen one
- * has none.
+ * The observers, by the rootMargin they were created with. The rendering one
+ * reaches less far than the hiding one, so a block near the edge is not
+ * rendered and hidden over and over. The unloading one reaches furthest. The
+ * screen one has none.
  */
 interface Observers {
     render: IntersectionObserverCallback;
@@ -113,8 +113,8 @@ function fire(cb: IntersectionObserverCallback, block: HTMLElement, isIntersecti
 }
 
 /**
- * A fake renderer that records what it drew and threw away. `footer` stands in
- * for the linked mentions.
+ * A fake renderer that records what it rendered and threw away. `footer` stands
+ * in for the linked mentions.
  */
 function makeRenderer(
     opts: { render?: (block: HTMLElement) => void | Promise<void>; footer?: () => Promise<void> } = {}
@@ -134,8 +134,8 @@ function makeRenderer(
                 _goOn?: (note: Component) => Promise<boolean>,
                 order?: DrawOrder
             ): Promise<{ component: Component; footer: Promise<void> } | null> => {
-                // Like a long note drawn in slices. A note drawn all at once is
-                // never marked.
+                // Like a long note rendered in slices. A note rendered all at
+                // once is never marked.
                 if (order === "from-end") block.addClass("is-drawing-from-end");
                 await opts.render?.(block);
                 block.createDiv({ cls: "daily-note-content" });
@@ -146,11 +146,13 @@ function makeRenderer(
             discarded.push(component);
         }),
         /**
-         * After a save, a short note is drawn all at once again; a long one may
-         * be updated in place (ADR 0019).
+         * After a save, a short note is rendered all at once again; a long one
+         * may be updated in place (ADR 0019).
          */
         update: vi.fn(async (_block: HTMLElement, _file: TFile, _component: Component) => false),
-        /** A note drawn all at once has no runs. */
+        /**
+         * A note rendered all at once has no runs.
+         */
         runsOf: vi.fn((_component: Component): Element[][] => []),
         farRuns: new FarRuns(boxFromData),
         discarded,
@@ -203,7 +205,9 @@ function makeManager(
  */
 const settle = () => vi.advanceTimersByTimeAsync(0);
 
-/** Keeps the scroll still long enough for waiting empties to run. */
+/**
+ * Keeps the scroll still long enough for waiting unloads to run.
+ */
 const still = () => vi.advanceTimersByTimeAsync(SCROLL_IDLE_MS);
 
 /** An empty block keeps only its height. */
@@ -283,7 +287,9 @@ describe("NoteWindowManager.add", () => {
  * neighbours measured.
  */
 describe("NoteWindowManager remembered heights", () => {
-    /** Draws a block for `file`, which measures `px`. */
+    /**
+     * Renders a block for `file`, which measures `px`.
+     */
     async function renderAt(px: number, file = FILE) {
         const setup = makeManager(makeRenderer(), () => px);
         const block = setup.manager.add(file);
@@ -356,7 +362,7 @@ describe("NoteWindowManager remembered heights", () => {
             expect(placeholderHeight(manager.add(FILE))).toBe("812px");
         });
 
-        // A guessed height is not a height to hold a note at while it draws.
+        // A guessed height is not a height to hold a note at while it renders.
         it("holds nothing at it", async () => {
             const { manager } = makeEstimating(new NoteHeights());
             const block = manager.add(FILE);
@@ -469,7 +475,9 @@ describe("NoteWindowManager remembered heights", () => {
 describe("NoteWindowManager holds a rendered note until it settles", () => {
     const heldHeight = (block: HTMLElement) => block.style.getPropertyValue("--daily-note-held-height");
 
-    /** Draws a block for FILE, which measured `remembered` before, if given. */
+    /**
+     * Renders a block for FILE, which measured `remembered` before, if given.
+     */
     async function renderRemembering(remembered: number | undefined, measure: (el: HTMLElement) => number = () => 640) {
         const heights = new NoteHeights();
         if (remembered !== undefined) heights.keep(LAYOUT, FILE.path, remembered);
@@ -491,7 +499,7 @@ describe("NoteWindowManager holds a rendered note until it settles", () => {
     });
 
     // Holding a guessed height would leave a gap after a short note until it
-    // stops changing.
+    // settles.
     it("holds nothing on a note never measured", async () => {
         const { block } = await renderRemembering(undefined);
 
@@ -534,7 +542,7 @@ describe("NoteWindowManager holds a rendered note until it settles", () => {
     });
 
     // A note measured in this session is held at the height it had when it was
-    // emptied.
+    // unloaded.
     it("holds a note coming back at what it unloaded at", async () => {
         const { manager, block } = await renderRemembering(undefined);
         await vi.advanceTimersByTimeAsync(SETTLE_MS);
@@ -769,8 +777,8 @@ describe("NoteWindowManager after the pane's width changes", () => {
         expect(placeholderHeight(placeholder)).toBe("1100px");
     });
 
-    // The stream learns from every note drawn. An empty block made earlier gets
-    // the height known at that time.
+    // The stream learns from every note rendered. An empty block made earlier
+    // gets the height known at that time.
     it("re-estimates a note never measured here once the scroll comes to rest", async () => {
         let estimated = 900;
         const { manager, learn } = makeResizable({ estimate: () => estimated });
@@ -1054,8 +1062,8 @@ describe("NoteWindowManager after the pane's width changes", () => {
     });
 
     // From a phone's log: it ran as the phone turned, moving the shift into the
-    // scroll stopped keeping the place read before the turn, and a Base drawn
-    // again during the turn lost the place.
+    // scroll stopped keeping the place read before the turn, and a Base
+    // re-rendered during the turn lost the place.
     it("re-reserves once the anchor has handed over a reflow, not during it", async () => {
         let estimated = 900;
         const { manager, learn } = makeResizable({ estimate: () => estimated });
@@ -1106,8 +1114,8 @@ describe("NoteWindowManager after the pane's width changes", () => {
     });
 
     // Dragging a split resizes on every frame, so thousands of blocks must not
-    // be rewritten each time. Its fixed height was measured at the old width,
-    // so it is emptied and gets a height like other empty notes.
+    // be rewritten each time. Its pinned height was measured at the old width,
+    // so it is unloaded and gets a height like other empty notes.
     it("empties a note hidden at the old width", async () => {
         const { manager, narrow } = makeResizable();
         const block = manager.add(FILE);
@@ -1163,8 +1171,8 @@ describe("NoteWindowManager margins", () => {
         expect(marginsPx()).toEqual([900, 2400, 7200]);
     });
 
-    // Otherwise, a pane dragged to zero height, or not laid out yet, would draw
-    // and empty the same block on every scroll.
+    // Otherwise, a pane dragged to zero height, or not laid out yet, would
+    // render and unload the same block on every scroll.
     it("holds a floor under a scroll root with no height", () => {
         makeManager(makeRenderer(), () => 500, makeScrollRoot(0));
         expect(marginsPx()).toEqual([600, 1600, 4800]);
@@ -1179,7 +1187,7 @@ describe("NoteWindowManager margins", () => {
         manager.onResize();
 
         expect(marginsPx()).toEqual([2400, 6400, 19200]);
-        // The old observers for drawing, hiding and emptying.
+        // The old observers for rendering, hiding and unloading.
         expect(observers.disconnect).toHaveBeenCalledTimes(3);
     });
 
@@ -1253,8 +1261,8 @@ describe("NoteWindowManager margins", () => {
 
         fire(observers.render, block, true);
         await settle();
-        // Past the drawing distance but not the emptying distance: the drawing
-        // observer stops intersecting, and nothing reacts to that.
+        // Past the rendering distance but not the unloading distance: the
+        // rendering observer stops intersecting, and nothing reacts to that.
         fire(observers.render, block, false);
         await settle();
 
@@ -1264,7 +1272,7 @@ describe("NoteWindowManager margins", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Drawing and emptying
+// Rendering and unloading
 // ---------------------------------------------------------------------------
 
 describe("NoteWindowManager render", () => {
@@ -1369,8 +1377,8 @@ describe("NoteWindowManager render", () => {
             expect(orderOf(renderer)).toBe("from-end");
         });
 
-        // A jump goes to the note's start. Drawn from its end, it ended up with
-        // the scroll kept on the end's text, 130–286 px past its title.
+        // A jump goes to the note's start. Rendered from its end, it ended up
+        // with the scroll kept on the end's text, 130–286 px past its title.
         it("draws a note a jump readies from its start, wherever it is", async () => {
             const { manager, renderer, block } = placed(-9000, 300);
             manager.render(block);
@@ -1458,7 +1466,7 @@ describe("NoteWindowManager render", () => {
             expect(readPlace).not.toHaveBeenCalled();
         });
 
-        // Nothing scrolled or changed size while it drew, and the place was
+        // Nothing scrolled or changed size while it rendered, and the place was
         // last read over an empty block.
         it("has the anchor read its place over what it drew, before it lands", async () => {
             const readPlace = vi.spyOn(ScrollAnchor.prototype, "readPlace");
@@ -1528,8 +1536,7 @@ describe("NoteWindowManager pins a rendered note", () => {
     afterEach(() => document.body.empty());
 
     /**
-     * Draws FILE. `measure` sees the block as laid out, with a fixed height or
-     * not.
+     * Renders FILE. `measure` sees the block as laid out, pinned or not.
      */
     async function rendered(measure: (block: HTMLElement) => number, heights = new NoteHeights()) {
         const setup = makeManager(makeRenderer(), () => measure(block), undefined, heights);
@@ -1541,7 +1548,7 @@ describe("NoteWindowManager pins a rendered note", () => {
     }
 
     /**
-     * The natural height without a fixed height; otherwise the fixed height.
+     * The natural height without a pin; otherwise the pinned height.
      */
     const natural = (height: () => number) => (block: HTMLElement) => parseFloat(pinned(block)) || height();
 
@@ -1567,7 +1574,7 @@ describe("NoteWindowManager pins a rendered note", () => {
     });
 
     // When told first, the anchor read the place where the grown note was still
-    // cut off, in the note below it.
+    // clipped, in the note below it.
     it("tells the anchor of a resize inside it once it is re-pinned", async () => {
         let height = 640;
         const { block } = await rendered(natural(() => height));
@@ -1580,7 +1587,7 @@ describe("NoteWindowManager pins a rendered note", () => {
         expect(seen).toEqual(["900px"]);
     });
 
-    // Its fixed height hides a change inside it from anything watching the
+    // Its pinned height hides a change inside it from anything watching the
     // note's size.
     it("tells the anchor of a resize inside it that its pin holds", async () => {
         const { block } = await rendered(natural(() => 640));
@@ -1621,7 +1628,7 @@ describe("NoteWindowManager pins a rendered note", () => {
 
     describe("at the pane's top as it scrolls", () => {
         /**
-         * Draws FILE at the pane's top, with its content ending `end()` below
+         * Renders FILE at the pane's top, with its content ending `end()` below
          * its top.
          */
         async function atTop(height: () => number, end: () => number) {
@@ -1634,10 +1641,10 @@ describe("NoteWindowManager pins a rendered note", () => {
             return setup;
         }
 
-        // A Base filling in moved the text below it inside the fixed height,
-        // and the report that fixes the note's height again comes after this
-        // scroll. If the place were read first, it would be in the moved text,
-        // and the note below would drop.
+        // A Base filling in moved the text below it inside the pin, and the
+        // report that fixes the note's height again comes after this scroll. If
+        // the place were read first, it would be in the moved text, and the
+        // note below would drop.
         it("re-pins it before the anchor reads the place, once its content ends elsewhere", async () => {
             let height = 640;
             let end = 600;
@@ -1691,8 +1698,7 @@ describe("NoteWindowManager pins a rendered note", () => {
             expect(measured).not.toHaveBeenCalled();
         });
 
-        // In a hidden tab, a fixed height of zero would make the note
-        // disappear.
+        // In a hidden tab, a pin at zero would make the note disappear.
         it("measures nothing once it laid out at nothing and let go of its pin", async () => {
             let height = 640;
             let end = 600;
@@ -1709,8 +1715,8 @@ describe("NoteWindowManager pins a rendered note", () => {
         });
     });
 
-    // A hold is a min-height, which the fixed height hides, so its release only
-    // shows once the height is fixed again.
+    // A hold is a min-height, which the pin hides, so its release only shows at
+    // the re-pin.
     it("takes its own height once the reader touches it out of its hold", async () => {
         const heights = new NoteHeights();
         heights.keep(LAYOUT, FILE.path, 812);
@@ -1801,8 +1807,8 @@ describe("NoteWindowManager pins a rendered note", () => {
         expect(pinned(block)).toBe("700px");
     });
 
-    // Half drawn, it would get a fixed height that is too short, then grow back
-    // as the render finished.
+    // Half rendered, it would be pinned too short, then grow back as the render
+    // finished.
     it("keeps the pin through a resize reported while it re-renders", async () => {
         let height = 640;
         let mid: () => void = () => {};
@@ -1837,8 +1843,8 @@ describe("NoteWindowManager pins a rendered note", () => {
         expect(told).not.toHaveBeenCalled();
     });
 
-    // It is emptied or drawn again next. Fixing its height short now would
-    // shift the stream for nothing.
+    // It is unloaded or re-rendered next. Pinning it short now would shift the
+    // stream for nothing.
     it("keeps its height as a hold stops with the note", async () => {
         const heights = new NoteHeights();
         heights.keep(LAYOUT, FILE.path, 812);
@@ -1865,8 +1871,8 @@ describe("NoteWindowManager pins a rendered note", () => {
         expect(placeholderHeight(block)).toBe("640px");
     });
 
-    // In a hidden tab nothing is laid out, and a fixed height of zero would
-    // make the note disappear.
+    // In a hidden tab nothing is laid out, and a pin at zero would make the
+    // note disappear.
     it("pins nothing while the block lays out at nothing", async () => {
         const { block } = await rendered(() => 0);
 
@@ -1923,10 +1929,12 @@ describe("NoteWindowManager unload", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Emptying waits for scrolling to stop
+// Unloading waits for scrolling to stop
 // ---------------------------------------------------------------------------
 
-/** On iOS, emptying a note while scrolling stops the scroll (D-032). */
+/**
+ * On iOS, unloading a note while scrolling stops the scroll (D-032).
+ */
 describe("NoteWindowManager.scrollToTop", () => {
     it("glides the pane to its top", () => {
         const { manager, scrollRoot } = makeManager();
@@ -2035,8 +2043,8 @@ describe("NoteWindowManager while scrolling", () => {
         expect(renderer.discard).not.toHaveBeenCalled();
     });
 
-    // A note saved while it waits is drawn again. During a refresh, there is
-    // nothing to empty.
+    // A note saved while it waits is re-rendered. During a refresh, there is
+    // nothing to unload.
     it("unloads a block whose refresh was in flight on the next still scroll", async () => {
         const renderer = makeRenderer();
         const { manager } = makeManager(renderer);
@@ -2063,7 +2071,7 @@ describe("NoteWindowManager while scrolling", () => {
     it("sets no unload timer for a scroll with nothing waiting", async () => {
         const { manager } = await rendered();
         manager.onScroll();
-        // The only timer left remembers the drawn notes' heights.
+        // The only timer left remembers the rendered notes' heights.
         expect(vi.getTimerCount()).toBe(1);
     });
 });
@@ -2073,16 +2081,16 @@ describe("NoteWindowManager while scrolling", () => {
 // ---------------------------------------------------------------------------
 
 /**
- * Past the hiding distance, a note leaves the layout at once, even while
- * scrolling, because WebKit pauses for longer the more is laid out (ADR 0023).
- * It keeps its content and its fixed height, so its height does not change.
- * Emptying it waits until scrolling stops past the emptying distance (D-032).
+ * Past the hiding distance, a note leaves the layout at once, even mid-glide,
+ * because WebKit stalls for longer the more is laid out (ADR 0023). It keeps
+ * its content and its pinned height, so its height does not change. Unloading
+ * it waits until scrolling stops past the unloading distance (D-032).
  */
 describe("NoteWindowManager hides a far note", () => {
     const pinned = (block: HTMLElement) => block.style.getPropertyValue("--daily-note-pinned-height");
     const isHidden = (block: HTMLElement) => block.hasClass("is-far");
     /**
-     * A block's height is its fixed height. Without one, a hidden note's
+     * A block's height is its pinned height. Without one, a hidden note's
      * content takes no space.
      */
     const laidOut = (block: HTMLElement) => parseFloat(pinned(block)) || (isHidden(block) ? 0 : 640);
@@ -2195,8 +2203,8 @@ describe("NoteWindowManager hides a far note", () => {
         expect(isHidden(stranger)).toBe(false);
     });
 
-    // Without a fixed height, its height is its content's, so hiding the
-    // content would collapse it.
+    // Without a pin, its height is its content's, so hiding the content would
+    // collapse it.
     it("hides nothing in a note laid out at nothing, and empties it once the scroll is still", async () => {
         const { block } = await rendered(() => 0);
 
@@ -2292,13 +2300,14 @@ describe("NoteWindowManager hides a far note", () => {
 
 /**
  * A flick can carry a block past both distances between two frames, so the
- * request to empty it arrives while the render is still waiting for its
+ * request to unload it arrives while the render is still waiting for its
  * Markdown. An IntersectionObserver only reports changes, so that request is
  * the only one the block gets until it comes back into view.
  */
 describe("NoteWindowManager under a fast scroll", () => {
     /**
-     * Draws slowly enough that an observer entry can arrive during the render.
+     * Renders slowly enough that an observer entry can arrive during the
+     * render.
      */
     function makeSlowRenderer() {
         const renderer = makeRenderer();
@@ -2328,7 +2337,7 @@ describe("NoteWindowManager under a fast scroll", () => {
     });
 
     // Every vault event uses the same queue (ADR 0004), so a flick must not
-    // leave it drawing notes nobody is looking at.
+    // leave it rendering notes nobody is looking at.
     it("skips the render outright when the block left before its turn came", async () => {
         const renderer = makeSlowRenderer();
         const { manager } = makeManager(renderer);
@@ -2338,7 +2347,7 @@ describe("NoteWindowManager under a fast scroll", () => {
 
         fire(observers.render, first, true);
         fire(observers.render, second, true);
-        // Both go past while the first one is still drawing.
+        // Both go past while the first one is still rendering.
         fire(observers.hide, second, false);
         await settleSlow();
 
@@ -2346,7 +2355,7 @@ describe("NoteWindowManager under a fast scroll", () => {
         expect(second.classList.contains("is-unloaded")).toBe(true);
     });
 
-    // The request to empty arrives after renderInto has started, not while it
+    // The request to unload arrives after renderInto has started, not while it
     // is queued: the Markdown is already being read and cannot be skipped.
     it("unloads a block that left while its markdown was in flight, once the scroll is still", async () => {
         const renderer = makeSlowRenderer();
@@ -2386,7 +2395,7 @@ describe("NoteWindowManager under a fast scroll", () => {
     }
 
     // Scrolling past a long note left it drawing for a second after it had
-    // gone, which delayed the note the scroll stopped on.
+    // gone, which delayed the note the glide stopped on.
     it("stops drawing a note that left mid-render, leaving it unloaded", async () => {
         const renderer = makeSlicedRenderer();
         const { manager } = makeManager(renderer);
@@ -2580,7 +2589,7 @@ describe("NoteWindowManager draws the notes on screen first", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Drawing again after a save
+// Re-rendering after a save
 // ---------------------------------------------------------------------------
 
 describe("NoteWindowManager.refresh", () => {
@@ -2788,7 +2797,8 @@ describe("NoteWindowManager.refresh", () => {
         });
     });
 
-    // An empty note is drawn from the current file anyway when it comes back.
+    // An empty note is rendered from the current file anyway when it comes
+    // back.
     it("leaves an unloaded block alone", async () => {
         const { manager, renderer } = makeManager();
         const block = manager.add(FILE);
@@ -2901,8 +2911,8 @@ describe("NoteWindowManager teardown", () => {
 
     describe("once a note it was unloading is gone, waits on nothing for it", () => {
         /**
-         * A drawn note past the emptying distance, which waits for scrolling to
-         * stop.
+         * A rendered note past the unloading distance, which waits for
+         * scrolling to stop.
          */
         async function leaving() {
             // Space below the pane, so new heights for the others are never
@@ -2949,8 +2959,8 @@ describe("NoteWindowManager teardown", () => {
         });
     });
 
-    // In a hidden tab a note has no size, so when it is emptied there, it keeps
-    // the height it had.
+    // In a hidden tab a note has no size, so when it is unloaded there, it
+    // keeps the height it had.
     it("keeps a rendered note's height through forgotten heights, for an unload that measures nothing", async () => {
         let measured = 500;
         const heights = new NoteHeights();
@@ -3157,9 +3167,9 @@ describe("NoteWindowManager scroll anchoring", () => {
     });
 });
 
-// A drawn block's height only changes when its height is fixed again, which
-// tells the anchor. An observer's report would come one round after the report
-// of its content, which WebKit logs as an error.
+// A rendered block's height only changes when it is re-pinned, which tells the
+// anchor. An observer's report would come one round after the report of its
+// content, which WebKit logs as an error.
 describe("NoteWindowManager watches no pinned block's own size", () => {
     let observed: Set<Element>[];
     /** Whether any ResizeObserver watches `el`. */

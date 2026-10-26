@@ -9,7 +9,7 @@ import type { NoteRenderer } from "../render/note-renderer";
 interface Watched {
     /**
      * The spacers of its runs hidden because they are far away, each watched at
-     * the drawing distance (ADR 0021).
+     * the rendering distance (ADR 0021).
      */
     spacers: Set<HTMLElement>;
     /**
@@ -31,7 +31,7 @@ export interface Bounds {
 
 /**
  * Hides a long note's runs when they are further away than the hiding distance,
- * and shows them when they come within the drawing distance, even while
+ * and shows them when they come within the rendering distance, even while
  * scrolling (ADR 0023). A run is a group of a note's elements, hidden or shown
  * together. The stream's observers watch the runs as well as its blocks:
  * anything they report that is not a block belongs to a run.
@@ -75,10 +75,10 @@ export class FarRunWatch {
     }
 
     /**
-     * Watches the first and last element of each shown run of a drawn note. The
-     * observer's first report hides the runs that are far away. The note's
-     * height is fixed before this, so the anchor has already put the reader
-     * back, and "far away" is measured from there.
+     * Watches the first and last element of each shown run of a rendered note.
+     * The observer's first report hides the runs that are far away. The note's
+     * is pinned before this, so the anchor has already put the reader back, and
+     * "far away" is measured from there.
      */
     watch(block: HTMLElement, component: Component): void {
         this.unwatchEdges(block);
@@ -115,7 +115,9 @@ export class FarRunWatch {
         this.hide(far);
     }
 
-    /** A hidden run's spacer came within the drawing distance. */
+    /**
+     * A hidden run's spacer came within the rendering distance.
+     */
     show(spacer: HTMLElement): void {
         const block = blockOf(spacer);
         this.farRuns.reveal(spacer);
@@ -134,8 +136,8 @@ export class FarRunWatch {
     }
 
     /**
-     * A save drew `block` again in place. The runs it changed are shown, and
-     * their spacers removed.
+     * A save rendered `block` again in place. The runs it changed are shown,
+     * and their spacers removed.
      */
     updated(block: HTMLElement): void {
         const watched = this.notes.get(block);

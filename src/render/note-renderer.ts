@@ -33,25 +33,25 @@ import { LinkedMentionsFooter } from "./linked-mentions";
 import type { FarRuns } from "./far-runs";
 
 /**
- * The size of a group of sections drawn at once: about 10 ms on a phone (ADR
+ * The size of a group of sections rendered at once: about 10 ms on a phone (ADR
  * 0020).
  */
 const CHUNK_CHARS = 2000;
 
 /**
- * A shorter note is drawn all at once, which blocks the thread no longer than
- * one slice would (ADR 0020).
+ * A shorter note is rendered all at once, which blocks the thread no longer
+ * than one slice would (ADR 0020).
  */
 const SLICED_FROM_CHARS = 6000;
 
 /**
- * How long drawing may block the thread before it lets input and painting run
+ * How long rendering may block the thread before it lets input and painting run
  * (ADR 0020).
  */
 const SLICE_MS = 25;
 
 /**
- * A note's groups of sections. Null when it is drawn all at once, as a short
+ * A note's groups of sections. Null when it is rendered all at once, as a short
  * note is.
  */
 function chunksOf(markdown: string, cache: CachedMetadata | null): string[] | null {
@@ -150,12 +150,14 @@ function displayValue(value: unknown): string {
     return "";
 }
 
-/** One section of a note, drawn on its own (ADR 0019). */
+/**
+ * One section of a note, rendered on its own (ADR 0019).
+ */
 interface RenderedSection {
     source: string;
     /**
-     * The nodes it drew. They sit at the same level as the nodes of the note's
-     * other sections.
+     * The nodes it rendered. They sit at the same level as the nodes of the
+     * note's other sections.
      */
     nodes: ChildNode[];
     /** Owns what the section registered. A child of the note's component. */
@@ -164,16 +166,16 @@ interface RenderedSection {
 }
 
 /**
- * Where a section drawn before `sections` goes: before the first node they
- * drew.
+ * Where a section rendered before `sections` goes: before the first node they
+ * rendered.
  */
 function firstNodeOf(sections: RenderedSection[]): ChildNode | null {
     return sections.find((section) => section.nodes.length > 0)?.nodes[0] ?? null;
 }
 
 /**
- * Groups sections from the end, each group up to the group size. A note drawn
- * from the end grows at its top, so only its top group changes.
+ * Groups sections from the end, each group up to the group size. A note
+ * rendered from the end grows at its top, so only its top group changes.
  */
 function groupByLength(sections: RenderedSection[]): RenderedSection[][] {
     const runs: RenderedSection[][] = [];
@@ -202,46 +204,49 @@ function groupByStarts(sections: RenderedSection[], starts: WeakSet<RenderedSect
 }
 
 /**
- * The element a note's Markdown is drawn into, below its title and properties.
+ * The element a note's Markdown is rendered into, below its title and
+ * properties.
  */
 export const NOTE_CONTENT_CLASS = "daily-note-content";
 
 /**
- * A note drawn in slices is drawn from its end first when the reader scrolls up
- * into it.
+ * A note rendered in slices is rendered from its end first when the reader
+ * scrolls up into it.
  */
 export type DrawOrder = "from-start" | "from-end";
 
 /**
- * Marks a block that is drawing in slices from its end, so styles.css lays it
- * out from its bottom. The stream removes the mark when drawing finishes. A
- * note drawn all at once has no end to draw first.
+ * Marks a block that is rendering in slices from its end, so styles.css lays it
+ * out from its bottom. The stream removes the mark when rendering finishes. A
+ * note rendered all at once has no end to render first.
  */
 export const DRAWING_FROM_END = "is-drawing-from-end";
 
-/** A note drawn one section, or one group of sections, at a time. */
+/**
+ * A note rendered one section, or one group of sections, at a time.
+ */
 interface DrawnNote {
     contentEl: HTMLElement;
     /**
-     * The sections drawn so far, so the stream can hide them between slices.
+     * The sections rendered so far, so the stream can hide them between slices.
      */
     sections: RenderedSection[];
     /**
-     * The section each group starts at, fixed once drawn, so a save only
+     * The section each group starts at, fixed once rendered, so a save only
      * changes the groups it touched.
      */
     runStarts: WeakSet<RenderedSection> | null;
     /**
-     * The note's text above its body. When it changes, the properties are drawn
-     * again. Null when the note was drawn in groups; then a save draws the
-     * whole note again.
+     * The note's text above its body. When it changes, the properties are
+     * re-rendered. Null when the note was rendered in groups; then a save
+     * renders the whole note again.
      */
     frontmatter: string | null;
 }
 
 /**
- * On mobile, a Base is drawn as cards (ADR 0008), into an empty slot left where
- * its source was.
+ * On mobile, a Base is rendered as cards (ADR 0008), into an empty slot left
+ * where its source was.
  */
 function withoutBases(source: string): { markdown: string; bases: BaseSource[] } {
     // Stryker disable next-line ArrayDeclaration: desktop leaves no slot, so nothing reads the list.
@@ -257,12 +262,15 @@ function frontmatterOf(markdown: string, cache: CachedMetadata | null): string {
     return markdown.slice(0, cache?.frontmatterPosition?.end.offset ?? 0);
 }
 
-/** A drawn note: the component that frees it, and when its footer is drawn. */
+/**
+ * A rendered note: the component that frees it, and when its footer is
+ * rendered.
+ */
 export interface RenderedNote {
     component: Component;
     /**
-     * Resolves once the linked mentions are drawn. The note itself is already
-     * drawn.
+     * Resolves once the linked mentions are rendered. The note itself is
+     * already rendered.
      */
     footer: Promise<void>;
 }
@@ -273,14 +281,14 @@ export class NoteRenderer {
     private readonly mentions: LinkedMentionsFooter;
     private readonly widths: NoteWidths;
     /**
-     * Notes drawn one section or group at a time, by the component they were
-     * drawn into.
+     * Notes rendered one section or group at a time, by the component they were
+     * rendered into.
      */
     private readonly drawn = new WeakMap<Component, DrawnNote>();
     /**
-     * Notes saved while drawn, by path. From then on they are drawn by section.
-     * Until a save, a note is drawn all at once, which takes half as long for a
-     * long note.
+     * Notes saved while rendered, by path. From then on they are rendered by
+     * section. Until a save, a note is rendered all at once, which takes half
+     * as long for a long note.
      */
     private readonly saved = new Set<string>();
 
@@ -307,8 +315,8 @@ export class NoteRenderer {
     }
 
     /**
-     * The block a note always has, drawn or not. `renderInto` fills it and
-     * emptying clears it, so the note can be found by its path either way.
+     * The block a note always has, rendered or not. `renderInto` fills it and
+     * unloading clears it, so the note can be found by its path either way.
      */
     createBlock(file: TFile): HTMLElement {
         const block = createDiv();
@@ -318,14 +326,14 @@ export class NoteRenderer {
     }
 
     /**
-     * Fills an empty block. The note is drawn into a child component, not the
-     * view. What MarkdownRenderer registers lasts until that child is thrown
-     * away; otherwise it would outlast the DOM it belongs to. The footer is
-     * left drawing, because the render queue must not wait while other notes
-     * are read. Between slices, it waits for `goOn`. It returns null, and
+     * Fills an empty block. The note is rendered into a child component, not
+     * the view. What MarkdownRenderer registers lasts until that child is
+     * thrown away; otherwise it would outlast the DOM it belongs to. The footer
+     * is left rendering, because the render queue must not wait while other
+     * notes are read. Between slices, it waits for `goOn`. It returns null, and
      * leaves the block empty, if `goOn` said stop (ADR 0020) or the note was
-     * deleted in the meantime. A note drawn in slices is drawn from its end
-     * first when the reader scrolls up into it.
+     * deleted in the meantime. A note rendered in slices is rendered from its
+     * end first when the reader scrolls up into it.
      */
     async renderInto(
         block: HTMLElement,
@@ -338,7 +346,8 @@ export class NoteRenderer {
         noteComponent.load();
         this.component.addChild(noteComponent);
 
-        // A block left half drawn would get a second header on the next render.
+        // A block left half rendered would get a second header on the next
+        // render.
         try {
             this.renderHeader(block, file);
             this.renderProperties(block, file);
@@ -364,8 +373,8 @@ export class NoteRenderer {
                 this.drawn.set(noteComponent, note);
                 if (!(await this.renderSections(note, file, noteComponent, sources, goOn, order)))
                     return this.abandon(block, noteComponent);
-                // A note that failed to draw is drawn all at once on the next
-                // save.
+                // A note that failed to render is rendered all at once on the
+                // next save.
                 if (bySection) note.frontmatter = frontmatter;
             } else await this.renderWhole(contentEl, file, noteComponent, markdown.slice(frontmatter.length).trim());
             const sectionKeys = this.collapsible.makeCollapsible(contentEl, file.path);
@@ -382,11 +391,12 @@ export class NoteRenderer {
     }
 
     /**
-     * Draws again only the sections of a note that a save changed (ADR 0019).
-     * Returns false when the whole note must be drawn again: it was drawn all
-     * at once, its sections no longer stand on their own, a Base changed, or,
-     * on mobile, its frontmatter changed in a note with a Base. A failed update
-     * may leave the note partly drawn until it is drawn again in full.
+     * Re-renders only the sections of a note that a save changed (ADR 0019).
+     * Returns false when the whole note must be re-rendered: it was rendered
+     * all at once, its sections no longer stand on their own, a Base changed,
+     * or, on mobile, its frontmatter changed in a note with a Base. A failed
+     * update may leave the note partly rendered until it is re-rendered in
+     * full.
      */
     async update(block: HTMLElement, file: TFile, noteComponent: Component): Promise<boolean> {
         const note = this.drawn.get(noteComponent);
@@ -403,9 +413,9 @@ export class NoteRenderer {
             const frontmatterChanged = frontmatter !== note.frontmatter;
             const before = note.sections.map((section) => section.source);
             const span = changedSpan(before, sources);
-            // Bases are drawn across the note, each into its slot in order, and
-            // a Base's formulas may read the note's properties, so the Bases
-            // are drawn again with the properties.
+            // Bases are rendered across the note, each into its slot in order,
+            // and a Base's formulas may read the note's properties, so the
+            // Bases are re-rendered with the properties.
             const redrawn = frontmatterChanged
                 ? [...before, ...sources]
                 : [...before.slice(span.start, span.endBefore), ...sources.slice(span.start, span.endAfter)];
@@ -428,7 +438,9 @@ export class NoteRenderer {
         }
     }
 
-    /** Draws the sections `span` of `note` again from `sources`, in place. */
+    /**
+     * Renders the sections `span` of `note` again from `sources`, in place.
+     */
     private async replaceSections(
         note: DrawnNote,
         { start, endBefore, endAfter }: ChangedSpan,
@@ -468,7 +480,7 @@ export class NoteRenderer {
 
     /**
      * A note's elements in groups of about one slice each, in order, for the
-     * stream to hide when far away (ADR 0021). None for a note drawn all at
+     * stream to hide when far away (ADR 0021). None for a note rendered all at
      * once.
      */
     runsOf(noteComponent: Component): Element[][] {
@@ -495,10 +507,12 @@ export class NoteRenderer {
         return this.app.vault.getFileByPath(file.path) === null;
     }
 
-    /** Draws a note all at once, as Obsidian does. */
+    /**
+     * Renders a note all at once, as Obsidian does.
+     */
     private async renderWhole(contentEl: HTMLElement, file: TFile, noteComponent: Component, markdown: string) {
-        // On mobile, nothing in the stream may scroll (ADR 0008). Desktop draws
-        // wide content as Obsidian does, scrolling in its own box.
+        // On mobile, nothing in the stream may scroll (ADR 0008). Desktop
+        // renders wide content as Obsidian does, scrolling in its own box.
         const { markdown: body, bases } = withoutBases(markdown);
         await MarkdownRenderer.render(this.app, body, contentEl, file.path, noteComponent);
         this.markUnresolvedLinks(contentEl);
@@ -523,10 +537,10 @@ export class NoteRenderer {
     }
 
     /**
-     * Draws a note one section, or one group of sections, at a time, so a save
-     * can draw part of it again (ADR 0019), and no long note freezes the stream
-     * (ADR 0020). Returns null once `goOn` says stop. A note taken out of the
-     * document is left partly drawn, to be thrown away.
+     * Renders a note one section, or one group of sections, at a time, so a
+     * save can re-render part of it (ADR 0019), and no long note freezes the
+     * stream (ADR 0020). Returns null once `goOn` says stop. A note taken out
+     * of the document is left partly rendered, to be thrown away.
      */
     private async renderSections(
         note: DrawnNote,
@@ -561,10 +575,10 @@ export class NoteRenderer {
     }
 
     /**
-     * Draws one section before `next`. It is drawn into a holder element, which
-     * is then replaced by what it holds. So the note's elements stay siblings,
-     * as they are when the note is drawn all at once, which folding and
-     * Obsidian's stylesheet need.
+     * Renders one section before `next`. It is rendered into a holder element,
+     * which is then replaced by what it holds. So the note's elements stay
+     * siblings, as they are when the note is rendered all at once, which
+     * folding and Obsidian's stylesheet need.
      */
     private async renderSection(
         contentEl: HTMLElement,
@@ -586,7 +600,8 @@ export class NoteRenderer {
     }
 
     /**
-     * A Base file changed, so the copies of it drawn as cards are drawn again.
+     * A Base file changed, so the copies of it rendered as cards are
+     * re-rendered.
      */
     onBaseModified(file: TAbstractFile): Promise<void> {
         return this.bases.onBaseModified(file);
@@ -600,7 +615,9 @@ export class NoteRenderer {
         this.bases.onLayout(view);
     }
 
-    /** Frees everything the note registered while it was drawn. */
+    /**
+     * Frees everything the note registered while it was rendered.
+     */
     discard(noteComponent: Component): void {
         this.component.removeChild(noteComponent);
     }
@@ -618,7 +635,8 @@ export class NoteRenderer {
     }
 
     /**
-     * Draws the properties box again from the cache, above the note's content.
+     * Renders the properties box again from the cache, above the note's
+     * content.
      */
     private redrawProperties(block: HTMLElement, contentEl: HTMLElement, file: TFile): void {
         block.querySelector(":scope > .metadata-container")?.remove();
@@ -641,7 +659,7 @@ export class NoteRenderer {
 
         // The same structure as Obsidian's: the heading is a sibling above the
         // box, not a row inside it, and the whole row is the control. It is not
-        // in the tab order: Obsidian draws a ring around it on :focus, and a
+        // in the tab order: Obsidian renders a ring around it on :focus, and a
         // click would leave that ring behind. So the arrow takes focus.
         const heading = metadataContainer.createDiv({ cls: "metadata-properties-heading" });
         heading.createDiv({ cls: "metadata-properties-title", text: "Properties" });
@@ -663,14 +681,14 @@ export class NoteRenderer {
     }
 
     /**
-     * Maps each title to its note. Weak, so titles removed when a note is drawn
-     * again can be freed.
+     * Maps each title to its note. Weak, so titles removed when a note is
+     * re-rendered can be freed.
      */
     private readonly titles = new WeakMap<HTMLElement, TFile>();
 
     /**
      * One listener for each kind of gesture, for the whole stream, so a title
-     * or link drawn again needs no listener of its own.
+     * or link re-rendered needs no listener of its own.
      */
     delegate(view: HoverView, root: HTMLElement): void {
         view.registerDomEvent(root, "click", (evt) => {
@@ -712,7 +730,8 @@ export class NoteRenderer {
         });
 
         // Creating, deleting or renaming a note can fix or break a link in any
-        // drawn note. The cache reports it once, after it resolves links again.
+        // rendered note. The cache reports it once, after it resolves links
+        // again.
         view.registerEvent(this.app.metadataCache.on("resolved", () => this.markUnresolvedLinks(root)));
 
         // From here, Page preview decides whether to show a preview, based on
@@ -733,7 +752,7 @@ export class NoteRenderer {
 
     /**
      * Fades the links to notes that do not exist yet. The reading view does
-     * this after drawing; MarkdownRenderer leaves it to the caller.
+     * this after rendering; MarkdownRenderer leaves it to the caller.
      */
     private markUnresolvedLinks(root: HTMLElement): void {
         for (const el of Array.from(root.querySelectorAll<HTMLElement>(".internal-link"))) {
@@ -838,7 +857,7 @@ export class NoteRenderer {
         const keyContainer = propertyRow.createDiv({ cls: "metadata-property-key" });
         const iconEl = keyContainer.createDiv({ cls: "metadata-property-icon" });
         setIcon(iconEl, getPropertyIcon(this.app, key, value) ?? fallbackIcon(key));
-        // The key is a flex box, and WebKit draws no CSS highlight on loose
+        // The key is a flex box, and WebKit paints no CSS highlight on loose
         // text directly inside one (D-038), so search marked no key on iOS.
         keyContainer.createSpan({ cls: "metadata-property-key-input" }).createSpan({ text: key });
 

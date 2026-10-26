@@ -68,7 +68,7 @@ test("on mobile, draws no scroll box around a query", async ({ obsidian, mobileL
     test.skip(!mobileLayout, "desktop keeps its scroll bars");
     const note = await openQueries(obsidian.page);
 
-    // The stylesheet alone must cut off a block, because the guard only cuts it
+    // The stylesheet alone must clip a block, because the guard only cuts it
     // off once scrolling stops, unless Obsidian set the overflow inline
     // (D-172).
     const boxes = await note.evaluate((root) =>

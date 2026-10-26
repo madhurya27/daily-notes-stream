@@ -322,8 +322,8 @@ test.describe("README screenshots", () => {
         test.skip(testInfo.project.name === "desktop", "on desktop a Base looks as it does in Obsidian");
         const { page } = obsidian;
         const container = await openStream(page);
-        // Only notes near the screen are drawn, so bring the block into view,
-        // then its heading to the top.
+        // Only notes near the viewport are rendered, so bring the block into
+        // view, then its heading to the top.
         const sunday = container.locator('[data-source-path="Notes/2026-09-20.md"]');
         await sunday.scrollIntoViewIfNeeded();
         const reading = sunday.locator("h3", { hasText: "Reading" });

@@ -1,6 +1,8 @@
 import { test, expect, openStream } from "./obsidian";
 
-/** Newer than every test note, so it is drawn as the stream opens. */
+/**
+ * Newer than every test note, so it is rendered as the stream opens.
+ */
 const NOTE = "Notes/2026-03-16.md";
 const PAGE = "about:blank#video";
 /**
@@ -17,7 +19,7 @@ test("a frame in a note gets its page, on mobile once the stream is still, shade
     mobileLayout,
 }) => {
     const { page } = obsidian;
-    // As an earlier test leaves it: with a stream open, which draws the note
+    // As an earlier test leaves it: with a stream open, which renders the note
     // too.
     await openStream(page);
     await page.evaluate(

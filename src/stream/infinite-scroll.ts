@@ -1,6 +1,6 @@
 /**
- * Loads more notes when an empty element at the end comes into view. The
- * element is added again as the last child on every attach.
+ * Loads more notes when a sentinel comes into view. The element is added again
+ * as the last child on every attach.
  */
 export class InfiniteScrollController {
     private sentinel: HTMLElement | null = null;
@@ -54,8 +54,7 @@ export class InfiniteScrollController {
     }
 
     /**
-     * Returns the empty element at the end, which is always the container's
-     * last child.
+     * Returns the sentinel, which is always the container's last child.
      */
     getSentinel(): HTMLElement | null {
         return this.sentinel;

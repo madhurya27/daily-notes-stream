@@ -88,7 +88,7 @@ test.describe("jump to date", () => {
 
         // Scrolled to, not only loaded: the block ends up at the top of the
         // pane. Checked repeatedly, because the jump keeps correcting the
-        // scroll as the notes around the target are drawn and push it down.
+        // scroll as the notes around the target are rendered and push it down.
         await expect
             .poll(() =>
                 target.evaluate((el) => {
@@ -345,7 +345,7 @@ test.describe("jump to date", () => {
         // On a phone, the text size changed by iOS's setting.
         expect(layout).toMatch(/^\d+:(\d+px|calc\(\d+px \* [\d.]+\))$/);
         expect(reserved.length).toBeGreaterThan(0);
-        // A note emptied in this session keeps the height it measured, as the
+        // A note unloaded in this session keeps the height it measured, as the
         // store saves it (D-105).
         for (const [path, height] of reserved) expect(height, path).toBe(`${remembered[path!]}px`);
     });
@@ -395,7 +395,7 @@ test.describe("jump to date", () => {
         });
     }
 
-    // When turned, a phone draws the cards being read as a table again. The
+    // When turned, a phone renders the cards being read as a table again. The
     // reader ends up as far through the Base as they were (D-056), in the
     // table, while it is held at the cards' height.
     test("keeps how far the pane's top is through a Base redrawn as a table", async ({ obsidian, mobileLayout }) => {

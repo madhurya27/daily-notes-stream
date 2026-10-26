@@ -10,20 +10,20 @@ editor embedded, as a Canvas card has it. That editor only draws the lines near
 the screen, estimates the rest, and corrects its estimates by scrolling its own
 scrolling element. In the stream, the pane scrolls instead, so each correction
 was lost: drawing a note's Bases threw the reader thousands of px, and every fix
-to the anchor, the fixed heights or the keyboard showed the next problem.
+to the anchor, the pinned heights or the keyboard showed the next problem.
 Opening a note already costs little: the title opens it, ⌘-click opens it in a
 tab, ⌘⌥-click in a split next to the stream, and Back returns to the place left
 (`e2e-tests/history.spec.ts`).
 
 ## Decision
 
-Every note is drawn read-only. A note is edited where Obsidian opens it, from
-its title, and the stream draws it again on the save (ADR 0003).
+Every note is rendered read-only. A note is edited where Obsidian opens it, from
+its title, and the stream re-renders it on the save (ADR 0003).
 
 ## Consequences
 
-- No editor is in the stream, so the anchor, the fixed heights (ADR 0013), and
-  the rule against scrolling boxes on mobile (ADR 0008) only have to handle
+- No editor is in the stream, so the anchor, the pinned heights (ADR 0013), and
+  the rule against scroll containers on mobile (ADR 0008) only have to handle
   reading.
 - On a phone, writing means leaving the stream and coming back.
 - Nothing depends on Obsidian's internal Markdown embed.

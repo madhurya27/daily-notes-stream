@@ -9,7 +9,7 @@ ADR 0020 draws a long note in slices from its top. A reader who scrolls up into
 one from below, as after a jump to an older day, reaches its end first, which is
 drawn last. On an iPhone, with heights forgotten, a 10,000-line note left the
 screen white for 0.55–0.77 s in 3 out of 10 scrolls. Once drawn, its runs stayed
-in the layout until scrolling stopped (ADR 0021), so the scrolling paused
+in the layout until scrolling stopped (ADR 0021), so the scrolling stalled
 afterwards.
 
 ## Decision
@@ -21,8 +21,8 @@ empty height, is laid out from its bottom (`is-drawing-from-end`), so what is
 drawn is where the reader is, and the note's title and properties stay out of
 view. Before drawing finishes, the scroll anchor reads the reader's place in
 what was drawn. Nothing scrolled or changed size while it drew, so nothing else
-would have told it. When drawing finishes, the block's height is fixed again,
-and the anchor keeps that text in place as the note takes its real height.
+would have told it. When rendering finishes, the block re-pins, and the anchor
+keeps that text in place as the note takes its real height.
 
 If scrolling brought the note's top into the pane in the meantime, the anchor
 keeps whichever of this note and the note above is in the middle of the pane,
@@ -33,12 +33,12 @@ note's content, the anchor keeps the text below the gap, never the content
 element, whose top rises with each slice drawn above.
 
 Only content near the reader stays in the layout while the note is drawn.
-Between slices, the stream hides each run drawn past the emptying distance (ADR
+Between slices, the stream hides each run drawn past the unloading distance (ADR
 0021), except the top one, which may still grow. Runs are grouped from the
 note's end, so runs already drawn keep their limits as the note grows at its
-top. The stream hides the other far runs when drawing finishes, after the height
-is fixed again, because how far away a run is depends on where the anchor put
-the reader.
+top. The stream hides the other far runs when rendering finishes, after the
+re-pin, because how far away a run is depends on where the anchor put the
+reader.
 
 ## Consequences
 

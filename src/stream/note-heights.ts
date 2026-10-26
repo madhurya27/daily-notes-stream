@@ -26,7 +26,7 @@ interface Learned {
 
 /**
  * Each note's last measured height, for each layout: the height its empty block
- * keeps until it is drawn again. A note that changed since it was measured is
+ * keeps until it is re-rendered. A note that changed since it was measured is
  * forgotten, and estimated from its text again (ADR 0017).
  */
 export class NoteHeights {
@@ -88,7 +88,7 @@ export class NoteHeights {
 
     /**
      * Saves a height, rounded to the 1/64 pixel the browser lays out in.
-     * Rounding more would make an empty block differ from the drawn note
+     * Rounding more would make an empty block differ from the rendered note
      * (D-105).
      */
     keep(layout: string, path: string, height: number): void {

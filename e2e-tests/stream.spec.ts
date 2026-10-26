@@ -31,7 +31,7 @@ test.describe("daily notes stream in real Obsidian", () => {
         await expect(firstNote.locator(".daily-note-content")).not.toContainText("mood:");
     });
 
-    // An icon name missing from Obsidian's Lucide set draws a blank button,
+    // An icon name missing from Obsidian's Lucide set renders a blank button,
     // without any error.
     test("draws an icon on every header action", async ({ obsidian }) => {
         const { page } = obsidian;
@@ -241,7 +241,7 @@ test.describe("daily notes stream in real Obsidian", () => {
         const list = container.locator(".daily-note-content ul", { hasText: "Groceries" }).first();
         await expect(list).toBeVisible();
 
-        // Obsidian indents drawn lists with the list item's margin, and sets
+        // Obsidian indents rendered lists with the list item's margin, and sets
         // the list's own padding to zero. A plain <ul> gets the browser's 40px
         // for each level instead, which on a phone uses a tenth of the width
         // for every level of nesting.
@@ -395,13 +395,13 @@ test.describe("daily notes stream in real Obsidian", () => {
         }
     });
 
-    // jsdom loads no stylesheet and has no layout, so emptying notes can only
+    // jsdom loads no stylesheet and has no layout, so unloading notes can only
     // be proven here: a block far above the screen keeps its height and loses
     // its content (ADR 0006).
     test.describe("off-screen notes", () => {
         /**
          * Three notes tall enough that the top one can be pushed past the
-         * emptying distance.
+         * unloading distance.
          */
         const TALL_NOTES = ["2026-03-20.md", "2026-03-19.md", "2026-03-18.md"];
 
@@ -441,8 +441,8 @@ test.describe("daily notes stream in real Obsidian", () => {
             expect((await top.boundingBox())!.height).toBeCloseTo(renderedHeight, -1);
         });
 
-        // On iOS, emptying a note while scrolling stops the scroll, so nothing
-        // is emptied until scrolling stops (D-032).
+        // On iOS, unloading a note while scrolling stops the scroll, so nothing
+        // is unloaded until scrolling stops (D-032).
         test("keeps a note scrolled far above rendered until the scroll stops", async ({ obsidian }) => {
             const { page } = obsidian;
             const container = await openStream(page);
@@ -500,9 +500,8 @@ test.describe("daily notes stream in real Obsidian", () => {
             });
         }
 
-        // WebKit pauses for longer the more is laid out, so a note far away
-        // leaves the layout as soon as it is far, even while scrolling (ADR
-        // 0023).
+        // WebKit stalls for longer the more is laid out, so a note far away
+        // leaves the layout as soon as it is far, even mid-glide (ADR 0023).
         test("takes a note a few panes above out of the layout mid-glide, keeping its height", async ({ obsidian }) => {
             const { page } = obsidian;
             const container = await openStream(page);
@@ -563,9 +562,9 @@ test.describe("daily notes stream in real Obsidian", () => {
                     const pane = el.closest(".daily-notes-stream-container")!.parentElement!;
                     return el.getBoundingClientRect().top - pane.getBoundingClientRect().top;
                 });
-            // The notes above are drawn as it is scrolled to, and grow taller
-            // than their empty blocks. This is the first thing the anchor has
-            // to correct.
+            // The notes above are rendered as it is scrolled to, and grow
+            // taller than their empty blocks. This is the first thing the
+            // anchor has to correct.
             await expect.poll(top).toBeCloseTo(0, 0);
             const before = await top();
 
@@ -660,8 +659,8 @@ test.describe("daily notes stream in real Obsidian", () => {
                     tail.style.height = "2000px";
                 });
                 const pane = container.locator("xpath=..");
-                // At the end, and not scrolling. The note's height is fixed at
-                // its new height one report later.
+                // At the end, and not scrolling. The note is pinned at its new
+                // height one report later.
                 await expect
                     .poll(async () => {
                         await pane.evaluate((el) => (el.scrollTop = el.scrollHeight));
@@ -692,7 +691,7 @@ test.describe("daily notes stream in real Obsidian", () => {
 
             /**
              * A flick upward, frame by frame, until a note above has been
-             * drawn, then a little more.
+             * rendered, then a little more.
              */
             const GLIDE_STEP_PX = 30;
             const GLIDE_STEPS_AFTER_RENDER = 10;
@@ -709,8 +708,8 @@ test.describe("daily notes stream in real Obsidian", () => {
                 const blocks = container.locator(".daily-note-block");
                 await expect(blocks).toHaveCount(10); // BATCH_SIZE
                 await blocks.last().evaluate((el) => el.scrollIntoView({ block: "start" }));
-                // Not scrolling, so what was drawn on the way down is already
-                // in the scroll position.
+                // Not scrolling, so what was rendered on the way down is
+                // already in the scroll position.
                 await page.waitForTimeout(1000);
                 await expect(container).not.toHaveClass(/is-scroll-shifted/);
 
@@ -754,17 +753,17 @@ test.describe("daily notes stream in real Obsidian", () => {
             });
         });
 
-        // While scrolling, iOS draws a resize before it reports it (ADR 0013).
+        // Mid-glide, iOS paints a resize before it reports it (ADR 0013).
         // Chromium reports it first, so each test reads the layout when the
-        // task that changes it ends, which is what iOS would draw.
+        // task that changes it ends, which is what iOS would paint.
         test.describe("as iOS paints it, before any resize is reported", () => {
             test.beforeEach(({ obsidian }) => withoutScrollAnchoring(obsidian.page));
             test.afterEach(({ obsidian }) => restoreScrollAnchoring(obsidian.page));
 
             test("draws a note rendering above the pane with the shift that keeps the place", async ({ obsidian }) => {
                 const { page } = obsidian;
-                // With no measured heights, every note is drawn without a held
-                // height. This is the case that jumped.
+                // With no measured heights, every note is rendered without a
+                // held height. This is the case that jumped.
                 await page.evaluate(() =>
                     window.app.plugins.plugins["daily-notes-stream"].layoutMemory.notes.restore(null)
                 );
@@ -775,7 +774,7 @@ test.describe("daily notes stream in real Obsidian", () => {
                 await page.waitForTimeout(1000);
                 // The test notes all lay out alike, so the layout's estimate
                 // would be right. Here each empty block is too short, and every
-                // note grows when drawn.
+                // note grows when rendered.
                 await container.evaluate((stream) => {
                     for (const block of stream.querySelectorAll<HTMLElement>(".daily-note-block.is-unloaded"))
                         block.style.setProperty("--daily-note-placeholder-height", "100px");
@@ -801,9 +800,8 @@ test.describe("daily notes stream in real Obsidian", () => {
                     const rendered = new MutationObserver((records) => {
                         for (const { target, oldValue } of records) {
                             const block = target as HTMLElement;
-                            // Far behind the scroll, the reader's note hides
-                            // its content (ADR 0023), so there is no place
-                            // then.
+                            // Far behind the glide, the reader's note hides its
+                            // content (ADR 0023), so there is no place then.
                             if (pane.scrollTop !== at || reader.getClientRects().length === 0) return;
                             if (oldValue?.includes("is-unloaded") && !block.classList.contains("is-unloaded"))
                                 drifts.push(drift());
@@ -868,9 +866,9 @@ test.describe("daily notes stream in real Obsidian", () => {
                 expect(offBy).toEqual(offBy.map(() => 0));
             });
 
-            // When the property was inherited, fixing the height again restyled
-            // every element of the note: 0.5 s for a 10,000-line note at a
-            // phone's speed (D-129).
+            // When the property was inherited, re-pinning restyled every
+            // element of the note: 0.5 s for a 10,000-line note at a phone's
+            // speed (D-129).
             test("keeps a pinned height and the stream's shift from the elements inside", async ({ obsidian }) => {
                 const container = await openStream(obsidian.page);
                 await expect(container.locator(".daily-note-block.is-pinned").first()).toBeAttached();
@@ -889,7 +887,7 @@ test.describe("daily notes stream in real Obsidian", () => {
             });
 
             // A Base, notes with no measured height, and a scroll down and
-            // back: drawing, emptying and Bases filling in each change a
+            // back: rendering, unloading and Bases filling in each change a
             // height.
             test.describe("through a scroll down and back", () => {
                 const path = `Notes/${seededDate(SEEDED_DAYS)}.md`;
@@ -918,8 +916,7 @@ test.describe("daily notes stream in real Obsidian", () => {
                     const { sawBases, unpinned } = await container.locator("xpath=..").evaluate(async (pane, path) => {
                         const frame = () => new Promise((resolve) => requestAnimationFrame(resolve));
                         /**
-                         * What only fixing the height again or emptying the
-                         * note changes.
+                         * What only re-pinning or unloading the note changes.
                          */
                         const state = (block: HTMLElement) =>
                             [
@@ -932,7 +929,7 @@ test.describe("daily notes stream in real Obsidian", () => {
                         let sawBases = false;
                         // Read when a task ends and when a frame starts, before
                         // Chromium's resize reports, so it is what iOS would
-                        // draw.
+                        // paint.
                         const check = () => {
                             sawBases ||= pane.querySelectorAll(`[data-source-path="${path}"] .bases-view`).length === 2;
                             for (const block of pane.querySelectorAll<HTMLElement>(".daily-note-block")) {
@@ -1153,8 +1150,8 @@ test.describe("daily notes stream in real Obsidian", () => {
         // its space either way.
         await pre.hover();
 
-        // Obsidian wraps drawn code and fixes its copy button to the top-right
-        // corner, so a long first line runs under the icon.
+        // Obsidian wraps rendered code and fixes its copy button to the
+        // top-right corner, so a long first line runs under the icon.
         const overlap = await pre.evaluate((el) => {
             const button = el.querySelector(".copy-code-button");
             const code = el.querySelector("code");
@@ -1194,7 +1191,7 @@ test.describe("daily notes stream in real Obsidian", () => {
         await firstNote.locator(".metadata-properties-heading").click();
         await expect(panel).toHaveClass(/is-collapsed/);
 
-        // Editing the note draws it again, and the panel must not open again.
+        // Editing the note re-renders it, and the panel must not open again.
         await page.evaluate(async () => {
             const file = window.app.vault.getAbstractFileByPath("Notes/2026-03-14.md");
             await window.app.vault.append(file, "\nEdited.\n");
@@ -1755,7 +1752,7 @@ test.describe("daily notes stream in real Obsidian", () => {
         const heading = container.locator(".metadata-properties-heading").first();
         await heading.click();
 
-        // Obsidian draws a ring around this heading on :focus. The stream is
+        // Obsidian renders a ring around this heading on :focus. The stream is
         // read-only, so a click on it must fold the panel and leave no ring
         // behind.
         await expect(heading).not.toBeFocused();

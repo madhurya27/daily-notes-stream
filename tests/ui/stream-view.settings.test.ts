@@ -26,8 +26,8 @@ describe("DailyNotesStreamView — Obsidian's daily-notes settings changed", () 
     });
 
     /**
-     * Runs the delayed handler and empties the change queue. Not every timer,
-     * because the midnight timer starts itself again.
+     * Runs the debounced handler and drains the mutation queue. Not every
+     * timer, because the midnight timer starts itself again.
      */
     async function settle() {
         await vi.advanceTimersByTimeAsync(1_000);

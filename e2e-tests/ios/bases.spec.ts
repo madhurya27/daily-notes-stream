@@ -49,7 +49,7 @@ test("a Base on screen gains a row: the text below it never jumps and returns", 
     expect(oneWay(tops), `on screen at ${path(tops).join(", ")}`).toBe(true);
 });
 
-// Bases empties a view and fills it again as it draws it again, now one row
+// Bases empties a view and fills it again as it re-renders it, now one row
 // taller. Above the top of the screen, only the stream's anchor stops that from
 // moving the text in view.
 test("a Base gaining a row just above the screen's top leaves the text below still", async ({ phone }) => {
@@ -63,9 +63,9 @@ test("a Base gaining a row just above the screen's top leaves the text below sti
 });
 
 // Bases fills a view in a task of its own, which moves the text below it inside
-// its note with a fixed height. While scrolling, a scroll event can come before
-// the report that fixes the note's height again. Both are made here, in that
-// order, in one task.
+// its pinned note. While scrolling, a scroll event can come before the report
+// that fixes the note's height again. Both are made here, in that order, in one
+// task.
 test("a Base filling in above the screen's top, a scroll before its report, leaves the next note still", async ({
     phone,
 }) => {
@@ -97,7 +97,7 @@ test("a Base filling in above the screen's top, a scroll before its report, leav
 });
 
 /**
- * A table whose headers fit a phone but whose values do not. Only the drawn
+ * A table whose headers fit a phone but whose values do not. Only the rendered
  * table shows that it is too wide.
  */
 const VALUES_WIDE = [
@@ -113,7 +113,7 @@ const VALUES_WIDE = [
 
 /**
  * Where on screen the text the reader follows was, on each frame, while `file`
- * is written again as `body`, and its copy in `slot` is drawn again and
+ * is written again as `body`, and its copy in `slot` is re-rendered and
  * measured again: as written, then as cards (D-033). The file is restored
  * afterwards.
  */
@@ -130,8 +130,8 @@ async function placesAsRedrawn(phone: Phone, slot: string, file: string, body: (
             file,
             body
         );
-    // Whether it was drawn as written on the way, because drawing again is over
-    // within a frame or two.
+    // Whether it was rendered as written on the way, because re-rendering is
+    // over within a frame or two.
     await phone.run((slot: string) => {
         const el = document.querySelector(slot)!;
         const seen = new MutationObserver(() => {
@@ -155,7 +155,7 @@ async function placesAsRedrawn(phone: Phone, slot: string, file: string, body: (
     }
 }
 
-// Measured again, a kanban is drawn as a board, then again as cards (D-107).
+// Measured again, a kanban is rendered as a board, then again as cards (D-107).
 // Above the top of the screen, only the stream's anchor keeps the text in view
 // still.
 test("a kanban redrawn as cards just above the screen's top leaves the next note still", async ({ phone }) => {
@@ -168,9 +168,8 @@ test("a kanban redrawn as cards just above the screen's top leaves the next note
     expect(Math.max(...tops.map(Math.abs)), `on screen at ${path(tops).join(", ")}`).toBeLessThan(2);
 });
 
-// Drawing again changes the Base's height inside a note with a fixed height.
-// The note's height is fixed again, and the anchor shifts, in the task that
-// changed it (ADR 0013).
+// Re-rendering changes the Base's height inside a pinned note. The note
+// re-pins, and the anchor shifts, in the task that changed it (ADR 0013).
 for (const [what, slot, file, body] of [
     ["a table", MIDDLE, "Bases/Middle.base", () => VALUES_WIDE],
     ["a kanban", KANBAN, KANBAN_FILE, (was: string) => `${was}# Changed\n`],

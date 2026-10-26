@@ -7,7 +7,9 @@ const still = () => vi.advanceTimersByTimeAsync(SCROLL_IDLE_MS);
 let container: HTMLElement;
 let guard: ScrollBoxGuard;
 
-/** An element that would be a scrolling box, as Obsidian's CSS makes some. */
+/**
+ * An element that would be a scroll container, as Obsidian's CSS makes some.
+ */
 function scrollBox(overflow = "auto"): HTMLElement {
     const el = document.createElement("div");
     el.setAttribute("style", `overflow-y: ${overflow}`);
@@ -140,8 +142,8 @@ describe("ScrollBoxGuard safety net", () => {
         expect(note.classList.contains("is-scroll-clipped")).toBe(false);
     });
 
-    // Reading styles while scrolling makes the browser recalculate the whole
-    // page's styles, just before a pause.
+    // Reading styles mid-glide makes the browser recalculate the whole page's
+    // styles, just before a stall.
     it("waits while the stream scrolls", async () => {
         const box = container.appendChild(scrollBox());
         await vi.advanceTimersByTimeAsync(SCROLL_IDLE_MS - 1);
@@ -162,7 +164,7 @@ describe("ScrollBoxGuard safety net", () => {
         expect(box.classList.contains("is-scroll-clipped")).toBe(false);
     });
 
-    // An SVG's overflow is how far it draws, not a scrolling box.
+    // An SVG's overflow is how far it paints, not a scroll container.
     it("skips SVG", async () => {
         const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
         svg.setAttribute("style", "overflow: hidden");

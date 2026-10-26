@@ -74,8 +74,8 @@ function makeStore() {
 }
 
 /**
- * A real manager (the properties panel uses its toggle), with drawing replaced
- * by a fake.
+ * A real manager (the properties panel uses its toggle), with rendering
+ * replaced by a fake.
  */
 /** The component part of the view, which owns the shared listeners. */
 const delegateComponent = Object.assign(new Component(), {
@@ -97,7 +97,7 @@ async function renderNote(renderer: NoteRenderer, file: TFile): Promise<HTMLElem
 let lastCollapsible: CollapsibleManager | null = null;
 
 /**
- * Puts a drawn note under a root with shared listeners, as the stream's
+ * Puts a rendered note under a root with shared listeners, as the stream's
  * container is.
  */
 function mount(renderer: NoteRenderer, el: HTMLElement): HTMLElement {
@@ -434,7 +434,7 @@ describe("NoteRenderer component lifetime", () => {
     });
 
     // Tracked once the note is complete, so the title and body are searched,
-    // and forgotten with the component, so an emptied note keeps no ranges.
+    // and forgotten with the component, so an unloaded note keeps no ranges.
     it("highlights the search in the rendered note until it is discarded", async () => {
         const app = makeApp();
         app.vault.cachedRead = vi.fn().mockResolvedValue("body");
@@ -550,8 +550,8 @@ describe("NoteRenderer linked mentions", () => {
         expect(block.querySelector(".daily-note-mention-excerpt .internal-link")?.hasClass("is-unresolved")).toBe(true);
     });
 
-    // The queue that draws notes also handles vault events, so it must not wait
-    // while another note is read.
+    // The queue that renders notes also handles vault events, so it must not
+    // wait while another note is read.
     it("hands the note back before its linked mentions are read", async () => {
         const { renderer, release } = linkedVault();
         const block = renderer.createBlock(DAY);
@@ -1084,7 +1084,9 @@ describe("NoteRenderer tables", () => {
         };
     });
 
-    /** A drawn note holding one table. */
+    /**
+     * A rendered note holding one table.
+     */
     async function renderTable(): Promise<HTMLElement> {
         vi.spyOn(MarkdownRenderer, "render").mockImplementationOnce((_app, _md, el) => {
             const table = el.createEl("table");
@@ -1138,7 +1140,7 @@ describe("NoteRenderer equations", () => {
     });
 
     /**
-     * A drawn note holding one display equation twice as wide as the 400px
+     * A rendered note holding one display equation twice as wide as the 400px
      * note. Returns its math element.
      */
     async function renderEquation(): Promise<HTMLElement> {
@@ -1286,7 +1288,7 @@ describe("NoteRenderer Bases", () => {
 describe("NoteRenderer unresolved links", () => {
     /**
      * MarkdownRenderer's output for `[[Reading list]] [[Someday]]`, as the real
-     * one draws it.
+     * one renders it.
      */
     async function renderLinks(app: ReturnType<typeof makeApp>) {
         vi.spyOn(MarkdownRenderer, "render").mockImplementationOnce((_app, _md, el) => {
@@ -1694,7 +1696,7 @@ describe("NoteRenderer renderProperties", () => {
         );
         const el = mount(renderer, await renderNote(renderer, new TFile("Notes/2025-01-01.md")));
 
-        // Obsidian draws a ring around this heading on :focus, and a tabindex
+        // Obsidian renders a ring around this heading on :focus, and a tabindex
         // makes a click focus it. The ring then stayed around the row until
         // something else took focus. So the arrow is what the keyboard uses
         // instead.
@@ -1806,7 +1808,7 @@ describe("NoteRenderer — delegated listeners", () => {
 
     it("binds nothing to the title itself", async () => {
         // One listener for each note would pile up on the view as notes are
-        // drawn again.
+        // re-rendered.
         const app = makeApp();
         const { root, link } = await render(app, false);
         link.click();

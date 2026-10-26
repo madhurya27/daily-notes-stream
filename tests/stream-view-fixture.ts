@@ -121,7 +121,7 @@ export function makeStubbedView(app: object = makeApp()) {
         delegate: vi.fn(),
         onBaseModified: vi.fn().mockResolvedValue(undefined),
     });
-    // The window manager returns empty blocks. Drawing is its job.
+    // The window manager returns empty blocks. Rendering is its job.
     Object.assign(view["stream"], {
         window: fake<NoteWindowManager>({
             attach: vi.fn(),

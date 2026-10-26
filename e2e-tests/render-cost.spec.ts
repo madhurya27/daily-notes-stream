@@ -1,7 +1,7 @@
 import { test, expect, openStream, emulatePhoneCpu, seededDate, SEEDED_DAYS } from "./obsidian";
 
 /**
- * On mobile, drawing a note waits for each Base, then measures tables and
+ * On mobile, rendering a note waits for each Base, then measures tables and
  * equations (D-068). Needs a vault of three years or more, so it runs with
  * `pnpm run test:memory`.
  */
@@ -117,7 +117,7 @@ test.describe("render cost on mobile, a Base and equations per note", () => {
         await expect(last.locator(".daily-note-content")).toBeVisible();
         await page.waitForTimeout(2000);
 
-        // Proof that the scroll drew what it says it measures.
+        // Proof that the scroll rendered what it says it measures.
         await last.evaluate((el) =>
             el.querySelector(".bases-view")!.scrollIntoView({ block: "start", behavior: "instant" })
         );

@@ -13,10 +13,10 @@ paths:
 - **Keep each kind of test on its side**
   ([ADR 0002](../../docs/adr/0002-real-obsidian-e2e.md)). jsdom loads no
   stylesheet, so a check there that something is visible proves nothing. Real
-  drawing, real events and what is visible on screen are tested in `e2e-tests/`,
-  which runs the installed app on a throwaway vault.
+  rendering, real events and what is visible on screen are tested in
+  `e2e-tests/`, which runs the installed app on a throwaway vault.
 - Every e2e test runs twice, as desktop and as mobile, both in Chromium. What
-  iOS's browser engine draws or measures differently is checked in
+  iOS's browser engine paints or measures differently is checked in
   `e2e-tests/webkit.spec.ts`, on a copy of the mobile run's page
   ([ADR 0009](../../docs/adr/0009-webkit-render-checks.md)).
 - After a mutation run, no mutant may survive (D-149). Write a test that fails

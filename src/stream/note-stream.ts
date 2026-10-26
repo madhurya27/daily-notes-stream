@@ -23,7 +23,7 @@ import {
 } from "./scroll-position";
 
 /**
- * Obsidian saves as you type, so drawing the note again on every save would
+ * Obsidian saves as you type, so re-rendering the note on every save would
  * waste work.
  */
 const MODIFY_DEBOUNCE_MS = 300;
@@ -57,7 +57,7 @@ const NO_NOTE_FOR_DATE = "No daily note on or before that date.";
 export class NoteStream {
     private scroll = new InfiniteScrollController();
     /**
-     * What is drawn, and where blocks are. The view passes it the pane's
+     * What is rendered, and where blocks are. The view passes it the pane's
      * events.
      */
     readonly window: NoteWindowManager;
@@ -68,12 +68,12 @@ export class NoteStream {
 
     /** Starts the queue. Until `open`, there is no container to change. */
     private opened!: () => void;
-    // One change at a time: an event that ran in the middle of a batch would
-    // leave the blocks and the service's list out of step.
+    // Serialized: an event that ran in the middle of a batch would leave the
+    // blocks and the service's list out of step.
     private queue: Promise<void> = new Promise((resolve) => (this.opened = resolve));
     private loadPending = false;
     /**
-     * Once closed, the queue drops tasks still waiting: each would draw, then
+     * Once closed, the queue drops tasks still waiting: each would render, then
      * be thrown away.
      */
     private closed = false;
@@ -173,7 +173,7 @@ export class NoteStream {
     }
 
     /**
-     * Emptying notes, reading styles and loading frames' pages wait for
+     * Unloading notes, reading styles and loading frames' pages wait for
      * scrolling to stop.
      */
     onScroll(): void {
@@ -201,7 +201,7 @@ export class NoteStream {
     onFileModify(file: TAbstractFile) {
         // Stryker disable next-line ConditionalExpression: Obsidian only sends modify for files.
         if (!(file instanceof TFile)) return;
-        // Keyed by path, so saves to two notes still draw both again, while
+        // Keyed by path, so saves to two notes still re-render both, while
         // repeated saves of one note become a single render.
         this.pendingModified.set(file.path, file);
         this.flushModified();
@@ -219,7 +219,7 @@ export class NoteStream {
 
     /**
      * A save may hide a note, or show it again (ADR 0011). Otherwise the note
-     * is drawn again.
+     * is re-rendered.
      */
     private async applyModify(file: TFile): Promise<void> {
         if (await this.reconsider(file)) return;
@@ -231,7 +231,7 @@ export class NoteStream {
 
     /**
      * Links to `files` were added or removed, which may hide or show them (ADR
-     * 0011). A note that stays is left alone: its linked mentions draw
+     * 0011). A note that stays is left alone: its linked mentions render
      * themselves again.
      */
     onLinksChanged(files: TFile[]): Promise<void> {
@@ -283,8 +283,8 @@ export class NoteStream {
         if (!inserted) return;
         this.notesChanged();
         if (!inserted.inStream) {
-            // It is past the loaded notes. If the empty element at the end is
-            // visible, it loads them now.
+            // It is past the loaded notes. If the sentinel is visible, it loads
+            // them now.
             this.scroll.recheck();
             return;
         }
@@ -295,7 +295,7 @@ export class NoteStream {
     }
 
     /**
-     * Finds the block by the path it was drawn with, which differs from
+     * Finds the block by the path it was rendered with, which differs from
      * `file.path` after a rename, because data-source-path is set when the
      * block is created. Moving or dropping the fold state is the plugin's job.
      */
@@ -379,7 +379,7 @@ export class NoteStream {
     }
 
     /**
-     * Draws the note before scrolling to it, and waits for its Bases. If it
+     * Renders the note before scrolling to it, and waits for its Bases. If it
      * were scrolled to first, each Base would show empty, then fill in. Loading
      * is one queued task: mixing with a load started by scrolling would put the
      * blocks out of step with the service's list.
@@ -403,7 +403,7 @@ export class NoteStream {
 
     /**
      * Centers `range`, inside a note, in the pane. Keeps it there while the
-     * stream draws and, once centered, while the Bases around it fill in.
+     * stream renders and, once centered, while the Bases around it fill in.
      */
     async center(range: Range): Promise<void> {
         this.letGoOfCentered();
@@ -446,7 +446,7 @@ export class NoteStream {
 
     /**
      * Scrolls back to `place` before a frame is drawn. Does not move if its
-     * note is gone. A note never measured in this layout is drawn at a new
+     * note is gone. A note never measured in this layout is rendered at a new
      * height, and the scroll anchor keeps the place.
      */
     restorePlace(place: StreamPlace): Promise<void> {
@@ -471,7 +471,7 @@ export class NoteStream {
      * Loads batches until the pane can scroll to `scrollTop`. If notes were
      * only loaded up to the place's note, the stream might end too soon below
      * it, and the scroll would stop short. Only empty blocks are added; nothing
-     * is drawn here.
+     * is rendered here.
      */
     private async loadUntilScrollable(scrollTop: number): Promise<void> {
         const root = this.scrollRoot;
@@ -506,7 +506,7 @@ export class NoteStream {
     }
 
     /**
-     * Draws every note again. If a setting changed which notes the service
+     * Renders every note again. If a setting changed which notes the service
      * lists, it reloads instead, and returns to the reader's place (D-074).
      */
     refresh(): Promise<void> {
@@ -548,7 +548,7 @@ export class NoteStream {
 
     /**
      * A change to the settings can change which files are daily notes, so the
-     * list and every drawn note may be wrong.
+     * list and every rendered note may be wrong.
      */
     onDailyNoteSettingsChange: Debouncer<[], void> = debounce(
         () => {
@@ -577,8 +577,9 @@ export class NoteStream {
 
     /**
      * Builds the stream again as empty blocks with the remembered heights, and
-     * lets the window manager draw what is near the screen. Nothing is drawn
-     * here, so a refresh costs the same with ten notes loaded or a thousand.
+     * lets the window manager render what is near the screen. Nothing is
+     * rendered here, so a refresh costs the same with ten notes loaded or a
+     * thousand.
      */
     private async rerenderAll(): Promise<void> {
         const notes = this.service.streamedNotes();
@@ -612,7 +613,7 @@ export class NoteStream {
     }
 
     /**
-     * When the empty element at the end becomes visible, the next batch loads.
+     * When the sentinel becomes visible, the next batch loads.
      */
     private attachScroll(): void {
         this.scroll.attach(this.scrollRoot, this.blocks.el, () => this.loadMoreNotes());

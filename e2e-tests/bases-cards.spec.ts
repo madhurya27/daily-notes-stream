@@ -235,8 +235,8 @@ test.describe("Bases on mobile", () => {
     });
 
     /**
-     * Draws a card holding a tag pill below its title. Returns whatever cuts
-     * off the pill, up to its card.
+     * Draws a card holding a tag pill below its title. Returns whatever clips
+     * the pill, up to its card.
      */
     async function tagPillClippedBy(page: Page): Promise<string[]> {
         await seed(page, [

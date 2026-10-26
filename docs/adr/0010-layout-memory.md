@@ -1,6 +1,6 @@
 # 0010. Remember every measured height between sessions
 
-- **Status:** Accepted. Partly replaced by
+- **Status:** Accepted. Superseded in part by
   [0017](0017-forget-heights-of-edited-notes.md), so an edit forgets the
   heights, and by D-092, which uses the height that 90% of notes are below
   instead of the median
@@ -43,7 +43,7 @@ store holds its heights.
   content still visibly moves thousands of pixels very fast.
 - **Extra scroll space above the newest note** — its size is a guess, and if it
   is too big, it leaves a blank gap to scroll into.
-- **Measuring skipped notes in advance, off screen** — draws up to a thousand
+- **Measuring skipped notes in advance, off screen** — renders up to a thousand
   notes to learn what was measured before.
 - **Plugin data (`data.json`)** — it syncs, so one device's heights would reach
   another device.

@@ -423,7 +423,7 @@ describe("DailyNotesStreamPlugin — layout memory", () => {
     });
 
     // Measured before the edit, so it is estimated from its text until it is
-    // drawn again (ADR 0017).
+    // re-rendered (ADR 0017).
     it("forgets a note's heights as it is edited, before any view hears of it", async () => {
         const { plugin, app } = await loadPlugin();
         plugin.layoutMemory.notes.keep("600:16px", "Notes/a.md", 300);

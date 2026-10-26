@@ -20,8 +20,8 @@ const VERSION = 5;
 export const SAVE_DELAY_MS = 1000;
 
 /**
- * What the stream measured, kept between sessions, so a note not yet drawn in
- * this session still gets its real height (docs/adr/0010-layout-memory.md).
+ * What the stream measured, kept between sessions, so a note not yet rendered
+ * in this session still gets its real height (docs/adr/0010-layout-memory.md).
  * There is one for the plugin, which every view shares.
  */
 export class LayoutMemory {

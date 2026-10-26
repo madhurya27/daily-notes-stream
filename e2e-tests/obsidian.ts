@@ -21,7 +21,7 @@ const OBSIDIAN_BUNDLE = process.env.OBSIDIAN_BUNDLE ?? "/Applications/Obsidian.a
 const SHOW_WINDOW = process.env.E2E_SHOW_WINDOW === "1";
 const VAULT_ID = "e2e0000000000001";
 
-// A window that is out of sight counts as covered, and Chromium slows down
+// A window that is out of sight counts as covered, and Chromium throttles
 // covered windows: timers become very slow, and IntersectionObserver stops
 // firing, which the scroll tests wait for.
 const NO_THROTTLE = [
@@ -350,7 +350,7 @@ async function startUp(browser: Browser, userDataDir: string, vaultPath: string)
     });
 
     // An open settings pane keeps the leaf deferred, and a deferred view never
-    // draws.
+    // renders.
     await page.evaluate(() => window.app.setting?.close?.());
     await expect(page.locator(".modal-container")).toHaveCount(0);
 
@@ -437,8 +437,8 @@ function secondaryScreen(): Screen | null {
 /**
  * Gets the window out of the user's way from inside the app, but keeps it on
  * screen. A hidden window can drop to one or two frames a second, for good
- * (D-124). Shown fully transparent, with clicks passing through, it draws like
- * any other window.
+ * (D-124). Shown fully transparent, with clicks passing through, it renders
+ * like any other window.
  *
  * `open -g -j` stops LaunchServices from bringing it to the front, but not
  * Obsidian from doing so itself: at first paint, when the vault opens, and on
@@ -730,9 +730,9 @@ export async function openStream(page: Page) {
         const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
         window.app.workspace.detachLeavesOfType(type);
 
-        // Removing the emptied tab takes longer than the leaf count dropping to
-        // 0, and a view opened during that time is removed with it. Try again
-        // until one stays, instead of guessing a delay.
+        // Removing the unloaded tab takes longer than the leaf count dropping
+        // to 0, and a view opened during that time is removed with it. Try
+        // again until one stays, instead of guessing a delay.
         for (let attempt = 0; attempt < 5; attempt++) {
             await wait(300);
             await window.app.commands.executeCommandById("daily-notes-stream:open-stream");
@@ -786,14 +786,14 @@ export async function scrollThroughStream(container: Locator) {
 }
 
 /**
- * Empties a note scrolled out of the layout, as going past the emptying
+ * Unloads a note scrolled out of the layout, as going past the unloading
  * distance would once scrolling stops (ADR 0023). No test vault is twelve pane
  * heights tall around it.
  */
 export async function unloadFar(note: Locator) {
     await expect(note).toHaveClass(/is-far/);
-    // While still drawing, it only marks the note to be emptied. Ask again
-    // after the idle wait until it is emptied.
+    // While still rendering, it only marks the note to be unloaded. Ask again
+    // after the idle wait until it is unloaded.
     await expect
         .poll(
             () =>
@@ -864,7 +864,9 @@ export async function restoreScrollAnchoring(page: Page) {
     });
 }
 
-/** How long the workload takes in each instance without slowing, timed once. */
+/**
+ * How long the workload takes in each instance unthrottled, timed once.
+ */
 const machineWorkloadMs = new WeakMap<Page, number>();
 
 /**

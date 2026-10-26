@@ -13,10 +13,10 @@ type HighlightWindow = Window & { CSS: { highlights?: HighlightRegistry }; Highl
 
 /**
  * The highlight called `name` in the window that shows `node`, registered the
- * first time it is used. Each window, including a pop-out window, only draws
+ * first time it is used. Each window, including a pop-out window, only paints
  * highlights from its own registry. Every stream view in that window shares it,
  * so each adds and deletes only its own ranges. Null where the platform has no
- * highlight API; the ranges are still tracked, but not drawn.
+ * highlight API; the ranges are still tracked, but not rendered.
  */
 function registered(name: string, node: Node): Highlight | null {
     const win = node.win as HighlightWindow;
@@ -25,8 +25,8 @@ function registered(name: string, node: Node): Highlight | null {
     let highlight = registry.get(name);
     if (!highlight) {
         highlight = new win.Highlight();
-        // Overlapping ranges are drawn by priority: the current match on top of
-        // the others.
+        // Overlapping ranges are painted by priority: the current match on top
+        // of the others.
         if (name === CURRENT) highlight.priority = 1;
         registry.set(name, highlight);
     }
@@ -60,26 +60,30 @@ function findRanges(root: HTMLElement, pattern: RegExp): Range[] {
 }
 
 /**
- * Colors the query in drawn notes with the CSS highlight API, which does not
+ * Colors the query in rendered notes with the CSS highlight API, which does not
  * change the DOM. So folding and the shared listeners never see an extra
  * wrapper element.
  */
 export class SearchHighlighter {
     private pattern: RegExp | null = null;
-    /** Drawn blocks, and the ranges found in each. */
+    /**
+     * Rendered blocks, and the ranges found in each.
+     */
     private readonly ranges = new Map<HTMLElement, Range[]>();
     private current: Range | null = null;
 
     /**
-     * Highlights `query` in every drawn note, and in each note drawn from now
-     * on.
+     * Highlights `query` in every rendered note, and in each note rendered from
+     * now on.
      */
     setQuery(query: string): void {
         this.pattern = searchPattern(query);
         for (const block of this.ranges.keys()) this.highlight(block);
     }
 
-    /** Highlights a newly drawn block until `component` unloads it. */
+    /**
+     * Highlights a newly rendered block until `component` unloads it.
+     */
     track(block: HTMLElement, component: Component): void {
         this.highlight(block);
         component.register(() => this.forget(block));

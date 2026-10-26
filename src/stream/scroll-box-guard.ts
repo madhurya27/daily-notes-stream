@@ -6,7 +6,7 @@ import { LAID_OUT } from "../render/bases/bases-fit";
 const BASE = ".bases-embed, .block-language-base";
 
 /**
- * Keeps scrolling boxes out of the stream (ADR 0008). It reports each Base as
+ * Keeps scroll containers out of the stream (ADR 0008). It reports each Base as
  * it lays out, so its owner can fit it. It clips each inline overflow-x as soon
  * as it appears. And once scrolling stops, it clips anything else the
  * stylesheet missed.
@@ -15,7 +15,7 @@ export class ScrollBoxGuard {
     private observer: MutationObserver | null = null;
     /** Elements added since the last check. */
     private readonly unchecked = new Set<HTMLElement>();
-    // Reading computed styles while scrolling makes the browser recalculate the
+    // Reading computed styles mid-glide makes the browser recalculate the
     // styles of the whole page.
     private readonly checkOnceStill = debounce(() => this.clipScrollBoxes(), SCROLL_IDLE_MS, true);
 
@@ -78,8 +78,8 @@ export class ScrollBoxGuard {
 }
 
 /**
- * The Base whose layout a change may have affected: rows added or removed, or a
- * new width on its table's header row or kanban board. Changes to its own
+ * The Base whose layout a mutation may have changed: rows added or removed, or
+ * a new width on its table's header row or kanban board. Changes to its own
  * styles, such as the width limit set when fitting it, are not layout changes.
  */
 function baseViewChangedBy(record: MutationRecord): HTMLElement | null {
@@ -102,8 +102,8 @@ function clipInlineOverflow(el: Element): void {
 }
 
 /**
- * Includes `hidden`: a finger cannot scroll it, but it is still a scrolling
- * box.
+ * Includes `hidden`: a finger cannot scroll it, but it is still a scroll
+ * container.
  */
 function isScrollBox(el: HTMLElement): boolean {
     const style = getComputedStyle(el);

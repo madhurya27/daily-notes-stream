@@ -10,7 +10,7 @@ function wrapped(html: string): HTMLElement {
 }
 
 describe("wrapTextBesideBlocks", () => {
-    // WebKit draws no highlight on text that shares its parent with a block
+    // WebKit paints no highlight on text that shares its parent with a block
     // element.
     it("wraps a list item's own text when a sub-list follows it", () => {
         const li = wrapped("<ul><li>Standing pancake<ul><li>Head to floor</li></ul></li></ul>").querySelector("li")!;

@@ -11,7 +11,7 @@ import { join, resolve } from "path";
 import { isMain } from "./reload-plugin.mjs";
 
 /**
- * Each layout's size in CSS pixels. Drawn at twice this size, to give the
+ * Each layout's size in CSS pixels. Rendered at twice this size, to give the
  * directory's 2400x1600 and 900x1600.
  */
 const SIZES = {
@@ -157,8 +157,8 @@ ${shown}
 }
 
 /**
- * Draws `cards` from the screenshots in `rawDir` into `outDir`, at twice their
- * size.
+ * Renders `cards` from the screenshots in `rawDir` into `outDir`, at twice
+ * their size.
  * @param {Card[]} cards
  * @param {string} rawDir
  * @param {string} outDir

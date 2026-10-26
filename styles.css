@@ -39,8 +39,8 @@
 }
 
 /* Only read by the element they are set on. If they were inherited, each change
-   would restyle every element inside: the whole note each time its height is
-   fixed again, and the whole stream at each shift (D-129). */
+   would restyle every element inside: the whole note at each re-pin, and the
+   whole stream at each shift (D-129). */
 @property --daily-note-pinned-height {
     syntax: "*";
     inherits: false;
@@ -80,7 +80,7 @@
     overflow: hidden;
 }
 
-/* An emptied note: no content, but the height it had, so nothing moves. */
+/* An unloaded note: no content, but the height it had, so nothing moves. */
 .daily-note-block.is-unloaded {
     height: var(--daily-note-placeholder-height);
     overflow: clip;
@@ -99,21 +99,21 @@
     visibility: hidden;
 }
 
-/* A drawn note, fixed at the height the stream last measured for it. What is
-   drawn inside moves nothing until NoteWindowManager fixes its height again,
-   and tells the scroll anchor in the same task (ADR 0013). */
+/* A rendered note, pinned at the height the stream last measured for it.
+   Nothing rendered inside moves anything until NoteWindowManager re-pins it and
+   tells the scroll anchor in the same task (ADR 0013). */
 .daily-note-block.is-pinned {
     height: var(--daily-note-pinned-height);
     overflow-y: clip;
 }
 
 /* A drawn note far from the screen: its content is out of the layout, and the
-   block keeps its fixed height (ADR 0023). */
+   block keeps its pinned height (ADR 0023). */
 .daily-note-block.is-far > * {
     display: none;
 }
 
-/* A note kept at an earlier height while it is drawn again
+/* A note kept at an earlier height while it is re-rendered
    (src/stream/height-hold.ts). */
 .daily-note-block {
     min-height: var(--daily-note-held-height, 0);
@@ -126,8 +126,8 @@
     overflow-y: clip;
 }
 
-/* A Base drawn as written so it can be measured. It will likely be drawn again
-   as cards. It is also cut off at the sides, because it may be wider than the
+/* A Base drawn as written so it can be measured. It will likely be re-rendered
+   as cards. It is also clipped at the sides, because it may be wider than the
    note. */
 .daily-note-base.is-measuring {
     overflow: clip;
@@ -177,7 +177,7 @@
     overflow-wrap: break-word;
 }
 
-/* Normal paragraph spacing inside drawn content. */
+/* Normal paragraph spacing inside rendered content. */
 .daily-note-content p {
     margin-bottom: var(--p-spacing);
 }
@@ -495,8 +495,8 @@
     margin-block-end: 0;
 }
 
-/* A pasted video embed sets a width wider than a phone. It is limited, not cut
-   off, because nothing could scroll to a cut-off edge. */
+/* A pasted video embed sets a width wider than a phone. It is capped, not
+   clipped, because nothing could scroll to a clipped edge. */
 :is(.daily-note-content, .daily-note-mention-excerpt) iframe {
     max-width: 100%;
 }
@@ -573,8 +573,8 @@ body:not(.is-mobile) :is(.daily-note-content, .daily-note-mention-excerpt) :is(t
 }
 
 /* Mobile: nothing in a note scrolls (ADR 0008). Wide content wraps to the
-   stream's width, and what still does not fit is cut off. Use `clip`, never
-   `hidden` or `auto`: those make a scrolling box, and one inside the stream
+   stream's width, and what still does not fit is clipped. Use `clip`, never
+   `hidden` or `auto`: those make a scroll container, and one inside the stream
    stops iOS's scrolling early. */
 .is-mobile :is(.daily-note-content, .daily-note-mention-excerpt) table {
     width: 100%;
@@ -689,7 +689,7 @@ body:not(.is-mobile) :is(.daily-note-content, .daily-note-mention-excerpt) :is(t
     overflow: visible;
 }
 
-/* A tag pill's padding goes beyond its line. Bases does not cut off its
+/* A tag pill's padding goes beyond its line. Bases does not clip its
    wrappers, so the whole pill shows. */
 .is-mobile .daily-note-block :is(.value-list-container, .value-list-element) {
     overflow: visible;
@@ -723,8 +723,8 @@ body:not(.is-mobile) :is(.daily-note-content, .daily-note-mention-excerpt) :is(t
     min-width: 0;
 }
 
-/* Once cut off, a Base has no scrolling box to keep its header and summaries in
-   place against (D-059). */
+/* Once clipped, a Base has no scroll container to keep its header and
+   summaries in place against (D-059). */
 .is-mobile .daily-note-block .bases-thead {
     position: static;
 }
@@ -743,7 +743,7 @@ body:not(.is-mobile) :is(.daily-note-content, .daily-note-mention-excerpt) :is(t
 }
 
 /* Obsidian fixes the copy button to a code block's top-right corner, and wraps
-   drawn code, so a long first line runs under the icon and its last few
+   rendered code, so a long first line runs under the icon and its last few
    characters cannot be read. An empty float in that corner is the only thing
    text wraps around: only the lines next to the button lose width, and the rest
    of the block keeps it. */

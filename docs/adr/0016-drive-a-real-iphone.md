@@ -8,8 +8,8 @@
 ## Context
 
 What breaks on iOS is behavior: scrolling cut short, the screen jumping as notes
-are drawn, and turning the screen losing the reader's place. ADR 0009's copy of
-the page in WebKit is a still picture, and desktop Chromium has none of iOS's
+are rendered, and turning the screen losing the reader's place. ADR 0009's copy
+of the page in WebKit is a still picture, and desktop Chromium has none of iOS's
 scrolling. So the Mobile checklist in `docs/TESTING.md` was done by hand, before
 every release.
 

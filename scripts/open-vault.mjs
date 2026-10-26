@@ -170,7 +170,7 @@ await page.waitForFunction((pluginId) => Boolean(window.app.plugins.plugins[plug
 });
 
 // Turning on plugins leaves the settings pane open, and an open modal keeps the
-// stream leaf deferred. A deferred view never draws.
+// stream leaf deferred. A deferred view never renders.
 await page.evaluate(() => window.app.setting?.close?.());
 
 // The reload removes any open leaf, so this comes before opening the view.
@@ -188,7 +188,7 @@ await page.evaluate(async (viewType) => {
     workspace.revealLeaf(leaf);
 }, VIEW_TYPE);
 // A deferred or background leaf keeps its container in the DOM but does not
-// draw it, so wait for one that is really on screen.
+// render it, so wait for one that is really on screen.
 await page.waitForFunction(
     () => [...document.querySelectorAll(".daily-notes-stream-container")].some((el) => el.offsetParent !== null),
     null,

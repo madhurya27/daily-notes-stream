@@ -64,7 +64,9 @@ let noteWidth: number;
 let oneCardPerRow: boolean;
 let widths: FakeWidths;
 
-/** A note's content element holding `markdown`'s Bases, drawn. */
+/**
+ * A note's content element holding `markdown`'s Bases, rendered.
+ */
 async function renderNote(markdown: string, component = loaded()): Promise<HTMLElement> {
     const { markdown: body, bases: sources } = extractBases(markdown);
     const content = document.createElement("div");
@@ -199,8 +201,8 @@ describe("NoteBases drawing a note's Bases", () => {
         expect(drawn(slotOf(content))).toMatch(/views:\n {2}- type: cards\n {4}name: Second/);
     });
 
-    // An embed drawn as a table stays an embed, so changes made in its toolbar
-    // save to its file.
+    // An embed rendered as a table stays an embed, so changes made in its
+    // toolbar save to its file.
     it("draws an embed that fits as the embed it is", async () => {
         const content = await renderNote("![[Views.base]]");
 
@@ -325,7 +327,8 @@ describe("NoteBases measuring a drawn table", () => {
         expect(render).toHaveBeenCalledOnce();
     });
 
-    // A note comes back after being emptied. Drawing twice only happens once.
+    // A note comes back after being unloaded. Rendering twice only happens
+    // once.
     it("draws it straight as cards next time, at that width", async () => {
         reportLayout(layOut(slotOf(await renderNote(BLOCK)), 900));
 
@@ -541,7 +544,7 @@ describe("NoteBases when an embedded Base's file changes", () => {
 
     beforeEach(() => app.metadataCache.getFirstLinkpathDest.mockReturnValue(base));
 
-    // A copy drawn as cards cannot save, so nothing else would update it.
+    // A copy rendered as cards cannot save, so nothing else would update it.
     it("redraws a cards copy from the file as it now is", async () => {
         noteWidth = 200;
         const content = await renderNote("![[Views.base]]");
@@ -576,7 +579,7 @@ describe("NoteBases when an embedded Base's file changes", () => {
         vi.useRealTimers();
     });
 
-    // Obsidian draws a real embed again when its file changes.
+    // Obsidian renders a real embed again when its file changes.
     it("leaves an embed drawn as a table to redraw itself", async () => {
         await renderNote("![[Views.base]]");
 
@@ -621,18 +624,20 @@ describe("NoteBases when an embedded Base's file changes", () => {
         await bases.onBaseModified(base);
 
         expect(render).toHaveBeenCalledOnce();
-        // There is nothing left to draw again, so the file is not read.
+        // There is nothing left to re-render, so the file is not read.
         expect(app.vault.cachedRead).toHaveBeenCalledTimes(reads);
     });
 });
 
 /**
- * Bases fills a view after drawing it, and fills it again on a live update. So
- * a Base is held at the height it showed until what is drawn in it stops
+ * Bases fills a view after rendering it, and fills it again on a live update.
+ * So a Base is held at the height it showed until what is rendered in it stops
  * changing.
  */
 describe("NoteBases holding a Base while it refills", () => {
-    /** Lays out `slot` at `height`, as a drawn Base would be. */
+    /**
+     * Lays out `slot` at `height`, as a rendered Base would be.
+     */
     const tall = (slot: Element, height: number) => {
         slot.getBoundingClientRect = () => ({ height }) as DOMRect;
     };
@@ -666,7 +671,7 @@ describe("NoteBases holding a Base while it refills", () => {
         expect(held(slotOf(content))).toBe("112px");
     });
 
-    // A live update empties the view and fills it again, and the dip is never
+    // A live update unloads the view and fills it again, and the dip is never
     // drawn.
     it("holds a Base that shrinks by itself at the height it had", async () => {
         const content = await renderNote(BLOCK);
@@ -850,9 +855,9 @@ describe("NoteBases holding a Base while it refills", () => {
 });
 
 /**
- * Its note has a fixed height (ADR 0013). When the Base takes a height through
- * its hold, the note hears about it in the same task. Any other height change
- * waits for a report one frame later.
+ * Its note is pinned (ADR 0013). When the Base takes a height through its hold,
+ * the note hears about it in the same task. Any other height change waits for a
+ * report one frame later.
  */
 describe("NoteBases changing a Base's height in a pinned note", () => {
     const tall = (slot: Element, height: number) => {
@@ -1069,7 +1074,7 @@ describe("NoteBases changing a Base's height in a pinned note", () => {
         expect(heard.count).toBe(1);
     });
 
-    // There is nothing above it in the note to cut off, and a Base drawn at 0px
+    // There is nothing above it in the note to clip, and a Base drawn at 0px
     // would disappear.
     it("clips nothing on a first draw", async () => {
         const content = await renderNote(BLOCK);

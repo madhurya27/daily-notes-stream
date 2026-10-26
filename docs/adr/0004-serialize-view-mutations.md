@@ -1,42 +1,38 @@
-# 0004. Run changes to the view one at a time, through one queue
+# 0004. Serialize view mutations through one queue
 
 - **Status:** Accepted
 - **Date:** 2026-08-20 (recorded 2026-08-30)
 
 ## Context
 
-`loadMoreNotes`, the four vault event handlers and `refresh` all change the same
-two things, `state` and the DOM, and all of them wait partway through (for
-drawing Markdown, or reading files). When they ran in between each other, they
-broke each other's work: a delete that arrived during a batch was undone by that
-batch's `state.reset`, and a note created during a load could be lost
-completely. The rule that `state.notes` equals
-`service._sorted.slice(0, state.length)` broke, which puts loading in batches
-out of step, so notes are skipped or repeated on further scrolling.
+`loadMoreNotes`, the four vault event handlers and `refresh` all mutate the same
+two things, `state` and the DOM, and all of them await partway through (to
+render Markdown or read files). When they interleaved, they broke each other's
+work: a delete that arrived during an in-flight batch was undone by that batch's
+`state.reset`, and a note created during a load could be lost. The invariant
+that `state.notes` equals `service._sorted.slice(0, state.length)` broke, so
+later batches skipped or repeated notes.
 
 ## Decision
 
-Every code path that changes things runs through `enqueue()`, a chain of
-promises that runs them one at a time, in the order they arrive. `loadPending`,
-which is set immediately, also stops an empty element at the end that is still
-visible from queuing a second load for the same batch.
+Every mutating path runs through `enqueue()`, a promise chain that serializes
+them in arrival order. `loadPending` is set synchronously, so a sentinel that is
+still visible cannot queue a second load for the same batch.
 
 ## Consequences
 
-- Changes run in the order they arrive, and a slow batch delays a delete behind
-  it. For a read-only stream that is the right choice: being correct matters
-  more than being immediate.
-- Any new code path that changes things must also be queued. This is the rule
-  most easily forgotten in later work, which is why `CLAUDE.md` mentions it.
-- State can be reasoned about as if there were one thread: no handler sees
-  another's change half done.
+- A slow batch delays a delete queued behind it. For a read-only stream, correct
+  is worth more than immediate.
+- Any new mutating path must be enqueued too. This is the rule most easily
+  forgotten in later work, which is why `CLAUDE.md` mentions it.
+- State can be reasoned about as if single-threaded: no handler sees another's
+  mutation half done.
 
 ## Rejected alternatives
 
-- **A lock for each note** — finer-grained, but the bug is about the shared
-  ordered list, not single notes.
-- **Checking the state again after every await** — every code path that changes
-  things needs the same defensive code, and one place without it brings the bug
-  back.
-- **Delaying vault events** — hides the problem with small vaults without
-  removing it.
+- **Per-note locks** — finer-grained, but the bug is about the shared ordered
+  list, not single notes.
+- **Re-checking state after every await** — every mutating path needs the same
+  defensive code, and one place without it brings the bug back.
+- **Debouncing vault events** — hides the race in small vaults without removing
+  it.

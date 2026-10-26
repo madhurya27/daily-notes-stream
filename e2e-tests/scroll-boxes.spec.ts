@@ -15,7 +15,7 @@ const BASES: Record<string, string> = {
     "Wide.base": baseView(WIDE_COLUMNS),
     "Narrow.base": baseView(["file.name"]),
     // A column resized by hand ignores the maximum width set when fitting, so
-    // it is cut off instead.
+    // it is clipped instead.
     "Resized.base": baseView(["file.name", "file.path"], ["columnSize:", "      file.path: 900"]),
     // One column for each file type, md, base and pdf, which is wider than a
     // phone (1.14).
@@ -79,7 +79,9 @@ const ZOO = [
     "",
 ].join("\n");
 
-/** Every element in the stream that is a scrolling box, except SVG. */
+/**
+ * Every element in the stream that is a scroll container, except SVG.
+ */
 function scrollBoxes(container: Locator): Promise<string[]> {
     return container.evaluate((root) =>
         Array.from(root.querySelectorAll("*"))
@@ -117,7 +119,9 @@ async function deleteZoo(page: Page): Promise<void> {
     );
 }
 
-/** How far `el` could scroll sideways, and whether it is a scrolling box. */
+/**
+ * How far `el` could scroll sideways, and whether it is a scroll container.
+ */
 function sidewaysScroll(el: Locator): Promise<{ overflow: number; scrolls: boolean }> {
     return el.evaluate((box) => ({
         overflow: box.scrollWidth - box.clientWidth,
@@ -156,7 +160,7 @@ test("on desktop, draws a kanban as a kanban", async ({ obsidian, mobileLayout }
     }
 });
 
-// If it were cut off, it would pass the test above with the end of the equation
+// If it were clipped, it would pass the test above with the end of the equation
 // missing.
 test("on mobile, shrinks a wide equation to fit the note", async ({ obsidian, mobileLayout }) => {
     test.skip(!mobileLayout, "desktop draws math as Obsidian does");
@@ -181,8 +185,8 @@ test("on mobile, shrinks a wide equation to fit the note", async ({ obsidian, mo
     }
 });
 
-// A scrolling box inside the scrolling pane stops iOS's scrolling early once
-// notes have been emptied. Android follows the same rule (ADR 0008).
+// A scroll container inside the scroller stops iOS's scrolling early once notes
+// have been unloaded. Android follows the same rule (ADR 0008).
 test.describe("on mobile, nothing inside the stream scrolls", () => {
     test.beforeEach(({ mobileLayout }) => test.skip(!mobileLayout, "desktop keeps its scroll bars"));
     test.afterEach(({ obsidian }) => deleteZoo(obsidian.page));
@@ -208,7 +212,7 @@ test.describe("on mobile, nothing inside the stream scrolls", () => {
         await expect.poll(() => scrollBoxes(container)).toEqual([]);
     });
 
-    // Cut off, it showed one of several columns. Cards show every column as a
+    // Clipped, it showed one of several columns. Cards show every column as a
     // group.
     test("draws a kanban wider than the note as cards, a group per column", async ({ obsidian }) => {
         const { page } = obsidian;
@@ -223,7 +227,7 @@ test.describe("on mobile, nothing inside the stream scrolls", () => {
         for (const ext of columns) await expect(kanban.getByText(ext, { exact: true })).toBeVisible();
     });
 
-    // Cut off, its viewer shows page 1, and its toolbar does nothing (D-083).
+    // Clipped, its viewer shows page 1, and its toolbar does nothing (D-083).
     test("opens a PDF from a tap on its first page", async ({ obsidian }) => {
         const { page } = obsidian;
         await seedZoo(page);
@@ -250,8 +254,8 @@ test.describe("on mobile, nothing inside the stream scrolls", () => {
             .toBeLessThanOrEqual(0);
     });
 
-    // Bases fixes both to its own scrolling box. If it were cut off, they would
-    // be fixed to the stream's.
+    // Bases pins both to its own scroll container. If it were clipped, they
+    // would be pinned to the stream's.
     test("keeps a Base's header and summaries on its table while the stream scrolls", async ({ obsidian }) => {
         const { page } = obsidian;
         // A screen of text on each side, so the stream can scroll the table

@@ -14,8 +14,8 @@ import type { WidthWatch } from "../note-widths";
 const ONE_PER_ROW_CARD_SIZE = 800;
 
 /**
- * Sent when a Base sets its height, so its note's height is fixed again in the
- * same task (ADR 0013).
+ * Sent when a Base sets its height, so its note re-pins in the same task (ADR
+ * 0013).
  */
 export const BASE_RESIZED = "daily-notes-base-resized";
 
@@ -26,24 +26,25 @@ declare global {
 }
 
 /**
- * A note's Bases. Each is drawn into its own placeholder as a table, or as
+ * A note's Bases. Each is rendered into its own placeholder as a table, or as
  * cards when the table is wider than the note, the same rule a Markdown table
  * follows (D-033). If the headers alone are wider than the note, cards are
- * drawn at once. Otherwise the table is drawn, measured when it is first laid
- * out, and drawn again on its own if needed. The result is kept for each note
- * and layout, so a note that is emptied and comes back is drawn only once.
+ * rendered at once. Otherwise the table is rendered, measured when it is first
+ * laid out, and re-rendered on its own if needed. The result is kept for each
+ * note and layout, so a note that is unloaded and comes back is rendered only
+ * once.
  *
- * Bases fills a view after drawing it, and fills it again on a live update. So
- * a Base is held at the height it showed until it stops changing; otherwise the
- * text below jumps away and back. A Base that comes back into view is held by
- * its note.
+ * Bases fills a view after rendering it, and fills it again on a live update.
+ * So a Base is held at the height it showed until it stops changing; otherwise
+ * the text below jumps away and back. A Base that comes back into view is held
+ * by its note.
  */
 export class NoteBases {
     /** Undefined until the first Base. Null when nothing could be measured. */
     private headers: HeaderMetrics | null | undefined;
     private readonly slots = new WeakMap<Element, BaseSlot>();
     /**
-     * Embedded Bases in drawn notes, by the path of the Base file they copy.
+     * Embedded Bases in rendered notes, by the path of the Base file they copy.
      */
     private readonly copies = new Map<string, Set<BaseSlot>>();
 
@@ -179,17 +180,20 @@ export class NoteBases {
  * One Base in a note: where it is drawn, from what, and how it is drawn now.
  */
 class BaseSlot {
-    // Stryker disable next-line StringLiteral: before the first draw, it is only checked for not being "cards".
+    // Stryker disable next-line StringLiteral: before the first render, it is
+    // only checked for not being "cards".
     mode: "table" | "cards" = "table";
     /** The Base as cards, or null when it has no table to convert. */
     cards: string | null = null;
     readonly view: string | undefined;
-    /** Its note was emptied. */
+    /**
+     * Its note was unloaded.
+     */
     gone = false;
     /**
      * The Base is drawn as written, in place of cards, until it is measured.
-     * Meanwhile it is cut off at the height the cards showed, because what
-     * Bases draws will likely be replaced (styles.css).
+     * Meanwhile it is clipped at the height the cards showed, because what
+     * Bases renders will likely be replaced (styles.css).
      */
     // Stryker disable next-line BooleanLiteral: the first draw finds the placeholder empty, with a height of 0 either way.
     private measuring = false;
@@ -215,10 +219,9 @@ class BaseSlot {
     private growing = 0;
     /**
      * The box's fixed height: the tallest the Base has been since it last
-     * stopped changing. Shrinking waits until it stops changing; growing waits
-     * for the next task. Bases adds rows inside its own ResizeObserver
-     * callback, and the note must not change size there, or WebKit logs an
-     * error (D-159).
+     * settled. Shrinking waits until it settles; growing waits for the next
+     * task. Bases adds rows inside its own ResizeObserver callback, and the
+     * note must not change size there, or WebKit logs an error (D-159).
      */
     private laidOut = 0;
 
@@ -268,10 +271,10 @@ class BaseSlot {
 
     /**
      * Replaces what the Base drew with `mode`, and frees what the last draw
-     * registered. Keeps the height it shows now until the Base stops changing.
+     * registered. Keeps the height it shows now until the Base settles.
      */
     async draw(mode: "table" | "cards"): Promise<void> {
-        // While it is measured, it is cut off, so it shows the height it is
+        // While it is measured, it is clipped, so it shows the height it is
         // held at.
         const shown = this.measuring ? this.laidOut : Math.max(this.laidOut, this.height());
         if (this.component) this.noteComponent.removeChild(this.component);
@@ -310,8 +313,8 @@ class BaseSlot {
     }
 
     /**
-     * Any size change restarts the wait for it to stop changing, and asks to
-     * grow the box in the next task.
+     * Any size change restarts the wait for it to settle, and asks to grow the
+     * box in the next task.
      */
     private resized(): void {
         this.growing ||= window.setTimeout(() => this.grow());
@@ -320,7 +323,7 @@ class BaseSlot {
 
     /**
      * Grows the box if the Base grew, and tells the note. Not while it is being
-     * measured: then it stays cut off.
+     * measured: then it stays clipped.
      */
     private grow(): void {
         this.growing = 0;

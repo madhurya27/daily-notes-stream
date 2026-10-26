@@ -58,7 +58,7 @@ describe("fitBaseToWidth", () => {
         expect(view.style.getPropertyValue(MAX)).toBe("40px");
     });
 
-    // Below the minimum, the table is cut off. A column resized by hand ignores
+    // Below the minimum, the table is clipped. A column resized by hand ignores
     // the maximum.
     it("stops at the floor", () => {
         makeView(100, "1000px");

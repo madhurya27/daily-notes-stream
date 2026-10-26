@@ -16,7 +16,7 @@ test.afterEach(async ({ phone }) => {
     await phone.run(() => window.app.workspace.detachLeavesOfType("pdf"));
 });
 
-// A preview, with its toolbar cut off, and a link to the file (D-083).
+// A preview, with its toolbar clipped, and a link to the file (D-083).
 test("a PDF shows its first page without a toolbar, and a tap opens it", async ({ phone }) => {
     await phone.openStream();
     await phone.placeAt(PDF, -40);
@@ -74,8 +74,8 @@ const scrollPast = (phone: Phone, edge: "top" | "bottom") =>
         edge
     );
 
-// Bases fixes both to its own scrolling box. Cut off on a phone, they would be
-// fixed to the stream's.
+// Bases pins both to its own scroll container. Clipped on a phone, they would
+// be pinned to the stream's.
 test("a Base table's header and summary row stay on it as the stream scrolls past", async ({ phone }) => {
     await phone.openStream();
     const found = await phone.orientation();
@@ -125,7 +125,7 @@ test("a web page in a frame shows, and a tap opens it", async ({ phone }) => {
     }
 });
 
-// When cut off, a phone only showed the first column (D-107).
+// When clipped, a phone only showed the first column (D-107).
 test("a kanban wider than the phone shows every column as a group of cards", async ({ phone }) => {
     await phone.openStream();
     await phone.placeAt(KANBAN, -40);

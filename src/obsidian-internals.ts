@@ -46,8 +46,9 @@ export function onVaultConfigChange(app: App, handler: () => void): EventRef {
 type WorkspaceInternal = { on(name: "post-processor-change", callback: () => unknown): EventRef };
 
 /**
- * Fires when what draws Markdown changes: Mermaid's "Allow", or a plugin adding
- * or removing a post-processor. Obsidian's own views draw again when it fires.
+ * Fires when what renders Markdown changes: Mermaid's "Allow", or a plugin
+ * adding or removing a post-processor. Obsidian's own views re-render when it
+ * fires.
  */
 export function onPostProcessorChange(app: App, handler: () => void): EventRef {
     return (app.workspace as unknown as WorkspaceInternal).on("post-processor-change", handler);
@@ -134,7 +135,7 @@ export async function openTagSearch(app: App, tag: string, pane: PaneType | bool
 }
 
 /**
- * Not in the public API: the type manager finds the widget that draws a
+ * Not in the public API: the type manager finds the widget that renders a
  * property's row.
  */
 type MetadataTypeManager = {

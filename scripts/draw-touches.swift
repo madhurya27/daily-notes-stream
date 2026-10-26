@@ -1,7 +1,7 @@
 // Draws each touch the tests sent onto the iPhone frames that show it: a circle
 // under the finger, which moves along a stroke, stays for a moment after the
 // finger lifts, and then fades. iOS draws none, and the page sees too few
-// touches to draw its own, because a touch that catches a scroll stays with
+// touches to draw its own, because a touch that catches a glide stays with
 // iOS.
 //
 //   swift -O scripts/draw-touches.swift <frames dir> <touches.json> <screen width in points> <shift ms>

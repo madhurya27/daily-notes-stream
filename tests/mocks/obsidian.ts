@@ -105,7 +105,7 @@ export const WorkspaceLeaf = MockLeaf as unknown as new (app: App) => AppLeaf;
 export type WorkspaceLeaf = AppLeaf;
 
 /**
- * Obsidian's parent and child lifecycle, which is what frees a note's drawn
+ * Obsidian's parent and child lifecycle, which is what frees a note's rendered
  * content. `children` and `loaded` let tests see it.
  */
 export class Component {
@@ -237,7 +237,7 @@ export class Modal {
 
 /**
  * Obsidian's suggester: a prompt input where every key runs `getSuggestions`
- * again and draws the list again. The real one handles the keyboard and the
+ * again and renders the list again. The real one handles the keyboard and the
  * scrolling. A test only needs to type a query and get a choice, so `type` and
  * `choose` act as the reader.
  */

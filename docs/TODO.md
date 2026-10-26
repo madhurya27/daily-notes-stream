@@ -5,68 +5,63 @@
 Most important first. Problems on iOS that last only a frame or two wait until
 there is a screen recording of them (D-099).
 
-- [ ] On the iPad, which Obsidian treats as mobile and so gives the phone
-      layout:
-    - [ ] Show the scroll-to-top button, as on desktop: the header has room for
-          it. Decide whether a tap on the title should then stop scrolling to
-          the top. This changes D-147.
-    - [ ] Make the search bar only as wide as what is in it. Now the field is on
-          the left and the close button on the right, with an empty gap between
-          them.
+- [ ] On the iPad, which Obsidian gives the phone layout:
+    - [ ] Show the scroll-to-top button, as on desktop: the header has room.
+          Decide whether a tap on the title still scrolls to the top (this
+          changes D-147).
+    - [ ] Make the search bar only as wide as its contents. Now an empty gap
+          separates the field on the left from the close button on the right.
 - [ ] On the iPad, a flick up after a jump sometimes stops suddenly while still
-      fast, far from the top (D-171). It happens in bursts that last minutes. On
+      fast, far from the top (D-171). It comes in bursts that last minutes. On
       2026-10-21, the first test in `jump.spec.ts` failed 2 of 4 runs, then
       passed 37 in a row. On 2026-10-25, the first flicks after heights were
-      forgotten failed up to 5 of 5, then about 180 flicks passed that day. No
-      script sets the scroll position when it stops, and the page keeps drawing
-      frames. When a burst happens, compare the stream with a test page that
-      does the same drawing and the same shifts, to find what stops the scroll.
-      Since D-173, a pause in drawing is no longer counted as a stop, so a stop
-      that is reported is real.
+      forgotten failed up to 5 of 5, then about 180 passed. No script sets the
+      scroll position when it stops, and the page keeps painting frames. Since
+      D-173, a stall in rendering does not count as a stop, so a reported stop
+      is real. In the next burst, compare the stream with a test page that does
+      the same rendering and shifts, to find what stops the scroll.
 - [ ] On the iPad, `far-runs.spec.ts` fails 2 of 5 runs, on `main` too
-      (2026-10-25). The space kept for a hidden part of a long note stays on
-      screen for two frames in a row, once or twice in a run. ADR 0023 measured
-      one frame at most, on an iPhone. Before changing the distance at which
-      notes are drawn, or the test, find out whether the iPad's taller screen or
-      faster scrolling gets ahead of the drawing.
-- [ ] On the iPad, a flick that scrolls down the stream over a Base stops the
-      page from drawing for 330–410 ms, about 0.55 s after the finger lifts, on
-      every flick (D-173; the test "flick up over a Base" in `stream.spec.ts`,
-      named for the direction of the finger). The test vault's `2026-08-30` has
-      seven Bases, which are drawn, and drawn again as cards, while the page
-      scrolls. iOS keeps scrolling, but nothing new is drawn in that time. First
-      check a real journal note with one or two Bases. Then either spread the
-      drawing over several frames, or wait to draw the cards until scrolling
-      stops.
-- [ ] While the reader types a search, mark only a match the reader can see
-      (D-022). `isOnScreen` checks the whole pane, so on a phone it can mark a
-      match under the floating header, the bottom bar or the open keyboard.
-      Enter then moves past it. Measure the pane without what covers it, and
-      prove it on the phone layout and on the iPhone.
-- [ ] Remove the outline Obsidian draws around a property when the pointer is
-      over it: it suggests the property can be edited, which the read-only
-      stream doesn't allow. Check desktop and the phone layout.
+      (2026-10-25). Once or twice a run, the space kept for a hidden part of a
+      long note shows for two frames in a row. ADR 0023 measured one frame at
+      most, on an iPhone. Before changing the render distance or the test, find
+      out whether the cause is the iPad's taller screen or its faster scrolling.
+- [ ] On the iPad, every flick down the stream over a Base stops rendering for
+      330–410 ms, about 0.55 s after the finger lifts (D-173; the test "flick up
+      over a Base" in `stream.spec.ts`, named for the finger's direction). The
+      test vault's `2026-08-30` has seven Bases, rendered and then re-rendered
+      as cards while the page scrolls. iOS keeps scrolling, but nothing new is
+      painted. First check a real journal note with one or two Bases. Then
+      spread the rendering over several frames, or render the cards once
+      scrolling stops.
+- [ ] While the reader types a search, mark only a match they can see (D-022).
+      `isOnScreen` checks the whole pane, so on a phone it can mark a match
+      under the floating header, the bottom bar or the keyboard, and Enter then
+      moves past it. Measure the pane without what covers it. Prove it on the
+      phone layout and on the iPhone.
+- [ ] Remove the outline Obsidian draws around a property under the pointer: it
+      suggests the property can be edited, which the read-only stream doesn't
+      allow. Check desktop and the phone layout.
 - [ ] Try adding the e2e tests to CI on Linux.
 - [ ] Once the directory's scorecard lint understands moment's types, go back to
       Obsidian's `moment` and delete `src/notes/moment.ts` (D-152).
-- [ ] If the stall error (D-164) doesn't explain the next time the stream is
-      blank after Back, add a debug report that can be copied: a setting records
-      recent loads, draws and returns to the stream, and a command copies them
-      with the version numbers. Not the console: Obsidian's lint does not allow
-      `console.log`, even behind a setting.
+- [ ] If the stall error (D-164) doesn't explain the next blank stream after
+      Back, add a debug report to copy: a setting records recent loads, renders
+      and returns to the stream, and a command copies them with the version
+      numbers. Not the console: Obsidian's lint does not allow `console.log`,
+      even behind a setting.
 
 ## Known limits
 
 Measured and accepted. Opened again if a reader notices.
 
-- [ ] A hard flick up the stream on the iPhone scrolls faster than notes can be
-      drawn. A note waits for its turn in the drawing queue (ADR 0004) while the
-      page moves 200–800 px each frame. On 2026-10-16, flicks of four strokes
-      showed a note not yet drawn for 1–4 frames, up to 293 px. This happened in
-      6 of 6 scrolls with heights remembered, and in 3 of 6 with heights
-      forgotten. Drawing notes up to 3 panes away was not clearly better. The
-      other blank moments are over text that was already drawn, and Obsidian's
-      own reading view shows those too (up to 185 ms).
+- [ ] A hard flick up on the iPhone scrolls faster than notes can be rendered: a
+      note waits its turn in the render queue (ADR 0004) while the page moves
+      200–800 px a frame. On 2026-10-16, four-stroke flicks showed a note not
+      yet rendered for 1–4 frames, up to 293 px. That happened in 6 of 6 scrolls
+      with heights remembered, and 3 of 6 with them forgotten. Rendering notes
+      up to 3 panes away was not clearly better. Other blank moments are over
+      text already rendered, and Obsidian's own reading view shows those too (up
+      to 185 ms).
 
 ## Features
 
@@ -88,26 +83,26 @@ complexity. Most important first.
       opens at the newest note. Save it in `getState`. A stream opened new still
       starts at today.
 - [ ] Open at today's note, not the newest one. Notes made in advance for future
-      days are above it, and scrolling up still reaches them. Do it the same way
-      a jump works (D-082), so the notes above load as they do for any jump.
-      With no note for today, open at the nearest older one (D-015). With no
-      future notes, open at the top, as now.
+      days are above it, and scrolling up still reaches them. Do it as a jump
+      does (D-082), so the notes above load as for any jump. With no note for
+      today, open at the nearest older one (D-015). With no future notes, open
+      at the top, as now.
 - [ ] Show in stream: a command, and an item in a daily note's file menu, that
-      open the stream at that note, the same way a jump works (D-082). Now, the
-      only way back to the stream from a note is Back.
+      open the stream at that note, as a jump does (D-082). Now, the only way
+      back to the stream from a note is Back.
 - [ ] Go to a day chosen in the
       [Calendar](https://github.com/liamcain/obsidian-calendar-plugin) plugin.
-      With the stream open, a click on a day scrolls the stream there, the same
-      way a jump works (D-082), instead of opening a new tab. That shows which
-      days have notes, without a calendar of our own. Calendar opens the file
-      itself, so first check whether the click can be caught (with its API, or
-      the `file-open` event). In practice this is for desktop only: on a phone,
-      the sidebar is a drawer.
+      With the stream open, a click on a day scrolls the stream there, as a jump
+      does (D-082), instead of opening a new tab. That shows which days have
+      notes, without a calendar of our own. Calendar opens the file itself, so
+      first check whether the click can be caught (with its API, or the
+      `file-open` event). Desktop only in practice: on a phone, the sidebar is a
+      drawer.
 - [ ] Labels on the title line: the day of the week (`2026-03-14 · Saturday`, or
       "Yesterday"), and the time since the note before ("12 days later"). Decide
       first whether they come from the file name, or from a label the reader
       sets up. Creating or deleting a note changes the gap shown on the note
-      next to it, so that note must be drawn again.
+      next to it, so that note must be re-rendered.
 - [ ] Fold headings by name: a setting that lists headings (`Tasks`, `Log`) that
       start folded in every note, for template sections the reader rarely reads.
       This would be a default for `CollapsibleManager`; the reader's own fold or

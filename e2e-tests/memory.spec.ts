@@ -36,8 +36,8 @@ test.describe("a multi-year vault scrolled to the end", () => {
         await expect(blocks).toHaveCount(10); // BATCH_SIZE
         const first = await sample();
 
-        // Every batch needs the empty element at the end back in view. The
-        // count stops growing when the service has no more notes.
+        // Every batch needs the sentinel back in view. The count stops growing
+        // when the service has no more notes.
         let loaded = 0;
         for (let batch = 0; loaded < SEEDED_DAYS && batch < SEEDED_DAYS; batch++) {
             await scrollToEnd();
@@ -48,7 +48,7 @@ test.describe("a multi-year vault scrolled to the end", () => {
         expect(loaded).toBe(SEEDED_DAYS);
 
         // Wait for things to finish, because the last scroll leaves notes being
-        // drawn and emptied.
+        // rendered and unloaded.
         await page.waitForTimeout(2000);
         const end = await sample();
         const renderedAtEnd = await container.locator(".daily-note-block:not(.is-unloaded)").count();
@@ -70,12 +70,12 @@ test.describe("a multi-year vault scrolled to the end", () => {
                 `rendered heights ${placeholderPx.join(", ")}`
         );
 
-        // The point of the test: what is drawn depends on the screen, not on
+        // The point of the test: what is rendered depends on the screen, not on
         // the size of the vault.
         expect(renderedAtEnd).toBeLessThan(40);
-        // One element for each empty note. How much a drawn note weighs is up
-        // to the renderer, so the check is that notes are empty, not a count of
-        // nodes.
+        // One element for each empty note. How much a rendered note weighs is
+        // up to the renderer, so the check is that notes are empty, not a count
+        // of nodes.
         const unloadedChildren = await container.evaluate(
             (el) => el.querySelectorAll(".daily-note-block.is-unloaded *").length
         );

@@ -1,6 +1,6 @@
 # 0017. Forget a note's heights once it is edited
 
-- **Status:** Accepted. Partly replaces [0010](0010-layout-memory.md)
+- **Status:** Accepted. Partly supersedes [0010](0010-layout-memory.md)
 - **Date:** 2026-10-03
 
 ## Context
@@ -23,7 +23,7 @@ version 5.
 
 ## Consequences
 
-- A note edited somewhere else gets the estimate until it is drawn here.
+- A note edited somewhere else gets the estimate until it is rendered here.
 - Every save of a note gives the empty blocks new heights the next time
   scrolling stops.
 - A note measured again at the same height only saves its new change time once
@@ -35,7 +35,7 @@ version 5.
   since.
 - **The taller of the old height and the estimate** — the estimate already leans
   tall.
-- **Measuring again off screen after an edit** — draws a note nobody is looking
-  at.
+- **Measuring again off screen after an edit** — renders a note nobody is
+  looking at.
 - **Checking change times on every read** — every empty block in a batch would
   look its note up in the vault, and the cached estimate would not notice.

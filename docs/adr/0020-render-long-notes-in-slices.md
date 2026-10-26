@@ -1,4 +1,4 @@
-# 0020. A long note is drawn one slice at a time
+# 0020. A long note is rendered one slice at a time
 
 - **Status:** Accepted
 - **Date:** 2026-10-13
@@ -12,18 +12,18 @@ stream for 2.4 s, and for 4.2 s if it was today's note, drawn section by section
 
 ## Decision
 
-A note of 6,000 characters or more is drawn in runs: groups of whole sections,
-up to 2,000 characters each, cut from the note's own text. A shorter note is
-drawn all at once. Today's note, and any note saved while it is drawn, is drawn
-one section at a time, as before (ADR 0019). Between runs, once 25 ms have been
-used, the renderer gives the thread back through a timer, so everything already
-waiting runs first. If the note leaves the screen in the meantime, it stops at
-its next slice and stays empty. If it is removed from the document, it stops
-drawing. A note that is off the screen lets any note waiting on the screen draw
-between its slices, then carries on where it stopped. The block stays cut off at
-its empty or fixed height until the note is drawn, so nothing moves in the
-meantime. A note whose sections cannot stand on their own (ADR 0019) is still
-drawn in one call.
+A note of 6,000 characters or more is rendered in runs: groups of whole
+sections, up to 2,000 characters each, cut from the note's own text. A shorter
+note is rendered all at once. Today's note, and any note saved while it is
+rendered, is rendered one section at a time, as before (ADR 0019). Between runs,
+once 25 ms have been used, the renderer gives the thread back through a timer,
+so everything already waiting runs first. If the note leaves the screen in the
+meantime, it stops at its next slice and stays empty. If it is removed from the
+document, it stops drawing. A note that is off the screen lets any note waiting
+on the screen draw between its slices, then carries on where it stopped. The
+block stays clipped at its reserved or pinned height until the note is drawn, so
+nothing moves in the meantime. A note whose sections cannot stand on their own
+(ADR 0019) is still rendered in one call.
 
 ## Consequences
 
@@ -34,13 +34,13 @@ drawn in one call.
   an iPhone, tapping the title of a 16,000-line note showed its top blank for
   0.75–1.2 s, and now shows no blank (`e2e-tests/ios/header.spec.ts`).
 - When scrolling up to a short newest note, past a 10,000-line note never
-  measured, the scroll ended with the long note within the drawing distance, and
-  the long note drew to its end first. On an iPhone, the newest note waited
-  286–341 ms, and now waits 44–49 ms.
-- Below 6,000 characters, drawing all at once blocks the thread no longer than a
-  slice does, and finishes sooner. At phone speed (D-131), a 5,900-character
-  note blocks the thread for 26–27 ms drawn all at once, against 25–26 ms for
-  each slice, and finishes in 26 ms instead of 45–49 ms. Drawing all at once
+  measured, the glide ended with the long note within the rendering distance,
+  and the long note rendered to its end first. On an iPhone, the newest note
+  waited 286–341 ms, and now waits 44–49 ms.
+- Below 6,000 characters, rendering all at once blocks the thread no longer than
+  a slice does, and finishes sooner. At phone speed (D-131), a 5,900-character
+  note blocks the thread for 26–27 ms rendered all at once, against 25–26 ms for
+  each slice, and finishes in 26 ms instead of 45–49 ms. Rendering all at once
   first blocks the thread for 50 ms somewhere between 10,000 and 15,000
   characters, so the limit of 6,000 leaves a margin.
 - A 10,000-line note takes 1.3–1.7 times as long to finish: 6.9 s at phone speed
@@ -53,14 +53,14 @@ drawn in one call.
 
 ## Rejected alternatives
 
-- **`scheduler.yield()`** — continues drawing before every waiting timer. Timers
-  waited 4.4 s, then all ran at once after the whole note, in one task of
+- **`scheduler.yield()`** — continues rendering before every waiting timer.
+  Timers waited 4.4 s, then all ran at once after the whole note, in one task of
   580–900 ms.
-- **Every note one section at a time** — twice the cost of drawing an old note
+- **Every note one section at a time** — twice the cost of rendering an old note
   (ADR 0019).
 - **Every note in slices** — a short note fits in one slice anyway, and was
-  drawn up to 1.9 times slower.
-- **Drawing outside the page, then inserting once** — the insert restyles and
+  rendered up to 1.9 times slower.
+- **Rendering outside the page, then inserting once** — the insert restyles and
   lays out the whole note in one task.
 - **`requestIdleCallback`** — iOS does not have it, and while the reader scrolls
   there is no idle time.

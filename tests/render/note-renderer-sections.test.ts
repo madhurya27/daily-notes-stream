@@ -49,7 +49,7 @@ function note(sections: string[], frontmatter = "") {
 const days = (count = 10) => Array.from({ length: count }, (_, i) => `Day ${i}.${FILLER}`);
 
 /**
- * Draws each paragraph as a `p` holding its first twelve characters, and each
+ * Renders each paragraph as a `p` holding its first twelve characters, and each
  * heading at its level.
  */
 function renderParagraphs() {
@@ -100,7 +100,7 @@ describe("NoteRenderer, a note by section", () => {
     }
 
     /**
-     * As the window manager draws a note saved since it opened: all of it
+     * As the window manager renders a note saved since it opened: all of it
      * again, now by section.
      */
     async function rerender() {
@@ -283,7 +283,7 @@ describe("NoteRenderer, a note by section", () => {
             expect(marked.length).toBeGreaterThan(1);
             expect(marked.every(Boolean)).toBe(true);
             // The stream lays it out from its top again in the task where
-            // drawing finishes.
+            // rendering finishes.
             expect(block.hasClass("is-drawing-from-end")).toBe(true);
         });
 
@@ -451,7 +451,7 @@ describe("NoteRenderer, a note by section", () => {
         expect(forget).toHaveBeenCalledWith(file, expect.any(Array));
     });
 
-    // A section that draws nothing, such as a comment, has no node to insert
+    // A section that renders nothing, such as a comment, has no node to insert
     // before.
     it("puts a changed section before the next that drew something", async () => {
         vi.spyOn(MarkdownRenderer, "render").mockImplementation(async (_app, markdown, el) => {

@@ -59,8 +59,8 @@ export type BaseSource =
 /**
  * The note's Markdown with each Base (a `base` code block, or an embed on a
  * line of its own) replaced by an empty placeholder, and the Bases in order.
- * Each one is drawn into its own placeholder, so it can be drawn again on its
- * own.
+ * Each one is rendered into its own placeholder, so it can be re-rendered on
+ * its own.
  */
 export function extractBases(markdown: string): { markdown: string; bases: BaseSource[] } {
     const out: string[] = [];

@@ -3,8 +3,8 @@ import { test as obsidianTest, LAYOUT_VIEWPORT } from "./obsidian";
 
 /**
  * iOS runs the plugin in WebKit, while Obsidian on desktop is Chromium. Where
- * the two browser engines differ, in reading CSS or drawing, a copy of the real
- * app's page is drawn again in WebKit (ADR 0009).
+ * the two browser engines differ, in reading CSS or painting, a copy of the
+ * real app's page is rendered again in WebKit (ADR 0009).
  */
 
 /**
@@ -125,7 +125,9 @@ export const test = obsidianTest.extend<{ inWebKit: () => Promise<Page> }, { web
         },
         { scope: "worker" },
     ],
-    /** Draws Obsidian's page as it is now, in WebKit. */
+    /**
+     * Renders Obsidian's page as it is now, in WebKit.
+     */
     inWebKit: async ({ obsidian, webkitBrowser }, use) => {
         const context = await webkitBrowser.newContext({ ...IPHONE, viewport: LAYOUT_VIEWPORT.mobile });
         await use(async () => {

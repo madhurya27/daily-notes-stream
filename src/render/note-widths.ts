@@ -22,7 +22,7 @@ interface Watched {
 }
 
 /**
- * Watches each drawn note's width, with one observer for the view. Tables,
+ * Watches each rendered note's width, with one observer for the view. Tables,
  * equations and Bases fit themselves again when it changes. A change in height
  * only, which is most of what a note reports, fits nothing again.
  */

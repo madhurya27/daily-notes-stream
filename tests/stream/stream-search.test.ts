@@ -30,7 +30,7 @@ describe("StreamSearch", () => {
         CSS.highlights.clear();
         notes = SOURCES.map(([path]) => new TFile(path));
         highlighter = new SearchHighlighter();
-        // Every note is drawn, as in a short stream near the screen.
+        // Every note is rendered, as in a short stream near the viewport.
         blocks = new Map(
             notes.map((file, i) => {
                 const block = document.createElement("div");

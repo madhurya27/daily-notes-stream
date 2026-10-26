@@ -1,6 +1,6 @@
 # 0015. Show the notes above moving before giving them new heights
 
-- **Status:** Accepted. Partly replaces
+- **Status:** Accepted. Partly supersedes
   [0014](0014-re-reserve-placeholders-at-rest.md)
 - **Date:** 2026-10-01
 
@@ -8,9 +8,9 @@
 
 ADR 0014 delayed new heights that would make the stream shorter by more than
 there is below the pane. After a turn near the end, a scroll up without the
-scrolling ever stopping never tried again: the notes above were drawn at the old
-width's heights, and a phone reached the top of its scroll still owing 5.5k px,
-several notes below the newest one.
+scrolling ever stopping never tried again: the notes above were rendered at the
+old width's heights, and a phone reached the top of its scroll still owing 5.5k
+px, several notes below the newest one.
 
 WebKit and Chromium keep a shifted stream's scroll range. The pull-back came
 from the order `reserve()` worked in: it made the empty blocks shorter first, so
@@ -29,7 +29,7 @@ larger than the content below the pane still waits.
 
 - After a turn, notes get new heights the first time scrolling stops, wherever
   the reader is.
-- Any shift that is already owed, such as for a Base drawn again late, is moved
+- Any shift that is already owed, such as for a Base re-rendered late, is moved
   into the scroll at the same time.
 - Each time, it reads the box of every empty block it changes.
 - A note that crosses the pane's top counts as below it, and such a note is

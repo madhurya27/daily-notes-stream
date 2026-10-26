@@ -90,9 +90,10 @@ async function restoreNotes(phone: Phone, written: Written[]): Promise<void> {
  */
 const CASES = [
     {
-        // The scroll up went past a 10,000-line note, which kept drawing to its
-        // end for a second after it had gone by, while the top of the stream
-        // stayed blank. Measured: 750–1,170 ms, and none once it gives up.
+        // The glide up went past a 10,000-line note, which kept rendering to
+        // its end for a second after it had gone by, while the top of the
+        // stream stayed blank. Measured: 750–1,170 ms, and none once it gives
+        // up.
         name: "a tap on the title over long notes draws the newest at once",
         notes: [
             [0, 5000],
@@ -104,9 +105,9 @@ const CASES = [
     },
     {
         // Under a short newest note, a long note never measured is within the
-        // drawing distance when the scroll ends, and it drew to its end first.
-        // Measured: 333–341 ms, and 44–49 ms once a note on screen is drawn
-        // before it.
+        // rendering distance when the glide ends, and it rendered to its end
+        // first. Measured: 333–341 ms, and 44–49 ms once a note on screen is
+        // rendered before it.
         name: "a tap on the title draws a short newest note before a long one near it",
         notes: [
             [0, 30],
@@ -131,7 +132,7 @@ for (const { name, notes, measured, within } of CASES)
                 () => document.querySelectorAll<HTMLElement>(".daily-note-block")[3]!.dataset.sourcePath!
             );
             await phone.placeAt(`.daily-note-block[data-source-path="${fourth}"]`, 0);
-            // Far past it, the newest note is emptied once scrolling stops, so
+            // Far past it, the newest note is unloaded once scrolling stops, so
             // the tap makes it draw again.
             await expect
                 .poll(() =>

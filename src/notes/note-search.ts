@@ -11,8 +11,8 @@ export function searchPattern(query: string): RegExp | null {
 
 /**
  * The notes whose title or text contains `query`, in the order given. It
- * searches the note's Markdown, not the drawn text, because an emptied note has
- * no drawn text (ADR 0006).
+ * searches the note's Markdown, not the rendered text, because an unloaded note
+ * has no rendered text (ADR 0006).
  */
 export async function findNotes(
     notes: readonly TFile[],

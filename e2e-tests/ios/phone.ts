@@ -74,7 +74,7 @@ const SCREENS = 60;
 const TEXT_KINDS = [
     ".daily-note-title",
     ".metadata-property",
-    // Not a Base: it draws its rows again as it scrolls, and its changed text
+    // Not a Base: it renders its rows again as it scrolls, and its changed text
     // would look like a blank.
     ".daily-note-content > :not(.daily-note-far-run, .daily-note-base)",
     ".daily-note-mention",
@@ -405,8 +405,8 @@ export class Phone {
     /**
      * Makes every undrawn note's empty block shorter, then waits until the
      * stream is still. With heights measured on an earlier run, an empty block
-     * is exact and drawing moves nothing. When it is too short, every note
-     * grows as it is drawn, which is the case that used to jump.
+     * is exact and rendering moves nothing. When it is too short, every note
+     * grows as it is rendered, which is the case that used to jump.
      */
     async shortenPlaceholders(): Promise<void> {
         await this.run(() => {
@@ -428,7 +428,7 @@ export class Phone {
             for (const modal of document.querySelectorAll<HTMLElement>(".modal-container .modal-bg")) modal.click();
             window.app.workspace.detachLeavesOfType("daily-notes-stream-view");
         });
-        // If opened in the same task as the close, it never drew.
+        // If opened in the same task as the close, it never rendered.
         await this.run(() => window.app.commands.executeCommandById("daily-notes-stream:open-stream"));
         await expect
             .poll(() => this.run((s: string) => document.querySelectorAll(`${s} .daily-note-block`).length, STREAM))
@@ -455,7 +455,7 @@ export class Phone {
      * Starts following the text at or just below the pane's middle on every
      * frame, as the reader's eye would. `stopFollowing` reports what it saw.
      * The text is found by its position in its note, as `topOf` finds it,
-     * because a note may be drawn again under the reader. When the text leaves
+     * because a note may be re-rendered under the reader. When the text leaves
      * the screen, the eye moves to the text then in the middle. A blank where
      * the text was on screen counts as a drift of NaN. It also reads the text
      * when the page gets a scroll event, before the stream reacts to it: iOS
@@ -574,7 +574,7 @@ export class Phone {
     /**
      * Each read since `followReader`: how far the text moved apart from the
      * scroll (`drifts`, while scrolling), and on screen (`moves`, for a reader
-     * who is not scrolling), and how many notes were drawn.
+     * who is not scrolling), and how many notes were rendered.
      */
     stopFollowing(): Promise<{ drifts: number[]; moves: number[]; rendered: number }> {
         return this.run(() => {
@@ -596,16 +596,16 @@ export class Phone {
     }
 
     /**
-     * Starts watching each drawn note's height, at the end of each task and on
-     * each frame. `stopWatchingPins` reports any change made without the height
-     * being fixed again or the note being emptied (ADR 0013). Also counts the
-     * notes seen drawn.
+     * Starts watching each rendered note's height, at the end of each task and
+     * on each frame. `stopWatchingPins` reports any change made without the
+     * height being re-pinned or the note being unloaded (ADR 0013). Also counts
+     * the notes seen rendered.
      */
     async watchPins(): Promise<void> {
         await this.run((s: string) => {
             const pane = document.querySelector(s)!.parentElement!;
             /**
-             * What only fixing the height again or emptying the note changes.
+             * What only re-pinning or unloading the note changes.
              */
             const state = (block: HTMLElement) =>
                 [
@@ -641,8 +641,8 @@ export class Phone {
     }
 
     /**
-     * Since `watchPins`: each height change made without fixing the height
-     * again, and how many notes were drawn.
+     * Since `watchPins`: each height change made without re-pinning, and how
+     * many notes were rendered.
      */
     stopWatchingPins(): Promise<{ unpinned: string[]; rendered: number }> {
         return this.run(() => {
@@ -752,8 +752,8 @@ export class Phone {
     /**
      * One stroke, and how its scrolling ended (`glide.ts`), once the pane is
      * still. A full scroll lasts 1–3.5 s. It is read on every frame from when
-     * the finger lifts, so a pause can be told apart from a stop. The longest
-     * pause is noted on the test.
+     * the finger lifts, so a stall can be told apart from a stop. The longest
+     * stall is noted on the test.
      */
     async glideEnding(direction: "up" | "down", { share = 0.7, ms = 60 } = {}): Promise<GlideEnding> {
         await this.run((s: string) => {
@@ -890,7 +890,7 @@ export class Phone {
 
     /**
      * The top of the stream's pane, in the screen's points. Read before
-     * scrolling, because the web view runs no script while scrolling.
+     * scrolling, because the web view runs no script mid-glide.
      */
     private async paneTop(): Promise<number> {
         if (this.pane !== undefined) return this.pane;
@@ -1128,10 +1128,10 @@ export class Phone {
      * Scrolls so the pane's top is `depth` px into the first `target` at least
      * a screen down the stream, or, with a negative `depth`, that far above it.
      * Then waits for it to stay still there. Only notes near the screen are
-     * drawn (ADR 0006), so it moves a screen at a time until one is found. If
-     * the target names a block, which is always in the stream, it goes there at
-     * once. What is drawn, such as a Base filling in above the target, may move
-     * it, so it scrolls again until the target is where it was put.
+     * rendered (ADR 0006), so it moves a screen at a time until one is found.
+     * If the target names a block, which is always in the stream, it goes there
+     * at once. What is rendered, such as a Base filling in above the target,
+     * may move it, so it scrolls again until the target is where it was put.
      */
     async placeAt(target: string, depth: number): Promise<void> {
         const block = blockOf(target);
@@ -1233,7 +1233,7 @@ export class Phone {
 
     /**
      * Where `seen`'s part is now, from the pane's top. Found by its position in
-     * the note, because a Base draws its text again when the screen turns.
+     * the note, because a Base renders its text again when the screen turns.
      */
     topOf(seen: Seen): Promise<number> {
         return this.run(

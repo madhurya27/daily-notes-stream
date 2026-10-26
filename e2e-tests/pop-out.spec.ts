@@ -88,8 +88,8 @@ test.describe("the stream in a pop-out window", () => {
         await expect(input).toBeFocused();
         await input.fill("km");
 
-        // Drawn from the pop-out's own registry, because the main window's
-        // registry draws nothing there.
+        // Painted from the pop-out's own registry, because the main window's
+        // registry paints nothing there.
         await expect
             .poll(() => popOut.evaluate(() => CSS.highlights.get("daily-notes-search-match")?.size ?? 0))
             .toBeGreaterThan(0);
