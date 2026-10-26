@@ -31,12 +31,6 @@ Ordered by priority. Frame-level iOS glitches wait on a recording (D-099).
       iOS glides on, but nothing new is drawn meanwhile. Check a real journal's
       note with one or two Bases first, then spread the drawing across frames or
       hold the redraw as cards until the scroll is still.
-- [ ] Let `test:ipados` run with the iPad's keyboard attached: the specs that
-      type on iOS's on-screen keyboard (`search`, `jump`, `recording`) fail now.
-      Decide: skip them, naming the keyboard, or type on the hardware keyboard
-      instead. `phone.keyboardShown` already tells: an attached keyboard is
-      reported shown below the screen. Prove it with one run attached, one
-      detached; update `docs/TESTING.md`.
 - [ ] Make typing a search mark only a match the reader can see (D-022):
       `isOnScreen` checks the whole pane, so on a phone it marks one under the
       floating header or bottom bar, or under the open keyboard. Enter then

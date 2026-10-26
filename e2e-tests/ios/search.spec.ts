@@ -8,7 +8,7 @@ const BAR = ".daily-notes-search:not(.is-closed) input";
 async function search(phone: Phone, query: string): Promise<void> {
     await phone.tap('.view-action[aria-label="Search"]');
     await expect.poll(() => phone.has(BAR), "the search bar did not open").toBe(true);
-    await expect.poll(() => phone.keyboardShown(), "the keyboard did not rise").toBe(true);
+    await phone.raiseKeyboard();
     await phone.type(query);
     expect(await phone.run((bar: string) => document.querySelector<HTMLInputElement>(bar)!.value, BAR)).toBe(query);
     await phone.run((bar: string) => document.querySelector<HTMLInputElement>(bar)!.blur(), BAR);

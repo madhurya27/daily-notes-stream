@@ -165,7 +165,7 @@ test("the jump list opens with the keyboard down, and a tap on the query raises 
 
     await phone.tap(".prompt input.prompt-input");
 
-    await expect.poll(() => phone.keyboardShown()).toBe(true);
+    await phone.raiseKeyboard();
     await phone.escape(".prompt input.prompt-input");
     await expect.poll(() => phone.has(".prompt")).toBe(false);
 });

@@ -63,9 +63,11 @@ predictive text; the run turns both back on at the end. To leave one off, set
 command line or in a gitignored `e2e-tests/ios/.env`. `IOS_SEED_DAYS=1825` seeds
 five years of journal in place of 21 days (D-158). `test:ios` drives the iPhone
 on the cable, `test:ipados` the iPad, so both can stay plugged in (D-169). An
-iPad runs in the orientation it was found in, with its keyboard detached: iOS
-hides its on-screen keyboard while one is attached, and the specs type on it.
-Once per Mac and device; "phone" below means either:
+iPad runs in the orientation it was found in. Its keyboard can be attached or
+not: the tests type on iOS's on-screen keyboard and make it appear if a keyboard
+is attached. After a run with a keyboard attached, iOS keeps showing its
+keyboard until you detach and attach the keyboard again (D-174). Once per Mac
+and device; "phone" below means either:
 
 1. Install Xcode, open it once, and add an Apple ID under Settings → Accounts.
    Then Manage Certificates → + → Apple Development. A free account is enough.

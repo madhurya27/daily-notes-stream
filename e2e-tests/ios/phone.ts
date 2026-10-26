@@ -1,4 +1,5 @@
 import { test as base, expect } from "@playwright/test";
+import { drivesIPad } from "./device";
 import { glideEnding, longestStall, type GlideEnding, type Heard } from "./glide";
 import { keyboardAfterRun } from "./keyboard";
 import { connect, OBSIDIAN } from "./session";
@@ -32,6 +33,12 @@ export type Place = { path: string; offset: number };
 
 /** How far inside the pane's top a stroke stays, clear of the header above it. */
 const PANE_EDGE = 20;
+
+/** How long to wait for iOS's keyboard to appear. If it has not appeared by then, a keyboard is attached. */
+const KEYBOARD_RISE = 5_000;
+
+/** XCTest's code for the Right Arrow key. Pressing it in an input types nothing. */
+const RIGHT_ARROW = "\uF703";
 
 /** How far `placeAt` looks: past the first two batches of the harness's notes, some 20 screens each. */
 const SCREENS = 60;
@@ -146,13 +153,33 @@ export class Phone {
 
     /**
      * Whether iOS shows its on-screen keyboard. With a hardware keyboard
-     * attached, iOS reports it shown, below the screen.
+     * attached, iOS sometimes says its keyboard is shown when it is not.
      */
     async keyboardShown(): Promise<boolean> {
         await this.native();
         if (!(await this.driver.isKeyboardShown())) return false;
         const { y } = await this.driver.$("-ios class chain:**/XCUIElementTypeKeyboard").getLocation();
         return y < (await this.windowSize()).height;
+    }
+
+    /**
+     * Waits for iOS's on-screen keyboard to appear. When a keyboard is
+     * attached to an iPad, iOS hides its own. Pressing one key through
+     * XCTest makes iOS show it again, and it stays shown until the keyboard
+     * is detached and attached again. So if the keyboard has not appeared,
+     * this presses Right Arrow on an iPad.
+     */
+    async raiseKeyboard(): Promise<void> {
+        const rose = await expect
+            .poll(() => this.keyboardShown(), { timeout: KEYBOARD_RISE })
+            .toBe(true)
+            .then(
+                () => true,
+                () => false
+            );
+        if (rose) return;
+        if (drivesIPad(process.env)) await this.driver.execute("mobile: keys", { keys: [RIGHT_ARROW] });
+        await expect.poll(() => this.keyboardShown(), "iOS's keyboard did not rise").toBe(true);
     }
 
     /**

@@ -2,6 +2,7 @@ import { writeFileSync } from "fs";
 import { join } from "path";
 import { OUT } from "../demo";
 import { recordingAsked } from "../recording-asked";
+import { drivesIPad } from "./device";
 import { test, expect, type Phone, type Point } from "./phone";
 import { FRAMES, type Scene } from "./screen-capture";
 
@@ -58,6 +59,7 @@ async function rehearse(
 
 test("README recording on the phone", async ({ phone }) => {
     test.skip(!recordingAsked(), "set CAPTURE_RECORDING=1 to record");
+    test.skip(drivesIPad(process.env), "the README records a Mac and an iPhone, not an iPad");
     test.setTimeout(300_000);
     const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 

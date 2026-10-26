@@ -2987,3 +2987,27 @@ frame proves the page alive, so a scroll still over frames has stopped.
 - A longer hand-over wait — a longer stall still reads as a cut, and the
   stream's write at rest would count as a step.
 - Judging by travel alone — a cut far into a long glide travels far too.
+
+## D-174 — The iPad tests type on iOS's keyboard, even with one attached (2026-10-25)
+
+**Decision:** `search` and `jump` type on iOS's on-screen keyboard, whether or
+not a keyboard is attached to the iPad. `Phone.raiseKeyboard` waits 5 s for the
+on-screen keyboard. If it has not appeared, on an iPad, it presses Right Arrow
+through XCTest. That types nothing, and the on-screen keyboard appears. The
+README recording skips on an iPad, because the README only shows a Mac and an
+iPhone.
+
+**Why:** when a keyboard is attached, iOS hides its own keyboard, and these
+tests failed. One key pressed through XCTest makes iOS show its keyboard again.
+It stays shown, in later runs too, until the keyboard is detached and attached
+again. iOS does not always say whether a keyboard is attached, so the key is
+pressed whenever the on-screen keyboard has not appeared.
+
+**Rejected:**
+
+- Skipping the tests when a keyboard is attached — search and the jump list
+  would not be tested on an iPad with a keyboard.
+- Typing on the attached keyboard through XCTest — the first key makes the
+  on-screen keyboard appear anyway.
+- Checking where iOS says its keyboard is — iOS places it below the screen only
+  the first time an input is focused after the keyboard is attached.
