@@ -8,9 +8,8 @@ there is a screen recording of them (D-099).
 - [ ] On the iPad, which Obsidian treats as mobile and so gives the phone
       layout:
     - [ ] Show the scroll-to-top button, as on desktop: the header has room for
-          it. Like every header button there, it needs two taps (see Known
-          limits). Decide whether a tap on the title should then stop scrolling
-          to the top. This changes D-147.
+          it. Decide whether a tap on the title should then stop scrolling to
+          the top. This changes D-147.
     - [ ] Make the search bar only as wide as what is in it. Now the field is on
           the left and the close button on the right, with an empty gap between
           them.
@@ -60,9 +59,6 @@ there is a screen recording of them (D-099).
 
 Measured and accepted. Opened again if a reader notices.
 
-- [ ] On the iPad, in landscape, the first tap on a view's header only expands
-      it to show the note's path; the second tap reaches the button or the
-      title. This is how Obsidian works in every view, not just the stream.
 - [ ] A hard flick up the stream on the iPhone scrolls faster than notes can be
       drawn. A note waits for its turn in the drawing queue (ADR 0004) while the
       page moves 200–800 px each frame. On 2026-10-16, flicks of four strokes
