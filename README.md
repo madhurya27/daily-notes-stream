@@ -6,8 +6,6 @@ It works with the daily notes you already have. There's no new folder, format, o
 
 **You'll need daily notes set up already:** Obsidian's core **Daily notes** plugin, or Periodic Notes with daily notes turned on, and at least one note. The stream shows the notes in that folder whose names match its date format.
 
-[Get it from the Obsidian plugin directory](https://community.obsidian.md/plugins/daily-notes-stream), or see [Install](#install).
-
 <p><img src="docs/images/demo-desktop.webp" alt="Recording on desktop: the newest note, open in a split, is edited and the stream beside it updates as the words are typed. The stream then scrolls through older days, a search steps through notes mentioning Mara, a jump goes to an older date, and the command palette scrolls it back to the top" width="800"></p>
 
 ## Features
@@ -33,8 +31,7 @@ It works with the daily notes you already have. There's no new folder, format, o
 - **Which devices does it run on?** Desktop and mobile, and it's tested thoroughly on desktop and iOS. It needs Obsidian 1.14.4 or later.
 - **Does it show notes the way Obsidian does?** On desktop, yes, except that a wide diagram shrinks to fit. On a phone or tablet it's opinionated: nothing inside a note scrolls on its own, so one swipe always moves the whole stream. A table, Base, or Kanban Base too wide for the screen becomes a stack of cards, a Kanban Base keeping one group per column. Only the stream's view changes, never your notes. See [Phone and tablet](#phone-and-tablet).
 - **Does it work with other plugins?** Yes. Dataview tables and Bases are shown the way Obsidian shows them, reshaped on a phone or tablet as above. Templates made with the core Templates plugin or with Templater are recognized when empty notes are hidden. See [Empty notes](#empty-notes).
-
-If you want to edit notes directly inside the feed, try [Daily Notes Editor](https://github.com/Quorafind/Obsidian-Daily-Notes-Editor).
+- **Can I edit notes in the stream?** No. It's read-only, which keeps it fast and light on memory through years of notes. To edit notes in a feed, try a plugin such as [Daily Notes Editor](https://github.com/Quorafind/Obsidian-Daily-Notes-Editor).
 
 ## Use
 
