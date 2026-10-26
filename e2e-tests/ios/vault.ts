@@ -69,6 +69,12 @@ const NEWEST = Object.keys(DEMO)
  */
 export const SHORT_NOTE_WITH_BASE = "Journal/2026-09-22.md";
 export const SHORT_NOTE = "Journal/2026-09-21.md";
+/**
+ * A short note with a Base, about 25 screens down on an iPad, so a script's
+ * jump of several screens up from it is not taken for a glide about to run out
+ * of scroll (D-176).
+ */
+export const DEEP_NOTE_WITH_BASE = "Journal/2026-09-13.md";
 /** The kanban in the short note with Bases, the note above `SHORT_NOTE`. */
 export const SHORT_KANBAN = `.daily-note-block[data-source-path="${SHORT_NOTE_WITH_BASE}"] .daily-note-base:has(+ .daily-note-base)`;
 /**

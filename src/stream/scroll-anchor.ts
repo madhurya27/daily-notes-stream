@@ -17,6 +17,14 @@ export const SCROLL_IDLE_MS = 300;
 const LAYOUT_UNIT = 1 / 64;
 
 /**
+ * How many steps of a scroll ahead a glide is stopped before it reaches empty
+ * space or runs out of scroll. iOS sends scroll events unevenly, so the next
+ * step may be several frames', and iOS has already drawn one frame past the
+ * scroll position it reports (D-176).
+ */
+const STEPS_AHEAD = 3;
+
+/**
  * The elements from a block down to one inside it, each with its position in
  * the pane and its height.
  */
@@ -312,36 +320,38 @@ export class ScrollAnchor {
 
     /**
      * The stream is shifted down, and its top will be inside the pane within
-     * two more steps of `moved`. Above it is empty space. Stopping only once
-     * the top is visible was too late: iOS had already drawn one frame past it.
-     * Two steps, because a dropped frame doubles a step.
+     * `STEPS_AHEAD` more steps of `moved`. Above it is empty space. Stopping
+     * only once the top is visible was too late: iOS had already drawn one
+     * frame past it.
      */
     private topDueInView(moved: number): boolean {
         const stream = this.stream;
-        return this.owed < 0 && !!stream && this.topInPane(stream) + 2 * Math.max(moved, 0) >= 0;
+        return this.owed < 0 && !!stream && this.topInPane(stream) + STEPS_AHEAD * Math.max(moved, 0) >= 0;
     }
 
     /**
      * Every note is loaded, the stream is shifted up, and its end will be
-     * inside the pane within two more steps of a downward scroll of `moved`.
-     * Below the end is empty space until scrolling stops. While notes are still
-     * loading, they may arrive below first. When the browser pulls the scroll
-     * back, as when the screen is turned, nothing moved, so it is not a scroll.
+     * inside the pane within `STEPS_AHEAD` more steps of a downward scroll of
+     * `moved`. Below the end is empty space until scrolling stops. While notes
+     * are still loading, they may arrive below first. When the browser pulls
+     * the scroll back, as when the screen is turned, nothing moved, so it is
+     * not a scroll.
      */
     private endDueInView(moved: number): boolean {
         // Stryker disable next-line EqualityOperator: only asked while something is owed.
-        return moved < 0 && this.owed > 0 && this.loadedToEnd() && this.below() - this.owed <= -2 * moved;
+        return moved < 0 && this.owed > 0 && this.loadedToEnd() && this.below() - this.owed <= -STEPS_AHEAD * moved;
     }
 
     /**
-     * An upward scroll will reach a scroll position of zero within two more
-     * steps of `moved`, before the stream's top, which is shifted up. Only
-     * asked when `topDueInView` is false (D-143). A bounce that has started is
-     * left to `handOver`. A scroll to the top lands on it and owes nothing.
+     * An upward scroll will reach a scroll position of zero within
+     * `STEPS_AHEAD` more steps of `moved`, before the stream's top, which is
+     * shifted up. Only asked when `topDueInView` is false (D-143). A bounce
+     * that has started is left to `handOver`. A scroll to the top lands on it
+     * and owes nothing.
      */
     private scrollRunsOutAbove(moved: number): boolean {
         const { scrollTop } = this.scrollRoot!;
-        return !this.headedForTop && scrollTop > 0 && scrollTop <= 2 * moved;
+        return !this.headedForTop && scrollTop > 0 && scrollTop <= STEPS_AHEAD * moved;
     }
 
     /**

@@ -1,5 +1,14 @@
 import { test, expect, type Phone } from "./phone";
-import { A_MONTH, KANBAN, KANBAN_FILE, MIDDLE, SHORT_KANBAN, SHORT_NOTE, SHORT_NOTE_WITH_BASE } from "./vault";
+import {
+    A_MONTH,
+    DEEP_NOTE_WITH_BASE,
+    KANBAN,
+    KANBAN_FILE,
+    MIDDLE,
+    SHORT_KANBAN,
+    SHORT_NOTE,
+    SHORT_NOTE_WITH_BASE,
+} from "./vault";
 
 const STREAM = ".daily-notes-stream-container";
 
@@ -195,7 +204,7 @@ for (const [what, slot, file, body] of [
 // that round and WebKit logs an error (D-159).
 test("a Base drawn and hidden before it laid out shows its rows without a resize error", async ({ phone }) => {
     await phone.openStream();
-    await phone.jumpTo(SHORT_NOTE_WITH_BASE.slice("Journal/".length, -".md".length));
+    await phone.jumpTo(DEEP_NOTE_WITH_BASE.slice("Journal/".length, -".md".length));
     const steps = await phone.runAsync(
         async (s: string, path: string) => {
             const pane = document.querySelector(s)!.parentElement!;
@@ -221,7 +230,7 @@ test("a Base drawn and hidden before it laid out shows its rows without a resize
             return steps;
         },
         STREAM,
-        SHORT_NOTE_WITH_BASE
+        DEEP_NOTE_WITH_BASE
     );
 
     expect(steps).toEqual(["unloaded", "rendered", "hidden"]);

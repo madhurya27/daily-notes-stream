@@ -3197,3 +3197,30 @@ runs inside Obsidian.
   of its own.
 - Stylelint for `styles.css` — it dropped its line length rule, and it would be
   one more tool for one check.
+
+## D-176 — A glide stops three steps ahead, and may still bounce on an iPad (2026-10-26)
+
+**Decision:** changes D-091, D-140 and D-143. Each stop fires when the stream's
+top or end, or a scroll position of zero, is within three steps the size of the
+last one (`STEPS_AHEAD`), not two. D-146's step further is still one step. On an
+iPad, about 1 glide in 30 still bounces at the top while owing, so the phone
+test only checks that what is owed is moved into the scroll and the text never
+jumps, not that the stop came first.
+
+**Why:** on an iPad, scroll events come unevenly. One brings one frame's move
+(about 50 px), the next three or four frames' (170–340 px), so a short step
+hides the long one coming, and the scroll passes zero before the stop. With two
+steps, the test failed 5 of 98 runs; with three, 2 of 60. A glide stopped a step
+sooner still owes thousands of pixels above, so the reader hardly sees the
+difference. A bounce needs notes above far shorter than their heights, which
+saved heights (ADR 0010) and a tall estimate (D-092) make rare, in a glide that
+reaches the newest note. Without a finger, it is only a spring back.
+
+**Rejected:**
+
+- The largest step of the last 150 ms — passed 60 of 60 runs, but needs a list
+  of steps with times, and rules for a turn and for a scroll that moved nothing.
+  Try it if a bounce opens the pull-down action in real use.
+- The glide's speed in px per ms, times the longest gap between events — event
+  times are when the page ran, not when iOS moved: one step of 202 px came 26 ms
+  after one of 81 px that took 46 ms.

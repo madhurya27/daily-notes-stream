@@ -1553,16 +1553,17 @@ describe("ScrollAnchor", () => {
     // Notes above shrinking leave the stream shifted down. Scrolling up reaches
     // the newest note with scroll left, and went on into empty space. Stopping
     // when it arrived was too late: iOS had already drawn one frame past it. So
-    // it stops two steps before, because iOS drops a frame and a step doubles,
-    // and the stream's top ends at the pane's top.
-    it("stops a glide two steps before the stream's top would come into the pane", () => {
+    // it stops three steps before, because iOS sends scroll events unevenly and
+    // the next step may be several frames' (D-176), and the stream's top ends
+    // at the pane's top.
+    it("stops a glide three steps before the stream's top would come into the pane", () => {
         const { pane, content, blocks, resize } = watch([400, 400, 400, 400, 400], 900);
         resize(blocks[0]!, 100);
         observer().resized(blocks[0]!);
 
         const stopped = glideUp(pane, 20, 0);
 
-        expect(stopped).toBe(340);
+        expect(stopped).toBe(360);
         expect(pane.scrollTop).toBe(0);
         expect(content.getBoundingClientRect().top).toBe(0);
         expect(shift(content)).toBe(0);
@@ -1575,16 +1576,35 @@ describe("ScrollAnchor", () => {
     // On an iPhone, the bounce's pull opened Obsidian's pull-down action. iOS
     // draws one step past the scroll position it reports, so stopping where it
     // reported moved the text back 40–50 px against the scroll.
-    it("stops a glide two steps before its scroll runs out, a step on from where it was reported", () => {
+    it("stops a glide three steps before its scroll runs out, a step on from where it was reported", () => {
         const { pane, content, blocks, resize } = watch([400, 400, 400, 400, 400], 900);
         resize(blocks[0]!, 700);
         observer().resized(blocks[0]!);
 
         const stopped = glideUp(pane, 20, 0);
 
-        expect(stopped).toBe(40);
-        expect(pane.scrollTop).toBe(320);
+        expect(stopped).toBe(60);
+        expect(pane.scrollTop).toBe(340);
         expect(shift(content)).toBe(0);
+    });
+
+    // On an iPad, a step of 51 px, then 81 px at 168 px from the top, was
+    // followed by one of 202 px. Two steps ahead missed it, and the scroll
+    // bounced at the top while owing (D-176).
+    it("stops a glide whose steps come unevenly before its scroll runs out", () => {
+        const { pane, blocks, resize } = watch([400, 400, 400, 400, 400], 900);
+        resize(blocks[0]!, 700);
+        observer().resized(blocks[0]!);
+        expect(glideUp(pane, 50, 300)).toBeNull();
+        pane.scrollTop = 249;
+        anchor.onScroll();
+        expect(pane.scrollTop).toBe(249);
+
+        pane.scrollTop = 168;
+        anchor.onScroll();
+
+        expect(pane.hasClass("is-scroll-frozen")).toBe(true);
+        expect(pane.scrollTop).toBe(387);
     });
 
     // A resize reported, or a note re-pinned, at the position of the next
@@ -1594,15 +1614,15 @@ describe("ScrollAnchor", () => {
         const { pane, blocks, resize } = watch([400, 400, 400, 400, 400], 900);
         resize(blocks[0]!, 700);
         observer().resized(blocks[0]!);
-        expect(glideUp(pane, 20, 60)).toBeNull();
+        expect(glideUp(pane, 20, 80)).toBeNull();
 
-        pane.scrollTop = 40;
+        pane.scrollTop = 60;
         resize(blocks[0]!, 750);
         observer().resized(blocks[0]!);
         anchor.onScroll();
 
         expect(pane.hasClass("is-scroll-frozen")).toBe(true);
-        expect(pane.scrollTop).toBe(320);
+        expect(pane.scrollTop).toBe(340);
     });
 
     // Setting the scroll when moving the shift into it is heard as a scroll one
@@ -1661,9 +1681,9 @@ describe("ScrollAnchor", () => {
         resize(blocks[0]!, 100);
         observer().resized(blocks[0]!);
 
-        expect(glideUp(pane, 20, 360)).toBeNull();
+        expect(glideUp(pane, 20, 380)).toBeNull();
 
-        expect(pane.scrollTop).toBe(360);
+        expect(pane.scrollTop).toBe(380);
         expect(shift(content)).toBe(300);
     });
 
@@ -1683,7 +1703,7 @@ describe("ScrollAnchor", () => {
         anchor.headForTop();
         resize(blocks[0]!, 100);
         observer().resized(blocks[0]!);
-        expect(glideUp(pane, 20, 0)).toBe(340);
+        expect(glideUp(pane, 20, 0)).toBe(360);
         vi.advanceTimersToNextFrame();
 
         pane.scrollTop = 900;
@@ -1691,7 +1711,7 @@ describe("ScrollAnchor", () => {
         resize(blocks[0]!, 700);
         observer().resized(blocks[0]!);
 
-        expect(glideUp(pane, 20, 0)).toBe(40);
+        expect(glideUp(pane, 20, 0)).toBe(60);
     });
 
     // iOS keeps scrolling after the scroll position is set, and undoes it in
@@ -1738,17 +1758,17 @@ describe("ScrollAnchor", () => {
     // Notes above growing leave the stream shifted up. Scrolling down reached
     // the last note with scroll left, and went on into empty space until
     // scrolling stopped, about 1.8 s on an iPhone.
-    it("stops a glide two steps before the stream's end, every note loaded, would come into the pane", () => {
+    it("stops a glide three steps before the stream's end, every note loaded, would come into the pane", () => {
         const { pane, content, blocks, resize } = watchToEnd([400, 400, 400, 400, 400], 900);
         resize(blocks[0]!, 700);
         observer().resized(blocks[0]!);
 
         const stopped = glideDown(pane, 20, 1700);
 
-        expect(stopped).toBe(1360);
-        expect(pane.scrollTop).toBe(1680);
+        expect(stopped).toBe(1340);
+        expect(pane.scrollTop).toBe(1660);
         expect(shift(content)).toBe(0);
-        expect(content.getBoundingClientRect().bottom).toBe(620);
+        expect(content.getBoundingClientRect().bottom).toBe(640);
     });
 
     it("holds the place read where a glide stopped", () => {
