@@ -632,9 +632,14 @@ export class ScrollAnchor {
      * styles.css turns the custom property into a transform, which moves what
      * is rendered without changing the scroll. The names are written out in
      * full in both places, because the compliance rule searches the source text
-     * for them.
+     * for them. With nothing owed, the stream gets no transform: one that
+     * moves nothing came just before glides stopped on an iPad (D-177).
      */
     private shift(content: HTMLElement): void {
+        if (this.owed === 0) {
+            this.undraw();
+            return;
+        }
         this.shifted = content;
         content.addClass("is-scroll-shifted");
         content.style.setProperty("--daily-notes-scroll-shift", `${-this.owed}px`);
@@ -652,6 +657,11 @@ export class ScrollAnchor {
     private unshift(): void {
         this.reflowing = false;
         this.owed = 0;
+        this.undraw();
+    }
+
+    /** Draws the stream where it is, without a transform. */
+    private undraw(): void {
         this.shifted?.removeClass("is-scroll-shifted");
         this.shifted?.style.removeProperty("--daily-notes-scroll-shift");
         this.shifted = null;

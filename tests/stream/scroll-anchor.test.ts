@@ -277,6 +277,17 @@ describe("ScrollAnchor", () => {
         expect(write).not.toHaveBeenCalled();
     });
 
+    // A transform on the stream that moves nothing came just before glides
+    // stopped on an iPad (D-177).
+    it("draws the stream untransformed when a block above grows by less than a layout moves", () => {
+        const { content, blocks, resize } = watch([400, 400, 400], 900);
+
+        resize(blocks[0]!, 400 + 1 / 128);
+        observer().resized(blocks[0]!);
+
+        expect(content.hasClass("is-scroll-shifted")).toBe(false);
+    });
+
     it("owes a move as small as a layout moves anything", () => {
         const { content } = watch([400, 400, 400], 900);
 

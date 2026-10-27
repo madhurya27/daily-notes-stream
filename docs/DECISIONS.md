@@ -3224,3 +3224,16 @@ reaches the newest note. Without a finger, it is only a spring back.
 - The glide's speed in px per ms, times the longest gap between events — event
   times are when the page ran, not when iOS moved: one step of 202 px came 26 ms
   after one of 81 px that took 46 ms.
+
+## D-177 — Nothing owed, the stream has no transform (2026-10-26)
+
+**Decision:** `ScrollAnchor` only puts the stream's shift on it while something
+is owed. When a move adds up to less than a layout unit, which counts as nothing
+owed, the stream is drawn without the transform (`is-scroll-shifted`).
+
+**Why:** a note above that grew by a fraction of a pixel mid-glide gave the
+stream `translateY(0px)`. During a burst of stopped flicks on an iPad (see the
+TODO), 8 of 10 flicks over a framed web page stopped dead 150–250 ms after it
+appeared; just after, without it, 1 of 10 did. Outside a burst, 0 of 30 stopped
+with or without it, so it may not be what stops them. A transform that moves
+nothing has no use either way.
