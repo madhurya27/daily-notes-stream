@@ -1486,6 +1486,18 @@ describe("what a search moves through", () => {
         expect(pane.scrollTop).toBe(1000);
     });
 
+    // The scroll anchor reads its place there, not where the reader was
+    // (D-180).
+    it("tells the window once a match is centered", async () => {
+        pane.getBoundingClientRect = () => rect(0, 800);
+        pane.scrollTop = 0;
+        noteWindow.placed.mockImplementation(() => expect(pane.scrollTop).toBe(1000));
+
+        await stream.center(matchAt(1390));
+
+        expect(noteWindow.placed).toHaveBeenCalled();
+    });
+
     describe("a centered match, as the stream settles around it", () => {
         let match: Range;
 

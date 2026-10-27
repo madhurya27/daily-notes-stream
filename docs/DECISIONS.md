@@ -3263,3 +3263,22 @@ where the keyboard does not shrink the pane.
 
 - Subtracting the header and navbar by their class names — it misses anything
   else that floats over the pane, and breaks when Obsidian renames them.
+
+## D-180 — A search step or jump tells the scroll anchor where it placed the scroll (2026-10-27)
+
+**Decision:** `scrollIntoPlace` calls `placed()` after each scroll it sets, as
+Back does, so the scroll anchor reads its place there.
+
+**Why:** the anchor kept the place it read before the step, in the note the
+reader left. Once that note was far enough to be hidden (ADR 0023), its place
+measured 0, and the anchor shifted the stream by thousands of pixels. That
+pushed the match's note past the hiding distance too, so the step centered on a
+match with no position. On an iPhone, stepping down through the Demo vault's
+notes missed 2 of 20 steps, on later passes; with the fix, 40 of 40 landed. It
+depends on which comes first, the scroll event or the hide, so no device test
+catches it reliably: the standard test vault missed 0 of 40 with the old code.
+
+**Rejected:**
+
+- Ignoring a hidden element in the anchor's place — it would still keep a place
+  the reader has left.

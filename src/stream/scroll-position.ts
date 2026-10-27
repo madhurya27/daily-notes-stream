@@ -63,6 +63,11 @@ export interface StreamLayout {
     layoutChanges(): number;
     /** Resolves once the renders already queued have run. */
     drain(): Promise<void>;
+    /**
+     * The scroll was just set here. The scroll anchor keeps its place from
+     * now on, not from where the reader was (D-180).
+     */
+    placed(): void;
 }
 
 /**
@@ -120,6 +125,7 @@ export async function scrollIntoPlace(
         const changes = layout.layoutChanges();
         const scrollTop = scrollEl.scrollTop;
         scrollToPlace(placed, placement, scrollEl);
+        layout.placed();
         // If the scroll moved nothing, and the stream has not changed since the
         // last try, it cannot get any closer. No observer will report anything,
         // and waiting a frame for one could wait forever when no frame is

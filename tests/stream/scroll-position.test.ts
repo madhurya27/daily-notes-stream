@@ -107,6 +107,7 @@ describe("scrollIntoPlace", () => {
         return {
             layoutChanges: () => counts[Math.min(read++, counts.length - 1)]!,
             drain: vi.fn().mockResolvedValue(undefined),
+            placed: vi.fn(),
         };
     }
 
@@ -155,6 +156,25 @@ describe("scrollIntoPlace", () => {
         await scrollIntoPlace(block, "start", pane, layoutCounting());
 
         expect(block.scrollIntoView).toHaveBeenCalledTimes(3);
+    });
+
+    // On iOS, the scroll anchor keeps the place it read before. Once the note
+    // left behind is hidden for being far away, the anchor measured nothing
+    // there and shifted the stream (D-180).
+    it("tells the stream its scroll was placed after each scroll, before anything renders", async () => {
+        const block = blockMoving([300, 80, 1]);
+        const layout = layoutCounting();
+
+        await scrollIntoPlace(block, "start", pane, layout);
+
+        expect(layout.placed).toHaveBeenCalledTimes(3);
+        const scrolls = vi.mocked(block.scrollIntoView).mock.invocationCallOrder;
+        const placings = layout.placed.mock.invocationCallOrder;
+        const drains = layout.drain.mock.invocationCallOrder;
+        for (let pass = 0; pass < 3; pass++) {
+            expect(placings[pass]).toBeGreaterThan(scrolls[pass]!);
+            expect(placings[pass]).toBeLessThan(drains[pass]!);
+        }
     });
 
     it("keeps scrolling while the stream is still rendering, top or not", async () => {

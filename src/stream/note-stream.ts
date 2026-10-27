@@ -502,6 +502,7 @@ export class NoteStream {
     private readonly layout: StreamLayout = {
         layoutChanges: () => this.window.layoutChanges,
         drain: () => this.enqueue(async () => {}),
+        placed: () => this.window.placed(),
     };
 
     /**
