@@ -44,17 +44,15 @@ Measured and accepted. Opened again if a reader notices.
       text already rendered, and Obsidian's own reading view shows those too (up
       to 185 ms).
 - [ ] On the iPad, a glide that renders a note with many Bases leaves part of
-      the screen black for about 0.3 s, then the content appears at once. iOS
-      keeps scrolling. Measured on 2026-10-26, frames more than 100 ms late:
-    - the test vault's `2026-08-30`, with eight Bases: 2–6 per glide, the
-      longest 358–359 ms. Filmed, the screen was black for about 280 ms.
-    - a note with three Bases: 0 or 1 per glide, at most 124 ms. One or two
-      Bases: none.
-    - The longest frame comes after our rendering ends, while Obsidian's Bases
-      code fills in rows and switches tables to cards, so slicing our rendering
-      won't shorten it. Holding back each Base's content until the glide stops
-      would, but it adds a state to the scroll anchoring (ADR 0013) and shows an
-      empty box instead. Worth it if a reader has a daily note with many Bases.
+      the screen black for about 0.3 s. Longest late frame (2026-10-26):
+    - eight Bases: 359 ms, filmed black for 280 ms. Three: 124 ms. One or two:
+      none over 100 ms.
+    - The target phone is half the iPad's speed (D-131), so expect about double.
+      Desktop Chromium can't show it, because Bases is cheap there. Measure on a
+      slow iPhone.
+    - The pause is Obsidian's Bases code, after our rendering. Only holding back
+      each Base until the glide stops would fix it, at the cost of an empty box
+      and a new state in the scroll anchor (ADR 0013).
 
 ## Features
 
