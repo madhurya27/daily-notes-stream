@@ -11,11 +11,37 @@ describe("SearchBar", () => {
     };
     let bar: SearchBar;
     let input: HTMLInputElement;
+    let component: Component;
+
+    /** Reports the sizes a test gives it, for what it observes. */
+    class FakeResizeObserver {
+        static made: FakeResizeObserver[] = [];
+        static get last() {
+            return FakeResizeObserver.made.at(-1);
+        }
+        readonly observed = new Set<Element>();
+        constructor(readonly callback: ResizeObserverCallback) {
+            FakeResizeObserver.made.push(this);
+        }
+        observe(el: Element) {
+            this.observed.add(el);
+        }
+        disconnect() {
+            this.observed.clear();
+        }
+    }
+    const resized = (el: Element, width: number) => {
+        el.getBoundingClientRect = () => ({ width }) as DOMRect;
+        const observer = FakeResizeObserver.last;
+        if (observer?.observed.has(el)) observer.callback([], observer as unknown as ResizeObserver);
+    };
 
     beforeEach(() => {
         vi.useFakeTimers();
+        vi.stubGlobal("ResizeObserver", FakeResizeObserver);
+        FakeResizeObserver.made = [];
         actions = { search: vi.fn(), next: vi.fn(), previous: vi.fn(), close: vi.fn() };
-        const component = new Component();
+        component = new Component();
         component.load();
         bar = new SearchBar(component, actions);
         document.body.appendChild(bar.el);
@@ -25,6 +51,7 @@ describe("SearchBar", () => {
     afterEach(() => {
         bar.el.remove();
         vi.useRealTimers();
+        vi.unstubAllGlobals();
     });
 
     const press = (key: string, init: KeyboardEventInit = {}) => {
@@ -53,6 +80,43 @@ describe("SearchBar", () => {
         expect(
             button("Exit search").matches(".document-search-buttons > .clickable-icon.document-search-close-button")
         ).toBe(true);
+    });
+
+    it("watches nothing until it first opens", () => {
+        expect(FakeResizeObserver.made).toHaveLength(0);
+    });
+
+    it("keeps room in the field for the count, as wide as it is", () => {
+        const count = bar.el.querySelector(".document-search-count")!;
+        const field = bar.el.querySelector<HTMLElement>(".document-search-input")!;
+        bar.open();
+
+        resized(count, 57.5);
+        expect(field.style.getPropertyValue("--daily-notes-search-count-width")).toBe("57.5px");
+        resized(count, 33);
+        expect(field.style.getPropertyValue("--daily-notes-search-count-width")).toBe("33px");
+    });
+
+    it("watches the count with one observer, however often it opens", () => {
+        bar.open();
+        bar.close();
+        bar.open();
+
+        expect(FakeResizeObserver.made).toHaveLength(1);
+    });
+
+    it("stops watching the count when the view closes", () => {
+        const count = bar.el.querySelector(".document-search-count")!;
+        bar.open();
+        expect(FakeResizeObserver.last?.observed.has(count)).toBe(true);
+
+        component.unload();
+
+        expect(FakeResizeObserver.last?.observed.has(count)).toBe(false);
+    });
+
+    it("closes with the view without ever having opened", () => {
+        expect(() => component.unload()).not.toThrow();
     });
 
     it("starts closed", () => {

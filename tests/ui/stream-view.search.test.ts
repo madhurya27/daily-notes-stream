@@ -16,6 +16,13 @@ describe("DailyNotesStreamView — search", () => {
 
     beforeEach(async () => {
         vi.useFakeTimers();
+        // The bar watches its count's width once it opens.
+        vi.stubGlobal(
+            "ResizeObserver",
+            vi.fn(function () {
+                return { observe: vi.fn(), disconnect: vi.fn() };
+            })
+        );
         Platform.isMacOS = true;
         app = makeApp();
         app.vault.cachedRead = vi.fn((file: TFile) => Promise.resolve(SOURCES[file.path]!));
@@ -29,6 +36,7 @@ describe("DailyNotesStreamView — search", () => {
     afterEach(() => {
         view.containerEl.remove();
         vi.useRealTimers();
+        vi.unstubAllGlobals();
     });
 
     const bar = () => view.containerEl.querySelector<HTMLElement>(".daily-notes-search")!;

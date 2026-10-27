@@ -26,6 +26,8 @@ export class SearchBar {
     readonly el: HTMLElement;
     private readonly inputEl: HTMLInputElement;
     private readonly countEl: HTMLElement;
+    /** Made when the bar first opens: most streams are never searched. */
+    private counts: ResizeObserver | null = null;
 
     constructor(
         component: Component,
@@ -38,6 +40,7 @@ export class SearchBar {
         const field = search.createDiv({ cls: "search-input-container document-search-input" });
         this.inputEl = field.createEl("input", { type: "text", placeholder: "Find..." });
         this.countEl = field.createDiv({ cls: "document-search-count" });
+        component.register(() => this.counts?.disconnect());
 
         const buttons = search.createDiv({ cls: "document-search-buttons" });
         const button = () => buttons.createEl("button", { cls: "clickable-icon document-search-button" });
@@ -63,6 +66,7 @@ export class SearchBar {
     /** Shows the bar with its query selected, and searches for it again. */
     open(): void {
         this.el.removeClass("is-closed");
+        this.counts ??= this.watchCount();
         this.inputEl.focus();
         this.inputEl.select();
         if (this.inputEl.value) this.actions.search(this.inputEl.value);
@@ -76,6 +80,20 @@ export class SearchBar {
 
     setStatus(status: string): void {
         this.countEl.setText(status);
+    }
+
+    /**
+     * Obsidian keeps fixed room in the field for its count, "0 / 0". Ours, such
+     * as "No results", can be longer, and would cover the query.
+     */
+    private watchCount(): ResizeObserver {
+        const field = this.countEl.parentElement!;
+        const counts = new ResizeObserver(() => {
+            const { width } = this.countEl.getBoundingClientRect();
+            field.style.setProperty("--daily-notes-search-count-width", `${width}px`);
+        });
+        counts.observe(this.countEl);
+        return counts;
     }
 
     private readonly searchTyped = debounce(() => this.actions.search(this.inputEl.value), SEARCH_DEBOUNCE_MS, true);

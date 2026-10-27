@@ -855,6 +855,13 @@ body:not(.is-mobile) :is(.daily-note-content, .daily-note-mention-excerpt) :is(t
     display: none;
 }
 
+/* Room for the count as wide as it is, set by src/ui/search-bar.ts, past the
+   8 px Obsidian insets it from the right, and an 8 px gap. Until it is
+   measured, the 64 px Obsidian keeps. */
+.daily-notes-search .document-search-input input {
+    padding-right: calc(var(--daily-notes-search-count-width, 48px) + var(--size-4-4));
+}
+
 /* The color of ==marked== text. */
 ::highlight(daily-notes-search-match) {
     background-color: var(--highlight-background);

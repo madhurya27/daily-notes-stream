@@ -154,6 +154,26 @@ test.describe("search the stream", () => {
         expect(Math.abs(content!.y - (barBox!.y + barBox!.height))).toBeLessThanOrEqual(1);
     });
 
+    // Obsidian keeps room for its own count, "0 / 0", which is shorter than
+    // ours.
+    test("keeps the typed text clear of the count", async ({ obsidian }) => {
+        const { page } = obsidian;
+        await openStream(page);
+        const bar = await openSearch(page);
+        await bar.locator("input").fill("Programming languages");
+        const count = bar.locator(".document-search-count");
+        await expect(count).toHaveText("No results");
+
+        const textEnd = await bar
+            .locator("input")
+            .evaluate(
+                (input) => input.getBoundingClientRect().right - parseFloat(getComputedStyle(input).paddingRight)
+            );
+        const countBox = await count.boundingBox();
+
+        expect(textEnd).toBeLessThanOrEqual(countBox!.x);
+    });
+
     test.describe("on a tablet", () => {
         let cdp: CDPSession;
         const layOut = ({ width, height }: { width: number; height: number }) =>
