@@ -1,6 +1,6 @@
 import { test as base, expect } from "@playwright/test";
 import { drivesIPad } from "./device";
-import { glideEnding, longestStall, type GlideEnding, type Heard } from "./glide";
+import { glideEnding, longestStall, neverScrolled, type GlideEnding, type Heard } from "./glide";
 import { keyboardAfterRun } from "./keyboard";
 import { connect, OBSIDIAN } from "./session";
 import { returnToTestersVault, useVault } from "./vault";
@@ -754,10 +754,11 @@ export class Phone {
      * still. A full scroll lasts 1–3.5 s. It is read on every frame from when
      * the finger lifts, so a stall can be told apart from a stop. The longest
      * stall is noted on the test, and the frames of a glide cut short are
-     * attached to it.
+     * attached to it. A stroke that never scrolled the stream fails as such,
+     * not as a glide cut short.
      */
     async glideEnding(direction: "up" | "down", { share = 0.7, ms = 60 } = {}): Promise<GlideEnding> {
-        await this.run((s: string) => {
+        const before = await this.run((s: string) => {
             const stream = document.querySelector(s)!;
             const pane = stream.parentElement!;
             const glide = { heard: [] as Heard[], done: new AbortController() };
@@ -773,6 +774,7 @@ export class Phone {
                 requestAnimationFrame(draw);
             };
             document.addEventListener("touchend", draw, { capture: true, signal: glide.done.signal, once: true });
+            return pane.scrollTop;
         }, STREAM);
         await this.stroke(direction, share, ms);
         await this.rest();
@@ -782,6 +784,8 @@ export class Phone {
             return glide.heard;
         });
         if (heard.length === 0) throw new Error("The stroke never lifted.");
+        if (neverScrolled(before, heard))
+            throw new Error(`The stroke never scrolled the stream, which stayed at ${before}.`);
         base.info().annotations.push({ type: "longest stall", description: `${longestStall(heard)} ms` });
         const ending = glideEnding(heard);
         // To read why, when a test fails on it.

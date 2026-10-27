@@ -72,3 +72,12 @@ export function glideEnding(frames: Heard[]): GlideEnding {
 export function longestStall(frames: Heard[]): number {
     return Math.max(0, ...frames.slice(1).map((now, i) => now.at - frames[i]!.at));
 }
+
+/**
+ * Whether no frame from the lift on moved from `before`, the scroll position
+ * when the stroke started: the touch never scrolled the stream, which is not a
+ * glide that stopped.
+ */
+export function neverScrolled(before: number, frames: Heard[]): boolean {
+    return frames.every((frame) => frame.top === before);
+}

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { glideEnding, longestStall, type Heard } from "../../e2e-tests/ios/glide";
+import { glideEnding, longestStall, neverScrolled, type Heard } from "../../e2e-tests/ios/glide";
 
 type Frames = { at: number; top: number; owing?: boolean }[];
 
@@ -142,5 +142,20 @@ describe("longestStall", () => {
 
     it("is none for a single frame", () => {
         expect(longestStall(heard(frames([1000])))).toBe(0);
+    });
+});
+
+describe("neverScrolled", () => {
+    it("is true when no frame moved from where the stroke started", () => {
+        expect(neverScrolled(1000, heard(frames([1000, 1000, 1000])))).toBe(true);
+    });
+
+    // The drag moved it before the lift, and the glide stopped there.
+    it("is false when the drag moved it, though nothing moved after the lift", () => {
+        expect(neverScrolled(1000, heard(frames([1180, 1180, 1180])))).toBe(false);
+    });
+
+    it("is false when a later frame moved", () => {
+        expect(neverScrolled(1000, heard(frames([1000, 1000, 1020])))).toBe(false);
     });
 });

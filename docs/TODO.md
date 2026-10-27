@@ -16,8 +16,8 @@ there is a screen recording of them (D-099).
       D-177, with nothing owed.
     - outside a burst, 0 of 70 later that day, with or without D-177.
     - Next burst: attach every frame from the finger's touch-down to each stop,
-      and compare glides with and without the stream's shift. `glideEnding` also
-      reports a stroke that never scrolled as "cut short", as it does a stop.
+      and compare glides with and without the stream's shift. Check that the
+      extra recording does not hide the stop.
 - [ ] On the iPad, which Obsidian gives the phone layout:
     - [ ] Show the scroll-to-top button, as on desktop: the header has room.
           Decide whether a tap on the title still scrolls to the top (this
