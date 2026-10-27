@@ -7,6 +7,7 @@ allowBuilds:
 # entry once the package that pulls it in requires the fixed version itself.
 overrides:
     "basic-ftp@<6.2.1": ^6.2.1
+    "esbuild@>=0.27.3 <0.28.1": ^0.28.1
     "nanoid@<3.3.18": ^3.3.18
     "postcss@<8.5.23": ^8.5.23
     "qs@>=6.11.1 <6.16.0": ^6.16.0
