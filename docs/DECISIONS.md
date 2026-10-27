@@ -3237,3 +3237,25 @@ TODO), 8 of 10 flicks over a framed web page stopped dead 150–250 ms after it
 appeared; just after, without it, 1 of 10 did. Outside a burst, 0 of 30 stopped
 with or without it, so it may not be what stops them. A transform that moves
 nothing has no use either way.
+
+## D-178 — The stylesheet clips the properties panel on mobile (2026-10-26)
+
+**Decision:** under `.is-mobile`, the properties panel's rows, values, tag lists
+and tag pills get `overflow: clip` from `styles.css`, in place of Obsidian's
+`overflow: hidden`. A test reads their overflow without the scroll box guard's
+class.
+
+**Why:** a tag pill's text is 16 px tall in a 14 px pill, so the pill is a
+scroll container that overflows (ADR 0008). The guard clips such boxes only once
+scrolling stops, so a note rendered mid-glide brought its pills to the screen
+unclipped. During a burst on an iPad, flicks after a jump stopped dead 1–4
+frames after a note with tags rendered: 26 of 30 stopped, and with the pills
+clipped, 1 of 30. Outside a burst the same pills stop nothing, which is why the
+stops came in bursts. D-177's shift was not the cause.
+
+**Rejected:**
+
+- Clipping every element in the panel — it would also clip what overflows
+  without a scroll container today, such as a focus ring.
+- Running the guard on every new note mid-glide — reading computed styles then
+  makes the browser recalculate the whole page's styles.

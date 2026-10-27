@@ -5,19 +5,9 @@
 Most important first. Problems on iOS that last only a frame or two wait until
 there is a screen recording of them (D-099).
 
-- [ ] On the iPad, a flick sometimes stops dead while still fast, mid-stream
-      (D-171). No script sets the scroll, and the page keeps painting frames. It
-      comes in bursts that last minutes, mostly in a freshly opened Obsidian or
-      after heights were forgotten:
-    - after a jump (first test in `jump.spec.ts`): 2 of 4 runs on 2026-10-21,
-      then 37 passed; up to 5 of 5 on 2026-10-25, then about 180 passed.
-    - over a web page in a frame (`stream.spec.ts`): on 2026-10-26, 8 of 10 in
-      fresh sessions, each soon after a shift of `0px` (D-177); 2 of 6 after
-      D-177, with nothing owed.
-    - outside a burst, 0 of 70 later that day, with or without D-177.
-    - Next burst: attach every frame from the finger's touch-down to each stop,
-      and compare glides with and without the stream's shift. Check that the
-      extra recording does not hide the stop.
+- [ ] At the next burst of stopped flicks on the iPad, check that D-178 ended
+      them: run the first test in `jump.spec.ts` 10 times. The iPad's bursts
+      last minutes and can't be brought on.
 - [ ] On the iPad, which Obsidian gives the phone layout:
     - [ ] Show the scroll-to-top button, as on desktop: the header has room.
           Decide whether a tap on the title still scrolls to the top (this

@@ -198,6 +198,30 @@ test.describe("on mobile, nothing inside the stream scrolls", () => {
         await expect.poll(() => scrollBoxes(container)).toEqual([]);
     });
 
+    // The scroll box guard clips what the stylesheet misses only once
+    // scrolling stops, so a note rendered mid-glide brought its scroll boxes
+    // with it. A tag pill's text was 2px taller than the pill on an iPad.
+    test("clips the properties panel from the stylesheet, without the guard", async ({ obsidian }) => {
+        const container = await openStream(obsidian.page);
+        await expect(container.locator(".metadata-container").first()).toBeVisible();
+
+        const boxes = await container.locator(".metadata-container").evaluateAll((panels) =>
+            panels
+                .flatMap((panel) => [panel, ...Array.from(panel.querySelectorAll("*"))])
+                .filter((el) => !(el instanceof SVGElement))
+                .filter((el) => {
+                    const guarded = el.classList.contains("is-scroll-clipped");
+                    el.classList.remove("is-scroll-clipped");
+                    const style = getComputedStyle(el);
+                    const scrolls = /auto|scroll|hidden/.test(`${style.overflowX} ${style.overflowY}`);
+                    if (guarded) el.classList.add("is-scroll-clipped");
+                    return scrolls;
+                })
+                .map((el) => `${el.tagName.toLowerCase()}.${Array.from(el.classList).join(".")}`)
+        );
+        expect([...new Set(boxes)]).toEqual([]);
+    });
+
     test("has no scroll box around Bases, kanban included, math, diagrams or embedded notes", async ({ obsidian }) => {
         const { page } = obsidian;
         await seedZoo(page);

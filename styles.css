@@ -667,6 +667,16 @@ body:not(.is-mobile) :is(.daily-note-content, .daily-note-mention-excerpt) :is(t
     overflow: clip;
 }
 
+/* Obsidian's `overflow: hidden` in the properties panel. A tag pill's text is
+   2px taller than the pill, and a note rendered mid-glide brought the pill to
+   the screen before the scroll box guard could clip it. */
+.is-mobile
+    .daily-note-block
+    .metadata-container
+    :is(.metadata-property, .metadata-property-value, .multi-select-container, .multi-select-pill-content) {
+    overflow: clip;
+}
+
 /* A Dataview query, and anything the scroll box guard found scrolling or
    removed an inline overflow-x from (src/stream/scroll-box-guard.ts, D-172). */
 .is-mobile .daily-note-block :is(.block-language-dataview, .block-language-dataviewjs, .is-scroll-clipped) {
