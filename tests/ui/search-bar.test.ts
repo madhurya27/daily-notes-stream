@@ -50,9 +50,9 @@ describe("SearchBar", () => {
         expect(button("Exit search").dataset.icon).toBe("x");
         expect(input.closest(".document-search-container > .document-search")).not.toBeNull();
         expect(button("Next").matches(".document-search-buttons > .clickable-icon.document-search-button")).toBe(true);
-        expect(button("Exit search").matches(".document-search > .clickable-icon.document-search-close-button")).toBe(
-            true
-        );
+        expect(
+            button("Exit search").matches(".document-search-buttons > .clickable-icon.document-search-close-button")
+        ).toBe(true);
     });
 
     it("starts closed", () => {

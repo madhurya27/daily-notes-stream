@@ -5,12 +5,9 @@
 Most important first. Problems on iOS that last only a frame or two wait until
 there is a screen recording of them (D-099).
 
-- [ ] On the iPad, which Obsidian gives the phone layout:
-    - [ ] Show the scroll-to-top button, as on desktop: the header has room.
-          Decide whether a tap on the title still scrolls to the top (this
-          changes D-147).
-    - [ ] Make the search bar only as wide as its contents. Now an empty gap
-          separates the field on the left from the close button on the right.
+- [ ] On the iPad, which Obsidian gives the phone layout, show the scroll-to-top
+      button, as on desktop: the header has room. Decide whether a tap on the
+      title still scrolls to the top (this changes D-147).
 - [ ] While the reader types a search, mark only a match they can see (D-022).
       `isOnScreen` checks the whole pane, so on a phone it can mark a match
       under the floating header, the bottom bar or the keyboard, and Enter then

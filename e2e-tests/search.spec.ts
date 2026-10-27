@@ -1,4 +1,4 @@
-import type { Locator, Page } from "@playwright/test";
+import type { CDPSession, Locator, Page } from "@playwright/test";
 import {
     test,
     expect,
@@ -10,6 +10,7 @@ import {
     SEEDED_DAYS,
     withoutScrollAnchoring,
     writeNote,
+    LAYOUT_VIEWPORT,
 } from "./obsidian";
 
 /** Opens the bar from the header, which both layouts show. */
@@ -151,6 +152,55 @@ test.describe("search the stream", () => {
 
         expect(input!.y).toBeGreaterThanOrEqual(header!.y + header!.height);
         expect(Math.abs(content!.y - (barBox!.y + barBox!.height))).toBeLessThanOrEqual(1);
+    });
+
+    test.describe("on a tablet", () => {
+        let cdp: CDPSession;
+        const layOut = ({ width, height }: { width: number; height: number }) =>
+            cdp.send("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: 1, mobile: false });
+
+        test.beforeEach(async ({ obsidian, mobileLayout }) => {
+            test.skip(!mobileLayout, "only the mobile layout has a tablet width");
+            const { page } = obsidian;
+            cdp = await page.context().newCDPSession(page);
+            // An iPad Air in landscape.
+            await layOut({ width: 1180, height: 820 });
+            await openStream(page);
+            await expect(page.locator("body")).toHaveClass(/\bis-tablet\b/);
+        });
+
+        test.afterEach(async ({ mobileLayout }) => {
+            if (!mobileLayout) return;
+            await layOut(LAYOUT_VIEWPORT.mobile);
+            await cdp.detach();
+        });
+
+        // Obsidian stretches the group of buttons to fill the bar. A close
+        // button outside the group is pushed to the bar's far end.
+        test("keeps the close button next to the arrows", async ({ obsidian }) => {
+            const bar = await openSearch(obsidian.page);
+
+            const [previous, next, exit] = await Promise.all(
+                ["Previous", "Next", "Exit search"].map((label) => bar.getByLabel(label).boundingBox())
+            );
+
+            const arrowGap = next!.x - (previous!.x + previous!.width);
+            const exitGap = exit!.x - (next!.x + next!.width);
+            expect(Math.abs(exitGap - arrowGap)).toBeLessThanOrEqual(1);
+        });
+
+        // As Obsidian's own bar does in a note: no header floats over the bar.
+        test("sits right under the header", async ({ obsidian }) => {
+            const { page } = obsidian;
+            const bar = await openSearch(page);
+
+            const [header, input] = await Promise.all([
+                page.locator(".workspace-leaf.mod-active .view-header").boundingBox(),
+                bar.locator("input").boundingBox(),
+            ]);
+
+            expect(Math.abs(input!.y - (header!.y + header!.height))).toBeLessThanOrEqual(1);
+        });
     });
 
     test("reaches a note past the loaded batch and shows its match", async ({ obsidian }) => {

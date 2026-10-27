@@ -44,7 +44,7 @@ export class SearchBar {
         const previous = labeled(button(), "arrow-up", "Previous");
         const next = labeled(button(), "arrow-down", "Next");
         const exit = labeled(
-            search.createDiv({ cls: "clickable-icon document-search-close-button" }),
+            buttons.createDiv({ cls: "clickable-icon document-search-close-button" }),
             "x",
             "Exit search"
         );

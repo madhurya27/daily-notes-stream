@@ -867,7 +867,7 @@ body:not(.is-mobile) :is(.daily-note-content, .daily-note-mention-excerpt) :is(t
 /* On a phone, Obsidian pads its search bar to make room for the floating
    header, and the view content makes room for it again. Above the content, only
    the bar needs to make room. */
-.is-mobile .daily-notes-search {
+.is-phone .daily-notes-search {
     padding-top: var(--size-4-2);
 }
 
