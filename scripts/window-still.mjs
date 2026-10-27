@@ -7,8 +7,13 @@
 import { webkit } from "@playwright/test";
 import { readFileSync } from "fs";
 
-/** Space around the window for its shadow, in CSS pixels. */
+/**
+ * Space around the window, in CSS pixels. The shadow's drop and blur together
+ * fill it below the window, so the shadow fades out before the image ends.
+ */
 const PAD = 24;
+const DROP = 6;
+const BLUR = PAD - DROP;
 
 /**
  * Writes `raw`, a screenshot `width` by `height` CSS pixels taken at 2x, to
@@ -29,7 +34,7 @@ export async function windowStill(raw, out, { width, height }) {
 body { padding: ${PAD}px; background: transparent; }
 div {
     width: ${width}px; height: ${height}px; border-radius: 12px; overflow: hidden;
-    box-shadow: 0 12px 32px rgba(60, 40, 20, 0.18), 0 0 0 1px rgba(60, 40, 20, 0.14);
+    box-shadow: 0 ${DROP}px ${BLUR}px rgba(60, 40, 20, 0.18), 0 0 0 1px rgba(60, 40, 20, 0.14);
 }
 img { display: block; width: 100%; }
 </style><div><img src="data:image/png;base64,${readFileSync(raw).toString("base64")}"></div>`);

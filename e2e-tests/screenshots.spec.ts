@@ -1,5 +1,6 @@
 import type { Locator, Page, TestInfo } from "@playwright/test";
-import { test, expect, openStream } from "./obsidian";
+import { test, expect, openStream, LAYOUT_VIEWPORT } from "./obsidian";
+import { readFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import { OUT, prepareDemo, showLightTheme } from "./demo";
@@ -77,6 +78,9 @@ async function capture(page: Page, name: string, testInfo: TestInfo, frame?: Fra
     // Without a frame is the jump prompt, over the darkened page. Painting over
     // it would show as a band.
     const cover = await paintBelow(page, clip, frame ? await lastWholeLine(page, column) : clip.y + clip.height);
+    // Obsidian greys the titles while its window is in the background. Show
+    // them as in use, whether or not the window has the focus.
+    await page.evaluate(() => document.body.classList.add("is-focused"));
     const raw = join(tmpdir(), `${name}-${layout}.png`);
     try {
         await page.screenshot({ path: raw, clip });
@@ -84,6 +88,27 @@ async function capture(page: Page, name: string, testInfo: TestInfo, frame?: Fra
         await cover.evaluate((el) => el.remove());
     }
     await windowStill(raw, path, clip);
+    expect(await edgeAlpha(page, path), "the window's shadow is cut off at the image's edge").toBe(0);
+}
+
+/** The highest alpha, 0 to 255, on the four edges of the PNG at `path`. */
+async function edgeAlpha(page: Page, path: string): Promise<number> {
+    return page.evaluate(async (base64) => {
+        const image = new Image();
+        image.src = `data:image/png;base64,${base64}`;
+        await image.decode();
+        const { width, height } = image;
+        const context = new OffscreenCanvas(width, height).getContext("2d");
+        if (!context) throw new Error("no 2D canvas");
+        context.drawImage(image, 0, 0);
+        const edges = [
+            context.getImageData(0, 0, width, 1),
+            context.getImageData(0, height - 1, width, 1),
+            context.getImageData(0, 0, 1, height),
+            context.getImageData(width - 1, 0, 1, height),
+        ];
+        return Math.max(...edges.flatMap(({ data }) => Array.from(data.filter((_, i) => i % 4 === 3))));
+    }, readFileSync(path).toString("base64"));
 }
 
 /**
@@ -211,6 +236,16 @@ test.describe("README screenshots", () => {
 
     test.beforeAll(async ({ obsidian }) => {
         await prepareDemo(obsidian.page);
+    });
+
+    // The window on screen is the size of the page, so the run looks like what
+    // it takes.
+    test.beforeEach(async ({ obsidian, mobileLayout }) => {
+        const { width, height } = mobileLayout ? LAYOUT_VIEWPORT.mobile : WINDOW;
+        await obsidian.page.evaluate(
+            ([w, h]) => window.electron.remote.getCurrentWindow().setContentSize(w, h),
+            [width, height]
+        );
     });
 
     // On desktop, a window the size of a screenshot at a Retina screen's scale,
