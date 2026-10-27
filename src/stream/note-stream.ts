@@ -408,7 +408,12 @@ export class NoteStream {
     async center(range: Range): Promise<void> {
         this.letGoOfCentered();
         // Stryker disable StringLiteral: any placement except "start" centers.
+        // Held from the first scroll: a Base hidden far away lays out again a
+        // frame after it is shown, while the scroll is still settling.
+        this.letGoOfCentered = keepInPlace(range, "center", this.scrollRoot, this.blocks.el);
         await scrollIntoPlace(range, "center", this.scrollRoot, this.layout);
+        // Held again, so it is kept for its full time after the scroll settles.
+        this.letGoOfCentered();
         this.letGoOfCentered = keepInPlace(range, "center", this.scrollRoot, this.blocks.el);
         // Stryker restore StringLiteral
     }

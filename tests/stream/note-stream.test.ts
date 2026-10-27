@@ -16,6 +16,7 @@ import { BASE_SLOT_CLASS } from "../../src/render/bases/bases-as-cards";
 import { flushPromises } from "../stream-view-fixture";
 import { SCROLL_IDLE_MS } from "../../src/stream/scroll-anchor";
 import { STALL_MS } from "../../src/stream/stall-warning";
+import { SETTLE_MS } from "../../src/stream/height-hold";
 
 /** What the stream created its window with, besides what it calls on it. */
 type FakeWindow = Omit<Mocked<NoteWindowManager>, "enqueue" | "layoutChanges"> & {
@@ -1496,6 +1497,45 @@ describe("what a search moves through", () => {
         await stream.center(matchAt(1390));
 
         expect(noteWindow.placed).toHaveBeenCalled();
+    });
+
+    // A Base hidden far away lays out again a frame after it is shown, and
+    // grows above the match while the step still scrolls to it.
+    it("keeps a match in place from the first scroll to it", async () => {
+        document.body.appendChild(pane);
+        pane.getBoundingClientRect = () => rect(0, 800);
+        pane.scrollTop = 0;
+        const match = matchAt(1390);
+
+        const centered = stream.center(match);
+        match.getBoundingClientRect = () => rect(6390 - pane.scrollTop, 6410 - pane.scrollTop);
+        resized();
+
+        expect(pane.scrollTop).toBe(6000);
+        await centered;
+        pane.remove();
+    });
+
+    it("keeps a match in place for the full time after a long scroll to it", async () => {
+        vi.useFakeTimers();
+        document.body.appendChild(pane);
+        pane.getBoundingClientRect = () => rect(0, 800);
+        pane.scrollTop = 0;
+        // Something keeps pushing it down, so every pass of the scroll is used.
+        let pushed = 0;
+        const match = matchAt(1390);
+        match.getBoundingClientRect = () =>
+            rect(1390 + (pushed += 10) - pane.scrollTop, 1410 + pushed - pane.scrollTop);
+
+        const centered = stream.center(match);
+        await vi.advanceTimersByTimeAsync(SETTLE_MS);
+        await centered;
+        match.getBoundingClientRect = () => rect(6390 - pane.scrollTop, 6410 - pane.scrollTop);
+        resized();
+
+        expect(pane.scrollTop).toBe(6000);
+        pane.remove();
+        vi.useRealTimers();
     });
 
     describe("a centered match, as the stream settles around it", () => {

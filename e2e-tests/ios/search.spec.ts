@@ -118,6 +118,123 @@ test("a long-press selects a note's text", async ({ phone }) => {
     expect(selected.inNote, "selected outside the note").toBe(true);
 });
 
+// A note hidden far away (ADR 0023), but not unloaded, is shown again for a
+// step. Its Base lays out its rows again a frame later, and grows above the
+// match (D-181).
+test.describe("a step back to a hidden note with a Base above its match", () => {
+    const WORD = "Zanzibar";
+    const notes: { path: string; original: string | null }[] = [];
+
+    test.beforeEach(async ({ phone }) => {
+        for (const [days, text] of [
+            [0, `${WORD} at the top.\n`],
+            // Puts the next note far enough below to be hidden, and not far
+            // enough to be unloaded, on an iPhone and an iPad.
+            [1, "Filler.\n\n".repeat(150)],
+            [2, `![[Reading.base]]\n\n${WORD} below the Base.\n`],
+        ] as const) {
+            const path = await phone.journalPath(days);
+            notes.push({ path, original: await phone.writeNote(path, text) });
+        }
+        await phone.openStream();
+    });
+
+    test.afterEach(async ({ phone }) => {
+        for (const { path, original } of notes.splice(0)) await phone.restoreNote(path, original);
+    });
+
+    /**
+     * Steps once, and returns where the match it lands on was on each frame
+     * the screen showed, null while it had no box, and whether it ends on
+     * screen.
+     */
+    const step = async (phone: Phone) => {
+        await phone.run((match: string) => {
+            const page = window as unknown as Watch;
+            page.frames = [];
+            page.watching = true;
+            const read = () => {
+                const tops = new Map<Range, number | null>();
+                for (const range of (CSS.highlights.get(match) ?? []) as Iterable<Range>) {
+                    const { top, height } = range.getBoundingClientRect();
+                    tops.set(range, height > 0 ? Math.round(top) : null);
+                }
+                page.frames.push(tops);
+            };
+            // A task after the frame reads what it showed: a resize that is put
+            // right before the frame is drawn is not seen.
+            const each = () => {
+                if (!page.watching) return;
+                setTimeout(read);
+                requestAnimationFrame(each);
+            };
+            requestAnimationFrame(each);
+        }, MATCH);
+        await phone.tap('.daily-notes-search [aria-label="Next"]');
+        await phone.rest();
+        return phone.run((current: string) => {
+            const page = window as unknown as Watch;
+            page.watching = false;
+            const range = [...(CSS.highlights.get(current) ?? [])][0] as Range | undefined;
+            const pane = document.querySelector(".daily-notes-stream-container")!.parentElement!;
+            const { top, bottom } = pane.getBoundingClientRect();
+            const rect = range?.getBoundingClientRect();
+            return {
+                onScreen: !!rect && rect.height > 0 && rect.top >= top && rect.bottom <= bottom,
+                tops: range ? page.frames.map((tops) => tops.get(range) ?? null) : [],
+            };
+        }, CURRENT);
+    };
+
+    /** The frames after the match first reached its place where it was not. */
+    const away = (tops: (number | null)[]) => {
+        const last = tops.at(-1)!;
+        const there = (top: number | null) => top !== null && Math.abs(top - last) <= 2;
+        return tops.slice(tops.findIndex(there)).filter((top) => !there(top));
+    };
+
+    test("lands on its match and holds it still", async ({ phone }) => {
+        await phone.tap('.view-action[aria-label="Search"]');
+        await expect.poll(() => phone.has(BAR), "the search bar did not open").toBe(true);
+        await phone.run(
+            (bar: string, word: string) => {
+                const input = document.querySelector<HTMLInputElement>(bar)!;
+                input.value = word;
+                input.dispatchEvent(new Event("input"));
+                input.blur();
+            },
+            BAR,
+            WORD
+        );
+        await phone.rest();
+        const panes = await phone.run(
+            (top: string, below: string) => {
+                const pane = document.querySelector(".daily-notes-stream-container")!.parentElement!;
+                const at = (path: string) =>
+                    document.querySelector(`[data-source-path="${path}"]`)!.getBoundingClientRect().top;
+                return (at(below) - at(top)) / pane.clientHeight;
+            },
+            notes[0]!.path,
+            notes[2]!.path
+        );
+        expect(panes, "pane heights between the notes").toBeGreaterThan(5);
+        expect(panes).toBeLessThan(11);
+
+        // Down to the Base's note, up to the top, and down again: twice.
+        const steps = [];
+        for (let i = 0; i < 4; i++) steps.push(await step(phone));
+
+        expect(steps.map((s) => s.onScreen)).toEqual([true, true, true, true]);
+        expect(
+            steps.map((s) => away(s.tops)),
+            JSON.stringify(steps.map((s) => s.tops))
+        ).toEqual([[], [], [], []]);
+    });
+});
+
+/** What `step` keeps on the page while it watches: each frame's matches. */
+type Watch = { frames: Map<Range, number | null>[]; watching: boolean };
+
 // A match under the keyboard or the navbar is on the page but not seen. A
 // search must not mark it, or Enter would move past it (D-179).
 test.describe("a match the reader cannot see", () => {

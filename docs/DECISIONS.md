@@ -3282,3 +3282,21 @@ catches it reliably: the standard test vault missed 0 of 40 with the old code.
 
 - Ignoring a hidden element in the anchor's place — it would still keep a place
   the reader has left.
+
+## D-181 — A search step holds its match in place from the first scroll (2026-10-27)
+
+**Decision:** `NoteStream.center` starts `keepInPlace` before `scrollIntoPlace`,
+and starts it again once the scroll has settled.
+
+**Why:** a note hidden far away (ADR 0023) is shown again for a step, and its
+Base lays out its rows again a frame later. It grew above the match while the
+step was still scrolling, and nothing held the match, so for 1–7 frames the
+match sat 170–180 px lower, under the Base. Seen in a recording on the iPhone.
+`e2e-tests/ios/search.spec.ts` steps to such a note: on an iPad it failed 3 of 3
+runs before the fix, and passed 3 of 3 after. Starting again after the scroll
+keeps the full `SETTLE_MS` after landing.
+
+**Rejected:**
+
+- Waiting for the Bases again after showing the note — Bases gives no signal
+  that it has laid out its rows again.
