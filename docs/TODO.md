@@ -24,14 +24,6 @@ there is a screen recording of them (D-099).
           changes D-147).
     - [ ] Make the search bar only as wide as its contents. Now an empty gap
           separates the field on the left from the close button on the right.
-- [ ] On the iPad, every flick down the stream over a Base stops rendering for
-      330–410 ms, about 0.55 s after the finger lifts (D-173; the test "flick up
-      over a Base" in `stream.spec.ts`, named for the finger's direction). The
-      test vault's `2026-08-30` has seven Bases, rendered and then re-rendered
-      as cards while the page scrolls. iOS keeps scrolling, but nothing new is
-      painted. First check a real journal note with one or two Bases. Then
-      spread the rendering over several frames, or render the cards once
-      scrolling stops.
 - [ ] While the reader types a search, mark only a match they can see (D-022).
       `isOnScreen` checks the whole pane, so on a phone it can mark a match
       under the floating header, the bottom bar or the keyboard, and Enter then
@@ -61,6 +53,18 @@ Measured and accepted. Opened again if a reader notices.
       up to 3 panes away was not clearly better. Other blank moments are over
       text already rendered, and Obsidian's own reading view shows those too (up
       to 185 ms).
+- [ ] On the iPad, a glide that renders a note with many Bases leaves part of
+      the screen black for about 0.3 s, then the content appears at once. iOS
+      keeps scrolling. Measured on 2026-10-26, frames more than 100 ms late:
+    - the test vault's `2026-08-30`, with eight Bases: 2–6 per glide, the
+      longest 358–359 ms. Filmed, the screen was black for about 280 ms.
+    - a note with three Bases: 0 or 1 per glide, at most 124 ms. One or two
+      Bases: none.
+    - The longest frame comes after our rendering ends, while Obsidian's Bases
+      code fills in rows and switches tables to cards, so slicing our rendering
+      won't shorten it. Holding back each Base's content until the glide stops
+      would, but it adds a state to the scroll anchoring (ADR 0013) and shows an
+      empty box instead. Worth it if a reader has a daily note with many Bases.
 
 ## Features
 
