@@ -26,7 +26,7 @@ pnpm exec playwright install webkit   # once, for e2e-tests/webkit.spec.ts
 pnpm run test:ios       # build, then run e2e-tests/ios/ on a plugged-in, unlocked iPhone (ADR 0016); setup is in docs/TESTING.md
 pnpm run test:ipados    # the same on a plugged-in iPad, keyboard attached or not (D-169, D-174)
 IOS_SEED_DAYS=1825 pnpm run test:ios   # the same on five years of notes (D-158); about 7 min, the same as on 21 days
-xcrun devicectl list devices   # is the iPhone connected? Don't use system_profiler: it misses it
+xcrun devicectl list devices   # which device is connected? Don't use system_profiler: it misses it
 pnpm run test:memory    # tests of memory, render cost and edit cost, on a five-year test vault (E2E_SEED_DAYS)
 SCROLL_COST=1 E2E_SEED_DAYS=365 pnpm exec playwright test scroll-cost --project=desktop
                         # scrolls with a real mouse wheel on a slowed CPU; RATES, SPEEDS, DOWN_UP=1 and SCREEN=4k175 change the test
@@ -68,9 +68,13 @@ tests are run on this Mac (D-148).
 
 - `e2e-tests/ios/` controls Obsidian on a real iPhone, with real touches, real
   scrolling and real rotation
-  ([ADR 0016](docs/adr/0016-drive-a-real-iphone.md)). Run it, with a phone
-  plugged in, for any change to how the stream scrolls, loads or rotates. When
-  you change how the tests touch the screen, run `test:ipados` too.
+  ([ADR 0016](docs/adr/0016-drive-a-real-iphone.md)). Run it for any change to
+  how the stream scrolls, loads or rotates, on whichever device is on USB:
+  `test:ios` for the iPhone, `test:ipados` for the iPad. In
+  `xcrun devicectl list devices --json-output <file>`, a device on USB has
+  `transportType` `wired`. Ask me to plug in the other one only when the change
+  touches what differs between them (the navbar, an iPad's keyboard) or how the
+  tests touch the screen, and then once, at the end.
 - **Look at a change to the screen before you hand it over.** Take screenshots
   with the e2e tests, on desktop and mobile, and look at them. Measurements
   prove that a rule was followed, not that the result looks right.
