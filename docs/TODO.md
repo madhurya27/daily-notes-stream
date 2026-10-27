@@ -5,29 +5,25 @@
 Most important first. Problems on iOS that last only a frame or two wait until
 there is a screen recording of them (D-099).
 
-- [ ] A flick up over a web page in a frame still stops dead in a freshly opened
-      Obsidian: 2 of 6 runs of "a flick up over a web page in a frame glides on"
-      (`stream.spec.ts`) on an iPad, as the first test, with nothing owed (D-177
-      fixed the stop with a zero shift). A probe that records every frame from
-      before the flick never saw it in 10 runs, so record less.
-- [ ] `glideEnding` called 4 of 8 glides "slowed" that stopped dead at a third
-      of their top speed, when judged from where the scroll starts moving. Find
-      what the frames from the lift miss.
+- [ ] On the iPad, a flick sometimes stops dead while still fast, mid-stream
+      (D-171). No script sets the scroll, and the page keeps painting frames. It
+      comes in bursts that last minutes, mostly in a freshly opened Obsidian or
+      after heights were forgotten:
+    - after a jump (first test in `jump.spec.ts`): 2 of 4 runs on 2026-10-21,
+      then 37 passed; up to 5 of 5 on 2026-10-25, then about 180 passed.
+    - over a web page in a frame (`stream.spec.ts`): on 2026-10-26, 8 of 10 in
+      fresh sessions, each soon after a shift of `0px` (D-177); 2 of 6 after
+      D-177, with nothing owed.
+    - outside a burst, 0 of 70 later that day, with or without D-177.
+    - Next burst: attach every frame from the finger's touch-down to each stop,
+      and compare glides with and without the stream's shift. `glideEnding` also
+      reports a stroke that never scrolled as "cut short", as it does a stop.
 - [ ] On the iPad, which Obsidian gives the phone layout:
     - [ ] Show the scroll-to-top button, as on desktop: the header has room.
           Decide whether a tap on the title still scrolls to the top (this
           changes D-147).
     - [ ] Make the search bar only as wide as its contents. Now an empty gap
           separates the field on the left from the close button on the right.
-- [ ] On the iPad, a flick up after a jump sometimes stops suddenly while still
-      fast, far from the top (D-171). It comes in bursts that last minutes. On
-      2026-10-21, the first test in `jump.spec.ts` failed 2 of 4 runs, then
-      passed 37 in a row. On 2026-10-25, the first flicks after heights were
-      forgotten failed up to 5 of 5, then about 180 passed. No script sets the
-      scroll position when it stops, and the page keeps painting frames. Since
-      D-173, a stall in rendering does not count as a stop, so a reported stop
-      is real. In the next burst, compare the stream with a test page that does
-      the same rendering and shifts, to find what stops the scroll.
 - [ ] On the iPad, every flick down the stream over a Base stops rendering for
       330–410 ms, about 0.55 s after the finger lifts (D-173; the test "flick up
       over a Base" in `stream.spec.ts`, named for the finger's direction). The
