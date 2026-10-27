@@ -358,6 +358,45 @@ test.describe("search the stream", () => {
         expect(await scrollTop()).toBe(before);
     });
 
+    // On a phone, the bottom navbar floats over the pane. A match under it is
+    // in the pane but not seen, so Enter would move past it.
+    test("on a phone, marks no match under the bottom navbar as you type", async ({ obsidian, mobileLayout }) => {
+        test.skip(!mobileLayout, "only a phone floats a navbar over the pane");
+        const { page } = obsidian;
+        // The newest note, which the stream draws first.
+        const path = `Notes/${seededDate(0)}.md`;
+        const word = "Zanzibar";
+        const before = await writeNote(
+            page,
+            path,
+            `${"Filler.\n\n".repeat(30)}Hidden ${word} here.\n\n${"Filler.\n\n".repeat(40)}`
+        );
+        try {
+            const container = await openStream(page);
+            const bar = await openSearch(page);
+            const text = container.locator(`[data-source-path="${path}"]`).getByText(word);
+            await text.scrollIntoViewIfNeeded();
+            const navbar = (await page.locator(".mobile-navbar").boundingBox())!;
+            await withoutScrollAnchoring(page);
+            // Puts the word's line just under the navbar's top edge.
+            await text.evaluate((el, y) => {
+                const pane = el.closest(".daily-notes-stream-container")!.parentElement!;
+                pane.scrollTop += el.getBoundingClientRect().top - y;
+            }, navbar.y + 8);
+            const line = (await text.boundingBox())!;
+            expect(line.y).toBeGreaterThanOrEqual(navbar.y);
+            expect(line.y + line.height).toBeLessThanOrEqual(navbar.y + navbar.height);
+
+            await bar.locator("input").fill(word);
+
+            await expect(bar.locator(".document-search-count")).toHaveText("1 note");
+            expect(await currentMatch(page)).toBeNull();
+        } finally {
+            await restoreScrollAnchoring(page);
+            await restoreNote(page, path, before);
+        }
+    });
+
     test("steps through a note's matches before the next note", async ({ obsidian }) => {
         const { page } = obsidian;
         await openStream(page);

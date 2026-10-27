@@ -1561,14 +1561,68 @@ describe("what a search moves through", () => {
         });
     });
 
-    it("tells a match inside the pane from one past its edge", () => {
-        pane.getBoundingClientRect = () => rect(100, 800);
-        const range = (top: number, bottom: number) => ({ getBoundingClientRect: () => rect(top, bottom) }) as Range;
+    describe("tells a match the reader sees", () => {
+        const range = (top: number, bottom: number) =>
+            ({ getBoundingClientRect: () => ({ top, bottom, left: 0, width: 100 }) as DOMRect }) as Range;
+        // The screen: the pane's text, with a navbar over it from 700 down.
+        const navbar = document.createElement("div");
+        const screenAt = (y: number) => (y < 700 ? container : navbar);
 
-        expect(stream.isOnScreen(range(400, 420))).toBe(true);
-        expect(stream.isOnScreen(range(100, 800))).toBe(true);
-        expect(stream.isOnScreen(range(90, 110))).toBe(false);
-        expect(stream.isOnScreen(range(790, 810))).toBe(false);
+        beforeEach(() => {
+            document.elementFromPoint = vi.fn((_x: number, y: number) => screenAt(y));
+            vi.stubGlobal("visualViewport", { offsetTop: 0, height: 900 });
+        });
+
+        afterEach(() => vi.unstubAllGlobals());
+
+        it("when nothing covers it", () => {
+            expect(stream.isOnScreen(range(400, 420))).toBe(true);
+        });
+
+        it("from one with either edge under something else", () => {
+            expect(stream.isOnScreen(range(690, 710))).toBe(false);
+            expect(stream.isOnScreen(range(710, 730))).toBe(false);
+        });
+
+        it("from one at the middle of its line, inside the pane", () => {
+            stream.isOnScreen(range(400, 420));
+
+            expect(document.elementFromPoint).toHaveBeenCalledWith(50, 401);
+            expect(document.elementFromPoint).toHaveBeenCalledWith(50, 419);
+        });
+
+        // iOS's keyboard is not in the page. It shrinks the visual viewport.
+        it("from one outside the visual viewport", () => {
+            vi.stubGlobal("visualViewport", { offsetTop: 100, height: 400 });
+
+            expect(stream.isOnScreen(range(150, 170))).toBe(true);
+            expect(stream.isOnScreen(range(90, 110))).toBe(false);
+            expect(stream.isOnScreen(range(490, 510))).toBe(false);
+        });
+
+        // The viewport shows the rows from offsetTop up to, not including,
+        // offsetTop + height.
+        it("from one just past the visual viewport's edges", () => {
+            vi.stubGlobal("visualViewport", { offsetTop: 100, height: 400 });
+
+            expect(stream.isOnScreen(range(99, 120))).toBe(true);
+            expect(stream.isOnScreen(range(98, 120))).toBe(false);
+            expect(stream.isOnScreen(range(480, 500))).toBe(true);
+            expect(stream.isOnScreen(range(480, 501))).toBe(false);
+        });
+
+        it("with no visual viewport, from what covers it alone", () => {
+            vi.stubGlobal("visualViewport", null);
+
+            expect(stream.isOnScreen(range(400, 420))).toBe(true);
+            expect(stream.isOnScreen(range(710, 730))).toBe(false);
+        });
+
+        it("from one off the window, where nothing is found", () => {
+            document.elementFromPoint = vi.fn(() => null);
+
+            expect(stream.isOnScreen(range(400, 420))).toBe(false);
+        });
     });
 
     it("readies the stream's second note", async () => {

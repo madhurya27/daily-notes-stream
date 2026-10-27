@@ -3245,3 +3245,21 @@ a burst is still untested.
   without a scroll container today, such as a focus ring.
 - Running the guard on every new note mid-glide — reading computed styles then
   makes the browser recalculate the whole page's styles.
+
+## D-179 — A search marks a match only where nothing covers it (2026-10-27)
+
+**Decision:** a match counts as on screen (D-022) only if the element at the top
+and bottom of its line, from `elementFromPoint`, is inside the pane, and both
+are inside the visual viewport.
+
+**Why:** opening the bar searches its kept query again at once. On an iPhone,
+the navbar still floats over the pane then, so a match under it was marked, and
+Enter moved past it. Measured on 2026-10-27: Obsidian then removes the navbar
+for the keyboard, and on both an iPhone and an iPad it shrinks the pane above
+the keyboard, so typing alone met neither. The visual viewport covers a device
+where the keyboard does not shrink the pane.
+
+**Rejected:**
+
+- Subtracting the header and navbar by their class names — it misses anything
+  else that floats over the pane, and breaks when Obsidian renames them.

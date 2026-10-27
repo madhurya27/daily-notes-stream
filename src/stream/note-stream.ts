@@ -413,11 +413,24 @@ export class NoteStream {
         // Stryker restore StringLiteral
     }
 
-    /** Whether all of `range` is inside the pane's visible area. */
+    /**
+     * Whether the reader sees all of `range`: the pane shows both its top and
+     * bottom edges, and nothing covers them, such as a phone's floating header
+     * or navbar. iOS's keyboard is not in the page, so the edges must also be
+     * in the visual viewport, which shrinks above it (D-179).
+     */
     isOnScreen(range: Range): boolean {
         const rect = range.getBoundingClientRect();
-        const pane = this.scrollRoot.getBoundingClientRect();
-        return rect.top >= pane.top && rect.bottom <= pane.bottom;
+        const x = rect.left + rect.width / 2;
+        // A pixel inside each edge, so the line itself is tested, not the one
+        // next to it.
+        return this.seesAt(x, rect.top + 1) && this.seesAt(x, rect.bottom - 1);
+    }
+
+    private seesAt(x: number, y: number): boolean {
+        const viewport = this.scrollRoot.win.visualViewport;
+        if (viewport && (y < viewport.offsetTop || y >= viewport.offsetTop + viewport.height)) return false;
+        return this.scrollRoot.contains(this.scrollRoot.doc.elementFromPoint(x, y));
     }
 
     /** The block `file` is shown in; null when it is not loaded. */

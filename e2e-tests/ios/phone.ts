@@ -209,8 +209,21 @@ export class Phone {
     async keyboardShown(): Promise<boolean> {
         await this.native();
         if (!(await this.driver.isKeyboardShown())) return false;
+        return (await this.keyboardY()) < (await this.windowSize()).height;
+    }
+
+    /** The top of iOS's on-screen keyboard, in the page's CSS pixels. */
+    async keyboardTop(): Promise<number> {
+        const y = await this.keyboardY();
+        const viewport = await this.run(() => window.innerWidth);
+        return y * (viewport / (await this.windowSize()).width);
+    }
+
+    /** The top of iOS's on-screen keyboard, in the screen's points. */
+    private async keyboardY(): Promise<number> {
+        await this.native();
         const { y } = await this.driver.$("-ios class chain:**/XCUIElementTypeKeyboard").getLocation();
-        return y < (await this.windowSize()).height;
+        return y;
     }
 
     /**

@@ -8,11 +8,6 @@ there is a screen recording of them (D-099).
 - [ ] On the iPad, which Obsidian gives the phone layout, show the scroll-to-top
       button, as on desktop: the header has room. Decide whether a tap on the
       title still scrolls to the top (this changes D-147).
-- [ ] While the reader types a search, mark only a match they can see (D-022).
-      `isOnScreen` checks the whole pane, so on a phone it can mark a match
-      under the floating header, the bottom bar or the keyboard, and Enter then
-      moves past it. Measure the pane without what covers it. Prove it on the
-      phone layout and on the iPhone.
 - [ ] Remove the outline Obsidian draws around a property under the pointer: it
       suggests the property can be edited, which the read-only stream doesn't
       allow. Check desktop and the phone layout.
