@@ -29,6 +29,8 @@ import {
 import { isStreamPlace } from "../stream/scroll-position";
 
 export const VIEW_TYPE_DAILY_NOTES_STREAM = "daily-notes-stream-view";
+// A stack of cards (D-041).
+export const STREAM_ICON = "gallery-vertical-end";
 
 /**
  * A change to the notes makes an open search read every note again. Several
@@ -118,7 +120,7 @@ export class DailyNotesStreamView extends ItemView implements HoverParent {
         return "Daily Notes Stream";
     }
     getIcon(): string {
-        return "gallery-vertical-end";
+        return STREAM_ICON;
     }
 
     async onOpen() {

@@ -151,6 +151,8 @@ describe("DailyNotesStreamPlugin — onload", () => {
         expect(plugin.commands.map((c) => c.id)).toEqual(["open-stream", "jump-to-date", "scroll-to-top"]);
         // The README tells readers to run these commands by these names.
         expect(plugin.commands.map((c) => c.name)).toEqual(["Open stream", "Jump to date", "Scroll to top"]);
+        // The same icons as the ribbon and the view's header buttons.
+        expect(plugin.commands.map((c) => c.icon)).toEqual(["gallery-vertical-end", "calendar-1", "arrow-up-to-line"]);
         expect(plugin.settingTabs).toHaveLength(1);
     });
 

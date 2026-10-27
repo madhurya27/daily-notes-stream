@@ -1,5 +1,5 @@
 import { Keymap, Notice, PaneType, Plugin, WorkspaceLeaf } from "obsidian";
-import { DailyNotesStreamView, VIEW_TYPE_DAILY_NOTES_STREAM } from "./ui/stream-view";
+import { DailyNotesStreamView, STREAM_ICON, VIEW_TYPE_DAILY_NOTES_STREAM } from "./ui/stream-view";
 import { DEFAULT_SETTINGS, DailyNotesStreamSettings, DailyNotesStreamSettingTab } from "./settings";
 import { CollapsibleStateStore, isOldCollapseKey } from "./render/collapse-store";
 import { DailyNoteService } from "./notes/daily-note-service";
@@ -69,25 +69,28 @@ export default class DailyNotesStreamPlugin extends Plugin {
             defaultMod: true,
         });
 
-        this.addRibbonIcon("gallery-vertical-end", "Open daily notes stream", (evt) =>
+        this.addRibbonIcon(STREAM_ICON, "Open daily notes stream", (evt) =>
             logActivationFailure(this.activateView(Keymap.isModEvent(evt)))
         );
 
         this.addCommand({
             id: "open-stream",
             name: "Open stream",
+            icon: STREAM_ICON,
             callback: () => logActivationFailure(this.activateView()),
         });
 
         this.addCommand({
             id: "jump-to-date",
             name: "Jump to date",
+            icon: "calendar-1",
             callback: () => logActivationFailure(this.promptJumpToDate()),
         });
 
         this.addCommand({
             id: "scroll-to-top",
             name: "Scroll to top",
+            icon: "arrow-up-to-line",
             checkCallback: (checking) => {
                 const view = this.app.workspace.getMostRecentLeaf()?.view;
                 if (!(view instanceof DailyNotesStreamView)) return false;
