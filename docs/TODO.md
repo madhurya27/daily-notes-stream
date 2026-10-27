@@ -5,9 +5,6 @@
 Most important first. Problems on iOS that last only a frame or two wait until
 there is a screen recording of them (D-099).
 
-- [ ] At the next burst of stopped flicks on the iPad, check that D-178 ended
-      them: run the first test in `jump.spec.ts` 10 times. The iPad's bursts
-      last minutes and can't be brought on.
 - [ ] On the iPad, which Obsidian gives the phone layout:
     - [ ] Show the scroll-to-top button, as on desktop: the header has room.
           Decide whether a tap on the title still scrolls to the top (this

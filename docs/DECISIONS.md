@@ -3235,6 +3235,10 @@ screen. In a burst on an iPad, 26 of 30 flicks after a jump stopped 1–4 frames
 after a note with tags rendered; clipped, 1 of 30. Outside a burst, the pills
 stop nothing.
 
+On 2026-10-27, 22 flicks after a jump on the iPad, in the conditions that cut
+before, all glided on, and no pill overflowed during a glide. No burst came, so
+a burst is still untested.
+
 **Rejected:**
 
 - Clipping every element in the panel — it would also clip what overflows
