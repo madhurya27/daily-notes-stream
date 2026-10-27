@@ -2,6 +2,7 @@ import { remote } from "webdriverio";
 
 export const APPIUM_PORT = 4723;
 export const OBSIDIAN = "md.obsidian";
+export const SAFARI = "com.apple.mobilesafari";
 
 /**
  * A WebDriverAgent session on the phone `global-setup.ts` found, with `app` in

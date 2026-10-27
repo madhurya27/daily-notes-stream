@@ -2,8 +2,11 @@ import { test as base, expect } from "@playwright/test";
 import { drivesIPad } from "./device";
 import { glideEnding, longestStall, neverScrolled, type GlideEnding, type Heard } from "./glide";
 import { keyboardAfterRun } from "./keyboard";
-import { connect, OBSIDIAN } from "./session";
+import { connect, OBSIDIAN, SAFARI } from "./session";
 import { returnToTestersVault, useVault } from "./vault";
+
+/** XCUIKeyModifierCommand, for `mobile: keys`. */
+const COMMAND = 1 << 4;
 
 /**
  * Obsidian on an iPhone connected by USB (ADR 0016). The touches are real, sent
@@ -196,10 +199,18 @@ export class Phone {
 
     /**
      * Goes back to Obsidian from whatever app is in front, as if from its icon.
+     * A page a test opened in Safari is closed first, so runs leave no tabs
+     * behind. Safari's other tabs are left alone.
      */
     async returnToObsidian(): Promise<void> {
         await this.native();
+        if ((await this.frontApp()) === SAFARI) await this.closeSafariTab();
         await this.driver.execute("mobile: activateApp", { bundleId: OBSIDIAN });
+    }
+
+    /** Closes the tab Safari shows, as Command-W does. */
+    private async closeSafariTab(): Promise<void> {
+        await this.driver.execute("mobile: keys", { keys: [{ key: "w", modifierFlags: COMMAND }] });
     }
 
     /**
