@@ -763,10 +763,7 @@ describe("NoteBases holding a Base while it refills", () => {
         expect(held(slotOf(content))).toBe("");
     });
 
-    // A note far from the screen has its content out of the layout (ADR 0023).
-    // Let go there, the Base would hold nothing, and Bases laying out its rows
-    // when the note is shown again would resize the note inside its own
-    // callback.
+    // Why: the comment where `BaseSlot` lets go (D-159).
     it("keeps its hold when let go while its note is out of the layout", async () => {
         const content = await renderNote(BLOCK);
         layOutAt(slotOf(content), 112);

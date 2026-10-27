@@ -3124,79 +3124,65 @@ stopped used to leave it scrolling.
 ## D-173 — A glide is read frame by frame, so a stall is not a stop (2026-10-25)
 
 **Decision:** `Phone.glideEnding` reads the scroll position on every animation
-frame from when the finger lifts, not on each scroll event, and judges each step
-by its speed. A frame more than 100 ms late is a stall. A glide that moved
-across a stall kept going, and one whose last move covers a stall is reported as
-"ended in a stall", which no test fails. The longest stall is noted on the test.
+frame after the finger lifts, not on scroll events, and judges each step by its
+speed. A frame over 100 ms late is a stall. A glide whose last move covers a
+stall "ended in a stall", which no test fails. The longest stall is noted on the
+test.
 
-**Why:** on an iPad, `2026-08-30`'s seven Bases block the page for 330–410 ms
-mid-glide, on every flick up over a Base, while iOS keeps scrolling. Measured by
-scroll events, that silence lasted longer than the 300 ms wait before the shift
-moves into the scroll, and looked like a cut. That happened in 6 of 18 recorded
-flicks, each of which scrolled 4.6–5.4k px and slowed to 1 px a frame. A frame
-proves the page is running, so a scroll that does not move over frames has
-stopped.
+**Why:** on an iPad, `2026-08-30`'s Bases block the page for 330–410 ms
+mid-glide while iOS keeps scrolling. Read by scroll events, that silence
+outlasted the 300 ms wait before the shift moves into the scroll, and 6 of 18
+such flicks looked cut short. A scroll that does not move over running frames
+has stopped.
 
 **Rejected:**
 
 - A longer wait before moving the shift into the scroll — a longer stall would
-  still look like a cut, and the stream setting the scroll after it stops would
-  count as a step.
-- Judging only by distance — a glide cut short far into a long scroll also goes
-  a long way.
+  still look like a cut.
+- Judging by distance — a glide cut short in a long scroll also goes far.
 
 ## D-174 — The iPad tests type on iOS's keyboard, even with one attached (2026-10-25)
 
-**Decision:** `search` and `jump` type on iOS's on-screen keyboard, whether or
-not a keyboard is attached to the iPad. `Phone.raiseKeyboard` waits 5 s for the
-on-screen keyboard. If it has not appeared, on an iPad, it presses Right Arrow
-through XCTest. That types nothing, and the on-screen keyboard appears. The
-README recording skips on an iPad, because the README only shows a Mac and an
-iPhone.
+**Decision:** `search` and `jump` type on iOS's on-screen keyboard, even with a
+keyboard attached to the iPad. If it has not appeared within 5 s,
+`Phone.raiseKeyboard` presses Right Arrow through XCTest, which types nothing
+and brings it up. The README recording skips on an iPad.
 
-**Why:** when a keyboard is attached, iOS hides its own keyboard, and these
-tests failed. One key pressed through XCTest makes iOS show its keyboard again.
-It stays shown, in later runs too, until the keyboard is detached and attached
-again. iOS does not always say whether a keyboard is attached, so the key is
-pressed whenever the on-screen keyboard has not appeared.
+**Why:** with a keyboard attached, iOS hides its own, and these tests failed.
+One key pressed through XCTest shows it again, until the keyboard is detached
+and attached again. iOS does not always say whether a keyboard is attached, so
+the key is pressed whenever the on-screen keyboard is missing.
 
 **Rejected:**
 
-- Skipping the tests when a keyboard is attached — search and the jump list
-  would not be tested on an iPad with a keyboard.
-- Typing on the attached keyboard through XCTest — the first key makes the
-  on-screen keyboard appear anyway.
+- Skipping the tests with a keyboard attached — search and the jump list would
+  go untested on such an iPad.
+- Typing on the attached keyboard through XCTest — the first key brings up the
+  on-screen keyboard anyway.
 - Checking where iOS says its keyboard is — iOS places it below the screen only
   the first time an input is focused after the keyboard is attached.
 
 ## D-175 — Comments wrap at 80 columns, and lint checks it (2026-10-25)
 
-**Decision:** comment lines are at most 80 columns, counting indentation, while
-code stays at Prettier's 120. `@stylistic/max-len` in `eslint.config.mts` checks
-comment lines in every TypeScript and JavaScript file. In `e2e-tests/` and the
-root config files, it is the only rule. Directive lines (Stryker,
-`eslint-disable`), JSDoc `@typedef` lines and URLs may be longer, because they
-cannot wrap. `tests/repo/comment-width.test.ts` checks `styles.css` and the
-Swift scripts, which ESLint cannot read, and leaves out indented examples, such
-as a command line.
+**Decision:** comment lines are at most 80 columns, counting indentation; code
+stays at Prettier's 120. `@stylistic/max-len` checks comments in every
+TypeScript and JavaScript file, and is the only rule in `e2e-tests/` and the
+root config files. `eslint.config.mts` lists the lines that may be longer.
+`tests/repo/comment-width.test.ts` checks `styles.css` and the Swift scripts.
 
-**Why:** Prettier never wraps comments, at any width, so comments wrapped by
-hand drifted to different widths. Comments are prose, which is easier to read at
-about 65–75 characters per line, and 80 matches the Markdown docs (D-070). The
-full rules misfire on `e2e-tests/` and the config files: about 1,960 problems,
-mostly type rules on untyped `page.evaluate` code, and rules meant for code that
-runs inside Obsidian.
+**Why:** Prettier never wraps comments, so comments wrapped by hand drifted to
+different widths. Prose reads best at about 65–75 characters a line, and 80
+matches the Markdown docs (D-070). The full rules misfire on `e2e-tests/` and
+the config files: about 1,960 problems, mostly type rules on untyped
+`page.evaluate` code.
 
 **Rejected:**
 
-- 120 columns, the code's width — Prettier still would not wrap comments, and
-  long lines of prose are harder to read.
-- `prettier-plugin-jsdoc` — only rewraps `/** */` blocks, not `//` comments, and
-  in its own style.
-- All the lint rules on `e2e-tests/` — fixing about 1,960 problems is a project
-  of its own.
-- Stylelint for `styles.css` — it dropped its line length rule, and it would be
-  one more tool for one check.
+- 120 columns — long lines of prose are harder to read.
+- `prettier-plugin-jsdoc` — rewraps only `/** */` blocks, in its own style.
+- All the lint rules on `e2e-tests/` — fixing those problems is a project of its
+  own.
+- Stylelint for `styles.css` — it dropped its line length rule.
 
 ## D-176 — A glide stops three steps ahead, and may still bounce on an iPad (2026-10-26)
 
@@ -3204,28 +3190,26 @@ runs inside Obsidian.
 top or end, or a scroll position of zero, is within three steps the size of the
 last one (`STEPS_AHEAD`), not two. D-146's step further is still one step. On an
 iPad, about 1 glide in 30 still bounces at the top while owing, so the phone
-test only checks that what is owed is moved into the scroll and the text never
-jumps, not that the stop came first.
+test only checks that the text never jumps.
 
-**Why:** on an iPad, scroll events come unevenly. One brings one frame's move
-(about 50 px), the next three or four frames' (170–340 px), so a short step
-hides the long one coming, and the scroll passes zero before the stop. With two
-steps, the test failed 5 of 98 runs; with three, 2 of 60. A glide stopped a step
-sooner still owes thousands of pixels above, so the reader hardly sees the
-difference. A bounce needs notes above far shorter than their heights, which
-saved heights (ADR 0010) and a tall estimate (D-092) make rare, in a glide that
-reaches the newest note. Without a finger, it is only a spring back.
+**Why:** on an iPad, scroll events come unevenly: one brings one frame's move
+(about 50 px), the next three or four frames' (170–340 px). With two steps, the
+test failed 5 of 98 runs; with three, 2 of 60. A glide stopped a step sooner
+still owes thousands of pixels above, so the reader hardly sees it. A bounce
+needs notes above far shorter than their heights, which saved heights (ADR 0010)
+and a tall estimate (D-092) make rare.
 
 **Rejected:**
 
 - The largest step of the last 150 ms — passed 60 of 60 runs, but needs a list
-  of steps with times, and rules for a turn and for a scroll that moved nothing.
-  Try it if a bounce opens the pull-down action in real use.
-- The glide's speed in px per ms, times the longest gap between events — event
-  times are when the page ran, not when iOS moved: one step of 202 px came 26 ms
-  after one of 81 px that took 46 ms.
+  of timed steps and rules for a turn. Try it if a bounce opens the pull-down
+  action in real use.
+- The glide's speed times the longest gap between events — event times are when
+  the page ran, not when iOS moved.
 
 ## D-177 — Nothing owed, the stream has no transform (2026-10-26)
+
+Superseded in part by D-178: tag pills stopped the glides, not the transform.
 
 **Decision:** `ScrollAnchor` only puts the stream's shift on it while something
 is owed. When a move adds up to less than a layout unit, which counts as nothing
@@ -3240,18 +3224,16 @@ nothing has no use either way.
 
 ## D-178 — The stylesheet clips the properties panel on mobile (2026-10-26)
 
-**Decision:** under `.is-mobile`, the properties panel's rows, values, tag lists
-and tag pills get `overflow: clip` from `styles.css`, in place of Obsidian's
-`overflow: hidden`. A test reads their overflow without the scroll box guard's
-class.
+**Decision:** on mobile, `styles.css` clips the properties panel's rows, values,
+tag lists and tag pills (`overflow: clip`), in place of Obsidian's
+`overflow: hidden`.
 
 **Why:** a tag pill's text is 16 px tall in a 14 px pill, so the pill is a
-scroll container that overflows (ADR 0008). The guard clips such boxes only once
-scrolling stops, so a note rendered mid-glide brought its pills to the screen
-unclipped. During a burst on an iPad, flicks after a jump stopped dead 1–4
-frames after a note with tags rendered: 26 of 30 stopped, and with the pills
-clipped, 1 of 30. Outside a burst the same pills stop nothing, which is why the
-stops came in bursts. D-177's shift was not the cause.
+scroll container that overflows (ADR 0008). The scroll box guard clips such
+boxes only once scrolling stops, so a note rendered mid-glide brought them on
+screen. In a burst on an iPad, 26 of 30 flicks after a jump stopped 1–4 frames
+after a note with tags rendered; clipped, 1 of 30. Outside a burst, the pills
+stop nothing.
 
 **Rejected:**
 

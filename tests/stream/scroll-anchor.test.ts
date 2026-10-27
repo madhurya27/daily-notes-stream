@@ -277,8 +277,7 @@ describe("ScrollAnchor", () => {
         expect(write).not.toHaveBeenCalled();
     });
 
-    // A transform on the stream that moves nothing came just before glides
-    // stopped on an iPad (D-177).
+    // Nothing owed, nothing to draw (D-177).
     it("draws the stream untransformed when a block above grows by less than a layout moves", () => {
         const { content, blocks, resize } = watch([400, 400, 400], 900);
 

@@ -330,12 +330,10 @@ export class ScrollAnchor {
     }
 
     /**
-     * Every note is loaded, the stream is shifted up, and its end will be
-     * inside the pane within `STEPS_AHEAD` more steps of a downward scroll of
-     * `moved`. Below the end is empty space until scrolling stops. While notes
-     * are still loading, they may arrive below first. When the browser pulls
-     * the scroll back, as when the screen is turned, nothing moved, so it is
-     * not a scroll.
+     * Every note is loaded, so nothing more arrives below, the stream is
+     * shifted up, and its end, with empty space below, will be in the pane
+     * within `STEPS_AHEAD` more steps of a downward scroll of `moved`. A pull
+     * back by the browser, as on a turn, moved nothing.
      */
     private endDueInView(moved: number): boolean {
         // Stryker disable next-line EqualityOperator: only asked while something is owed.
@@ -632,8 +630,8 @@ export class ScrollAnchor {
      * styles.css turns the custom property into a transform, which moves what
      * is rendered without changing the scroll. The names are written out in
      * full in both places, because the compliance rule searches the source text
-     * for them. With nothing owed, the stream gets no transform: one that
-     * moves nothing came just before glides stopped on an iPad (D-177).
+     * for them. With nothing owed, the stream gets no transform, and no class
+     * that says it owes (D-177).
      */
     private shift(content: HTMLElement): void {
         if (this.owed === 0) {

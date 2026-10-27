@@ -197,12 +197,9 @@ for (const [what, slot, file, body] of [
         expect(Math.max(...tops.map(Math.abs)), `on screen at ${path(tops).join(", ")}`).toBeLessThan(2);
     });
 
-// A glide can draw a note just ahead of the screen and carry it past the
-// hiding distance before Bases lays out its rows (ADR 0023). Bases adds them
-// inside its own ResizeObserver callback when the note is shown again, so the
-// Base's box must still hold its height then, or the note grows too late for
-// that round and WebKit logs an error (D-159). Each move is told to the stream
-// as a jump's is, so it is never taken for a glide to stop (D-176).
+// A glide can hide a note (ADR 0023) before Bases lays out its rows. Why the
+// Base must keep its hold: `BaseSlot`'s let-go (D-159). Each move is told to
+// the stream as a jump's is, so it is never taken for a glide to stop (D-176).
 test("a Base drawn and hidden before it laid out shows its rows without a resize error", async ({ phone }) => {
     await phone.openStream();
     await phone.jumpTo(DEEP_NOTE_WITH_BASE.slice("Journal/".length, -".md".length));
