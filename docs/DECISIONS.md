@@ -3274,9 +3274,13 @@ reader left. Once that note was far enough to be hidden (ADR 0023), its place
 measured 0, and the anchor shifted the stream by thousands of pixels. That
 pushed the match's note past the hiding distance too, so the step centered on a
 match with no position. On an iPhone, stepping down through the Demo vault's
-notes missed 2 of 20 steps, on later passes; with the fix, 40 of 40 landed. It
-depends on which comes first, the scroll event or the hide, so no device test
-catches it reliably: the standard test vault missed 0 of 40 with the old code.
+notes missed 2 of 20 steps, on later passes; with the fix, 40 of 40 landed.
+
+Unit tests cover it, not a device test. It needs the scroll event to come after
+the hide, and nothing to resize in between: a resize makes the anchor read its
+place again first. Showing a hidden target is such a resize, so the target must
+be under 4 pane heights away while the note left is over 4. Only a jump of about
+4 pane heights does that, which depends on each device's exact heights.
 
 **Rejected:**
 
