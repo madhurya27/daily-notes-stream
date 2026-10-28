@@ -439,7 +439,13 @@ export class NoteWindowManager {
         window.rendering = true;
         try {
             const rendered = await this.renderer.renderInto(block, window.file);
-            if (rendered) this.filled(block, window, rendered);
+            if (!rendered) return;
+            // Its note was deleted, or the view closed, while it rendered.
+            if (!this.windows.has(block)) {
+                this.renderer.discard(rendered.component);
+                return;
+            }
+            this.filled(block, window, rendered);
         } finally {
             this.changes++;
             window.rendering = false;
@@ -460,6 +466,9 @@ export class NoteWindowManager {
         } finally {
             window.rendering = false;
         }
+        // Its note was deleted, or the view closed, meanwhile: what it drew
+        // went with it.
+        if (!this.windows.has(block)) return true;
         if (!updated) return false;
         this.changes++;
         this.runs.updated(block);

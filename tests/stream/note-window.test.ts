@@ -2686,6 +2686,59 @@ describe("NoteWindowManager.refresh", () => {
         expect(isRendered(block)).toBe(true);
     });
 
+    // On an iPhone, a test that deleted the notes it wrote threw once scrolling
+    // stopped: a note re-rendering as it was deleted was queued to unload with
+    // no window.
+    describe("discards what it drew for a note that left view and was removed", () => {
+        it("while it rendered", async () => {
+            const renderer = makeRenderer();
+            // Out of the page, a block measures nothing, so it is not pinned.
+            const { manager } = makeManager(renderer, (el) => (el.isConnected ? 500 : 0));
+            const block = manager.add(FILE);
+            document.body.appendChild(block);
+            fire(observers.render, block, true);
+            await settle();
+            const component = new Component();
+            renderer.renderInto.mockImplementationOnce(async (el: HTMLElement) => {
+                fire(observers.unload, block, false);
+                manager.remove(block);
+                block.remove();
+                await new Promise((resolve) => setTimeout(resolve, 100));
+                el.createDiv({ cls: "daily-note-content" });
+                return { component, footer: Promise.resolve() };
+            });
+            const refreshed = manager.refresh(block);
+            await vi.advanceTimersByTimeAsync(100);
+            await refreshed;
+
+            await still();
+            // The very one: every Component here looks alike.
+            expect(renderer.discarded).toContain(component);
+        });
+
+        it("while it was updated in place", async () => {
+            const renderer = makeRenderer();
+            const { manager } = makeManager(renderer, (el) => (el.isConnected ? 500 : 0));
+            const block = manager.add(FILE);
+            document.body.appendChild(block);
+            fire(observers.render, block, true);
+            await settle();
+            renderer.update.mockImplementationOnce(async () => {
+                await new Promise((resolve) => setTimeout(resolve, 100));
+                return true;
+            });
+            const refreshed = manager.refresh(block);
+            fire(observers.unload, block, false);
+            manager.remove(block);
+            block.remove();
+            await vi.advanceTimersByTimeAsync(100);
+            await refreshed;
+
+            await still();
+            expect(renderer.discard).toHaveBeenCalledTimes(1);
+        });
+    });
+
     describe("a long note updated in place", () => {
         const pinned = (block: HTMLElement) => block.style.getPropertyValue("--daily-note-pinned-height");
 
