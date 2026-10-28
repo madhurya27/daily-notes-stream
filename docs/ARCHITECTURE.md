@@ -136,6 +136,11 @@ a Base fills in, an image loads. These parts keep the reader's place:
   Before that, it moves the notes above as one shift
   ([ADR 0015](adr/0015-shift-before-shrinking-above.md)). After the screen is
   turned, it waits until the anchor has finished handling the turn (D-160).
+- `StillClock` (`still-clock.ts`), owned by `NoteWindowManager`, knows when the
+  pane last scrolled or resized. Re-reserving, loading frames' pages and
+  checking for scroll boxes wait on it together. Work asked for once the pane is
+  still runs in the next task (D-185). Unloading and `ScrollAnchor` keep their
+  own waits.
 - `ScrollAnchor` undoes changes in height above the reader, on platforms that
   don't do this themselves. Chromium does it itself; iOS's WebKit does not.
 

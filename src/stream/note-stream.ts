@@ -63,8 +63,8 @@ export class NoteStream {
     readonly window: NoteWindowManager;
     private scrollRoot!: HTMLElement;
     private blocks = new StreamBlocks(() => this.scroll.getSentinel());
-    private scrollBoxes: ScrollBoxGuard;
-    private readonly frames = new FrameDeferral(youtubeThumbnail, webPageLink);
+    private readonly scrollBoxes: ScrollBoxGuard;
+    private readonly frames: FrameDeferral;
 
     /** Starts the queue. Until `open`, there is no container to change. */
     private opened!: () => void;
@@ -114,7 +114,8 @@ export class NoteStream {
         this.window = new NoteWindowManager(renderer, this.enqueue.bind(this), memory.notes, () =>
             layoutOf(this.blocks.el)
         );
-        this.scrollBoxes = new ScrollBoxGuard((view) => renderer.onBaseLayout(view));
+        this.scrollBoxes = new ScrollBoxGuard(this.window.clock, (view) => renderer.onBaseLayout(view));
+        this.frames = new FrameDeferral(this.window.clock, youtubeThumbnail, webPageLink);
     }
 
     /**
@@ -179,8 +180,6 @@ export class NoteStream {
     onScroll(): void {
         this.readerMoved();
         this.window.onScroll();
-        this.scrollBoxes.onScroll();
-        this.frames.onScroll();
     }
 
     /**

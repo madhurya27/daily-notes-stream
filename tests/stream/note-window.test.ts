@@ -210,6 +210,12 @@ const settle = () => vi.advanceTimersByTimeAsync(0);
  */
 const still = () => vi.advanceTimersByTimeAsync(SCROLL_IDLE_MS);
 
+/**
+ * Runs the next task. A timer set for 0 ms from inside another runs 1 ms later
+ * under fake timers.
+ */
+const nextTask = () => vi.advanceTimersByTimeAsync(1);
+
 /** An empty block keeps only its height. */
 const isRendered = (block: HTMLElement) => !block.classList.contains("is-unloaded");
 
@@ -759,7 +765,7 @@ describe("NoteWindowManager after the pane's width changes", () => {
 
     // ADR 0014: after a turn, nothing scrolls, but what the notes on screen
     // measured still reaches the others.
-    it("re-reserves once a height is kept and the scroll is still, with no scroll", async () => {
+    it("re-reserves as soon as a height is kept, the scroll being still", async () => {
         let estimated = 900;
         const { manager } = makeResizable({ estimate: () => estimated });
         const placeholder = manager.add(new TFile("b.md"));
@@ -771,9 +777,28 @@ describe("NoteWindowManager after the pane's width changes", () => {
         await settle();
         estimated = 1100;
         await vi.advanceTimersByTimeAsync(SETTLE_MS);
+        await nextTask();
+
+        expect(placeholderHeight(placeholder)).toBe("1100px");
+    });
+
+    it("re-reserves a height kept mid-scroll once the scroll is still", async () => {
+        let estimated = 900;
+        const { manager } = makeResizable({ estimate: () => estimated });
+        const placeholder = manager.add(new TFile("b.md"));
+        const rendered = manager.add(new TFile("c.md"));
+        for (const block of [placeholder, rendered]) document.body.appendChild(block);
+        await still();
+
+        fire(observers.render, rendered, true);
+        await settle();
+        estimated = 1100;
+        await vi.advanceTimersByTimeAsync(SETTLE_MS - 1);
+        manager.onScroll();
+        await vi.advanceTimersByTimeAsync(SCROLL_IDLE_MS - 1);
         expect(placeholderHeight(placeholder)).toBe("900px");
 
-        await still();
+        await vi.advanceTimersByTimeAsync(1);
         expect(placeholderHeight(placeholder)).toBe("1100px");
     });
 
@@ -793,6 +818,24 @@ describe("NoteWindowManager after the pane's width changes", () => {
         expect(placeholderHeight(block)).toBe("900px");
 
         await still();
+        expect(placeholderHeight(block)).toBe("1100px");
+    });
+
+    it("waits again after a resize before re-reserving", async () => {
+        let estimated = 900;
+        const { manager, learn } = makeResizable({ estimate: () => estimated });
+        const block = manager.add(new TFile("b.md"));
+        document.body.appendChild(block);
+
+        estimated = 1100;
+        learn();
+        manager.onScroll();
+        await vi.advanceTimersByTimeAsync(SCROLL_IDLE_MS - 1);
+        manager.onResize();
+        await vi.advanceTimersByTimeAsync(SCROLL_IDLE_MS - 1);
+        expect(placeholderHeight(block)).toBe("900px");
+
+        await vi.advanceTimersByTimeAsync(1);
         expect(placeholderHeight(block)).toBe("1100px");
     });
 
@@ -1083,8 +1126,23 @@ describe("NoteWindowManager after the pane's width changes", () => {
 
         reflowing = false;
         await still();
+        await nextTask();
         expect(handedOver).toHaveBeenCalledOnce();
         expect(placeholderHeight(block)).toBe("500px");
+    });
+
+    it("drops a re-reserve held back by a reflow once detached", async () => {
+        const { manager, learn } = makeResizable({ estimate: () => 500 });
+        document.body.appendChild(manager.add(new TFile("b.md")));
+        vi.spyOn(ScrollAnchor.prototype, "holdsReflow").mockReturnValue(true);
+        onTestFinished(() => void vi.restoreAllMocks());
+        learn();
+        manager.onScroll();
+        await still();
+
+        manager.detach();
+
+        expect(vi.getTimerCount()).toBe(0);
     });
 
     it("holds nothing on a note never measured at the new width", async () => {
@@ -2041,6 +2099,19 @@ describe("NoteWindowManager while scrolling", () => {
         await vi.advanceTimersByTimeAsync(SCROLL_IDLE_MS);
 
         expect(renderer.discard).not.toHaveBeenCalled();
+    });
+
+    // The stream resets the window on its own, and its frames and scroll boxes
+    // wait on the same clock.
+    it("keeps what the stream waits for on its clock across a detach", async () => {
+        const { manager } = await rendered();
+        const loadFrames = vi.fn();
+        manager.clock.whenStill(loadFrames);
+
+        manager.detach();
+        await still();
+
+        expect(loadFrames).toHaveBeenCalledOnce();
     });
 
     // A note saved while it waits is re-rendered. During a refresh, there is

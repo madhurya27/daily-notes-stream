@@ -3372,3 +3372,28 @@ plain page's, with nothing on it changing, 84 ms after.
   D-171 fixed.
 - Waiting for the next burst to read its touches — bursts come once a day, and
   the tests kept failing meanwhile.
+
+## D-185 — Work that waits for the pane to be still shares one clock (2026-10-28)
+
+**Decision:** `StillClock` notes when the pane last scrolled or resized.
+Re-reserving, loading frames' pages and checking for scroll boxes ask it to run
+once the pane has been still for `SCROLL_IDLE_MS`. Asked for when the pane is
+still already, the work runs in the next task. Unloading and `ScrollAnchor` keep
+their own debounces, and a reservation the anchor's turn holds back waits a
+whole `SCROLL_IDLE_MS` again.
+
+**Why:** each debounce waited its own 300 ms from when it was asked. A note that
+settled at rest asked for a reservation, which came 300 ms later, so its empty
+notes changed height about 600 ms after the scroll stopped. The tests' `rest()`
+waited out each such chain.
+
+**Rejected:**
+
+- Unloading on the clock — a jump draws its note far away, then scrolls to it.
+  The pane is still in between, so the note was unloaded before the jump landed.
+- One clock for the anchor too — a re-render after a turn must restart its wait
+  (D-160), and a scroll does not cause it.
+- A resize that does not restart the wait — dragging a split would plan every
+  note's height on each resize event.
+- Running the reflow retry on the clock — at rest, it would ask again in each
+  task until the anchor settles.

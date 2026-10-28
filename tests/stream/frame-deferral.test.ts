@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { FrameDeferral } from "../../src/stream/frame-deferral";
 import { SCROLL_IDLE_MS } from "../../src/stream/scroll-anchor";
+import { StillClock } from "../../src/stream/still-clock";
 
 const PAGE = "https://www.youtube.com/embed/aqz-KE-bpKQ";
 
@@ -10,6 +11,7 @@ const still = () => vi.advanceTimersByTimeAsync(SCROLL_IDLE_MS);
 
 let container: HTMLElement;
 let frames: FrameDeferral;
+let clock: StillClock;
 /** What replaces a frame, if anything. Nothing unless a test sets it. */
 let standIn: (frame: HTMLIFrameElement, src: string) => HTMLElement | null;
 /**
@@ -29,7 +31,9 @@ beforeEach(() => {
     document.body.appendChild(container);
     standIn = () => null;
     wrapper = () => null;
+    clock = new StillClock();
     frames = new FrameDeferral(
+        clock,
         (frame, src) => standIn(frame, src),
         (frame, src) => wrapper(frame, src)
     );
@@ -92,15 +96,23 @@ describe("FrameDeferral", () => {
     });
 
     it("waits out a scroll before loading", async () => {
+        clock.moved();
         const added = container.appendChild(frame());
         await observed();
-        await vi.advanceTimersByTimeAsync(SCROLL_IDLE_MS - 1);
 
-        frames.onScroll();
         await vi.advanceTimersByTimeAsync(SCROLL_IDLE_MS - 1);
 
         expect(added.hasAttribute("src")).toBe(false);
         await vi.advanceTimersByTimeAsync(1);
+        expect(added.getAttribute("src")).toBe(PAGE);
+    });
+
+    it("loads a frame added while still without waiting again", async () => {
+        const added = container.appendChild(frame());
+        await observed();
+
+        await vi.advanceTimersByTimeAsync(0);
+
         expect(added.getAttribute("src")).toBe(PAGE);
     });
 
@@ -190,7 +202,6 @@ describe("FrameDeferral", () => {
     it("waits on nothing while it holds nothing", async () => {
         container.appendChild(document.createElement("p"));
         await observed();
-        frames.onScroll();
 
         expect(vi.getTimerCount()).toBe(0);
     });

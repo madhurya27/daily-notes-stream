@@ -1,11 +1,13 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { ScrollBoxGuard } from "../../src/stream/scroll-box-guard";
 import { SCROLL_IDLE_MS } from "../../src/stream/scroll-anchor";
+import { StillClock } from "../../src/stream/still-clock";
 
 const still = () => vi.advanceTimersByTimeAsync(SCROLL_IDLE_MS);
 
 let container: HTMLElement;
 let guard: ScrollBoxGuard;
+let clock: StillClock;
 
 /**
  * An element that would be a scroll container, as Obsidian's CSS makes some.
@@ -32,7 +34,8 @@ beforeEach(() => {
     laidOut.mockReset();
     container = document.createElement("div");
     document.body.appendChild(container);
-    guard = new ScrollBoxGuard(laidOut);
+    clock = new StillClock();
+    guard = new ScrollBoxGuard(clock, laidOut);
     guard.attach(container);
 });
 
@@ -59,7 +62,7 @@ const clipped = (el: HTMLElement) => el.style.getPropertyValue("overflow-x") ===
 // scrolling until scrolling stops would stop the scroll it appeared during.
 describe("ScrollBoxGuard, an inline overflow-x", () => {
     it("is cleared and clipped as it is added, mid-scroll", async () => {
-        guard.onScroll();
+        clock.moved();
         const wrapper = container.appendChild(tableWrapper());
 
         await Promise.resolve();
@@ -145,14 +148,21 @@ describe("ScrollBoxGuard safety net", () => {
     // Reading styles mid-glide makes the browser recalculate the whole page's
     // styles, just before a stall.
     it("waits while the stream scrolls", async () => {
+        clock.moved();
         const box = container.appendChild(scrollBox());
-        await vi.advanceTimersByTimeAsync(SCROLL_IDLE_MS - 1);
 
-        guard.onScroll();
         await vi.advanceTimersByTimeAsync(SCROLL_IDLE_MS - 1);
 
         expect(box.classList.contains("is-scroll-clipped")).toBe(false);
         await vi.advanceTimersByTimeAsync(1);
+        expect(box.classList.contains("is-scroll-clipped")).toBe(true);
+    });
+
+    it("checks a box added while still without waiting again", async () => {
+        const box = container.appendChild(scrollBox());
+
+        await vi.advanceTimersByTimeAsync(0);
+
         expect(box.classList.contains("is-scroll-clipped")).toBe(true);
     });
 
@@ -202,7 +212,7 @@ describe("ScrollBoxGuard safety net", () => {
         await still();
         box.removeClass("is-scroll-clipped");
 
-        guard.onScroll();
+        container.appendChild(document.createElement("p"));
         await still();
 
         expect(box.classList.contains("is-scroll-clipped")).toBe(false);
@@ -231,7 +241,6 @@ describe("ScrollBoxGuard safety net", () => {
     it("waits on nothing while nothing is unchecked", async () => {
         container.appendChild(document.createTextNode("text"));
         await Promise.resolve();
-        guard.onScroll();
 
         expect(vi.getTimerCount()).toBe(0);
     });

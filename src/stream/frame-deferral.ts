@@ -1,5 +1,4 @@
-import { debounce } from "obsidian";
-import { SCROLL_IDLE_MS } from "./scroll-anchor";
+import type { StillClock } from "./still-clock";
 
 /**
  * What permanently replaces a frame, such as a video's thumbnail. Null keeps
@@ -21,9 +20,10 @@ export class FrameDeferral {
     private observer: MutationObserver | null = null;
     /** Each frame that was held back, with the page it was given. */
     private readonly held = new Map<HTMLIFrameElement, string>();
-    private readonly loadOnceStill = debounce(() => this.load(), SCROLL_IDLE_MS, true);
+    private readonly load = () => this.loadHeld();
 
     constructor(
+        private readonly clock: StillClock,
         private readonly standIn: FrameStandIn,
         private readonly wrapper: FrameWrapper
     ) {}
@@ -39,14 +39,9 @@ export class FrameDeferral {
     detach(): void {
         this.observer?.disconnect();
         this.observer = null;
-        this.loadOnceStill.cancel();
+        this.clock.cancel(this.load);
         // Stryker disable next-line CallExpression: only frees memory; it is attached once, and detached when the stream closes.
         this.held.clear();
-    }
-
-    /** Delays loading until scrolling stops. */
-    onScroll(): void {
-        if (this.held.size > 0) this.loadOnceStill();
     }
 
     private onMutations(records: MutationRecord[]): void {
@@ -57,7 +52,7 @@ export class FrameDeferral {
                 for (const frame of Array.from(frames)) this.hold(frame);
             }
         }
-        if (this.held.size > 0) this.loadOnceStill();
+        if (this.held.size > 0) this.clock.whenStill(this.load);
     }
 
     private hold(frame: HTMLIFrameElement): void {
@@ -80,7 +75,7 @@ export class FrameDeferral {
         }
     }
 
-    private load(): void {
+    private loadHeld(): void {
         for (const [frame, src] of this.held) {
             if (!frame.isConnected) continue;
             frame.removeClass("is-frame-held");

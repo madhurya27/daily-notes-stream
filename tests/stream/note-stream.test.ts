@@ -57,6 +57,7 @@ vi.mock("../../src/stream/note-window", () => ({
         refresh = vi.fn().mockResolvedValue(undefined);
         placed = vi.fn();
         handOver = vi.fn();
+        clock = {};
         layoutChanges = 0;
         memory: unknown;
         add = vi.fn((file: { path: string }) => placeholder(file.path));
@@ -89,9 +90,11 @@ vi.mock("../../src/stream/scroll-box-guard", () => ({
     ScrollBoxGuard: class {
         attach = vi.fn();
         detach = vi.fn();
-        onScroll = vi.fn();
         onTouch = vi.fn();
-        constructor(readonly onBaseLayout: (view: HTMLElement) => void) {
+        constructor(
+            readonly clock: unknown,
+            readonly onBaseLayout: (view: HTMLElement) => void
+        ) {
             fakes.guards.push(this as unknown as FakeGuard);
         }
     },
@@ -102,8 +105,8 @@ vi.mock("../../src/stream/frame-deferral", () => ({
     FrameDeferral: class {
         attach = vi.fn();
         detach = vi.fn();
-        onScroll = vi.fn();
         constructor(
+            readonly clock: unknown,
             readonly standIn: unknown,
             readonly wrapper: unknown
         ) {
@@ -1100,9 +1103,8 @@ describe("the pane", () => {
         expect(frames.attach).not.toHaveBeenCalled();
     });
 
-    it("passes a scroll on to the frames held back", () => {
-        stream.onScroll();
-        expect(frames.onScroll).toHaveBeenCalled();
+    it("loads frames' pages once the window says the pane is still", () => {
+        expect((frames as unknown as { clock: unknown }).clock).toBe(noteWindow.clock);
     });
 
     // A scrolling box stops iOS's scrolling early. Android follows the same
@@ -1132,9 +1134,8 @@ describe("the pane", () => {
     });
 
     // Reading styles waits for scrolling to stop, like unloading notes.
-    it("passes a scroll on to the scroll box guard", () => {
-        stream.onScroll();
-        expect(guard.onScroll).toHaveBeenCalled();
+    it("reads styles once the window says the pane is still", () => {
+        expect((guard as unknown as { clock: unknown }).clock).toBe(noteWindow.clock);
     });
 });
 

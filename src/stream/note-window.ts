@@ -2,6 +2,7 @@ import { Component, TFile, debounce, type Debouncer } from "obsidian";
 import { DRAWING_FROM_END, type DrawOrder, type NoteRenderer, type RenderedNote } from "../render/note-renderer";
 import type { NoteHeights } from "./note-heights";
 import { SCROLL_IDLE_MS, ScrollAnchor } from "./scroll-anchor";
+import { StillClock } from "./still-clock";
 import { HeightHold, SETTLE_MS } from "./height-hold";
 import { Reservations, type Reserving } from "./reservations";
 import { FarRunWatch } from "./far-run-watch";
@@ -128,8 +129,23 @@ export class NoteWindowManager {
      * reported. A note that finishes rendering there is unloaded too.
      */
     private readonly beyond = new Set<HTMLElement>();
+    /**
+     * When the pane last scrolled or resized. What waits for that to stop
+     * waits on it, in this file and in the stream.
+     */
+    readonly clock = new StillClock();
+    /**
+     * Not on the clock: its wait starts when a note leaves. A jump draws its
+     * note far away, then scrolls to it, and the pane is still in between.
+     */
     private readonly unloadOnceStill = debounce(() => this.unloadLeaving(), SCROLL_IDLE_MS, true);
-    private readonly reserveOnceStill = debounce(() => this.reserve(), SCROLL_IDLE_MS, true);
+    private readonly reserveOnceStill = () => this.clock.whenStill(this.reserveNow);
+    private readonly reserveNow = () => this.reserve();
+    /**
+     * The anchor keeps the place read before a turn until it is still itself,
+     * which the clock does not know. Asking the clock again would ask at once.
+     */
+    private readonly reserveAfterReflow = debounce(() => this.reserveOnceStill(), SCROLL_IDLE_MS);
     /**
      * Parts of long notes, hidden when they are further away than the hiding
      * distance (ADR 0023).
@@ -252,6 +268,7 @@ export class NoteWindowManager {
 
     /** Obsidian reports that a pane was resized or the device was turned. */
     onResize(): void {
+        this.clock.moved();
         this.refreshMargins();
         this.expectLayout();
         this.reserveOnceStill();
@@ -297,6 +314,7 @@ export class NoteWindowManager {
 
     /** A scroll restarts the wait for blocks that went out of range. */
     onScroll(): void {
+        this.clock.moved();
         this.repinAtTop();
         this.anchor.onScroll();
         if (this.leaving.size > 0) this.unloadOnceStill();
@@ -495,7 +513,8 @@ export class NoteWindowManager {
     detach(): void {
         this.detachObservers();
         this.unloadOnceStill.cancel();
-        this.reserveOnceStill.cancel();
+        this.clock.cancel(this.reserveNow);
+        this.reserveAfterReflow.cancel();
         this.leaving.clear();
         // Stryker disable next-line CallExpression: only frees memory; the blocks are removed with the windows below.
         this.beyond.clear();
@@ -756,7 +775,7 @@ export class NoteWindowManager {
         // read before the screen turned, while what the turn re-renders is
         // still moving (D-160).
         if (this.anchor.holdsReflow()) {
-            this.reserveOnceStill();
+            this.reserveAfterReflow();
             return;
         }
         const unloaded = [...this.windows].filter(([, window]) => !window.component && !window.rendering);

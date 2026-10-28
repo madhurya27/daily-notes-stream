@@ -1,6 +1,5 @@
-import { debounce } from "obsidian";
-import { SCROLL_IDLE_MS } from "./scroll-anchor";
 import { LAID_OUT } from "../render/bases/bases-fit";
+import type { StillClock } from "./still-clock";
 
 /** Bases and everything in them are already clipped by the stylesheet. */
 const BASE = ".bases-embed, .block-language-base";
@@ -17,9 +16,12 @@ export class ScrollBoxGuard {
     private readonly unchecked = new Set<HTMLElement>();
     // Reading computed styles mid-glide makes the browser recalculate the
     // styles of the whole page.
-    private readonly checkOnceStill = debounce(() => this.clipScrollBoxes(), SCROLL_IDLE_MS, true);
+    private readonly check = () => this.clipScrollBoxes();
 
-    constructor(private readonly onBaseLayout: (view: HTMLElement) => void) {}
+    constructor(
+        private readonly clock: StillClock,
+        private readonly onBaseLayout: (view: HTMLElement) => void
+    ) {}
 
     attach(container: HTMLElement): void {
         this.detach();
@@ -35,14 +37,9 @@ export class ScrollBoxGuard {
     detach(): void {
         this.observer?.disconnect();
         this.observer = null;
-        this.checkOnceStill.cancel();
+        this.clock.cancel(this.check);
         // Stryker disable next-line CallExpression: only frees memory; it is attached once, and detached when the stream closes.
         this.unchecked.clear();
-    }
-
-    /** Delays the check until scrolling stops. */
-    onScroll(): void {
-        if (this.unchecked.size > 0) this.checkOnceStill();
     }
 
     private onMutations(records: MutationRecord[]): void {
@@ -63,7 +60,7 @@ export class ScrollBoxGuard {
             }
         }
         for (const view of views) this.onBaseLayout(view);
-        if (this.unchecked.size > 0) this.checkOnceStill();
+        if (this.unchecked.size > 0) this.clock.whenStill(this.check);
     }
 
     private clipScrollBoxes(): void {
