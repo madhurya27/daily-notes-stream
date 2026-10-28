@@ -31,6 +31,7 @@ pnpm run test:memory    # tests of memory, render cost and edit cost, on a five-
 SCROLL_COST=1 E2E_SEED_DAYS=365 pnpm exec playwright test scroll-cost --project=desktop
                         # scrolls with a real mouse wheel on a slowed CPU; RATES, SPEEDS, DOWN_UP=1 and SCREEN=4k175 change the test
 # Every test run stops at the first failure. To see every failure: --max-failures=0 (Playwright), --bail=0 (vitest)
+pnpm run test:e2e webkit.spec.ts --repeat-each=10   # flags and files go straight after the script: after a `--`, Playwright ignores them
 
 pnpm run demo                     # open .dev/demo-vault/ (gitignored) and reload the plugin on every save; Ctrl-C closes it
                                   # it fills the vault again each time and builds if needed; --desktop, --ipad; --help lists the flags
