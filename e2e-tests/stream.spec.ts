@@ -329,7 +329,9 @@ test.describe("daily notes stream in real Obsidian", () => {
 
         await expect(blocks).toHaveCount(10); // BATCH_SIZE
 
-        await container.locator(".daily-note-block").last().scrollIntoViewIfNeeded();
+        // The stream's end, not the last note: a note taller than the pane is
+        // shown from its middle, too far above the end to load more.
+        await container.locator(".daily-notes-stream-sentinel").scrollIntoViewIfNeeded();
         await expect(blocks).toHaveCount(SEEDED_DAYS);
     });
 
@@ -646,7 +648,7 @@ test.describe("daily notes stream in real Obsidian", () => {
                 const { page } = obsidian;
                 const container = await openUnanchored(page);
                 const blocks = container.locator(".daily-note-block");
-                await blocks.last().scrollIntoViewIfNeeded();
+                await container.locator(".daily-notes-stream-sentinel").scrollIntoViewIfNeeded();
                 await expect(blocks).toHaveCount(SEEDED_DAYS);
                 const last = blocks.last();
                 await last.scrollIntoViewIfNeeded();
