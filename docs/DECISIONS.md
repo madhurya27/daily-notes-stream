@@ -3325,3 +3325,21 @@ unchanged.
 - A cache of each note's shown text — at 9 ms there is nothing to save (D-067).
 - Allowing Markdown between any two letters of the query — it matches a link's
   hidden target, and not a Markdown link's text followed by more words.
+
+## D-183 — The test copies of Obsidian run without window animations (2026-10-27)
+
+**Decision:** Obsidian is launched with
+`-NSAutomaticWindowAnimationsEnabled NO`, which turns off macOS's window
+animations in that copy only.
+
+**Why:** macOS reports a window's size part way through its animation. The
+harness tests read the test window at 271 × 181 instead of 300 × 200, and the
+settings window at 811 × 631. Sampled for a second after startup, 8 of 16 runs
+caught a window part way; with the setting, none of 16 did.
+
+**Rejected:**
+
+- Waiting for the animation to end — macOS gives other processes no signal.
+- Retrying the checks for a few seconds — it hides the cause, and every check
+  that measures a window would need it.
+- Turning the animations off for the whole system — it changes the user's Mac.

@@ -16,11 +16,6 @@ there is a screen recording of them (D-099).
       (D-166). Version 10 removes `executeAsync`, which `phone.ts` uses to run
       async code on the phone, and makes `$` throw on more than one match. Needs
       a full `test:ios` run.
-- [ ] Find why three tests in `e2e-tests/harness.spec.ts` fail since 2026-10-27,
-      on `main` too. The test windows open at 90% of their size (271 × 181
-      instead of 300 × 200), and an extra 811 × 631 window is open from the
-      start. There is one display at its default size, and each run starts
-      Obsidian fresh.
 - [ ] Try adding the e2e tests to CI on Linux.
 - [ ] Once the directory's scorecard lint understands moment's types, go back to
       Obsidian's `moment` and delete `src/notes/moment.ts` (D-152).

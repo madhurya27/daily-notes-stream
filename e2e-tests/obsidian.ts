@@ -30,6 +30,12 @@ const NO_THROTTLE = [
     "--disable-background-timer-throttling",
 ];
 /**
+ * Turns off macOS's window animations in this copy of Obsidian only, as a
+ * setting passed at launch. While a window grows or shrinks, macOS reports its
+ * size part way, so the harness tests read the wrong size (D-183).
+ */
+const NO_ANIMATION = ["-NSAutomaticWindowAnimationsEnabled", "NO"];
+/**
  * Shrunk to Obsidian's minimum size and placed in a corner, so the flash before
  * the window is hidden is a small square. The page is laid out at VIEWPORT
  * anyway.
@@ -279,7 +285,7 @@ async function launch(): Promise<{
     }
 
     const port = await freePort();
-    const args = [`--user-data-dir=${userDataDir}`, `--remote-debugging-port=${port}`, ...NO_THROTTLE];
+    const args = [`--user-data-dir=${userDataDir}`, `--remote-debugging-port=${port}`, ...NO_THROTTLE, ...NO_ANIMATION];
     // detached: Electron's helper processes survive if only the parent is
     // killed, so signal the whole group.
     const proc: ChildProcess | null = SHOW_WINDOW
