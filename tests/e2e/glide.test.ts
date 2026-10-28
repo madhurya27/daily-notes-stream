@@ -38,6 +38,28 @@ describe("glideEnding", () => {
         expect(glideEnding(heard(cut, still(4380, 64, 400)))).toBe("cut short");
     });
 
+    // On an iPad, the frame at the lift and the next were 1 ms apart: one is
+    // heard on the touch, the next as that frame is drawn.
+    it("tells a glide stopped at speed when its first two frames came together", () => {
+        const cut = [
+            { at: 0, top: 169 },
+            { at: 1, top: 330 },
+            { at: 18, top: 500 },
+            { at: 33, top: 649 },
+            { at: 50, top: 649 },
+            { at: 70, top: 934 },
+            { at: 84, top: 1069 },
+        ];
+
+        expect(glideEnding(heard(cut, still(1069, 84, 400)))).toBe("cut short");
+    });
+
+    it("tells a glide stopped at speed at 60 Hz, its first two frames together", () => {
+        const cut = [{ at: 0, top: 1000 }, ...frames([1200, 1360, 1500, 1600, 1660, 1680], { from: 1 })];
+
+        expect(glideEnding(heard(cut, still(1680, 81, 400)))).toBe("cut short");
+    });
+
     // The page was blocked for 370 ms by Bases drawn mid-glide, and iOS kept
     // scrolling meanwhile.
     it("tells a glide that carried on through a stall, then slowed", () => {
@@ -88,9 +110,9 @@ describe("glideEnding", () => {
     // frame before the last frame drawn, so the frame before a late write can
     // come before the wait ends.
     it("ends a glide before a late write at rest, still a frame short of the hand-over", () => {
-        const crawl = frames([3000, 3010, 3016, 3019, 3020]);
-        const rest = still(3020, 64, 299);
-        const write = frames([3652], { from: 64 + 288 + 109 });
+        const crawl = frames([2980, 3000, 3010, 3016, 3019, 3020]);
+        const rest = still(3020, 80, 299);
+        const write = frames([3652], { from: 80 + 288 + 109 });
 
         expect(glideEnding(heard(crawl, rest, write))).toBe("slowed");
     });

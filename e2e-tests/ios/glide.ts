@@ -35,12 +35,13 @@ const HAND_OVER_MS = 300;
  * without it.
  */
 const STALL_MS = 100;
-
-type Step = { speed: number; at: Heard; stalled: boolean };
+type Step = { speed: number; at: Heard; stalled: boolean; fromLift: boolean };
 
 /**
  * Judges a scroll by the frames drawn from when the finger lifts, the first
- * frame being at the lift. A frame proves the page is running. A scroll that
+ * frame being at the lift. That one is heard on the touch, not drawn, and the
+ * next frame can come 1 ms later, so the step between them has no speed to
+ * compare. A frame proves the page is running. A scroll that
  * does not move over running frames has stopped, but one that does not move
  * during a pause says nothing about the scroll.
  */
@@ -65,13 +66,13 @@ export function glideEnding(frames: Heard[]): GlideEnding {
             if (before.owing && last && now.at - last.at.at < HAND_OVER_MS) return "at an edge";
             break;
         }
-        steps.push({ speed: Math.abs(step) / ms, at: now, stalled: ms >= STALL_MS });
+        steps.push({ speed: Math.abs(step) / ms, at: now, stalled: ms >= STALL_MS, fromLift: i === 1 });
     }
     const last = steps.at(-1);
     if (!last) return "cut short";
     if (last.at.top <= 0 || last.at.top >= last.at.bottom - 1) return "at an edge";
     if (last.stalled) return "ended in a stall";
-    const fastest = Math.max(...steps.map((step) => step.speed));
+    const fastest = Math.max(...steps.filter((step) => !step.fromLift).map((step) => step.speed));
     return last.speed <= fastest * SLOWED ? "slowed" : "cut short";
 }
 
