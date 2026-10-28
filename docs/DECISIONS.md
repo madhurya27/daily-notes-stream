@@ -3081,6 +3081,8 @@ are twice as big as an iPhone's.
 
 ## D-171 — A glide is judged by how it ends, not by a time (2026-10-21)
 
+Changed by D-186: a glide counts as slowed by its speed at the end.
+
 **Decision:** `Phone.glideEnding` lets a flick's scroll run out, and reads every
 frame the page drew from when the finger lifts (`e2e-tests/ios/glide.ts`,
 D-173). It passes if the glide slowed to less than a tenth of its fastest speed,
@@ -3397,3 +3399,24 @@ waited out each such chain.
   note's height on each resize event.
 - Running the reflow retry on the clock — at rest, it would ask again in each
   task until the anchor settles.
+
+## D-186 — A glide counts as slowed by its speed at the end, not a share of its fastest (2026-10-28)
+
+**Decision:** changes D-171. `glideEnding` calls a glide "slowed" if its last
+move is under 0.2 px/ms (`SLOWED_PX_PER_MS`), however fast it started, timed
+from the move before it, not the frame before. Faster than that, away from an
+edge and not in a stall, it was cut short.
+
+**Why:** iOS slows every glide to about a pixel a frame before ending it. Of 318
+glides recorded on 2026-10-28 on an iPhone and an iPad, each that lasted 3 s or
+more ended under 0.2 px/ms (0.01–0.11), and each that ended sooner at 0.43 px/ms
+or faster. A tenth of the fastest speed let 8 of those cuts pass as slowed: fast
+flicks over Base tables stopped at 1.1–2 px/ms, about 1 s into a 3.4 s glide.
+Timed from the frame before, an iPhone's last pixel, on a frame 2 ms after
+another, read as 0.5 px/ms.
+
+**Rejected:**
+
+- A smaller share of the fastest speed — still depends on how hard the flick
+  was, and fails a slow flick that ends naturally.
+- The glide's length — a flick into the top or the stream's end is short too.

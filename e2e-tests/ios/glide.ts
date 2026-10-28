@@ -21,10 +21,11 @@ export type GlideEvent = { at: number; kind: string; what: string };
 export type GlideEnding = "slowed" | "at an edge" | "cut short" | "ended in a stall";
 
 /**
- * iOS slows a glide from its fastest speed to below this fraction before ending
- * it. Measured: 1/180.
+ * iOS slows a glide to about a pixel a frame before ending it, however fast it
+ * started: 0.05-0.06 px/ms on an iPad. Glides cut short ended at 0.43 px/ms
+ * and faster (D-186).
  */
-const SLOWED = 0.1;
+const SLOWED_PX_PER_MS = 0.2;
 /**
  * The stream sets the scroll position after it has been still this long
  * (`SCROLL_IDLE_MS`). That is not a step of a scroll.
@@ -35,13 +36,11 @@ const HAND_OVER_MS = 300;
  * without it.
  */
 const STALL_MS = 100;
-type Step = { speed: number; at: Heard; stalled: boolean; fromLift: boolean };
+type Step = { speed: number; at: Heard; stalled: boolean };
 
 /**
  * Judges a scroll by the frames drawn from when the finger lifts, the first
- * frame being at the lift. That one is heard on the touch, not drawn, and the
- * next frame can come 1 ms later, so the step between them has no speed to
- * compare. A frame proves the page is running. A scroll that
+ * frame being at the lift. A frame proves the page is running. A scroll that
  * does not move over running frames has stopped, but one that does not move
  * during a pause says nothing about the scroll.
  */
@@ -66,14 +65,16 @@ export function glideEnding(frames: Heard[]): GlideEnding {
             if (before.owing && last) return "at an edge";
             break;
         }
-        steps.push({ speed: Math.abs(step) / ms, at: now, stalled: ms >= STALL_MS, fromLift: i === 1 });
+        // Since the last move, not the last frame: at the end of a glide, a
+        // pixel's move can land on a frame 2 ms after the one before.
+        const sinceMove = now.at - (last?.at.at ?? before.at);
+        steps.push({ speed: Math.abs(step) / sinceMove, at: now, stalled: ms >= STALL_MS });
     }
     const last = steps.at(-1);
     if (!last) return "cut short";
     if (last.at.top <= 0 || last.at.top >= last.at.bottom - 1) return "at an edge";
     if (last.stalled) return "ended in a stall";
-    const fastest = Math.max(...steps.filter((step) => !step.fromLift).map((step) => step.speed));
-    return last.speed <= fastest * SLOWED ? "slowed" : "cut short";
+    return last.speed <= SLOWED_PX_PER_MS ? "slowed" : "cut short";
 }
 
 /** The longest wait between two frames, in ms: how long the page was busy. */

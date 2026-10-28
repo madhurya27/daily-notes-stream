@@ -38,6 +38,35 @@ describe("glideEnding", () => {
         expect(glideEnding(heard(cut, still(4380, 64, 400)))).toBe("cut short");
     });
 
+    // On an iPad, a fast flick over Base tables, each text cell a scroll box,
+    // stopped at 1.5 px/ms, under a tenth of its fastest. iOS slows a glide to
+    // about a pixel a frame before ending it.
+    it("tells a fast glide stopped at under a tenth of its fastest speed", () => {
+        const cut = frames([5000, 5320, 5600, 5800, 5900, 5950, 5974]);
+
+        expect(glideEnding(heard(cut, still(5974, 96, 400)))).toBe("cut short");
+    });
+
+    it("tells a slow glide that slows to a crawl", () => {
+        const slowed = frames([5000, 5008, 5015, 5020, 5023, 5024]);
+
+        expect(glideEnding(heard(slowed, still(5024, 80, 400)))).toBe("slowed");
+    });
+
+    // On an iPhone, the end of a glide moved a pixel every 50-90 ms, the last
+    // one on a frame 2 ms after the one before.
+    it("tells a glide that crawls to its end, its last pixel on a frame just after another", () => {
+        const slowing = frames([5000, 4900, 4820, 4760, 4720, 4700, 4690]);
+        const crawl = [
+            { at: 150, top: 4689 },
+            { at: 210, top: 4688 },
+            { at: 268, top: 4688 },
+            { at: 270, top: 4687 },
+        ];
+
+        expect(glideEnding(heard(slowing, crawl, still(4687, 270, 400)))).toBe("slowed");
+    });
+
     // On an iPad, the frame at the lift and the next were 1 ms apart: one is
     // heard on the touch, the next as that frame is drawn.
     it("tells a glide stopped at speed when its first two frames came together", () => {
