@@ -5,6 +5,13 @@
 export type Heard = { at: number; top: number; owing: boolean; bottom: number };
 
 /**
+ * Something that happened during a stroke and its glide, on the frames' clock:
+ * a touch event, or a change to the pane or anything in it (`nodes`, `class`,
+ * `style`). `what` names the touch or the element.
+ */
+export type GlideEvent = { at: number; kind: string; what: string };
+
+/**
  * How a scroll ended: slowing down almost to a stop, as iOS ends one; at the
  * top or the stream's end, because it ran out of scroll or the stream stopped
  * it there (D-091, D-143); while still fast, anywhere else, because something

@@ -109,4 +109,11 @@ test("a glide cut short mid-stream is told from one that slows to its end", asyn
     });
 
     expect(await phone.glideEnding("up")).toBe("cut short");
+    // What happened around the cut is attached, to explain a cut no test made.
+    const attached = test.info().attachments.find(({ name }) => name === "cut-short glide")!;
+    const { events } = JSON.parse(attached.body!.toString()) as { events: { kind: string; what: string }[] };
+    expect(events.map(({ kind }) => kind)).toEqual(expect.arrayContaining(["touchstart", "touchmove", "touchend"]));
+    expect(events).toContainEqual(
+        expect.objectContaining({ kind: "class", what: expect.stringContaining("is-scroll-frozen") })
+    );
 });

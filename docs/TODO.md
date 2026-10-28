@@ -11,10 +11,16 @@ there is a screen recording of them (D-099).
 - [ ] Remove the outline Obsidian draws around a property under the pointer: it
       suggests the property can be edited, which the read-only stream doesn't
       allow. Check desktop and the phone layout.
-- [ ] On the iPad, "flicks from the top glide on" (`ios/stream.spec.ts`)
-      sometimes finds the first flick cut short within 2 s. It failed 4 of 5
-      runs right after a full `test:ipados`, then passed 10 of 10. Find what
-      state makes it fail; the frames are attached to the failed test.
+- [ ] On the iPad, "flicks from the top glide on" (`ios/stream.spec.ts`) fails
+      in bursts of a few minutes, then not for hours. In a burst, glides stop
+      about 68 ms after the lift, at 1250–1750 px, while 2026-09-29 loads; even
+      passing glides end early. The page does the same work as in a normal
+      glide. Not caused by CPU load, a fresh vault, the orientation or a log
+      collection. A cut glide now attaches its touches and changes: read them at
+      the next burst, to see whether the test's touch arrived intact.
+- [ ] On the iPad, the harness test "a glide cut short mid-stream is told from
+      one that slows to its end" sometimes gets a glide that slows (2 of 10).
+      Its freeze for one frame does not always stop iOS's scrolling.
 - [ ] Try adding the e2e tests to CI on Linux.
 - [ ] Once the directory's scorecard lint understands moment's types, go back to
       Obsidian's `moment` and delete `src/notes/moment.ts` (D-152).

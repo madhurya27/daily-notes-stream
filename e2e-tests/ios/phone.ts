@@ -1,6 +1,6 @@
 import { test as base, expect } from "@playwright/test";
 import { drivesIPad } from "./device";
-import { glideEnding, longestStall, neverScrolled, type GlideEnding, type Heard } from "./glide";
+import { glideEnding, longestStall, neverScrolled, type GlideEnding, type GlideEvent, type Heard } from "./glide";
 import { keyboardAfterRun } from "./keyboard";
 import { connect, OBSIDIAN, SAFARI } from "./session";
 import { returnToTestersVault, useVault } from "./vault";
@@ -780,16 +780,40 @@ export class Phone {
      * One stroke, and how its scrolling ended (`glide.ts`), once the pane is
      * still. A full scroll lasts 1–3.5 s. It is read on every frame from when
      * the finger lifts, so a stall can be told apart from a stop. The longest
-     * stall is noted on the test, and the frames of a glide cut short are
-     * attached to it. A stroke that never scrolled the stream fails as such,
-     * not as a glide cut short.
+     * stall is noted on the test. A glide cut short attaches its frames, and
+     * the touches and changes from the stroke on. A stroke that never scrolled
+     * the stream fails as such, not as a glide cut short.
      */
     async glideEnding(direction: "up" | "down", { share = 0.7, ms = 60 } = {}): Promise<GlideEnding> {
         const before = await this.run((s: string) => {
             const stream = document.querySelector(s)!;
             const pane = stream.parentElement!;
-            const glide = { heard: [] as Heard[], done: new AbortController() };
+            const glide = { heard: [] as Heard[], events: [] as GlideEvent[], done: new AbortController() };
             (window as unknown as { streamGlide: typeof glide }).streamGlide = glide;
+            const signal = glide.done.signal;
+            const log = (kind: string, what: string) => {
+                if (glide.events.length < 5000) glide.events.push({ at: performance.now(), kind, what });
+            };
+            const name = (node: Node) =>
+                node instanceof Element
+                    ? `${node.tagName.toLowerCase()}.${[...node.classList].join(".")}`
+                    : node.nodeName;
+            for (const kind of ["touchstart", "touchmove", "touchend", "touchcancel"])
+                document.addEventListener(
+                    kind,
+                    (e) =>
+                        log(
+                            kind,
+                            `${(e as TouchEvent).touches.length} at y ${(e as TouchEvent).changedTouches[0]?.clientY}`
+                        ),
+                    { capture: true, passive: true, signal }
+                );
+            const changes = new MutationObserver((records) => {
+                for (const { type, target, attributeName } of records)
+                    log(type === "childList" ? "nodes" : attributeName!, name(target));
+            });
+            changes.observe(pane, { subtree: true, childList: true, attributeFilter: ["class", "style"] });
+            signal.addEventListener("abort", () => changes.disconnect());
             const draw = () => {
                 if (glide.done.signal.aborted) return;
                 glide.heard.push({
@@ -805,10 +829,12 @@ export class Phone {
         }, STREAM);
         await this.stroke(direction, share, ms);
         await this.rest();
-        const heard = await this.run(() => {
-            const glide = (window as unknown as { streamGlide: { heard: Heard[]; done: AbortController } }).streamGlide;
+        const { heard, events } = await this.run(() => {
+            const glide = (
+                window as unknown as { streamGlide: { heard: Heard[]; events: GlideEvent[]; done: AbortController } }
+            ).streamGlide;
             glide.done.abort();
-            return glide.heard;
+            return { heard: glide.heard, events: glide.events };
         });
         if (heard.length === 0) throw new Error("The stroke never lifted.");
         if (neverScrolled(before, heard))
@@ -817,9 +843,10 @@ export class Phone {
         const ending = glideEnding(heard);
         // To read why, when a test fails on it.
         if (ending === "cut short")
-            await base
-                .info()
-                .attach("cut-short glide", { body: JSON.stringify(heard), contentType: "application/json" });
+            await base.info().attach("cut-short glide", {
+                body: JSON.stringify({ frames: heard, events }),
+                contentType: "application/json",
+            });
         return ending;
     }
 
