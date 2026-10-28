@@ -105,7 +105,17 @@ test("a glide cut short mid-stream is told from one that slows to its end", asyn
             pane.classList.add("is-scroll-frozen");
             requestAnimationFrame(() => pane.classList.remove("is-scroll-frozen"));
         };
-        pane.addEventListener("scroll", freeze);
+        // From the lift, so it cuts the glide, not a scroll before the stroke.
+        document.addEventListener("touchend", () => pane.addEventListener("scroll", freeze), { once: true });
+    });
+    // Scrolls before the stroke, as a late load's can be, must not spend the
+    // freeze.
+    await phone.runAsync(async () => {
+        const pane = document.querySelector(".daily-notes-stream-container")!.parentElement!;
+        for (let i = 0; i < 5; i++) {
+            pane.scrollTop += 1;
+            await new Promise(requestAnimationFrame);
+        }
     });
 
     expect(await phone.glideEnding("up")).toBe("cut short");

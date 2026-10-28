@@ -18,9 +18,6 @@ there is a screen recording of them (D-099).
       glide. Not caused by CPU load, a fresh vault, the orientation or a log
       collection. A cut glide now attaches its touches and changes: read them at
       the next burst, to see whether the test's touch arrived intact.
-- [ ] On the iPad, the harness test "a glide cut short mid-stream is told from
-      one that slows to its end" sometimes gets a glide that slows (2 of 10).
-      Its freeze for one frame does not always stop iOS's scrolling.
 - [ ] Try adding the e2e tests to CI on Linux.
 - [ ] Once the directory's scorecard lint understands moment's types, go back to
       Obsidian's `moment` and delete `src/notes/moment.ts` (D-152).
