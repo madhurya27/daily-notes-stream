@@ -3343,3 +3343,29 @@ caught a window part way; with the setting, none of 16 did.
 - Retrying the checks for a few seconds — it hides the cause, and every check
   that measures a window would need it.
 - Turning the animations off for the whole system — it changes the user's Mac.
+
+## D-184 — A glide cut short counts against the stream only if a plain page's glides on (2026-10-28)
+
+**Decision:** when a device test's glide on the stream is cut short,
+`phone.glideEnding` flicks a page the test adds over Obsidian straight away: a
+scroll container of plain paragraphs, with nothing in it that scrolls. If that
+glide is cut short too, the ending is `"cut short by iOS"`, which the tests
+accept, and the plain page's ending is noted on the test.
+
+**Why:** on the iPad, glides are cut for a few minutes at a time, about once a
+day (`docs/TODO.md`). The tests failed in those minutes without showing a fault
+in the plugin. Neither the plugin nor Obsidian draws the plain page, so a cut
+there comes from iOS or the test's touch. In the first burst caught this way
+(2026-10-28), the stream's glide stopped at speed 101 ms after the lift, and the
+plain page's, with nothing on it changing, 84 ms after.
+
+**Rejected:**
+
+- A note in Obsidian's reading view — its tables, code and embeds scroll
+  sideways, which can stop a glide (ADR 0008) and would excuse a real cut.
+- Retrying a failed flick — a burst lasts minutes, and a retry hides a real cut
+  as well as iOS's.
+- Skipping the glide tests on the iPad — they found the cuts that ADR 0008 and
+  D-171 fixed.
+- Waiting for the next burst to read its touches — bursts come once a day, and
+  the tests kept failing meanwhile.

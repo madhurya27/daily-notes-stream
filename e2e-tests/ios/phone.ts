@@ -15,6 +15,8 @@ const COMMAND = 1 << 4;
  */
 
 const STREAM = ".daily-notes-stream-container";
+/** A scroll container the tests add, with nothing in it that scrolls. */
+const PLAIN_PAGE = "#glide-check";
 
 export type Orientation = "PORTRAIT" | "LANDSCAPE";
 type Layer = "letters" | "numbers";
@@ -783,50 +785,107 @@ export class Phone {
      * stall is noted on the test. A glide cut short attaches its frames, and
      * the touches and changes from the stroke on. A stroke that never scrolled
      * the stream fails as such, not as a glide cut short.
+     *
+     * A glide cut short is checked against a plain page's glide at once
+     * (D-184). If that is cut short too, iOS is cutting every glide, as it does
+     * for a few minutes at a time on the iPad, and the stream is not to blame.
      */
-    async glideEnding(direction: "up" | "down", { share = 0.7, ms = 60 } = {}): Promise<GlideEnding> {
-        const before = await this.run((s: string) => {
-            const stream = document.querySelector(s)!;
-            const pane = stream.parentElement!;
-            const glide = { heard: [] as Heard[], events: [] as GlideEvent[], done: new AbortController() };
-            (window as unknown as { streamGlide: typeof glide }).streamGlide = glide;
-            const signal = glide.done.signal;
-            const log = (kind: string, what: string) => {
-                if (glide.events.length < 5000) glide.events.push({ at: performance.now(), kind, what });
-            };
-            const name = (node: Node) =>
-                node instanceof Element
-                    ? `${node.tagName.toLowerCase()}.${[...node.classList].join(".")}`
-                    : node.nodeName;
-            for (const kind of ["touchstart", "touchmove", "touchend", "touchcancel"])
-                document.addEventListener(
-                    kind,
-                    (e) =>
-                        log(
-                            kind,
-                            `${(e as TouchEvent).touches.length} at y ${(e as TouchEvent).changedTouches[0]?.clientY}`
-                        ),
-                    { capture: true, passive: true, signal }
-                );
-            const changes = new MutationObserver((records) => {
-                for (const { type, target, attributeName } of records)
-                    log(type === "childList" ? "nodes" : attributeName!, name(target));
-            });
-            changes.observe(pane, { subtree: true, childList: true, attributeFilter: ["class", "style"] });
-            signal.addEventListener("abort", () => changes.disconnect());
-            const draw = () => {
-                if (glide.done.signal.aborted) return;
-                glide.heard.push({
-                    at: performance.now(),
-                    top: pane.scrollTop,
-                    owing: stream.classList.contains("is-scroll-shifted"),
-                    bottom: pane.scrollHeight - pane.clientHeight,
+    async glideEnding(
+        direction: "up" | "down",
+        { share = 0.7, ms = 60 } = {}
+    ): Promise<GlideEnding | "cut short by iOS"> {
+        const ending = await this.recordedEnding(`:has(> ${STREAM})`, direction, share, ms);
+        if (ending !== "cut short") return ending;
+        const plain = await this.plainPageEnding(direction, share, ms);
+        base.info().annotations.push({ type: "plain page's glide", description: plain });
+        return plain === "cut short" ? "cut short by iOS" : ending;
+    }
+
+    /**
+     * How a stroke's glide ends on a page of plain paragraphs, over all of
+     * Obsidian. Neither the plugin nor Obsidian draws it, and nothing in it
+     * scrolls, which would stop a glide (ADR 0008). It is removed after the
+     * stroke.
+     */
+    private async plainPageEnding(direction: "up" | "down", share: number, ms: number): Promise<GlideEnding> {
+        await this.run(
+            (s: string, down: boolean) => {
+                const page = document.createElement("div");
+                page.id = s.slice(1);
+                page.style.cssText =
+                    "position: fixed; inset: 0; z-index: 1000; overflow-y: auto; background: white; color: black";
+                for (let i = 0; i < 300; i++)
+                    page.append(
+                        Object.assign(document.createElement("p"), {
+                            textContent: `Paragraph ${i}: plain words, to give the page height.`,
+                        })
+                    );
+                document.body.append(page);
+                page.scrollTop = down ? page.scrollHeight : 0;
+            },
+            PLAIN_PAGE,
+            direction === "down"
+        );
+        try {
+            return await this.recordedEnding(PLAIN_PAGE, direction, share, ms);
+        } finally {
+            await this.run((s: string) => document.querySelector(s)?.remove(), PLAIN_PAGE);
+        }
+    }
+
+    /** One stroke, and how the glide of the scroll container `pane` ended. */
+    private async recordedEnding(
+        pane: string,
+        direction: "up" | "down",
+        share: number,
+        ms: number
+    ): Promise<GlideEnding> {
+        const before = await this.run(
+            (p: string, s: string) => {
+                const pane = document.querySelector<HTMLElement>(p)!;
+                const stream = pane.querySelector(s);
+                const glide = { heard: [] as Heard[], events: [] as GlideEvent[], done: new AbortController() };
+                (window as unknown as { streamGlide: typeof glide }).streamGlide = glide;
+                const signal = glide.done.signal;
+                const log = (kind: string, what: string) => {
+                    if (glide.events.length < 5000) glide.events.push({ at: performance.now(), kind, what });
+                };
+                const name = (node: Node) =>
+                    node instanceof Element
+                        ? `${node.tagName.toLowerCase()}.${[...node.classList].join(".")}`
+                        : node.nodeName;
+                for (const kind of ["touchstart", "touchmove", "touchend", "touchcancel"])
+                    document.addEventListener(
+                        kind,
+                        (e) =>
+                            log(
+                                kind,
+                                `${(e as TouchEvent).touches.length} at y ${(e as TouchEvent).changedTouches[0]?.clientY}`
+                            ),
+                        { capture: true, passive: true, signal }
+                    );
+                const changes = new MutationObserver((records) => {
+                    for (const { type, target, attributeName } of records)
+                        log(type === "childList" ? "nodes" : attributeName!, name(target));
                 });
-                requestAnimationFrame(draw);
-            };
-            document.addEventListener("touchend", draw, { capture: true, signal: glide.done.signal, once: true });
-            return pane.scrollTop;
-        }, STREAM);
+                changes.observe(pane, { subtree: true, childList: true, attributeFilter: ["class", "style"] });
+                signal.addEventListener("abort", () => changes.disconnect());
+                const draw = () => {
+                    if (glide.done.signal.aborted) return;
+                    glide.heard.push({
+                        at: performance.now(),
+                        top: pane.scrollTop,
+                        owing: !!stream?.classList.contains("is-scroll-shifted"),
+                        bottom: pane.scrollHeight - pane.clientHeight,
+                    });
+                    requestAnimationFrame(draw);
+                };
+                document.addEventListener("touchend", draw, { capture: true, signal: glide.done.signal, once: true });
+                return pane.scrollTop;
+            },
+            pane,
+            STREAM
+        );
         await this.stroke(direction, share, ms);
         await this.rest();
         const { heard, events } = await this.run(() => {
@@ -838,7 +897,7 @@ export class Phone {
         });
         if (heard.length === 0) throw new Error("The stroke never lifted.");
         if (neverScrolled(before, heard))
-            throw new Error(`The stroke never scrolled the stream, which stayed at ${before}.`);
+            throw new Error(`The stroke never scrolled ${pane}, which stayed at ${before}.`);
         base.info().annotations.push({ type: "longest stall", description: `${longestStall(heard)} ms` });
         const ending = glideEnding(heard);
         // To read why, when a test fails on it.

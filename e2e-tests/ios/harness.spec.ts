@@ -90,6 +90,40 @@ test("the reader's follower reports a note above growing mid-glide, unshifted", 
     );
 });
 
+// iOS sometimes cuts glides on any page for a few minutes (docs/TODO.md). A cut
+// that a plain page's glide shares is iOS's, not the stream's.
+test("a glide cut short on a plain page too is iOS's cut", async ({ phone }) => {
+    await phone.openStream();
+    await phone.flick("up");
+    await phone.run(() => {
+        const freezing = new AbortController();
+        (window as unknown as { freezing: AbortController }).freezing = freezing;
+        // Each scroll container, after each lift.
+        document.addEventListener(
+            "touchend",
+            () => {
+                let heard = 0;
+                const freeze = (e: Event) => {
+                    if (++heard < 5) return;
+                    document.removeEventListener("scroll", freeze, { capture: true });
+                    const pane = e.target as HTMLElement;
+                    pane.style.overflow = "hidden";
+                    requestAnimationFrame(() => (pane.style.overflow = ""));
+                };
+                document.addEventListener("scroll", freeze, { capture: true, signal: freezing.signal });
+            },
+            { signal: freezing.signal }
+        );
+    });
+
+    try {
+        expect(await phone.glideEnding("up")).toBe("cut short by iOS");
+    } finally {
+        // So no later test is frozen.
+        await phone.run(() => (window as unknown as { freezing: AbortController }).freezing.abort());
+    }
+});
+
 // A scroll that ends while still fast, in the middle of the stream, is what
 // something that stops scrolling causes (ADR 0008). Freezing the pane for a
 // frame, as the stream's stop does, ends it in the same way.
