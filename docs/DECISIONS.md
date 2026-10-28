@@ -3303,3 +3303,25 @@ keeps the full `SETTLE_MS` after landing.
 
 - Waiting for the Bases again after showing the note — Bases gives no signal
   that it has laid out its rows again.
+
+## D-182 — Search matches the text as shown, across links and formatting (2026-10-27)
+
+**Decision:** a note matches if its Markdown holds the query either as written
+or as shown: links replaced by their alias or name, and emphasis, highlight,
+strikethrough and code without their marks. An underscore inside a word stays.
+Highlights match across the inline elements of one paragraph, list item, cell or
+heading, but not across an embed or linked mentions.
+
+**Why:** Obsidian's reading view finds "project atlas research" in
+`[[Project Atlas]] research`; ours said "No results". Keeping the match as
+written means no query finds fewer notes than before. On the five-year vault at
+phone speed, a query after the first went from 3–4 ms to 8–9 ms; the first is
+unchanged.
+
+**Rejected:**
+
+- Matching only the shown text — a query with Markdown in it, such as
+  `[[Project`, would stop matching.
+- A cache of each note's shown text — at 9 ms there is nothing to save (D-067).
+- Allowing Markdown between any two letters of the query — it matches a link's
+  hidden target, and not a Markdown link's text followed by more words.

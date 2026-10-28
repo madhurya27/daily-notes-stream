@@ -40,19 +40,67 @@ function registered(name: string, node: Node): Highlight | null {
 const OUTSIDE_THE_NOTE = ".daily-note-mentions, .metadata-properties-heading, .internal-embed, .block-language-base";
 
 /**
- * Every match of `pattern` inside a single text node of `root`, leaving out
- * what is not the note's own text.
+ * Elements that sit inside a line of text. Text joined through them is one run
+ * to search, so a match can go from a link into the words after it.
+ */
+const INLINE = new Set(["A", "B", "CODE", "DEL", "EM", "I", "MARK", "S", "SMALL", "SPAN", "STRONG", "SUB", "SUP", "U"]);
+
+/** The element holding `node`'s line: its paragraph, item, cell or heading. */
+function lineOf(node: Text): Element {
+    let element = node.parentElement!;
+    while (INLINE.has(element.tagName)) element = element.parentElement!;
+    return element;
+}
+
+/**
+ * Runs of text nodes that read as one line, leaving out what is not the note's
+ * own text. Text on either side of a left-out part is two runs.
+ */
+function textRuns(root: HTMLElement): Text[][] {
+    const runs: Text[][] = [];
+    // The line of the last text node, or null after a left-out part.
+    let line: Element | null = null;
+    const walker = root.doc.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    for (let node = walker.nextNode() as Text | null; node; node = walker.nextNode() as Text | null) {
+        if (node.parentElement!.closest(OUTSIDE_THE_NOTE)) {
+            line = null;
+            continue;
+        }
+        const nodeLine = lineOf(node);
+        if (nodeLine === line) runs[runs.length - 1]!.push(node);
+        else runs.push([node]);
+        line = nodeLine;
+    }
+    return runs;
+}
+
+/**
+ * Every match of `pattern` inside one run of `root`'s text. A match may start
+ * in one text node and end in another.
  */
 function findRanges(root: HTMLElement, pattern: RegExp): Range[] {
     const ranges: Range[] = [];
-    const walker = root.doc.createTreeWalker(root, NodeFilter.SHOW_TEXT, (node) =>
-        node.parentElement!.closest(OUTSIDE_THE_NOTE) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT
-    );
-    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-        for (const match of (node as Text).data.matchAll(pattern)) {
+    for (const run of textRuns(root)) {
+        const starts: number[] = [];
+        let text = "";
+        for (const node of run) {
+            starts.push(text.length);
+            text += node.data;
+        }
+        // The text node holding character `at` of the run, and the offset in
+        // it.
+        const locate = (at: number): [Text, number] => {
+            let i = starts.length - 1;
+            while (starts[i]! > at) i--;
+            return [run[i]!, at - starts[i]!];
+        };
+        for (const match of text.matchAll(pattern)) {
             const range = root.doc.createRange();
-            range.setStart(node, match.index);
-            range.setEnd(node, match.index + match[0].length);
+            range.setStart(...locate(match.index));
+            // Ends in the node holding the last character, so the range takes
+            // in no part of the element after it.
+            const [last, offset] = locate(match.index + match[0].length - 1);
+            range.setEnd(last, offset + 1);
             ranges.push(range);
         }
     }

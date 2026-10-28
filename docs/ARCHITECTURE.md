@@ -148,11 +148,11 @@ the dates of the vault's notes in the vault's own date format.
 
 ## Search
 
-`note-search.ts` finds notes whose title or text matches. `stream-search.ts`
-moves from note to note. `search-highlights.ts` marks matches with CSS
-highlights, and `text-beside-blocks.ts` wraps loose text in elements so that
-WebKit shows the highlights. The search bar opens with the vault's hotkey for
-"Search current file" (`hotkey.ts`).
+`note-search.ts` finds notes whose title or text matches, as written or as shown
+(D-182). `stream-search.ts` moves from note to note. `search-highlights.ts`
+marks matches with CSS highlights, and `text-beside-blocks.ts` wraps loose text
+in elements so that WebKit shows the highlights. The search bar opens with the
+vault's hotkey for "Search current file" (`hotkey.ts`).
 
 ## Persistence
 

@@ -38,6 +38,46 @@ describe("findNotes", () => {
         expect(await findNotes(notes, read, "01-02")).toEqual([notes[1]]);
     });
 
+    // Obsidian's own search matches the text as shown, so formatting between
+    // two words does not stop a match.
+    it("matches the text as shown, across links and formatting", async () => {
+        const shown: Record<string, string> = {
+            "Notes/2025-01-03.md": "Updated the [[Project Atlas]] research doc",
+            "Notes/2025-01-02.md": "Read [[Atlas/Plan|the plan]] twice, then [the docs](https://x.org) page",
+            "Notes/2025-01-01.md": "A **bold** move, _lean_ times, ~~old~~ ==new== `code` here",
+        };
+        const reading = (file: TFile) => Promise.resolve(shown[file.path]!);
+
+        expect(await findNotes(notes, reading, "project atlas research")).toEqual([notes[0]]);
+        expect(await findNotes(notes, reading, "the plan twice")).toEqual([notes[1]]);
+        expect(await findNotes(notes, reading, "docs page")).toEqual([notes[1]]);
+        expect(await findNotes(notes, reading, "bold move, lean times, old new code here")).toEqual([notes[2]]);
+    });
+
+    it("does not match a link's hidden target, or join a word with an underscore", async () => {
+        const shown: Record<string, string> = {
+            "Notes/2025-01-03.md": "Read [[Atlas/Plan|the plan]] twice",
+            "Notes/2025-01-02.md": "Renamed file_name",
+            "Notes/2025-01-01.md": "",
+        };
+        const reading = (file: TFile) => Promise.resolve(shown[file.path]!);
+
+        expect(await findNotes(notes, reading, "Atlas/Plan twice")).toEqual([]);
+        expect(await findNotes(notes, reading, "filename")).toEqual([]);
+    });
+
+    // A note found by its Markdown before still is, so no query finds less.
+    it("still matches the Markdown itself", async () => {
+        const shown: Record<string, string> = {
+            "Notes/2025-01-03.md": "Updated the [[Project Atlas]] research doc",
+            "Notes/2025-01-02.md": "",
+            "Notes/2025-01-01.md": "",
+        };
+        const reading = (file: TFile) => Promise.resolve(shown[file.path]!);
+
+        expect(await findNotes(notes, reading, "[[Project")).toEqual([notes[0]]);
+    });
+
     it("finds nothing for a blank query, without reading a note", async () => {
         const reads: TFile[] = [];
         const counting = (file: TFile) => (reads.push(file), read(file));

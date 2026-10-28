@@ -51,6 +51,62 @@ describe("SearchHighlighter", () => {
         expect(highlighted("daily-notes-search-match")).toEqual(["km", "KM"]);
     });
 
+    it("highlights a match that runs across a link and the text after it", () => {
+        const { block, component } = renderedBlock(
+            '<p>Updated the <a class="internal-link">Project <b>Atlas</b></a> research doc</p>'
+        );
+        highlighter.setQuery("atlas research");
+
+        highlighter.track(block, component);
+
+        expect(highlighter.rangesIn(block).map((r) => r.toString())).toEqual(["Atlas research"]);
+        expect(highlighted("daily-notes-search-match")).toEqual(["Atlas research"]);
+    });
+
+    // A range that ended at the start of the next element would take in part
+    // of that element's box when it is measured.
+    it("starts and ends each range in the text nodes it covers", () => {
+        const { block, component } = renderedBlock("<p>Run <b>fast</b> today</p>");
+        highlighter.track(block, component);
+        const ends = () =>
+            highlighter.rangesIn(block).map((r) => [r.startContainer.textContent, r.endContainer.textContent]);
+
+        highlighter.setQuery("run ");
+        expect(ends()).toEqual([["Run ", "Run "]]);
+        highlighter.setQuery("fast today");
+        expect(ends()).toEqual([["fast", " today"]]);
+    });
+
+    it("finds nothing in a note that does not hold the query", () => {
+        const { block, component } = renderedBlock("<p>milk</p>");
+        highlighter.track(block, component);
+
+        for (const query of ["here", "fine"]) {
+            highlighter.setQuery(query);
+            expect(highlighter.rangesIn(block)).toEqual([]);
+        }
+    });
+
+    it("matches within a paragraph, list item or cell, never across two", () => {
+        const { block, component } = renderedBlock(
+            "<h2>Run</h2><p>Route</p><ul><li>Route<ul><li>Run</li></ul></li></ul><table><tr><td>Run</td><td>Route</td></tr></table>"
+        );
+        highlighter.setQuery("runroute");
+
+        highlighter.track(block, component);
+
+        expect(highlighter.rangesIn(block)).toEqual([]);
+    });
+
+    it("does not join the text on either side of an embed", () => {
+        const { block, component } = renderedBlock('<p>left <span class="internal-embed">x</span> right</p>');
+        highlighter.setQuery("left  right");
+
+        highlighter.track(block, component);
+
+        expect(highlighter.rangesIn(block)).toEqual([]);
+    });
+
     it("finds matches again in a tracked block changed in place, and none in an untracked one", () => {
         const { block, component } = renderedBlock("<p>Ran 5 km.</p>");
         const untracked = renderedBlock("<p>Ran 9 km.</p>").block;

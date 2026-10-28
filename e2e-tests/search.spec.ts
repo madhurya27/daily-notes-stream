@@ -473,6 +473,25 @@ test.describe("search the stream", () => {
         expect(await currentMatch(page)).toBeNull();
     });
 
+    test("finds and marks text that runs across a link and formatting", async ({ obsidian }) => {
+        const { page } = obsidian;
+        const path = `Notes/${seededDate(0)}.md`;
+        const before = await writeNote(page, path, "Updated the [[Project Quasar]] **research** doc.\n");
+        try {
+            await openStream(page);
+            const bar = await openSearch(page);
+
+            await bar.locator("input").fill("project quasar research doc");
+
+            await expect(bar.locator(".document-search-count")).toHaveText("1 / 1");
+            await expect
+                .poll(() => currentMatch(page))
+                .toEqual({ text: "Project Quasar research doc", onScreen: true });
+        } finally {
+            await restoreNote(page, path, before);
+        }
+    });
+
     test("paints nothing in the properties heading, which no note holds", async ({ obsidian }) => {
         const { page } = obsidian;
         await openStream(page);

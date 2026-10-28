@@ -10,9 +10,27 @@ export function searchPattern(query: string): RegExp | null {
 }
 
 /**
+ * Markdown that the reading view does not show as text, and what it shows
+ * instead: a link's alias or name, and emphasis and code without their marks.
+ * An underscore inside a word is not a mark.
+ */
+const MARKUP: [RegExp, string][] = [
+    [/!?\[\[[^\]|]*\|([^\]]*)\]\]/g, "$1"],
+    [/!?\[\[([^\]]*)\]\]/g, "$1"],
+    [/!?\[([^\]]*)\]\([^)]*\)/g, "$1"],
+    [/\*+|~~|==|`+|(?<!\w)_+|_+(?!\w)/g, ""],
+];
+
+/** The note's Markdown as the reading view shows it, near enough to search. */
+function shownText(markdown: string): string {
+    return MARKUP.reduce((text, [markup, shown]) => text.replace(markup, shown), markdown);
+}
+
+/**
  * The notes whose title or text contains `query`, in the order given. It
  * searches the note's Markdown, not the rendered text, because an unloaded note
- * has no rendered text (ADR 0006).
+ * has no rendered text (ADR 0006). The Markdown matches either as written or as
+ * shown, so formatting between two words does not stop a match (D-182).
  */
 export async function findNotes(
     notes: readonly TFile[],
@@ -25,6 +43,7 @@ export async function findNotes(
         pattern.lastIndex = 0;
         return pattern.test(text);
     };
-    const found = await Promise.all(notes.map(async (file) => holds(file.basename) || holds(await read(file))));
+    const holdsText = (text: string) => holds(text) || holds(shownText(text));
+    const found = await Promise.all(notes.map(async (file) => holds(file.basename) || holdsText(await read(file))));
     return notes.filter((_, i) => found[i]);
 }

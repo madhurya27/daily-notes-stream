@@ -64,6 +64,13 @@ test.describe("in iOS's engine", () => {
         expect(await paints(await inWebKit(), "daily-notes-search-match")).toBe(true);
     });
 
+    test("paints a match that runs from text into a link", async ({ obsidian, inWebKit }) => {
+        // "Read a chapter of [[Reading list]]" in every test note.
+        await search(obsidian.page, "chapter of reading list");
+
+        expect(await paints(await inWebKit(), "daily-notes-search-match")).toBe(true);
+    });
+
     for (const [part, query] of [
         ["key", "mood"],
         ["value", "day-"],
