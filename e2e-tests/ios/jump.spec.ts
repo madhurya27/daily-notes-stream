@@ -2,19 +2,39 @@ import { test, expect, type Phone } from "./phone";
 import { longNote } from "../long-note";
 
 // The notes above a jump's target were never drawn. Each one is drawn when a
-// flick up reaches it, while iOS controls the scroll (ADR 0013).
+// flick up reaches it, while iOS controls the scroll (ADR 0013). Those right
+// above it keep their heights: the jump draws every short one near it at once,
+// and one flick would not get past them.
 test("a flick up from an old date glides on, the text under the thumb moving only with it", async ({ phone }) => {
-    await phone.openStream();
-    await phone.jumpTo("2026-09-12");
-    await phone.shortenPlaceholders();
-    await phone.followReader();
+    await phone.estimateShortAbove("2026-09-15");
+    try {
+        await phone.openStream();
+        await phone.jumpTo("2026-09-12");
+        expect(await emptyHeightsAbove(phone), "the empty notes above").toContain(100);
+        await phone.followReader();
 
-    expect(await phone.glideEnding("down")).not.toBe("cut short");
+        expect(await phone.glideEnding("down")).not.toBe("cut short");
 
-    const { drifts, rendered } = await phone.stopFollowing();
-    expect(rendered, "no note above rendered during the glide").toBeGreaterThan(0);
-    expect(Math.max(...drifts.map(Math.abs)), `drifts: ${drifts.join(", ")}`).toBeLessThan(5);
+        const { drifts, rendered } = await phone.stopFollowing();
+        expect(rendered, "no note above rendered during the glide").toBeGreaterThan(0);
+        expect(Math.max(...drifts.map(Math.abs)), `drifts: ${drifts.join(", ")}`).toBeLessThan(5);
+    } finally {
+        await phone.restoreHeights();
+    }
 });
+
+/** The heights of the empty notes above the pane. */
+function emptyHeightsAbove(phone: Phone): Promise<number[]> {
+    return phone.run(() => {
+        const paneTop = document
+            .querySelector(".daily-notes-stream-container")!
+            .parentElement!.getBoundingClientRect().top;
+        return [...document.querySelectorAll<HTMLElement>(".daily-note-block.is-unloaded")]
+            .map((block) => block.getBoundingClientRect())
+            .filter(({ bottom }) => bottom <= paneTop)
+            .map(({ height }) => Math.round(height));
+    });
+}
 
 /**
  * A frame of the stream: its scroll position, how far it is shifted from it,
@@ -53,22 +73,26 @@ const frames = (phone: Phone) => phone.run(() => (window as unknown as { streamF
 // iPad about 1 in 30 times, bounces there first (D-176). Either way, what is
 // owed is moved into the scroll, and the text never jumps.
 test("a glide owing the notes above hands over what it owes, the text never jumping", async ({ phone }) => {
-    await phone.openStream();
-    await phone.jumpTo("2026-09-12");
-    await phone.shortenPlaceholders();
-    await recordFrames(phone);
-    await phone.followReader();
+    await phone.estimateShortAbove("2026-09-12");
+    try {
+        await phone.openStream();
+        await phone.jumpTo("2026-09-12");
+        await recordFrames(phone);
+        await phone.followReader();
 
-    await phone.flick("down", 2);
+        await phone.flick("down", 2);
 
-    const { drifts } = await phone.stopFollowing();
-    const seen = await frames(phone);
-    expect(
-        seen.some((f) => f.shift !== 0),
-        "the glide owed the notes above"
-    ).toBe(true);
-    expect(seen.at(-1)!.shift).toBe(0);
-    expect(Math.max(...drifts.map(Math.abs)), `drifts: ${drifts.join(", ")}`).toBeLessThan(5);
+        const { drifts } = await phone.stopFollowing();
+        const seen = await frames(phone);
+        expect(
+            seen.some((f) => f.shift !== 0),
+            "the glide owed the notes above"
+        ).toBe(true);
+        expect(seen.at(-1)!.shift).toBe(0);
+        expect(Math.max(...drifts.map(Math.abs)), `drifts: ${drifts.join(", ")}`).toBeLessThan(5);
+    } finally {
+        await phone.restoreHeights();
+    }
 });
 
 // Notes above that are shorter than their saved heights, as after editing on

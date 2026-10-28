@@ -15,6 +15,15 @@ const COMMAND = 1 << 4;
  */
 
 const STREAM = ".daily-notes-stream-container";
+
+/** What the tests use of the plugin's saved note heights (note-heights.ts). */
+type NoteHeights = {
+    estimate(layout: string, path: string, floor?: number): number | undefined;
+    forget(path: string): void;
+    toJSON(): unknown;
+    restore(saved: unknown): void;
+};
+
 /** A scroll container the tests add, with nothing in it that scrolls. */
 const PLAIN_PAGE = "#glide-check";
 
@@ -432,17 +441,35 @@ export class Phone {
     }
 
     /**
-     * Makes every undrawn note's empty block shorter, then waits until the
-     * stream is still. With heights measured on an earlier run, an empty block
-     * is exact and rendering moves nothing. When it is too short, every note
-     * grows as it is rendered, which is the case that used to jump.
+     * Forgets the heights of the notes newer than `date` (`YYYY-MM-DD`), and
+     * estimates each one at 100 px, until `restoreHeights`. Run it before the
+     * stream opens, which gives each empty note its height. When an estimate
+     * is too short, every note grows as it is rendered, which is the case that
+     * used to jump. The plugin's own estimate is set, so the stream keeps it
+     * (ADR 0014).
      */
-    async shortenPlaceholders(): Promise<void> {
+    async estimateShortAbove(date: string): Promise<void> {
+        await this.run((after: string) => {
+            const notes: NoteHeights = window.app.plugins.plugins["daily-notes-stream"].layoutMemory.notes;
+            (window as unknown as { savedHeights: unknown }).savedHeights = notes.toJSON();
+            const short = new Set(
+                (window.app.vault.getMarkdownFiles() as { path: string; basename: string }[])
+                    .filter(({ basename }) => /^\d{4}-\d{2}-\d{2}$/.test(basename) && basename > after)
+                    .map(({ path }) => path)
+            );
+            for (const path of short) notes.forget(path);
+            const estimate = notes.estimate.bind(notes);
+            notes.estimate = (layout, path, floor) => (short.has(path) ? 100 : estimate(layout, path, floor));
+        }, date);
+    }
+
+    /** Undoes `estimateShortAbove`, for the tests after it. */
+    async restoreHeights(): Promise<void> {
         await this.run(() => {
-            for (const block of document.querySelectorAll<HTMLElement>(".daily-note-block.is-unloaded"))
-                block.style.setProperty("--daily-note-placeholder-height", "100px");
+            const notes: NoteHeights = window.app.plugins.plugins["daily-notes-stream"].layoutMemory.notes;
+            delete (notes as Partial<NoteHeights>).estimate;
+            notes.restore((window as unknown as { savedHeights: unknown }).savedHeights);
         });
-        await this.rest();
     }
 
     /**
