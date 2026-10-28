@@ -1343,6 +1343,20 @@ describe("jumping to a date", () => {
         expect(Notice.shown).toEqual([]);
     });
 
+    // While the stream is shifted, the note is not where the scroll position
+    // says, until what the anchor owes is moved into the scroll.
+    it("scrolls to the target note once the scroll holds what the anchor owed", async () => {
+        const target = placeholder(notes[3]!.path);
+        let handedOver = false;
+        noteWindow.handOver.mockImplementation(() => (handedOver = true));
+        target.scrollIntoView = vi.fn(() => expect(handedOver).toBe(true));
+        noteWindow.add.mockImplementation((f: TFile) => (f === notes[3] ? target : placeholder(f.path)));
+
+        await jump("2025-01-27");
+
+        expect(target.scrollIntoView).toHaveBeenCalled();
+    });
+
     it("scrolls to the target note once its Bases fill in", async () => {
         const target = placeholder(notes[3]!.path);
         target.scrollIntoView = vi.fn();

@@ -68,6 +68,11 @@ export interface StreamLayout {
      * now on, not from where the reader was (D-180).
      */
     placed(): void;
+    /**
+     * Moves what the scroll anchor owes into the scroll. While the stream is
+     * shifted, its notes are drawn away from where the scroll puts them.
+     */
+    handOver(): void;
 }
 
 /**
@@ -123,6 +128,7 @@ export async function scrollIntoPlace(
     let settled: number | null = null;
     for (let pass = 0; pass < MAX_SCROLL_PASSES; pass++) {
         const changes = layout.layoutChanges();
+        layout.handOver();
         const scrollTop = scrollEl.scrollTop;
         scrollToPlace(placed, placement, scrollEl);
         layout.placed();

@@ -508,6 +508,7 @@ export class NoteStream {
         layoutChanges: () => this.window.layoutChanges,
         drain: () => this.enqueue(async () => {}),
         placed: () => this.window.placed(),
+        handOver: () => this.window.handOver(),
     };
 
     /**

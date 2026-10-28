@@ -3266,7 +3266,10 @@ where the keyboard does not shrink the pane.
 ## D-180 — A search step or jump tells the scroll anchor where it placed the scroll (2026-10-27)
 
 **Decision:** `scrollIntoPlace` calls `placed()` after each scroll it sets, as
-Back does, so the scroll anchor reads its place there.
+Back does, so the scroll anchor reads its place there. Before each scroll, it
+moves what the anchor owes into the scroll. `placed()` clears the shift, so a
+scroll measured on a shifted stream lost what was owed: a jump to a note with
+short notes above it landed 5,447 px above the note.
 
 **Why:** the anchor kept the place it read before the step, in the note the
 reader left. Once that note was far enough to be hidden (ADR 0023), its place

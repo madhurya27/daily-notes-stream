@@ -108,6 +108,7 @@ describe("scrollIntoPlace", () => {
             layoutChanges: () => counts[Math.min(read++, counts.length - 1)]!,
             drain: vi.fn().mockResolvedValue(undefined),
             placed: vi.fn(),
+            handOver: vi.fn(),
         };
     }
 
@@ -174,6 +175,23 @@ describe("scrollIntoPlace", () => {
         for (let pass = 0; pass < 3; pass++) {
             expect(placings[pass]).toBeGreaterThan(scrolls[pass]!);
             expect(placings[pass]).toBeLessThan(drains[pass]!);
+        }
+    });
+
+    // A shifted stream draws the block away from where the scroll puts it. A
+    // jump that measured it there left the scroll short by what was owed.
+    it("moves what the stream owes into the scroll before each scroll", async () => {
+        const block = blockMoving([300, 80, 1]);
+        const layout = layoutCounting();
+
+        await scrollIntoPlace(block, "start", pane, layout);
+
+        expect(layout.handOver).toHaveBeenCalledTimes(3);
+        const scrolls = vi.mocked(block.scrollIntoView).mock.invocationCallOrder;
+        const handOvers = layout.handOver.mock.invocationCallOrder;
+        for (let pass = 0; pass < 3; pass++) {
+            expect(handOvers[pass]).toBeLessThan(scrolls[pass]!);
+            if (pass > 0) expect(handOvers[pass]).toBeGreaterThan(scrolls[pass - 1]!);
         }
     });
 
