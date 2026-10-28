@@ -20,6 +20,14 @@ const BASES: Record<string, string> = {
     // One column for each file type, md, base and pdf, which is wider than a
     // phone (1.14).
     "Kanban.base": baseView(["file.name"], ["groupBy:", "      property: file.ext", "      direction: ASC"], "kanban"),
+    // A text property, which Bases draws in an input of its own.
+    "Words.base": `filters:\n  and:\n    - file.name == "Word"\n${baseView(["note.word"])}`,
+};
+
+/** The note Words.base lists, with its text property. */
+const WORD = {
+    path: "Word.md",
+    body: "---\nword: hello, and a line of text too long for its column on a phone\n---\n",
 };
 
 function baseView(order: string[], extra: string[] = [], type = "table"): string {
@@ -36,12 +44,15 @@ function baseView(order: string[], extra: string[] = [], type = "table"): string
 
 /** Where Kanban.base is drawn among this note's Bases. */
 const KANBAN_SLOT = 3;
+/** Where Words.base is drawn among this note's Bases. */
+const WORDS_SLOT = 4;
 
 /** Three pages of text. Obsidian's PDF viewer scrolls between them. */
 const PDF = { path: "Doc.pdf", body: pdf(3) };
 
 /**
- * One of each kind of embed that scrolls inside a note elsewhere in Obsidian.
+ * One of each kind of embed that scrolls inside a note elsewhere in Obsidian,
+ * and a callout.
  */
 const ZOO = [
     "## Embeds",
@@ -53,6 +64,8 @@ const ZOO = [
     "![[Resized.base]]",
     "",
     "![[Kanban.base]]",
+    "",
+    "![[Words.base]]",
     "",
     // Inline, so it is still a table on a phone.
     "Fitted: ![[Wide.base]]",
@@ -72,6 +85,9 @@ const ZOO = [
     "flowchart LR",
     "  A[Alpha step] --> B[Beta step] --> C[Gamma step] --> D[Delta step] --> E[Epsilon step] --> F[Zeta step]",
     "```",
+    "",
+    "> [!note] A callout",
+    "> With a line of text.",
     "",
     "| Column one | Column two | Column three | Column four | Column five | Column six | Column seven |",
     "| --- | --- | --- | --- | --- | --- | --- |",
@@ -94,6 +110,21 @@ function scrollBoxes(container: Locator): Promise<string[]> {
     );
 }
 
+/**
+ * Scrolls Words.base's text cell in `scope` into view, and returns it once
+ * drawn. Bases draws a table's rows only once it is on screen, and the Bases
+ * above it push it down as they fill in.
+ */
+async function showWord(scope: Locator): Promise<Locator> {
+    const words = scope.locator(".daily-note-base").nth(WORDS_SLOT);
+    const text = words.locator(".bases-td .metadata-input-longtext");
+    await expect(async () => {
+        await words.scrollIntoViewIfNeeded();
+        await expect(text).toHaveText(/^hello/, { timeout: 1000 });
+    }).toPass();
+    return text;
+}
+
 async function seedZoo(page: Page): Promise<void> {
     await page.evaluate(
         async ({ bases, note, zoo }) => {
@@ -103,7 +134,7 @@ async function seedZoo(page: Page): Promise<void> {
             for (const [path, body] of Object.entries(bases)) await window.app.vault.create(path, body);
             await window.app.vault.create(note, zoo);
         },
-        { bases: { ...BASES, [PDF.path]: PDF.body }, note: NOTE, zoo: ZOO }
+        { bases: { ...BASES, [PDF.path]: PDF.body, [WORD.path]: WORD.body }, note: NOTE, zoo: ZOO }
     );
 }
 
@@ -115,7 +146,7 @@ async function deleteZoo(page: Page): Promise<void> {
                 if (file) await window.app.vault.delete(file);
             }
         },
-        [NOTE, PDF.path, ...Object.keys(BASES)]
+        [NOTE, PDF.path, WORD.path, ...Object.keys(BASES)]
     );
 }
 
@@ -222,12 +253,62 @@ test.describe("on mobile, nothing inside the stream scrolls", () => {
         expect([...new Set(boxes)]).toEqual([]);
     });
 
+    // The scroll box guard clips what the stylesheet misses only once
+    // scrolling stops. Until then, a scroll box in a note drawn mid-glide can
+    // stop the glide, so even one that lasts only while its embed draws counts.
+    test("never has a scroll box in an embed or callout, even while it draws", async ({ obsidian }) => {
+        const { page } = obsidian;
+        await seedZoo(page);
+        await page.evaluate(() => {
+            const seen = new Set<string>();
+            const check = (el: Element) => {
+                if (el instanceof SVGElement || !el.closest(".daily-note-block")) return;
+                const style = getComputedStyle(el);
+                if (/auto|scroll|hidden/.test(`${style.overflowX} ${style.overflowY}`))
+                    seen.add(`${el.tagName.toLowerCase()}.${Array.from(el.classList).join(".")}`);
+            };
+            const observer = new MutationObserver((records) => {
+                for (const { target, addedNodes } of records) {
+                    if (target instanceof Element) [target, ...Array.from(target.querySelectorAll("*"))].forEach(check);
+                    for (const node of Array.from(addedNodes))
+                        if (node instanceof Element) [node, ...Array.from(node.querySelectorAll("*"))].forEach(check);
+                }
+            });
+            observer.observe(document.body, { subtree: true, childList: true, attributes: true });
+            Object.assign(window, { scrollBoxesSeen: () => (observer.disconnect(), [...seen]) });
+        });
+        const note = (await openStream(page)).locator(".daily-note-block").first();
+        await expect(note.locator(".bases-cards-item").first()).toBeVisible();
+        await expect(note.locator(".pdf-embed canvas").first()).toBeVisible();
+        await expect(note.locator(".callout-content")).toBeVisible();
+        await showWord(note);
+
+        const seen = await page.evaluate(() =>
+            (window as unknown as { scrollBoxesSeen(): string[] }).scrollBoxesSeen()
+        );
+        expect(seen).toEqual([]);
+    });
+
+    // Clipped, a text cell no longer shrinks to its column as a scroll box
+    // does, and loses its "...".
+    test("ends a text cell too long for its column inside the column", async ({ obsidian }) => {
+        const { page } = obsidian;
+        await seedZoo(page);
+        const text = await showWord(await openStream(page));
+
+        const { right, column } = await text.evaluate((el) => ({
+            right: el.getBoundingClientRect().right,
+            column: el.closest(".bases-td")!.getBoundingClientRect().right,
+        }));
+        expect(right).toBeLessThanOrEqual(column);
+    });
+
     test("has no scroll box around Bases, kanban included, math, diagrams or embedded notes", async ({ obsidian }) => {
         const { page } = obsidian;
         await seedZoo(page);
         const container = await openStream(page);
         const note = container.locator(".daily-note-block").first();
-        await expect(note.locator(".bases-view")).toHaveCount(5);
+        await expect(note.locator(".bases-view")).toHaveCount(6);
         await expect(note.locator(".bases-tr").first()).toBeVisible();
         await expect(note.locator(".bases-cards-item").first()).toBeVisible();
         await expect(note.locator(".mermaid svg")).toBeVisible();

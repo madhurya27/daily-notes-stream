@@ -659,12 +659,23 @@ body:not(.is-mobile) :is(.daily-note-content, .daily-note-mention-excerpt) :is(t
     max-height: none;
 }
 
-/* A Base and everything in it, an embedded note and a PDF. */
+/* A Base and everything in it, an embedded note with its view, a PDF and a
+   callout. */
 .is-mobile .daily-note-block :is(.bases-embed, .block-language-base),
 .is-mobile .daily-note-block :is(.bases-embed, .block-language-base) *,
 .is-mobile .daily-note-block .markdown-embed-content,
-.is-mobile .daily-note-block :is(.pdf-embed, .pdf-embed *) {
+.is-mobile .daily-note-block .markdown-embed-content > .markdown-preview-view,
+.is-mobile .daily-note-block :is(.pdf-embed, .pdf-embed *),
+.is-mobile .daily-note-block :is(.callout, .callout-content) {
     overflow: clip;
+}
+
+/* Obsidian's `overflow: hidden` on a text cell in a Base's table, which is more
+   specific than the rule above. Unlike a scroll box, a clipped flex item does
+   not shrink below its text, so it is let shrink, and still ends in "...". */
+.is-mobile .daily-note-block .bases-table-container .metadata-input-longtext {
+    overflow: clip;
+    min-width: 0;
 }
 
 /* Obsidian's `overflow: hidden` in the properties panel. A tag pill's text is
