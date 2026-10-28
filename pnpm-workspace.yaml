@@ -6,7 +6,6 @@ allowBuilds:
 # Lifts transitive dev dependencies past security advisories (D-166). Drop an
 # entry once the package that pulls it in requires the fixed version itself.
 overrides:
-    "basic-ftp@<6.2.1": ^6.2.1
     "esbuild@>=0.27.3 <0.28.1": ^0.28.1
     "nanoid@<3.3.18": ^3.3.18
     "postcss@<8.5.23": ^8.5.23

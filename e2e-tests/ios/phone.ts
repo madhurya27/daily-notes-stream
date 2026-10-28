@@ -178,7 +178,10 @@ export class Phone {
         // timeout. Not as `error`, because WebdriverIO uses that key itself.
         const script = `const done = arguments[arguments.length - 1];
             (${fn.toString()})(...arguments[0]).then((value) => done({ value }), (e) => done({ failure: String(e) }));`;
-        const { value, failure } = (await this.driver.executeAsync(script, args)) as { value: R; failure?: string };
+        const { value, failure } = (await this.driver.executeAsyncScript(script, [args])) as {
+            value: R;
+            failure?: string;
+        };
         if (failure !== undefined) throw new Error(`On the phone: ${failure}\nin: ${fn.toString().slice(0, 200)}`);
         return value;
     }

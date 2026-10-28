@@ -2984,7 +2984,7 @@ directory's.
 indirect development dependency that has a security warning, where its parent's
 version range already allows the fixed version, or where `@appium/support` fixes
 the version (`shell-quote`). An entry is removed once its parent requires the
-fixed version itself. `extract-zip` (no fix released) is still open.
+fixed version itself.
 
 **Why:** pnpm keeps an installed version as long as it is in the range, so
 `pnpm update --depth Infinity` left most of them as they were. None of them

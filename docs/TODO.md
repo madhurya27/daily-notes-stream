@@ -11,11 +11,10 @@ there is a screen recording of them (D-099).
 - [ ] Remove the outline Obsidian draws around a property under the pointer: it
       suggests the property can be edited, which the read-only stream doesn't
       allow. Check desktop and the phone layout.
-- [ ] Upgrade webdriverio to 10 once it has settled (10.0.0 came out on
-      2026-10-05). It drops `extract-zip` and its two high Dependabot alerts
-      (D-166). Version 10 removes `executeAsync`, which `phone.ts` uses to run
-      async code on the phone, and makes `$` throw on more than one match. Needs
-      a full `test:ios` run.
+- [ ] On the iPad, "flicks from the top glide on" (`ios/stream.spec.ts`)
+      sometimes finds the first flick cut short within 2 s. It failed 4 of 5
+      runs right after a full `test:ipados`, then passed 10 of 10. Find what
+      state makes it fail; the frames are attached to the failed test.
 - [ ] Try adding the e2e tests to CI on Linux.
 - [ ] Once the directory's scorecard lint understands moment's types, go back to
       Obsidian's `moment` and delete `src/notes/moment.ts` (D-152).
