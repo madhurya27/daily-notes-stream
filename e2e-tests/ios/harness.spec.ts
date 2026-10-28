@@ -30,6 +30,27 @@ for (const [how, cause] of [
         await phone.run(cause);
     });
 
+// A stream that never settles must fail the test, not let it check a stream
+// still moving.
+test("rest fails a stream that never stops moving", async ({ phone }) => {
+    await phone.openStream();
+    await phone.run(() => {
+        const stream = document.querySelector<HTMLElement>(".daily-notes-stream-container")!;
+        let shift = 0;
+        const move = () => {
+            if (!stream.isConnected) return;
+            stream.style.setProperty("--daily-notes-scroll-shift", `${++shift % 2}px`);
+            requestAnimationFrame(move);
+        };
+        requestAnimationFrame(move);
+    });
+    try {
+        await expect(phone.rest()).rejects.toThrow(/still moving/);
+    } finally {
+        await phone.openStream();
+    }
+});
+
 // The status bar's clock changes, so two screenshots of a screen that is not
 // moving would differ.
 test("a screenshot leaves out the status bar", async ({ phone }) => {

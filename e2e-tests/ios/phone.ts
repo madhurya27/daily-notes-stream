@@ -1404,10 +1404,11 @@ export class Phone {
      * Waits until the pane has been still for half a second, so scrolling,
      * turning and the loads they start are over. The stream's shift counts: a
      * note above that grows once the scroll is still is owed until the stream
-     * hands it over, without changing the scroll.
+     * hands it over, without changing the scroll. Fails if it is still moving
+     * after 10 s.
      */
-    rest(): Promise<void> {
-        return this.runAsync(async (s: string) => {
+    async rest(): Promise<void> {
+        const moving = await this.runAsync(async (s: string) => {
             const stream = document.querySelector<HTMLElement>(s)!;
             const pane = stream.parentElement!;
             let last = "";
@@ -1415,11 +1416,13 @@ export class Phone {
             for (const deadline = performance.now() + 10_000; performance.now() < deadline;) {
                 await new Promise(requestAnimationFrame);
                 const shift = stream.style.getPropertyValue("--daily-notes-scroll-shift");
-                const now = `${pane.scrollTop} ${pane.scrollHeight} ${pane.clientWidth} ${shift}`;
+                const now = `scroll ${pane.scrollTop}, height ${pane.scrollHeight}, width ${pane.clientWidth}, shift ${shift || 0}`;
                 if (now !== last) [last, stillSince] = [now, performance.now()];
-                else if (performance.now() - stillSince > 500) return;
+                else if (performance.now() - stillSince > 500) return null;
             }
+            return last;
         }, STREAM);
+        if (moving !== null) throw new Error(`The stream is still moving after 10 s, last at ${moving}.`);
     }
 
     private async inWebView(): Promise<void> {
