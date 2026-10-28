@@ -1375,16 +1375,20 @@ export class Phone {
 
     /**
      * Waits until the pane has been still for half a second, so scrolling,
-     * turning and the loads they start are over.
+     * turning and the loads they start are over. The stream's shift counts: a
+     * note above that grows once the scroll is still is owed until the stream
+     * hands it over, without changing the scroll.
      */
     rest(): Promise<void> {
         return this.runAsync(async (s: string) => {
-            const pane = document.querySelector(s)!.parentElement!;
+            const stream = document.querySelector<HTMLElement>(s)!;
+            const pane = stream.parentElement!;
             let last = "";
             let stillSince = performance.now();
             for (const deadline = performance.now() + 10_000; performance.now() < deadline;) {
                 await new Promise(requestAnimationFrame);
-                const now = `${pane.scrollTop} ${pane.scrollHeight} ${pane.clientWidth}`;
+                const shift = stream.style.getPropertyValue("--daily-notes-scroll-shift");
+                const now = `${pane.scrollTop} ${pane.scrollHeight} ${pane.clientWidth} ${shift}`;
                 if (now !== last) [last, stillSince] = [now, performance.now()];
                 else if (performance.now() - stillSince > 500) return;
             }
