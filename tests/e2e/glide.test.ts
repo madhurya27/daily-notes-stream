@@ -125,6 +125,34 @@ describe("glideEnding", () => {
         expect(glideEnding(heard(cut, rest, write))).toBe("cut short");
     });
 
+    // On an iPhone after a jump: the page stalled for 408 ms as the glide
+    // neared the top, then the stream set its stop, and the glide bounced at
+    // the top.
+    it("tells a glide the stream stopped, owing, just after a stall", () => {
+        const before = [
+            { at: 0, top: 2163 },
+            { at: 8, top: 2107 },
+            { at: 17, top: 2051 },
+            { at: 25, top: 1997 },
+            { at: 34, top: 1891 },
+            { at: 42, top: 1839 },
+            { at: 50, top: 1788 },
+            { at: 66, top: 1738 },
+            { at: 75, top: 1689 },
+        ].map((frame) => ({ ...frame, owing: true }));
+        const after = [
+            { at: 483, top: 2052 },
+            { at: 526, top: -39, owing: true },
+            { at: 540, top: -60, owing: true },
+            { at: 555, top: -73, owing: true },
+            { at: 661, top: -77, owing: true },
+            { at: 681, top: -62, owing: true },
+            { at: 694, top: -59, owing: true },
+        ];
+
+        expect(glideEnding(heard(before, after, still(-59, 694, 400, true)))).toBe("at an edge");
+    });
+
     it("tells a glide the stream stopped, owing, as its scroll ran out", () => {
         const stopped = frames([1000, 820, 650, 600, 550], { owing: true });
         const write = frames([3550, 3550], { from: 80 });

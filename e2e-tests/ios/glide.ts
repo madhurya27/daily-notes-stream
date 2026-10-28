@@ -61,9 +61,9 @@ export function glideEnding(frames: Heard[]): GlideEnding {
         const step = now.top - before.top;
         direction ||= Math.sign(step);
         if (Math.sign(step) !== direction) {
-            // Against the scroll, one frame later, and owing: the stream set
-            // its stop.
-            if (before.owing && last && now.at - last.at.at < HAND_OVER_MS) return "at an edge";
+            // Against the scroll, while it was still moving, and owing: the
+            // stream set its stop.
+            if (before.owing && last) return "at an edge";
             break;
         }
         steps.push({ speed: Math.abs(step) / ms, at: now, stalled: ms >= STALL_MS, fromLift: i === 1 });
