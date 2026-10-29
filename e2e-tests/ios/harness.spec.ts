@@ -1,4 +1,4 @@
-import { test, expect } from "./phone";
+import { test, expect, type FlickStart } from "./phone";
 import { longNote } from "../long-note";
 
 // Every test fails if there is an error in Obsidian's console. These prove the
@@ -127,6 +127,22 @@ test("the reader's follower fails when it loses its text", async ({ phone }) => 
     } finally {
         await phone.run(() => document.getElementById("hide-notes")?.remove());
     }
+});
+
+// To compare a cut glide's start with the starts of glides that were not cut.
+test("a glide's ending comes with what the screen held as it started", async ({ phone }) => {
+    await phone.openStream();
+    const blocks = await phone.run(() => document.querySelectorAll(".daily-note-block").length);
+
+    await phone.glideEnding("up");
+
+    const attached = test.info().attachments.find(({ name }) => name === "flick start");
+    expect(attached, "no flick start attached").toBeDefined();
+    const start = JSON.parse(attached!.body!.toString()) as FlickStart;
+    expect(start.top).toBe(0);
+    expect(start.blocks).toHaveLength(blocks);
+    expect(start.blocks.some(({ rendered }) => !rendered)).toBe(true);
+    expect(start.bases.some(({ rows }) => rows > 0)).toBe(true);
 });
 
 // iOS sometimes cuts glides on any page for a few minutes (docs/TODO.md). A cut

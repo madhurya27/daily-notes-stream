@@ -13,11 +13,9 @@ there is a screen recording of them (D-099).
       allow. Check desktop and the phone layout.
 - [ ] Flaky iOS tests, still unexplained. Compare with `main` back to back, at
       least 10 runs each: the failure rates swing within an hour.
-    - First, attach what the screen held as each flick starts, to compare
-      failing runs with passing ones: the scroll position and height, each
-      block's height and whether it is rendered, and each Base's height and
-      rows. Nothing records it now. Remembered heights change between tests, and
-      a Base can still be filling in where `rest()` cannot see it (ADR 0013).
+    - Compare the `flick start` that each glide attaches (`glideEnding`) in
+      failing runs with passing ones. The run reports in
+      `test-results/ios-runs/` keep it.
     - "A glide owing the notes above hands over what it owes" (`jump.spec.ts`)
       on the iPad: 1 failure in 180 runs (a 180 px jump). It never showed with
       logging on (D-187).

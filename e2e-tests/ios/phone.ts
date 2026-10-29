@@ -58,6 +58,19 @@ export type SentTouch = { from: { x: number; y: number }; to: { x: number; y: nu
 export type Place = { path: string; offset: number };
 
 /**
+ * What the screen held as a flick started: the scroll, how far the stream was
+ * shifted, each block's height and whether it was rendered, and each Base's
+ * height and rows.
+ */
+export type FlickStart = {
+    top: number;
+    height: number;
+    shift: number;
+    blocks: { path: string; height: number; rendered: boolean }[];
+    bases: { path: string; top: number; height: number; rows: number }[];
+};
+
+/**
  * How far below the pane's top a stroke stays, away from the header above it.
  */
 const PANE_EDGE = 20;
@@ -866,13 +879,44 @@ export class Phone {
             );
     }
 
+    /** What the screen holds now, as a flick starts. */
+    private flickStart(): Promise<FlickStart> {
+        return this.run((s: string) => {
+            const stream = document.querySelector<HTMLElement>(s)!;
+            const pane = stream.parentElement!;
+            const paneTop = pane.getBoundingClientRect().top;
+            const pathOf = (el: Element) => el.closest<HTMLElement>(".daily-note-block")!.dataset.sourcePath!;
+            return {
+                top: pane.scrollTop,
+                height: pane.scrollHeight,
+                shift: parseFloat(stream.style.getPropertyValue("--daily-notes-scroll-shift")) || 0,
+                blocks: [...stream.querySelectorAll<HTMLElement>(".daily-note-block")].map((block) => ({
+                    path: block.dataset.sourcePath!,
+                    height: Math.round(block.getBoundingClientRect().height),
+                    rendered: !block.classList.contains("is-unloaded"),
+                })),
+                bases: [...stream.querySelectorAll(".daily-note-base")].map((el) => {
+                    const { top, height } = el.getBoundingClientRect();
+                    return {
+                        path: pathOf(el),
+                        top: Math.round(top - paneTop),
+                        height: Math.round(height),
+                        rows: el.querySelectorAll(".bases-tr, .bases-cards-item, .bases-kanban-card").length,
+                    };
+                }),
+            };
+        }, STREAM);
+    }
+
     /**
      * One stroke, and how its scrolling ended (`glide.ts`), once the pane is
      * still. A full scroll lasts 1–3.5 s. It is read on every frame from when
      * the finger lifts, so a stall can be told apart from a stop. The longest
      * stall is noted on the test. A glide cut short attaches its frames, and
-     * the touches and changes from the stroke on. A stroke that never scrolled
-     * the stream fails as such, not as a glide cut short.
+     * the touches and changes from the stroke on. Every glide attaches what the
+     * screen held as it started (`flickStart`), to compare a cut glide's start
+     * with the others'. A stroke that never scrolled the stream fails as such,
+     * not as a glide cut short.
      *
      * A glide cut short is checked against a plain page's glide at once
      * (D-184). If that is cut short too, iOS is cutting every glide, as it does
@@ -882,6 +926,10 @@ export class Phone {
         direction: "up" | "down",
         { share = 0.7, ms = 60 } = {}
     ): Promise<GlideEnding | "cut short by iOS"> {
+        await base.info().attach("flick start", {
+            body: JSON.stringify(await this.flickStart()),
+            contentType: "application/json",
+        });
         const ending = await this.recordedEnding(`:has(> ${STREAM})`, direction, share, ms);
         if (ending !== "cut short") return ending;
         const plain = await this.plainPageEnding(direction, share, ms);
