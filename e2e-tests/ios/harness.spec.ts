@@ -111,6 +111,24 @@ test("the reader's follower reports a note above growing mid-glide, unshifted", 
     );
 });
 
+// Otherwise a test would pass on only the part of a glide the reader saw.
+test("the reader's follower fails when it loses its text", async ({ phone }) => {
+    await phone.openStream();
+    await phone.followReader();
+    try {
+        await phone.runAsync(async () => {
+            const hide = document.head.appendChild(document.createElement("style"));
+            hide.id = "hide-notes";
+            hide.textContent = ".daily-note-block > * { display: none !important; }";
+            for (let frames = 0; frames < 3; frames++) await new Promise(requestAnimationFrame);
+        });
+
+        await expect(phone.stopFollowing()).rejects.toThrow("The reader lost its text");
+    } finally {
+        await phone.run(() => document.getElementById("hide-notes")?.remove());
+    }
+});
+
 // iOS sometimes cuts glides on any page for a few minutes (docs/TODO.md). A cut
 // that a plain page's glide shares is iOS's, not the stream's.
 test("a glide cut short on a plain page too is iOS's cut", async ({ phone }) => {

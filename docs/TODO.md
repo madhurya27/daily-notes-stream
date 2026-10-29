@@ -18,9 +18,6 @@ there is a screen recording of them (D-099).
       block's height and whether it is rendered, and each Base's height and
       rows. Nothing records it now. Remembered heights change between tests, and
       a Base can still be filling in where `rest()` cannot see it (ADR 0013).
-    - Make `followReader` fail when it loses its text before `stopFollowing`.
-      Now it stops recording without a word, and a test passes on the part of
-      the glide it saw.
     - "A glide owing the notes above hands over what it owes" (`jump.spec.ts`)
       on the iPad: 1 failure in 180 runs (a 180 px jump). It never showed with
       logging on (D-187).

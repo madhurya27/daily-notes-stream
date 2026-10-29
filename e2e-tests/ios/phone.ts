@@ -619,8 +619,15 @@ export class Phone {
                     rendered: 0,
                     on: true,
                     heard: new AbortController(),
+                    /** How many reads it made before it lost its text. */
+                    lostAfter: null as number | null,
                 };
                 (window as unknown as { streamReader: typeof follow }).streamReader = follow;
+                /** Picks the text then at the line, noting if there is none. */
+                const repick = () => {
+                    eye = pick();
+                    if (!eye) follow.lostAfter = follow.drifts.length;
+                };
                 /**
                  * Reads where the text is. Returns false once there is no text
                  * to follow.
@@ -640,7 +647,7 @@ export class Phone {
                         // Its note is on screen without it: a blank where the
                         // reader was, until it is back.
                         if (block && onScreen(block)) follow.drifts.push(NaN);
-                        else eye = pick();
+                        else repick();
                         return true;
                     }
                     // Where the text is, compared with where the scroll alone
@@ -655,7 +662,7 @@ export class Phone {
                     // Where the text is on screen, as a reader who is not
                     // scrolling sees it.
                     follow.moves.push(Math.round(top - eye.start));
-                    if (!onScreen(text)) eye = pick();
+                    if (!onScreen(text)) repick();
                     return true;
                 };
                 const frame = () => read() && requestAnimationFrame(frame);
@@ -676,10 +683,11 @@ export class Phone {
     /**
      * Each read since `followReader`: how far the text moved apart from the
      * scroll (`drifts`, while scrolling), and on screen (`moves`, for a reader
-     * who is not scrolling), and how many notes were rendered.
+     * who is not scrolling), and how many notes were rendered. Fails if the
+     * reader lost its text, so a test cannot pass on part of a glide.
      */
-    stopFollowing(): Promise<{ drifts: number[]; moves: number[]; rendered: number }> {
-        return this.run(() => {
+    async stopFollowing(): Promise<{ drifts: number[]; moves: number[]; rendered: number }> {
+        const seen = await this.run(() => {
             const follow = (
                 window as unknown as {
                     streamReader: {
@@ -688,13 +696,20 @@ export class Phone {
                         rendered: number;
                         on: boolean;
                         heard: AbortController;
+                        lostAfter: number | null;
                     };
                 }
             ).streamReader;
             follow.on = false;
             follow.heard.abort();
-            return { drifts: follow.drifts, moves: follow.moves, rendered: follow.rendered };
+            const { drifts, moves, rendered, lostAfter } = follow;
+            return { drifts, moves, rendered, lostAfter };
         });
+        if (seen.lostAfter !== null)
+            throw new Error(
+                `The reader lost its text after ${seen.lostAfter} reads: nothing to follow at or below its line.`
+            );
+        return { drifts: seen.drifts, moves: seen.moves, rendered: seen.rendered };
     }
 
     /**
