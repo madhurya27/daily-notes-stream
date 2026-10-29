@@ -27,9 +27,6 @@ there is a screen recording of them (D-099).
     - `stream.spec.ts:65`, flicks from the top: cuts come in bursts that hit
       `main` too. On 2026-10-29 on the iPad, 10 of 10 failed, and 5 of 10 on
       `main` just after; then 30 runs alternating the two all passed.
-- [ ] Mark the surviving mutant in `src/stream/still-clock.ts:27`
-      (`this.timer === null` → `true`) as equivalent, with a Stryker disable
-      that says why, if it is.
 - [ ] Try adding the e2e tests to CI on Linux.
 - [ ] Once the directory's scorecard lint understands moment's types, go back to
       Obsidian's `moment` and delete `src/notes/moment.ts` (D-152).

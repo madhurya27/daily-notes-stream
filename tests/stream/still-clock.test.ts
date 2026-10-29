@@ -150,9 +150,12 @@ describe("StillClock", () => {
 
     it("leaves no timer once every waiting task is cancelled", () => {
         const task = vi.fn();
+        const other = vi.fn();
         clock.whenStill(task);
+        clock.whenStill(other);
 
         clock.cancel(task);
+        clock.cancel(other);
 
         expect(vi.getTimerCount()).toBe(0);
     });
