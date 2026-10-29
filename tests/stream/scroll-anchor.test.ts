@@ -520,11 +520,56 @@ describe("ScrollAnchor", () => {
         expect(shift(content)).toBe(0);
     });
 
-    it("holds a note's content where no text lies below the pane's top in it", () => {
+    // The gap at the end of a note's content, below its last Base. The
+    // content's top does not move when that Base fills in; what follows the
+    // content dropped 180 px on an iPad.
+    it("holds what follows a note's content where the pane's top falls in the gap at its end", () => {
+        const { pane, content, blocks } = watch([400, 1000, 400], 900);
+        const note = blocks[1]!;
+        const body = note.createDiv({ cls: "daily-note-content" });
+        const base = body.createDiv();
+        const after = note.createDiv();
+        let grown = 0;
+        body.getBoundingClientRect = () => ({ top: -500, bottom: 30 + grown, height: 530 + grown }) as DOMRect;
+        base.getBoundingClientRect = () => ({ top: -400, bottom: -20 + grown, height: 380 + grown }) as DOMRect;
+        after.getBoundingClientRect = () => ({ top: 40 + grown, bottom: 140 + grown, height: 100 }) as DOMRect;
+        vi.mocked(document.elementsFromPoint).mockReturnValue([body, note, content, pane]);
+
+        anchor.readPlace();
+        grown = 180;
+        anchor.resized();
+
+        expect(shift(content)).toBe(-180);
+    });
+
+    // A note drawn from its end grows at its top (ADR 0022). Holding the
+    // content's top moved what is on screen down.
+    it("holds what follows a note's content, not its rising top, where no text lies below the pane's top in it", () => {
         const { pane, content, blocks } = watch([400, 1000, 400], 900);
         const note = blocks[1]!;
         const body = note.createDiv({ cls: "daily-note-content" });
         const text = body.createDiv();
+        const after = note.createDiv();
+        let bodyTop = -500;
+        body.getBoundingClientRect = () => ({ top: bodyTop, bottom: 500, height: 500 - bodyTop }) as DOMRect;
+        text.getBoundingClientRect = () => ({ top: -500, bottom: -100, height: 400 }) as DOMRect;
+        after.getBoundingClientRect = () => ({ top: 500, bottom: 600, height: 100 }) as DOMRect;
+        vi.mocked(document.elementsFromPoint).mockReturnValue([body, note, content, pane]);
+
+        anchor.readPlace();
+        bodyTop = -600;
+        anchor.resized();
+
+        expect(shift(content)).toBe(0);
+    });
+
+    // What the view draws after the stream is no part of the stream's place.
+    it("holds a note's content where no text lies below the pane's top and no note follows it", () => {
+        const { pane, content, blocks } = watch([400, 1000], 900);
+        const note = blocks[1]!;
+        const body = note.createDiv({ cls: "daily-note-content" });
+        const text = body.createDiv();
+        pane.createDiv().getBoundingClientRect = () => ({ top: 500, bottom: 600, height: 100 }) as DOMRect;
         let bodyTop = -500;
         body.getBoundingClientRect = () => ({ top: bodyTop, bottom: 500, height: 500 - bodyTop }) as DOMRect;
         text.getBoundingClientRect = () => ({ top: -500, bottom: -100, height: 400 }) as DOMRect;
@@ -535,6 +580,35 @@ describe("ScrollAnchor", () => {
         anchor.resized();
 
         expect(shift(content)).toBe(100);
+    });
+
+    it("holds the next note where the pane's top falls in the gap at the end of a note's content", () => {
+        const { pane, blocks, add, resize } = watch([400, [], 400], 0);
+        const body = add(blocks[1]!);
+        body.addClass("daily-note-content");
+        const base = add(body, 300);
+        body.dataset.heldAt = "400";
+        pane.scrollTop = 750;
+        anchor.onScroll();
+        const nextTop = blocks[2]!.getBoundingClientRect().top;
+
+        resize(base, 480);
+        anchor.resized();
+
+        expect(blocks[2]!.getBoundingClientRect().top).toBe(nextTop);
+    });
+
+    it("holds the part starting exactly at the pane's top where only the note is hit", () => {
+        const { pane, content, blocks, resize } = watch([400, [300, 300], 400], 400);
+        const note = blocks[1]!;
+        vi.mocked(document.elementsFromPoint).mockReturnValue([note, content, pane]);
+        pane.scrollTop = 700;
+        anchor.onScroll();
+
+        resize(note.firstElementChild!, 500);
+        anchor.resized();
+
+        expect(shift(content)).toBe(-200);
     });
 
     // A note's bottom padding, between its text and the next note. What is
@@ -583,6 +657,27 @@ describe("ScrollAnchor", () => {
         anchor.resized();
 
         expect(shift(content)).toBe(0);
+    });
+
+    // A note's parts have gaps between them: above its title, and between its
+    // properties, content and mentions. What is drawn there is the note
+    // itself, whose top does not move when a Base above fills in. The text
+    // below the gap did, by 180 and 898 px on an iPad.
+    it("holds the part below the pane's top where it falls in a gap between a note's parts", () => {
+        const { pane, content, blocks } = watch([400, 1000, 400], 900);
+        const note = blocks[1]!;
+        const above = note.createDiv();
+        const below = note.createDiv();
+        above.getBoundingClientRect = () => ({ top: -500, bottom: -20, height: 480 }) as DOMRect;
+        let belowTop = 20;
+        below.getBoundingClientRect = () => ({ top: belowTop, bottom: belowTop + 300, height: 300 }) as DOMRect;
+        vi.mocked(document.elementsFromPoint).mockReturnValue([note, content, pane]);
+
+        anchor.readPlace();
+        belowTop = 200;
+        anchor.resized();
+
+        expect(shift(content)).toBe(-180);
     });
 
     it("holds the next note where the note's text ends exactly at the pane's top", () => {

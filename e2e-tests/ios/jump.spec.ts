@@ -42,7 +42,11 @@ function emptyHeightsAbove(phone: Phone): Promise<number[]> {
  */
 type Frame = { at: number; top: number; shift: number; streamTop: number };
 
-/** Starts recording each frame, up to 600. `frames` reports them. */
+/**
+ * Starts recording each frame, until `frames` reports them. Not up to a count:
+ * at the iPhone's 120 Hz, 600 frames ended before the stream, still for
+ * `SCROLL_IDLE_MS`, moved what it owed into the scroll.
+ */
 async function recordFrames(phone: Phone): Promise<void> {
     await phone.run(() => {
         const stream = document.querySelector<HTMLElement>(".daily-notes-stream-container")!;
@@ -51,36 +55,55 @@ async function recordFrames(phone: Phone): Promise<void> {
         // Read while still, with nothing owed: where the stream is at scroll
         // position 0.
         const atTop = below() + pane.scrollTop;
-        const frames: Frame[] = [];
-        (window as unknown as { streamFrames: Frame[] }).streamFrames = frames;
+        const recording = { frames: [] as Frame[], on: true };
+        (window as unknown as { streamFrames: typeof recording }).streamFrames = recording;
         const frame = () => {
-            frames.push({
+            recording.frames.push({
                 at: performance.now(),
                 top: pane.scrollTop,
                 shift: parseFloat(stream.style.getPropertyValue("--daily-notes-scroll-shift")) || 0,
                 streamTop: below() - atTop,
             });
-            if (frames.length < 600) requestAnimationFrame(frame);
+            if (recording.on) requestAnimationFrame(frame);
         };
         requestAnimationFrame(frame);
     });
 }
 
-const frames = (phone: Phone) => phone.run(() => (window as unknown as { streamFrames: Frame[] }).streamFrames);
+/** Stops recording, and reports each frame recorded. */
+const frames = (phone: Phone) =>
+    phone.run(() => {
+        const recording = (window as unknown as { streamFrames: { frames: Frame[]; on: boolean } }).streamFrames;
+        recording.on = false;
+        return recording.frames;
+    });
+
+/**
+ * Stops recording, if it is on, and drops what was recorded. A test that fails
+ * before `frames` would leave it recording into the tests after it.
+ */
+const forgetFrames = (phone: Phone) =>
+    phone.run(() => {
+        const page = window as unknown as { streamFrames?: { on: boolean } };
+        if (page.streamFrames) page.streamFrames.on = false;
+        delete page.streamFrames;
+    });
 
 // Empty blocks that are far too short leave the scroll less room than there is
 // above. The glide is stopped before the top while owing (D-143), or, on an
 // iPad about 1 in 30 times, bounces there first (D-176). Either way, what is
-// owed is moved into the scroll, and the text never jumps.
+// owed is moved into the scroll, and the text at the pane's top, which the
+// anchor holds, never jumps. Two strokes ended short of the stop in 8 of 8
+// glides on an iPad; three reach it.
 test("a glide owing the notes above hands over what it owes, the text never jumping", async ({ phone }) => {
     await phone.estimateShortAbove("2026-09-12");
     try {
         await phone.openStream();
         await phone.jumpTo("2026-09-12");
         await recordFrames(phone);
-        await phone.followReader();
+        await phone.followReader({ at: "top" });
 
-        await phone.flick("down", 2);
+        await phone.flick("down", 3);
 
         const { drifts } = await phone.stopFollowing();
         const seen = await frames(phone);
@@ -91,6 +114,7 @@ test("a glide owing the notes above hands over what it owes, the text never jump
         expect(seen.at(-1)!.shift).toBe(0);
         expect(Math.max(...drifts.map(Math.abs)), `drifts: ${drifts.join(", ")}`).toBeLessThan(5);
     } finally {
+        await forgetFrames(phone);
         await phone.restoreHeights();
     }
 });
@@ -149,6 +173,7 @@ test("a glide that reaches the newest note with scroll to spare stops there", as
         const after = Math.min(...seen.slice(stopped).map((f) => f.streamTop));
         expect(after, "the glide went on past the stop").toBeGreaterThanOrEqual(-1);
     } finally {
+        await forgetFrames(phone);
         await phone.runAsync(
             async (paths: string[], texts: string[]) => {
                 for (const [i, path] of paths.entries())

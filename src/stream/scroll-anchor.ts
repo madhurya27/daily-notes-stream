@@ -485,12 +485,40 @@ export class ScrollAnchor {
      * it. The content element's own top rises as a note rendered from its end
      * grows above it (ADR 0022), but its text does not move. If the top of the
      * pane is in the gap at a note's end, the next note: a Base filling in
-     * above moves the next note, not the top of this one.
+     * above moves the next note, not the top of this one. In a gap between a
+     * note's parts, as between its properties and its content, the part below.
+     * In the gap at the end of a note's content, what follows the content.
      */
     private belowGap(el: Element, paneTop: number): Element {
         if (el.parentElement === this.stream && this.endsAbove(el, paneTop)) return el.nextElementSibling ?? el;
+        if (el.parentElement === this.stream) return this.partBelow(el, paneTop) ?? el;
         if (!el.hasClass(NOTE_CONTENT_CLASS)) return el;
-        return Array.from(el.children).find((child) => child.getBoundingClientRect().bottom > paneTop) ?? el;
+        const below = Array.from(el.children).find((child) => child.getBoundingClientRect().bottom > paneTop);
+        return below ?? this.after(el) ?? el;
+    }
+
+    /**
+     * The first element after `el` that takes up space: its next sibling, or
+     * the next sibling of one of its parents.
+     */
+    private after(el: Element): Element | undefined {
+        for (let at: Element | null = el; at && at !== this.stream; at = at.parentElement) {
+            const next = this.nextDrawn(at);
+            if (next) return next;
+        }
+        return undefined;
+    }
+
+    /**
+     * The first part of `block` that starts at or below `paneTop`, if nothing
+     * above it reaches past `paneTop`. A part that crosses `paneTop` without
+     * being drawn there, as the hidden title of a note drawn from its end
+     * (ADR 0022), leaves the block itself as the place.
+     */
+    private partBelow(block: Element, paneTop: number): Element | undefined {
+        const next = Array.from(block.children).find((child) => child.getBoundingClientRect().bottom > paneTop);
+        if (next && next.getBoundingClientRect().top >= paneTop) return this.belowGap(next, paneTop);
+        return undefined;
     }
 
     /**

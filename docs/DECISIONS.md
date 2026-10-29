@@ -3420,3 +3420,26 @@ another, read as 0.5 px/ms.
 - A smaller share of the fastest speed — still depends on how hard the flick
   was, and fails a slow flick that ends naturally.
 - The glide's length — a flick into the top or the stream's end is short too.
+
+## D-187 — The scroll anchor holds what is below a gap at the pane's top (2026-10-28)
+
+**Decision:** where the pane's top falls in a gap, `ScrollAnchor` holds what
+starts below it: the next part of a note, as between its properties and its
+content, or what follows a note's content, below its last Base. It still holds
+the pane's top, and a Base there by the fraction scrolled through it (D-056).
+Text on screen below what it holds may move down. The phone tests' reader can
+follow the pane's top, counts text pushed down by a Base growing on screen above
+it as no drift, and only follows text its note shows: a pinned note clips what
+grew past its height (ADR 0013).
+
+**Why:** in a gap, the anchor held the note or its content, whose top does not
+move when a Base inside fills in. The text below dropped 180 or 898 px in 4 of
+45 runs of the iPad's `jump.spec.ts` "hands over what it owes".
+
+**Rejected:**
+
+- Holding the pane's middle — a note's seven Bases filling in on screen were
+  owed 15,000 px mid-glide. iOS cut the glide in 5 of 5 flicks, and the Bases
+  were pushed off screen unseen.
+- Holding what follows a Base that ends above the pane's middle — the Base's new
+  rows moved off screen, and the next Base's growth still moved the text.

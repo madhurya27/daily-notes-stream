@@ -508,26 +508,40 @@ export class Phone {
     }
 
     /**
-     * Starts following the text at or just below the pane's middle on every
-     * frame, as the reader's eye would. `stopFollowing` reports what it saw.
-     * The text is found by its position in its note, as `topOf` finds it,
-     * because a note may be re-rendered under the reader. When the text leaves
-     * the screen, the eye moves to the text then in the middle. A blank where
-     * the text was on screen counts as a drift of NaN. It also reads the text
-     * when the page gets a scroll event, before the stream reacts to it: iOS
-     * keeps scrolling without events, and reading only once a frame mixed that
-     * step and the stream's reaction into one.
+     * Starts following the text at or just below `at` on every frame, as the
+     * reader's eye would: the pane's middle, or its top, which is what the
+     * scroll anchor holds. `stopFollowing` reports what it saw. The text is
+     * found by its position in its note, as `topOf` finds it, because a note
+     * may be re-rendered under the reader. When the text leaves the screen,
+     * the eye moves to the text then at `at`. A blank where the text was on
+     * screen counts as a drift of NaN. It also reads the text when the page
+     * gets a scroll event, before the stream reacts to it: iOS keeps scrolling
+     * without events, and reading only once a frame mixed that step and the
+     * stream's reaction into one.
+     *
+     * A Base on screen above the text that grows may push it down, by as much
+     * as the Base grew: Bases draws a table's rows as it comes on screen. That
+     * is no drift.
      */
-    async followReader(): Promise<void> {
+    async followReader({ at = "middle" }: { at?: "middle" | "top" } = {}): Promise<void> {
         await this.run(
-            (s: string, kinds: string[]) => {
+            (s: string, kinds: string[], at: string) => {
                 const blocks = kinds.join(", ");
                 const pane = document.querySelector(s)!.parentElement!;
                 const box = pane.getBoundingClientRect();
-                const middle = box.top + box.height / 2;
+                const line = at === "top" ? box.top : box.top + box.height / 2;
+                /**
+                 * Inside its note's box: a pinned note clips what has grown
+                 * past its height until it re-pins (ADR 0013).
+                 */
+                const inNote = (el: Element) => {
+                    const { top, bottom } = el.getBoundingClientRect();
+                    const note = el.closest(".daily-note-block")?.getBoundingClientRect() ?? box;
+                    return bottom > note.top && top < note.bottom;
+                };
                 const onScreen = (el: Element) => {
                     const { top, bottom } = el.getBoundingClientRect();
-                    return bottom > box.top && top < box.bottom;
+                    return inNote(el) && bottom > box.top && top < box.bottom;
                 };
                 // A scroll that the text on screen does not follow was not made
                 // by the reader: the anchor moving its shift into the scroll
@@ -548,9 +562,10 @@ export class Phone {
                         Math.sign(moved) === -Math.sign(glide) &&
                         Math.abs(moved) <= Math.abs(glide) + 1);
                 const scrolled = () => pane.scrollTop - unseen;
+                // Below the screen too: a Base may fill it below the line.
                 const pick = () => {
                     const at = [...pane.querySelectorAll(blocks)].find(
-                        (el) => el.getBoundingClientRect().bottom > middle
+                        (el) => el.getBoundingClientRect().bottom > line && inNote(el)
                     );
                     if (!at) return null;
                     const note = at.closest<HTMLElement>(".daily-note-block")!;
@@ -563,10 +578,39 @@ export class Phone {
                         start: at.getBoundingClientRect().top,
                         last: at.getBoundingClientRect().top,
                         from: scrolled(),
+                        /** How far Bases on screen above it pushed it. */
+                        pushed: 0,
+                        base: null as { el: Element; bottom: number; height: number; scrolled: number } | null,
                     };
                 };
+                /** The Base nearest above `top` whose end is on screen. */
+                const baseAbove = (top: number) =>
+                    [...pane.querySelectorAll(".daily-note-base")]
+                        .filter((el) => {
+                            const { bottom } = el.getBoundingClientRect();
+                            return bottom > box.top && bottom <= top;
+                        })
+                        .at(-1);
+                /**
+                 * Adds to `pushed` how far the Base above the text moved apart
+                 * from the scroll since the last read, as far as it grew. A
+                 * jump moves the Base too, but does not grow it.
+                 */
+                const pushedBy = (current: NonNullable<typeof eye>, top: number) => {
+                    const el = baseAbove(top);
+                    const was = current.base;
+                    current.base = null;
+                    if (!el) return;
+                    const { bottom, height } = el.getBoundingClientRect();
+                    if (was?.el === el) {
+                        const moved = bottom - was.bottom + (scrolled() - was.scrolled);
+                        const grew = height - was.height;
+                        current.pushed += Math.min(Math.max(moved, Math.min(grew, 0)), Math.max(grew, 0));
+                    }
+                    current.base = { el, bottom, height, scrolled: scrolled() };
+                };
                 let eye = pick();
-                if (!eye) throw new Error("No text at or below the pane's middle.");
+                if (!eye) throw new Error(`No text at or below the pane's ${at}.`);
                 const unloaded = () => pane.querySelectorAll(".daily-note-block.is-unloaded").length;
                 const follow = {
                     drifts: [] as number[],
@@ -606,7 +650,8 @@ export class Phone {
                     eye.last = top;
                     if (Math.abs(step) > 1 && written(step, moved)) unseen += step + moved;
                     else if (Math.abs(step) > 1) glide = step;
-                    follow.drifts.push(Math.round(top - eye.start - (eye.from - scrolled())));
+                    pushedBy(eye, top);
+                    follow.drifts.push(Math.round(top - eye.start - eye.pushed - (eye.from - scrolled())));
                     // Where the text is on screen, as a reader who is not
                     // scrolling sees it.
                     follow.moves.push(Math.round(top - eye.start));
@@ -623,7 +668,8 @@ export class Phone {
                 });
             },
             STREAM,
-            TEXT_KINDS
+            TEXT_KINDS,
+            at
         );
     }
 
