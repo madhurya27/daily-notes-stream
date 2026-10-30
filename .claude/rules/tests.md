@@ -23,3 +23,5 @@ paths:
   for each one. If no test can tell the mutant from the real code, disable it
   with `// Stryker disable next-line <mutator>: <why>`, and check that the
   reason is true.
+- **Each test checks one thing, as fast as it can.** It sets up and crosses only
+  what that thing needs, so a failure names its cause (D-190).

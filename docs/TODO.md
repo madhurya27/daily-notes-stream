@@ -19,11 +19,6 @@ there is a screen recording of them (D-099).
 - [ ] "A glide owing the notes above hands over what it owes" (`jump.spec.ts`)
       fails about 1 in 180 runs on the iPad: the text jumps 180 px. It never
       showed with logging on (D-187).
-- [ ] Shorten `stream.spec.ts`'s two trips to the oldest note: since the glide
-      lane (D-189), they also flick through its 61 plain days, about a minute
-      each on the iPad. They must still reach the stream's real end, below the
-      lane. Try putting the lane above the journal's oldest days instead, or
-      making its days shorter while each side stays longer than a glide.
 - [ ] Try adding the e2e tests to CI on Linux.
 - [ ] Once the directory's scorecard lint understands moment's types, go back to
       Obsidian's `moment` and delete `src/notes/moment.ts` (D-152).

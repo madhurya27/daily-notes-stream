@@ -154,7 +154,7 @@ const DAYS = {
  */
 export const FREE_DAYS = ["Journal/2026-09-05.md", "Journal/2026-09-06.md"] as const;
 /** How many plain days the lane has on each side of its slot. */
-const LANE_SIDE = 30;
+const LANE_SIDE = 10;
 /** The lane's middle day, where every glide test starts. */
 const SLOT_DAY = Date.UTC(2026, 6, 30);
 const dayPath = (offset: number) => `Journal/${new Date(SLOT_DAY + offset * 86_400_000).toISOString().slice(0, 10)}.md`;
@@ -177,7 +177,7 @@ export const LANE_TEXT = Array.from(
     .map((paragraph) => paragraph.trim())
     .join("\n\n");
 /** How many days the lane has, its slot included. */
-export const LANE_DAYS = 2 * LANE_SIDE + 1;
+const LANE_DAYS = 2 * LANE_SIDE + 1;
 const LANE = Object.fromEntries(
     Array.from({ length: LANE_DAYS }, (_, i) => [dayPath(i - LANE_SIDE), `${LANE_TEXT}\n`])
 );

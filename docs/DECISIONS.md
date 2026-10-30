@@ -3448,7 +3448,7 @@ scroll does not, so these tests pass or fail the same on any device.
 
 ## D-189 — Every glide test starts from one place, in a lane of plain days (2026-10-30)
 
-**Decision:** the device tests' glides start in a lane of 61 plain days below
+**Decision:** the device tests' glides start in a lane of 21 plain days below
 the oldest note (`LANE_SLOT` in `e2e-tests/ios/vault.ts`). A test writes what it
 flicks over, such as a Base, into the lane's middle day. Before each flick,
 `phone.startInLane` forgets stored note heights, opens the stream again and
@@ -3465,3 +3465,22 @@ the lane, 1 of 135.
 - Starting each test where its subject is seeded — what is near it varies, and
   rendering starts 1.5 screens ahead (`RENDER_VIEWPORTS`).
 - Keeping stored heights — they depend on what earlier runs measured.
+
+## D-190 — Each trip through the stream covers only what its test checks (2026-10-30)
+
+**Decision:** no device test flicks the whole stream. The test of the stream's
+end starts 15 notes above it, inside the lane. The test of re-pinning flicks
+from the top past `EMBEDS_NOTE` and back. The lane (D-189) shrinks to 10 days
+each side, about 15,000 px on an iPad.
+
+**Why:** a test that crosses less fails for fewer reasons, and runs faster.
+Glides in the lane travel at most about 10,700 px, plus about 1,800 px rendered
+ahead.
+
+**Rejected:**
+
+- Jumping over the lane during full trips — it saved time, but added code to
+  keep a trip that nothing needs.
+- A shorter lane alone — both trips still took about 90 s.
+- Moving the lane above the journal's oldest days — `EMBEDS_NOTE` would have to
+  move below it, and the tests that scroll to that note would cross the lane.

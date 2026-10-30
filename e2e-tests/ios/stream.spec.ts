@@ -1,62 +1,51 @@
 import { test, expect, type Phone } from "./phone";
-import { LANE_DAYS, LANE_SLOT, LANE_TEXT, STALLERS } from "./vault";
+import { EMBEDS_NOTE, LANE_SLOT, LANE_TEXT, STALLERS } from "./vault";
 
 /**
- * A trip to the oldest note starts this many notes above it: the default
- * journal, then the glide tests' lane below it.
+ * How many notes above the stream's end the trip to it starts: more than a
+ * batch (`BATCH_SIZE`), so it must load the last one by flicking (D-190).
  */
-const TRIP_NOTES = 21 + LANE_DAYS;
+const NOTES_TO_END = 15;
 
-/**
- * Jumps to the note `TRIP_NOTES` above the oldest, or to the newest. Returns
- * that note's path.
- */
-async function startTrip(phone: Phone): Promise<string> {
+test("flicks reach the oldest note, each note once, newest first", async ({ phone }) => {
+    await phone.openStream();
     const dates = await phone.run(() =>
         window.app.workspace
             .getLeavesOfType("daily-notes-stream-view")[0]
             .view.service.dates()
             .map((date: { format(f: string): string }) => date.format("YYYY-MM-DD"))
     );
-    const date = dates[Math.max(0, dates.length - TRIP_NOTES)]!;
-    await phone.jumpTo(date);
-    return `Journal/${date}.md`;
-}
-
-test("flicks reach the oldest note, each note once, newest first", async ({ phone }) => {
-    await phone.openStream();
-    const total = await phone.run(
-        () => window.app.workspace.getLeavesOfType("daily-notes-stream-view")[0].view.service.length
-    );
-    await startTrip(phone);
+    await phone.jumpTo(dates.at(-NOTES_TO_END)!);
+    const paths = () =>
+        phone.run(() =>
+            [...document.querySelectorAll<HTMLElement>(".daily-note-block")].map((block) => block.dataset.sourcePath!)
+        );
+    expect((await paths()).length, "notes loaded before the flicks").toBeLessThan(dates.length);
 
     for (let flicks = 0; flicks < 100 && !(await phone.atEnd()); flicks++) await phone.flick("up", 3);
 
-    const paths = await phone.run(() =>
-        [...document.querySelectorAll<HTMLElement>(".daily-note-block")].map((block) => block.dataset.sourcePath!)
-    );
-    expect(paths).toHaveLength(total);
-    expect(new Set(paths).size).toBe(total);
-    expect(paths).toEqual([...paths].sort().reverse());
+    expect(await phone.atEnd(), "the flicks reached the stream's end").toBe(true);
+    const loaded = await paths();
+    expect(loaded).toHaveLength(dates.length);
+    expect(new Set(loaded).size).toBe(dates.length);
+    expect(loaded).toEqual([...loaded].sort().reverse());
 });
 
 // With no measured heights, every note grows from its estimate as it is
 // rendered, including the Bases (EMBEDS_NOTE in vault.ts) as they fill in (ADR
-// 0013).
-test("flicks to the oldest note and back change a rendered note's height only as it re-pins", async ({ phone }) => {
+// 0013). It stops past that note, because the lane below it is plain (D-190).
+test("flicks past the embeds note and back change a rendered note's height only as it re-pins", async ({ phone }) => {
     await phone.forgetHeights();
     await phone.openStream();
-    const total = await phone.run(
-        () => window.app.workspace.getLeavesOfType("daily-notes-stream-view")[0].view.service.length
-    );
-    const start = await startTrip(phone);
+    const top = (await phone.place()).path;
     await phone.watchPins();
 
-    for (let flicks = 0; flicks < 100 && !(await phone.atEnd()); flicks++) await phone.flick("up", 3);
-    for (let flicks = 0; flicks < 100 && (await phone.place()).path < start; flicks++) await phone.flick("down", 3);
+    for (let flicks = 0; flicks < 100 && (await phone.place()).path >= EMBEDS_NOTE; flicks++)
+        await phone.flick("up", 3);
+    for (let flicks = 0; flicks < 100 && (await phone.place()).path < top; flicks++) await phone.flick("down", 3);
 
     const { unpinned, rendered } = await phone.stopWatchingPins();
-    expect(rendered).toBeGreaterThanOrEqual(Math.min(total, TRIP_NOTES));
+    expect(rendered).toContain(EMBEDS_NOTE);
     expect(unpinned).toEqual([]);
 });
 

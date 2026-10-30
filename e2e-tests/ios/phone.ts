@@ -795,7 +795,12 @@ export class Phone {
                 ].join();
             const seen = new Map<HTMLElement, { state: string; height: number }>();
             const rendered = new Set<string>();
-            const watch = { unpinned: [] as string[], rendered: 0, on: true, tasks: null as MutationObserver | null };
+            const watch = {
+                unpinned: [] as string[],
+                rendered: [] as string[],
+                on: true,
+                tasks: null as MutationObserver | null,
+            };
             (window as unknown as { streamPins: typeof watch }).streamPins = watch;
             const check = () => {
                 for (const block of pane.querySelectorAll<HTMLElement>(".daily-note-block")) {
@@ -807,7 +812,7 @@ export class Phone {
                     if (was && now.state === was.state && Math.abs(now.height - was.height) > 0.5)
                         watch.unpinned.push(`${block.dataset.sourcePath}: ${was.height} → ${now.height}`);
                 }
-                watch.rendered = rendered.size;
+                watch.rendered = [...rendered];
             };
             watch.tasks = new MutationObserver(check);
             watch.tasks.observe(pane, { subtree: true, childList: true, attributes: true, characterData: true });
@@ -821,14 +826,14 @@ export class Phone {
     }
 
     /**
-     * Since `watchPins`: each height change made without re-pinning, and how
-     * many notes were rendered.
+     * Since `watchPins`: each height change made without re-pinning, and
+     * which notes were rendered.
      */
-    stopWatchingPins(): Promise<{ unpinned: string[]; rendered: number }> {
+    stopWatchingPins(): Promise<{ unpinned: string[]; rendered: string[] }> {
         return this.run(() => {
             const watch = (
                 window as unknown as {
-                    streamPins: { unpinned: string[]; rendered: number; on: boolean; tasks: MutationObserver };
+                    streamPins: { unpinned: string[]; rendered: string[]; on: boolean; tasks: MutationObserver };
                 }
             ).streamPins;
             watch.on = false;
