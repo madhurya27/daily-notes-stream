@@ -13,7 +13,7 @@ test("a flick up from an old date glides on, the text under the thumb moving onl
         expect(await emptyHeightsAbove(phone), "the empty notes above").toContain(100);
         await phone.followReader();
 
-        expect(await phone.glideEnding("down")).not.toBe("cut short");
+        expect((await phone.glide("down")).faults).toEqual([]);
 
         const { drifts, rendered } = await phone.stopFollowing();
         expect(rendered, "no note above rendered during the glide").toBeGreaterThan(0);

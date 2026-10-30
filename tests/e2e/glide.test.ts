@@ -1,5 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { glideEnding, longestStall, neverScrolled, type Heard } from "../../e2e-tests/ios/glide";
+import {
+    changesDuring,
+    glideEnding,
+    glideFaults,
+    longestStall,
+    neverScrolled,
+    type Heard,
+} from "../../e2e-tests/ios/glide";
 
 type Frames = { at: number; top: number; owing?: boolean }[];
 
@@ -236,5 +243,106 @@ describe("neverScrolled", () => {
 
     it("is false when a later frame moved", () => {
         expect(neverScrolled(1000, heard(frames([1000, 1000, 1020])))).toBe(false);
+    });
+});
+
+describe("changesDuring", () => {
+    const rows = "div.bases-tbody in Journal/2026-08-30.md, Base 1";
+    const cards = "div.bases-cards-group in Journal/2026-08-30.md, Base 2";
+
+    it("counts each kind of change to each element, from the lift", () => {
+        const events = [
+            { at: 1000, kind: "nodes", what: rows },
+            { at: 1040, kind: "style", what: cards },
+            { at: 1100, kind: "nodes", what: rows },
+        ];
+
+        expect(changesDuring(events, 1000)).toEqual([
+            { kind: "nodes", what: rows, count: 2, first: 0, last: 100 },
+            { kind: "style", what: cards, count: 1, first: 40, last: 40 },
+        ]);
+    });
+
+    it("lists the changes in the order they first came, the stroke's before the lift", () => {
+        const events = [
+            { at: 1100, kind: "style", what: cards },
+            { at: 960, kind: "touchmove", what: "1 at y 300" },
+            { at: 1050, kind: "nodes", what: rows },
+        ];
+
+        expect(changesDuring(events, 1000).map(({ first }) => first)).toEqual([-40, 50, 100]);
+    });
+
+    it("is none without events", () => {
+        expect(changesDuring([], 1000)).toEqual([]);
+    });
+});
+
+describe("glideFaults", () => {
+    // From the lift at 0, slowing to a stop at 112 ms, then still.
+    const glide = () => heard(frames([5000, 4800, 4650, 4550, 4500, 4480, 4475, 4474]), still(4474, 112, 600));
+    const faults = (over: Partial<Parameters<typeof glideFaults>[0]>) =>
+        glideFaults({ frames: glide(), stops: [], events: [], ...over });
+
+    it("is none for a glide the stream left alone", () => {
+        expect(faults({})).toEqual([]);
+    });
+
+    // How late a frame is depends on the device.
+    it("is none for a glide the page was too busy to draw in time", () => {
+        const late = heard(frames([5000, 4800, 4650]), frames([4300, 4290], { from: 332 }), still(4290, 348, 600));
+
+        expect(faults({ frames: late })).toEqual([]);
+    });
+
+    it("names a write to the scroll position while the glide moved", () => {
+        const stops = [{ at: 40, how: "scrollTop", owing: false }];
+
+        expect(faults({ stops })).toEqual(["scrollTop 40 ms after the lift, 8 ms after the scroll last moved"]);
+    });
+
+    it("names a write during the stroke, before the lift", () => {
+        const stops = [{ at: -30, how: "scrollTop", owing: false }];
+
+        expect(faults({ stops })).toEqual(["scrollTop 30 ms before the lift, during the stroke"]);
+    });
+
+    it("names a freeze of the pane that ended the glide", () => {
+        const stops = [{ at: 112, how: "freeze", owing: false }];
+
+        expect(faults({ stops })).toEqual(["freeze 112 ms after the lift, 0 ms after the scroll last moved"]);
+    });
+
+    // The stream waits until the scroll has been still for SCROLL_IDLE_MS,
+    // counted from the scroll event, which comes just before the frame.
+    it("allows a write once the scroll has been still as long as the stream waits", () => {
+        const stops = [{ at: 112 + 285, how: "scrollTop", owing: false }];
+
+        expect(faults({ stops })).toEqual([]);
+    });
+
+    it("names a write sooner than the stream waits", () => {
+        const stops = [{ at: 112 + 250, how: "scrollTop", owing: false }];
+
+        expect(faults({ stops })).toEqual(["scrollTop 362 ms after the lift, 250 ms after the scroll last moved"]);
+    });
+
+    // What the stream owes is handed over at an edge on purpose (D-090,
+    // D-091, D-143). Their own tests check them.
+    it("allows a write while the stream owes a shift", () => {
+        const stops = [{ at: 40, how: "scrollTop", owing: true }];
+
+        expect(faults({ stops })).toEqual([]);
+    });
+
+    it("names a box that could scroll", () => {
+        const events = [
+            { at: 50, kind: "scroll box", what: "div.callout in Journal/2026-07-30.md (auto visible)" },
+            { at: 80, kind: "nodes", what: "div.daily-note-block" },
+        ];
+
+        expect(faults({ events })).toEqual([
+            "a box that could scroll: div.callout in Journal/2026-07-30.md (auto visible)",
+        ]);
     });
 });

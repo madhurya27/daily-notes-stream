@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { deviceToDrive, drivesIPad } from "../../e2e-tests/ios/device";
+import { deviceToDrive, drivesIPad, orientationToDrive } from "../../e2e-tests/ios/device";
 
 function device(name: string, deviceType: string, transportType = "wired", reality = "physical") {
     return {
@@ -45,5 +45,22 @@ describe("drivesIPad", () => {
         expect(drivesIPad({ IOS_DEVICE: "iPad" })).toBe(true);
         expect(drivesIPad({ IOS_DEVICE: "iPhone" })).toBe(false);
         expect(drivesIPad({})).toBe(false);
+    });
+});
+
+describe("orientationToDrive", () => {
+    it("is the orientation IOS_ORIENTATION names", () => {
+        expect(orientationToDrive({ IOS_ORIENTATION: "PORTRAIT" })).toBe("PORTRAIT");
+        expect(orientationToDrive({ IOS_ORIENTATION: "LANDSCAPE" })).toBe("LANDSCAPE");
+    });
+
+    it("is none without IOS_ORIENTATION, so the device stays as it is", () => {
+        expect(orientationToDrive({})).toBeUndefined();
+    });
+
+    it("refuses any other orientation", () => {
+        expect(() => orientationToDrive({ IOS_ORIENTATION: "portrait" })).toThrow(
+            "IOS_ORIENTATION must be PORTRAIT or LANDSCAPE, not portrait"
+        );
     });
 });

@@ -32,3 +32,17 @@ export function drivesIPad(env: NodeJS.ProcessEnv): boolean {
 function typeToDrive(env: NodeJS.ProcessEnv): string {
     return env.IOS_DEVICE ?? "iPhone";
 }
+
+export type Orientation = "PORTRAIT" | "LANDSCAPE";
+const ORIENTATIONS: readonly string[] = ["PORTRAIT", "LANDSCAPE"] satisfies Orientation[];
+
+/**
+ * The orientation `IOS_ORIENTATION` turns the device to for the run, or none:
+ * then it stays as the tester left it.
+ */
+export function orientationToDrive(env: NodeJS.ProcessEnv): Orientation | undefined {
+    const wanted = env.IOS_ORIENTATION;
+    if (wanted === undefined) return undefined;
+    if (!ORIENTATIONS.includes(wanted)) throw new Error(`IOS_ORIENTATION must be PORTRAIT or LANDSCAPE, not ${wanted}`);
+    return wanted as Orientation;
+}

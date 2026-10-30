@@ -1,11 +1,11 @@
 import { test, expect, type Phone } from "./phone";
-import { FREE_DAYS } from "./vault";
+import { LANE_DAYS, LANE_SLOT, LANE_TEXT, STALLERS } from "./vault";
 
 /**
- * A trip to the oldest note starts this many notes above it, the length of the
- * default journal.
+ * A trip to the oldest note starts this many notes above it: the default
+ * journal, then the glide tests' lane below it.
  */
-const TRIP_NOTES = 21;
+const TRIP_NOTES = 21 + LANE_DAYS;
 
 /**
  * Jumps to the note `TRIP_NOTES` above the oldest, or to the newest. Returns
@@ -60,13 +60,38 @@ test("flicks to the oldest note and back change a rendered note's height only as
     expect(unpinned).toEqual([]);
 });
 
-// Each flick starts on the newest notes, which hold the things that used to
-// stop scrolling completely within 0.4 s (STALLERS in vault.ts).
-test("flicks from the top glide on", async ({ phone }) => {
-    for (const flick of [1, 2, 3]) {
-        await phone.openStream();
-        expect(await phone.glideEnding("up"), `flick ${flick}`).not.toBe("cut short");
+/**
+ * Three flicks `direction` from `depth` px into `target` in the lane's slot,
+ * which holds `markdown` above its plain text. Three, because what stops
+ * scrolling stops some flicks, not all (D-085). Each starts the same way, in
+ * the same notes (`startInLane`).
+ */
+async function glidesInLane(
+    phone: Phone,
+    direction: "up" | "down",
+    { markdown = "", target = "", depth = 300, ready = async () => {} } = {}
+): Promise<void> {
+    await phone.fillSlot(markdown && `${markdown}\n\n${LANE_TEXT}`);
+    try {
+        for (const flick of [1, 2, 3]) {
+            await phone.startInLane(target, depth);
+            await ready();
+            expect((await phone.glide(direction)).faults, `flick ${flick}`).toEqual([]);
+        }
+    } finally {
+        await phone.fillSlot();
     }
+}
+
+// The control: nothing in the glide's way but plain text.
+for (const direction of ["up", "down"] as const)
+    test(`a flick ${direction} over plain text glides on`, async ({ phone }) => {
+        await glidesInLane(phone, direction);
+    });
+
+// The things that used to stop scrolling completely within 0.4 s.
+test("a flick up over math, Bases, a wide table and code glides on", async ({ phone }) => {
+    await glidesInLane(phone, "up", { markdown: STALLERS.join("\n") });
 });
 
 for (const [what, target, depth] of [
@@ -90,19 +115,15 @@ for (const [what, target, depth] of [
         expect(Math.abs(now - seen.top), `"${seen.text}" moved from ${seen.top} to ${now}`).toBeLessThan(5);
     });
 
-// Deep in the stream, as for a reader looking for an old note. The finger lands
-// on a Base, which used to stop scrolling where it started. Its cards are about
-// 1,250 px tall, so from 300 px in, it fills the screen under both strokes.
+// The finger lands on a Base, which used to stop scrolling where it started.
+// Its cards are about 1,250 px tall, so from 300 px in, it fills the screen
+// under both strokes.
 for (const direction of ["up", "down"] as const)
     test(`a flick ${direction} over a Base deep in the stream glides on`, async ({ phone }) => {
-        // Three times, because what stops scrolling stops some flicks, not all
-        // (D-085). Each from the top, because placeAt looks down the stream,
-        // and a glide may go past the Base.
-        for (const flick of [1, 2, 3]) {
-            await phone.openStream();
-            await phone.placeAt('.daily-note-block[data-source-path="Journal/2026-09-13.md"] .daily-note-base', 300);
-            expect(await phone.glideEnding(direction), `flick ${flick}`).not.toBe("cut short");
-        }
+        await glidesInLane(phone, direction, {
+            markdown: "### Reading\n\n![[Reading.base]]",
+            target: ".daily-note-base",
+        });
     });
 
 // A touch dims a link, or shows a date's daily note button, and Obsidian fades
@@ -126,49 +147,40 @@ for (const [what, target] of [
         expect(await phone.scrollTop()).toBeGreaterThan(before + 100);
     });
 
-/**
- * A web page taller than its frame, so it could scroll inside it, in a note
- * deep in the stream.
- */
+/** A web page taller than its frame, so it could scroll inside it. */
 const PAGE = "Pages/Tall page.html";
-const FRAMED = FREE_DAYS[0];
 
 for (const direction of ["up", "down"] as const)
     test(`a flick ${direction} over a web page in a frame glides on`, async ({ phone }) => {
-        await phone.runAsync(
-            async (page: string, note: string) => {
-                const { vault } = window.app;
-                if (!vault.getFolderByPath("Pages")) await vault.createFolder("Pages");
-                const lines = Array.from(
-                    { length: 200 },
-                    (_, i) => `<p>Line ${i + 1} of a page taller than its frame.</p>`
-                );
-                await vault.create(page, `<!doctype html><body style="font-size: 20px">${lines.join("")}</body>`);
-                const src = vault.adapter.getResourcePath(page);
-                await vault.create(note, `A page:\n\n<iframe src="${src}" width="560" height="1500"></iframe>\n`);
-            },
-            PAGE,
-            FRAMED
-        );
+        const src = await phone.runAsync(async (page: string) => {
+            const { vault } = window.app;
+            if (!vault.getFolderByPath("Pages")) await vault.createFolder("Pages");
+            const lines = Array.from(
+                { length: 200 },
+                (_, i) => `<p>Line ${i + 1} of a page taller than its frame.</p>`
+            );
+            await vault.create(page, `<!doctype html><body style="font-size: 20px">${lines.join("")}</body>`);
+            return vault.adapter.getResourcePath(page) as string;
+        }, PAGE);
         try {
-            for (const flick of [1, 2, 3]) {
-                await phone.openStream();
-                await phone.placeAt(`.daily-note-block[data-source-path="${FRAMED}"] iframe`, 300);
+            await glidesInLane(phone, direction, {
+                markdown: `A page:\n\n<iframe src="${src}" width="560" height="1500"></iframe>`,
+                target: "iframe",
                 // The frame loads its page once the stream stops scrolling
                 // (D-087).
-                await expect
-                    .poll(() =>
-                        phone.run((note: string) => {
-                            const frame = document.querySelector<HTMLIFrameElement>(
-                                `.daily-note-block[data-source-path="${note}"] iframe`
-                            );
-                            const page = frame?.contentDocument?.scrollingElement;
-                            return !!page && page.scrollHeight > page.clientHeight;
-                        }, FRAMED)
-                    )
-                    .toBe(true);
-                expect(await phone.glideEnding(direction), `flick ${flick}`).not.toBe("cut short");
-            }
+                ready: () =>
+                    expect
+                        .poll(() =>
+                            phone.run((note: string) => {
+                                const frame = document.querySelector<HTMLIFrameElement>(
+                                    `.daily-note-block[data-source-path="${note}"] iframe`
+                                );
+                                const page = frame?.contentDocument?.scrollingElement;
+                                return !!page && page.scrollHeight > page.clientHeight;
+                            }, LANE_SLOT)
+                        )
+                        .toBe(true),
+            });
         } finally {
             await phone.runAsync(
                 async (...paths: string[]) => {
@@ -177,7 +189,6 @@ for (const direction of ["up", "down"] as const)
                         if (file) await window.app.vault.delete(file, true);
                     }
                 },
-                FRAMED,
                 PAGE,
                 "Pages"
             );

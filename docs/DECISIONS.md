@@ -3349,32 +3349,6 @@ caught a window part way; with the setting, none of 16 did.
   that measures a window would need it.
 - Turning the animations off for the whole system — it changes the user's Mac.
 
-## D-184 — A glide cut short counts against the stream only if a plain page's glides on (2026-10-28)
-
-**Decision:** when a device test's glide on the stream is cut short,
-`phone.glideEnding` flicks a page the test adds over Obsidian straight away: a
-scroll container of plain paragraphs, with nothing in it that scrolls. If that
-glide is cut short too, the ending is `"cut short by iOS"`, which the tests
-accept, and the plain page's ending is noted on the test.
-
-**Why:** on the iPad, glides are cut for a few minutes at a time, about once a
-day (`docs/TODO.md`). The tests failed in those minutes without showing a fault
-in the plugin. Neither the plugin nor Obsidian draws the plain page, so a cut
-there comes from iOS or the test's touch. In the first burst caught this way
-(2026-10-28), the stream's glide stopped at speed 101 ms after the lift, and the
-plain page's, with nothing on it changing, 84 ms after.
-
-**Rejected:**
-
-- A note in Obsidian's reading view — its tables, code and embeds scroll
-  sideways, which can stop a glide (ADR 0008) and would excuse a real cut.
-- Retrying a failed flick — a burst lasts minutes, and a retry hides a real cut
-  as well as iOS's.
-- Skipping the glide tests on the iPad — they found the cuts that ADR 0008 and
-  D-171 fixed.
-- Waiting for the next burst to read its touches — bursts come once a day, and
-  the tests kept failing meanwhile.
-
 ## D-185 — Work that waits for the pane to be still shares one clock (2026-10-28)
 
 **Decision:** `StillClock` notes when the pane last scrolled or resized.
@@ -3443,3 +3417,51 @@ move when a Base inside fills in. The text below dropped 180 or 898 px in 4 of
   were pushed off screen unseen.
 - Holding what follows a Base that ends above the pane's middle — the Base's new
   rows moved off screen, and the next Base's growth still moved the text.
+
+## D-188 — A glide test fails on what the stream did, not on how the glide ended (2026-10-30)
+
+**Decision:** `phone.glide` returns the glide's faults (`glideFaults` in
+`e2e-tests/ios/glide.ts`), and the device tests fail on those alone:
+
+- a write to the pane's scroll position, or a freeze of the pane
+  (`is-scroll-frozen`), during the stroke or sooner after the scroll last moved
+  than the stream waits before its own writes (`SCROLL_IDLE_MS`), unless the
+  stream owed a shift then (D-090, D-091, D-143);
+- a box that could scroll (ADR 0008), now watched in every glide.
+
+How the glide ended and its longest frame are noted on the test, and do not fail
+it.
+
+**Why:** how far iOS carries a glide depends on the device: the same test cut
+15% of its glides one hour and 2% a few hours later. What the stream does to the
+scroll does not, so these tests pass or fail the same on any device.
+
+**Rejected:**
+
+- A Safari page as the control — it ran without the change log and Web Inspector
+  that Obsidian's page had, so it was not a fair control.
+- The same lane in Obsidian's reading view as the control — fairer, but twice
+  the flicks, and the verdict would still change with the device.
+- A frame later than a limit as a fault — how late depends on the device.
+- `scrollend` as the glide's end — iOS fires none for many glides, and none for
+  a glide stopped by a freeze.
+
+## D-189 — Every glide test starts from one place, in a lane of plain days (2026-10-30)
+
+**Decision:** the device tests' glides start in a lane of 61 plain days below
+the oldest note (`LANE_SLOT` in `e2e-tests/ios/vault.ts`). A test writes what it
+flicks over, such as a Base, into the lane's middle day. Before each flick,
+`phone.startInLane` forgets stored note heights, opens the stream again and
+jumps straight to that day. Each side of the lane is longer than a glide and the
+notes rendered ahead of it.
+
+**Why:** each glide test started somewhere else, reached it by scrolling a
+screen at a time, and glided past different notes, so what was loaded, rendered
+and measured differed. The same tests cut or stalled 3–17% of their glides; in
+the lane, 1 of 135.
+
+**Rejected:**
+
+- Starting each test where its subject is seeded — what is near it varies, and
+  rendering starts 1.5 screens ahead (`RENDER_VIEWPORTS`).
+- Keeping stored heights — they depend on what earlier runs measured.

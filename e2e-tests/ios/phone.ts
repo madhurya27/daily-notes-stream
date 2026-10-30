@@ -1,9 +1,24 @@
 import { test as base, expect } from "@playwright/test";
-import { drivesIPad } from "./device";
-import { glideEnding, longestStall, neverScrolled, type GlideEnding, type GlideEvent, type Heard } from "./glide";
+import { drivesIPad, orientationToDrive, type Orientation } from "./device";
+import {
+    changesDuring,
+    glideEnding,
+    glideFaults,
+    longestStall,
+    neverScrolled,
+    type GlideEnding,
+    type GlideEvent,
+    type Heard,
+    type ScrollStop,
+} from "./glide";
+
+/**
+ * How a glide ended, and what the stream did that can end one (`glideFaults`).
+ */
+export type Glide = { ending: GlideEnding; faults: string[] };
 import { keyboardAfterRun } from "./keyboard";
 import { connect, OBSIDIAN, SAFARI } from "./session";
-import { returnToTestersVault, useVault } from "./vault";
+import { LANE_SLOT, LANE_TEXT, returnToTestersVault, useVault } from "./vault";
 
 /** XCUIKeyModifierCommand, for `mobile: keys`. */
 const COMMAND = 1 << 4;
@@ -24,10 +39,7 @@ type NoteHeights = {
     restore(saved: unknown): void;
 };
 
-/** A scroll container the tests add, with nothing in it that scrolls. */
-const PLAIN_PAGE = "#glide-check";
-
-export type Orientation = "PORTRAIT" | "LANDSCAPE";
+export type { Orientation };
 type Layer = "letters" | "numbers";
 /**
  * The characters escaped in a key's name in the screen's XML, with `&amp;`
@@ -506,6 +518,44 @@ export class Phone {
     }
 
     /**
+     * Writes `markdown` into the lane's slot (`LANE_SLOT`), or its plain text
+     * back, and waits until Obsidian has read it: the stream renders from the
+     * metadata cache.
+     */
+    async fillSlot(markdown: string = LANE_TEXT): Promise<void> {
+        await this.runAsync(
+            async (path: string, text: string) => {
+                const { vault, metadataCache } = window.app;
+                const file = vault.getFileByPath(path)!;
+                if ((await vault.read(file)) === text) return;
+                const read = new Promise<void>((resolve) => {
+                    const ref = metadataCache.on("changed", (changed: { path: string }) => {
+                        if (changed.path !== path) return;
+                        metadataCache.offref(ref);
+                        resolve();
+                    });
+                });
+                await vault.modify(file, text);
+                await read;
+            },
+            LANE_SLOT,
+            `${markdown}\n`
+        );
+    }
+
+    /**
+     * Puts the stream where every glide test starts: nothing measured, opened
+     * again, and `depth` px into `target` in the lane's slot, found without
+     * scrolling through the notes on the way.
+     */
+    async startInLane(target = "", depth = 300): Promise<void> {
+        await this.run(() => window.app.plugins.plugins["daily-notes-stream"].layoutMemory.forgetAll());
+        await this.openStream();
+        await this.jumpTo(LANE_SLOT.slice("Journal/".length, -".md".length));
+        await this.placeAt(`.daily-note-block[data-source-path="${LANE_SLOT}"] ${target}`.trim(), depth);
+    }
+
+    /**
      * Jumps, as the jump list would, to the newest note on or before `date`
      * (`YYYY-MM-DD`), and waits until it is still.
      */
@@ -909,86 +959,125 @@ export class Phone {
     }
 
     /**
-     * One stroke, and how its scrolling ended (`glide.ts`), once the pane is
-     * still. A full scroll lasts 1–3.5 s. It is read on every frame from when
-     * the finger lifts, so a stall can be told apart from a stop. The longest
-     * stall is noted on the test. A glide cut short attaches its frames, and
-     * the touches and changes from the stroke on. Every glide attaches what the
-     * screen held as it started (`flickStart`), to compare a cut glide's start
-     * with the others'. A stroke that never scrolled the stream fails as such,
-     * not as a glide cut short.
-     *
-     * A glide cut short is checked against a plain page's glide at once
-     * (D-184). If that is cut short too, iOS is cutting every glide, as it does
-     * for a few minutes at a time on the iPad, and the stream is not to blame.
+     * One stroke, and what the stream did during its glide that can end a
+     * glide on any device (`glideFaults`), once the pane is still. The tests
+     * fail on those faults, not on how the glide ended, which depends on the
+     * device too (D-188). It is read on every frame from when the finger lifts.
+     * The ending and the longest stall are noted on the test. Every glide
+     * attaches what the screen held as it started (`flickStart`), the device's
+     * state, its frames, and a count of each change (`changesDuring`), each
+     * named with its note and Base. A glide cut short also attaches every touch
+     * and change from the stroke on. A stroke that never scrolled the stream
+     * fails as such.
      */
-    async glideEnding(
-        direction: "up" | "down",
-        { share = 0.7, ms = 60 } = {}
-    ): Promise<GlideEnding | "cut short by iOS"> {
+    async glide(direction: "up" | "down", { share = 0.7, ms = 60 } = {}): Promise<Glide> {
         await base.info().attach("flick start", {
             body: JSON.stringify(await this.flickStart()),
             contentType: "application/json",
         });
-        const ending = await this.recordedEnding(`:has(> ${STREAM})`, direction, share, ms);
-        if (ending !== "cut short") return ending;
-        const plain = await this.plainPageEnding(direction, share, ms);
-        base.info().annotations.push({ type: "plain page's glide", description: plain });
-        return plain === "cut short" ? "cut short by iOS" : ending;
+        await base
+            .info()
+            .attach("device", { body: JSON.stringify(await this.deviceState()), contentType: "application/json" });
+        return this.recordedGlide(`:has(> ${STREAM})`, direction, share, ms);
     }
 
     /**
-     * How a stroke's glide ends on a page of plain paragraphs, over all of
-     * Obsidian. Neither the plugin nor Obsidian draws it, and nothing in it
-     * scrolls, which would stop a glide (ADR 0008). It is removed after the
-     * stroke.
+     * The device as a flick starts: how hot iOS says it is (0 nominal to 3
+     * critical), its battery and whether it charges (1 unplugged, 2 charging,
+     * 3 full), and the page's frames later than 50 ms in the last 5 s. The
+     * frames are counted from the first call on.
      */
-    private async plainPageEnding(direction: "up" | "down", share: number, ms: number): Promise<GlideEnding> {
-        await this.run(
-            (s: string, down: boolean) => {
-                const page = document.createElement("div");
-                page.id = s.slice(1);
-                page.style.cssText =
-                    "position: fixed; inset: 0; z-index: 1000; overflow-y: auto; background: white; color: black";
-                for (let i = 0; i < 300; i++)
-                    page.append(
-                        Object.assign(document.createElement("p"), {
-                            textContent: `Paragraph ${i}: plain words, to give the page height.`,
-                        })
-                    );
-                document.body.append(page);
-                page.scrollTop = down ? page.scrollHeight : 0;
-            },
-            PLAIN_PAGE,
-            direction === "down"
-        );
-        try {
-            return await this.recordedEnding(PLAIN_PAGE, direction, share, ms);
-        } finally {
-            await this.run((s: string) => document.querySelector(s)?.remove(), PLAIN_PAGE);
-        }
+    private async deviceState() {
+        const { thermalState } = (await this.driver.execute("mobile: deviceInfo")) as { thermalState: number };
+        const { level, state } = (await this.driver.execute("mobile: batteryInfo")) as { level: number; state: number };
+        const late = await this.run(() => {
+            const w = window as unknown as { lateFrames?: number[] };
+            if (!w.lateFrames) {
+                const late: number[] = (w.lateFrames = []);
+                let last = performance.now();
+                const frame = (now: number) => {
+                    if (now - last > 50) late.push(now);
+                    last = now;
+                    requestAnimationFrame(frame);
+                };
+                requestAnimationFrame(frame);
+            }
+            const since = performance.now() - 5000;
+            return w.lateFrames.filter((at) => at >= since).length;
+        });
+        return { thermalState, battery: level, charging: state, lateFrames: late };
     }
 
-    /** One stroke, and how the glide of the scroll container `pane` ended. */
-    private async recordedEnding(
-        pane: string,
-        direction: "up" | "down",
-        share: number,
-        ms: number
-    ): Promise<GlideEnding> {
+    /**
+     * One stroke, and what the scroll container `pane` did during its glide:
+     * every frame, change and scroll stop.
+     */
+    private async recordedGlide(pane: string, direction: "up" | "down", share: number, ms: number): Promise<Glide> {
         const before = await this.run(
             (p: string, s: string) => {
                 const pane = document.querySelector<HTMLElement>(p)!;
                 const stream = pane.querySelector(s);
-                const glide = { heard: [] as Heard[], events: [] as GlideEvent[], done: new AbortController() };
+                const glide = {
+                    heard: [] as Heard[],
+                    events: [] as GlideEvent[],
+                    stops: [] as ScrollStop[],
+                    done: new AbortController(),
+                };
                 (window as unknown as { streamGlide: typeof glide }).streamGlide = glide;
                 const signal = glide.done.signal;
                 const log = (kind: string, what: string) => {
                     if (glide.events.length < 5000) glide.events.push({ at: performance.now(), kind, what });
                 };
+                const owing = () => !!stream?.classList.contains("is-scroll-shifted");
+                // Every way the page can set the pane's scroll position, and
+                // the pane frozen for a frame (D-091). Each ends a glide.
+                const stop = (how: string) => glide.stops.push({ at: performance.now(), how, owing: owing() });
+                const scrollTop = Object.getOwnPropertyDescriptor(Element.prototype, "scrollTop")!;
+                Object.defineProperty(pane, "scrollTop", {
+                    configurable: true,
+                    get: () => scrollTop.get!.call(pane) as number,
+                    set: (value: number) => {
+                        stop("scrollTop");
+                        scrollTop.set!.call(pane, value);
+                    },
+                });
+                for (const how of ["scrollTo", "scrollBy", "scroll"] as const) {
+                    const real = Element.prototype[how];
+                    pane[how] = (...args: unknown[]) => {
+                        stop(how);
+                        (real as (...a: unknown[]) => void).apply(pane, args);
+                    };
+                }
+                const intoView = Element.prototype.scrollIntoView;
+                Element.prototype.scrollIntoView = function (this: Element, ...args) {
+                    if (pane.contains(this)) stop("scrollIntoView");
+                    intoView.apply(this, args);
+                };
+                signal.addEventListener("abort", () => {
+                    for (const how of ["scrollTop", "scrollTo", "scrollBy", "scroll"]) delete (pane as never)[how];
+                    Element.prototype.scrollIntoView = intoView;
+                });
+                // The note an element is in, and for a Base, which one and
+                // how it is drawn. Ancestors only, to keep the page's work
+                // during the glide small.
+                const bases = new WeakMap<Element, number>();
+                const where = (el: Element) => {
+                    const block = el.closest<HTMLElement>(".daily-note-block");
+                    if (!block) return "";
+                    const base = el.closest(".daily-note-base");
+                    if (!base) return ` in ${block.dataset.sourcePath}`;
+                    if (!bases.has(base))
+                        bases.set(base, [...block.querySelectorAll(".daily-note-base")].indexOf(base) + 1);
+                    const view = el.closest(".bases-cards-container")
+                        ? "cards"
+                        : el.closest(".bases-table-container")
+                          ? "table"
+                          : "frame";
+                    return ` in ${block.dataset.sourcePath}, Base ${bases.get(base)}, ${view}`;
+                };
                 const name = (node: Node) =>
                     node instanceof Element
-                        ? `${node.tagName.toLowerCase()}.${[...node.classList].join(".")}`
+                        ? `${node.tagName.toLowerCase()}.${[...node.classList].join(".")}${where(node)}`
                         : node.nodeName;
                 for (const kind of ["touchstart", "touchmove", "touchend", "touchcancel"])
                     document.addEventListener(
@@ -1000,18 +1089,64 @@ export class Phone {
                             ),
                         { capture: true, passive: true, signal }
                     );
+                // A box that could scroll, even for a frame, stops a glide (ADR
+                // 0008). Reading computed styles makes WebKit recalculate them,
+                // so this is checked once a frame, on what changed since, and
+                // only when asked for. It misses:
+                // - anything outside the pane, and the pane itself
+                // - a box made and gone within a frame, by code that runs after
+                //   this check, such as a resize observer
+                // - a box made by a stylesheet, media query or pseudo-class,
+                //   with no change to an element's class or style
+                // - SVG, and elements that are not visible
+                const unchecked = new Set<Element>();
+                const boxes = new Set<Element>();
+                const overflow = (el: Element) => {
+                    const style = getComputedStyle(el);
+                    return `${style.overflowX} ${style.overflowY}`;
+                };
+                // An icon's SVG is hidden by default, which clips its drawing
+                // but cannot scroll.
+                const scrolls = (el: Element) =>
+                    el !== pane &&
+                    !(el instanceof SVGElement) &&
+                    /auto|scroll|hidden/.test(overflow(el)) &&
+                    el.checkVisibility();
+                const checkBoxes = () => {
+                    for (const box of boxes)
+                        if (!box.isConnected || !scrolls(box)) {
+                            boxes.delete(box);
+                            log("scroll box gone", name(box));
+                        }
+                    for (const root of unchecked)
+                        for (const el of [root, ...root.querySelectorAll("*")])
+                            if (!boxes.has(el) && el.isConnected && scrolls(el)) {
+                                boxes.add(el);
+                                log("scroll box", `${name(el)} (${overflow(el)})`);
+                            }
+                    unchecked.clear();
+                };
                 const changes = new MutationObserver((records) => {
-                    for (const { type, target, attributeName } of records)
+                    for (const { type, target, attributeName, addedNodes } of records) {
                         log(type === "childList" ? "nodes" : attributeName!, name(target));
+                        if (target === pane && attributeName === "class" && pane.classList.contains("is-scroll-frozen"))
+                            stop("freeze");
+                        if (target instanceof Element) unchecked.add(target);
+                        for (const node of addedNodes) if (node instanceof Element) unchecked.add(node);
+                    }
                 });
+                // The boxes already there when the stroke starts.
+                unchecked.add(pane);
+                checkBoxes();
                 changes.observe(pane, { subtree: true, childList: true, attributeFilter: ["class", "style"] });
                 signal.addEventListener("abort", () => changes.disconnect());
                 const draw = () => {
                     if (glide.done.signal.aborted) return;
+                    checkBoxes();
                     glide.heard.push({
                         at: performance.now(),
                         top: pane.scrollTop,
-                        owing: !!stream?.classList.contains("is-scroll-shifted"),
+                        owing: owing(),
                         bottom: pane.scrollHeight - pane.clientHeight,
                     });
                     requestAnimationFrame(draw);
@@ -1024,25 +1159,45 @@ export class Phone {
         );
         await this.stroke(direction, share, ms);
         await this.rest();
-        const { heard, events } = await this.run(() => {
+        const { heard, events, stops } = await this.run(() => {
             const glide = (
-                window as unknown as { streamGlide: { heard: Heard[]; events: GlideEvent[]; done: AbortController } }
+                window as unknown as {
+                    streamGlide: {
+                        heard: Heard[];
+                        events: GlideEvent[];
+                        stops: ScrollStop[];
+                        done: AbortController;
+                    };
+                }
             ).streamGlide;
             glide.done.abort();
-            return { heard: glide.heard, events: glide.events };
+            return { heard: glide.heard, events: glide.events, stops: glide.stops };
         });
         if (heard.length === 0) throw new Error("The stroke never lifted.");
         if (neverScrolled(before, heard))
             throw new Error(`The stroke never scrolled ${pane}, which stayed at ${before}.`);
         base.info().annotations.push({ type: "longest stall", description: `${longestStall(heard)} ms` });
         const ending = glideEnding(heard);
+        base.info().annotations.push({ type: "glide", description: ending });
+        const faults = glideFaults({ frames: heard, stops, events });
+        // To compare a cut glide with full ones.
+        await base.info().attach("glide", {
+            body: JSON.stringify({
+                ending,
+                faults,
+                frames: heard,
+                stops,
+                changes: changesDuring(events, heard[0]!.at),
+            }),
+            contentType: "application/json",
+        });
         // To read why, when a test fails on it.
         if (ending === "cut short")
             await base.info().attach("cut-short glide", {
                 body: JSON.stringify({ frames: heard, events }),
                 contentType: "application/json",
             });
-        return ending;
+        return { ending, faults };
     }
 
     /**
@@ -1114,9 +1269,19 @@ export class Phone {
     private async stroke(direction: "up" | "down", share: number, duration: number): Promise<void> {
         const top = await this.paneTop();
         await this.native();
+        const { height } = await this.windowSize();
+        const nearer = 0.5 - share / 2;
+        await this.touchStroke(direction, share, duration, Math.max(0, top + PANE_EDGE - height * nearer));
+    }
+
+    /**
+     * A stroke over `share` of the screen's height, centered, and `below` px
+     * lower, in `duration` ms.
+     */
+    private async touchStroke(direction: "up" | "down", share: number, duration: number, below: number): Promise<void> {
+        await this.native();
         const { width, height } = await this.windowSize();
         const [from, to] = direction === "up" ? [0.5 + share / 2, 0.5 - share / 2] : [0.5 - share / 2, 0.5 + share / 2];
-        const below = Math.max(0, top + PANE_EDGE - height * Math.min(from, to));
         const x = Math.round(width / 2);
         const [start, end] = [
             { x, y: Math.round(height * from + below) },
@@ -1564,10 +1729,12 @@ export const test = base.extend<{ quietConsole: void }, { phone: Phone }>({
             // instead.
             await driver.updateSettings({ animationCoolOffTimeout: 0, waitForIdleTimeout: 0 });
             const phone = new Phone(driver);
-            // An iPad is used in landscape, and an iPhone upright. The run
-            // leaves it as it found it.
+            // An iPad is used in landscape, and an iPhone upright, unless
+            // IOS_ORIENTATION turns it. The run leaves it as it found it.
             const found = (await driver.getOrientation()) as Orientation;
+            const wanted = orientationToDrive(process.env);
             try {
+                if (wanted) await driver.setOrientation(wanted);
                 await phone.assertUnlocked();
                 await useVault(phone);
                 expect(await phone.consoleErrors(), "errors in Obsidian's console, opening the vault").toEqual([]);

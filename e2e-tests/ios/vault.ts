@@ -36,7 +36,7 @@ const DEMO: Record<string, string> = demoVault({
  * from the top starts on them: math (D-085), a Base, a wide table and a long
  * line of code (ADR 0008).
  */
-const STALLERS = [
+export const STALLERS = [
     "## Stallers",
     "",
     "Effort: $\\dot{V}O_2 \\approx 48$, $CO_2$.",
@@ -153,6 +153,34 @@ const DAYS = {
  * delete it.
  */
 export const FREE_DAYS = ["Journal/2026-09-05.md", "Journal/2026-09-06.md"] as const;
+/** How many plain days the lane has on each side of its slot. */
+const LANE_SIDE = 30;
+/** The lane's middle day, where every glide test starts. */
+const SLOT_DAY = Date.UTC(2026, 6, 30);
+const dayPath = (offset: number) => `Journal/${new Date(SLOT_DAY + offset * 86_400_000).toISOString().slice(0, 10)}.md`;
+/**
+ * Plain days below the oldest note, where every glide test flicks: the same
+ * notes around each glide, so only what a test writes into `LANE_SLOT`
+ * differs. Each side is longer than a full glide and the notes rendered ahead
+ * of it, so a glide never reaches a note outside it.
+ */
+export const LANE_SLOT = dayPath(0);
+/** A lane day's text: plain paragraphs, about 1,500 px tall on an iPad. */
+export const LANE_TEXT = Array.from(
+    { length: 8 },
+    (_, i) =>
+        `Paragraph ${i + 1}. ` +
+        "Plain words in a sentence that runs on to fill a few lines of the note, with nothing in it to render but text. ".repeat(
+            5
+        )
+)
+    .map((paragraph) => paragraph.trim())
+    .join("\n\n");
+/** How many days the lane has, its slot included. */
+export const LANE_DAYS = 2 * LANE_SIDE + 1;
+const LANE = Object.fromEntries(
+    Array.from({ length: LANE_DAYS }, (_, i) => [dayPath(i - LANE_SIDE), `${LANE_TEXT}\n`])
+);
 const TEST_NOTES = {
     ...Object.fromEntries(Object.entries(DEMO).filter(([path]) => !(FREE_DAYS as readonly string[]).includes(path))),
     ...EMBEDS,
@@ -165,6 +193,8 @@ const TEST_NOTES = {
         /^(---\n[\s\S]*?\n---\n\n)/,
         "$1## Packing\n\n- Bag\n    - Charger\n    - Passport\n\n"
     ),
+    // After the journal, which with IOS_SEED_DAYS has days of its own here.
+    ...LANE,
     [SHORT_NOTE]: "A short day, one paragraph long.\n",
     [SHORT_NOTE_WITH_BASE]: "A short day, a board, then the reading list.\n\n![[Kanban.base]]\n\n![[Reading.base]]\n",
 };

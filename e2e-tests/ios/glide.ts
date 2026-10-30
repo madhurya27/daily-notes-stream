@@ -90,3 +90,71 @@ export function longestStall(frames: Heard[]): number {
 export function neverScrolled(before: number, frames: Heard[]): boolean {
     return frames.every((frame) => frame.top === before);
 }
+
+/**
+ * Each kind of change to each element during a stroke and its glide: how many
+ * times, and the first and last, in ms from the lift. Small enough to keep for
+ * every glide, so a cut glide's changes can be compared with a full one's.
+ */
+export type GlideChange = { kind: string; what: string; count: number; first: number; last: number };
+
+export function changesDuring(events: GlideEvent[], lift: number): GlideChange[] {
+    const changes = new Map<string, GlideChange>();
+    for (const { at, kind, what } of events) {
+        const since = Math.round(at - lift);
+        const key = `${kind} ${what}`;
+        const change = changes.get(key);
+        if (change) {
+            change.count++;
+            change.last = since;
+        } else changes.set(key, { kind, what, count: 1, first: since, last: since });
+    }
+    return [...changes.values()].sort((a, b) => a.first - b.first);
+}
+
+/**
+ * Something the stream did that ends a glide on iOS: a write to the pane's
+ * scroll position (`how` names the call), or `freeze` for the pane frozen for a
+ * frame (`is-scroll-frozen`). `owing` is whether the stream owed a shift then.
+ */
+export type ScrollStop = { at: number; how: string; owing: boolean };
+
+/**
+ * The stream's writes wait `HAND_OVER_MS` from the last scroll event. A frame
+ * is read just after its scroll event, so the wait measured from the frame can
+ * be this much shorter.
+ */
+const FRAME_SLACK_MS = 20;
+
+/**
+ * What the stream did during a stroke and its glide that ends a glide on iOS,
+ * each named: a scroll stop sooner after the scroll last moved than the stream
+ * waits before its own writes, and a box that could scroll (ADR 0008). iOS
+ * fires no `scrollend` for many glides, so the wait is the only sign that a
+ * glide is over (D-188). How the glide ended, and how late its frames were,
+ * depend on the device too, so they are not among them. `frames` start at the
+ * lift; `stops` and `events` are on the same clock.
+ */
+export function glideFaults({
+    frames,
+    stops,
+    events,
+}: {
+    frames: Heard[];
+    stops: ScrollStop[];
+    events: GlideEvent[];
+}): string[] {
+    const lift = frames[0]?.at ?? 0;
+    const lastMove = (at: number) =>
+        frames.filter((now, i) => i > 0 && now.at <= at && now.top !== frames[i - 1]!.top).at(-1)?.at ?? lift;
+    const early = stops.flatMap(({ at, how, owing }) => {
+        if (owing) return [];
+        if (at < lift) return [`${how} ${Math.round(lift - at)} ms before the lift, during the stroke`];
+        const still = at - lastMove(at);
+        return still < HAND_OVER_MS - FRAME_SLACK_MS
+            ? [`${how} ${Math.round(at - lift)} ms after the lift, ${Math.round(still)} ms after the scroll last moved`]
+            : [];
+    });
+    const boxes = events.filter(({ kind }) => kind === "scroll box");
+    return [...early, ...boxes.map(({ what }) => `a box that could scroll: ${what}`)];
+}

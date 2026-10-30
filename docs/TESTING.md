@@ -67,11 +67,11 @@ the run turns both back on at the end. To leave one of them off, set
 command line or in `e2e-tests/ios/.env`, which is gitignored.
 `IOS_SEED_DAYS=1825` creates five years of notes instead of 21 days (D-158).
 `test:ios` uses the iPhone on the cable and `test:ipados` the iPad, so both can
-stay plugged in (D-169). An iPad is tested in the orientation it is in. Its
-keyboard can be attached or not: the tests type on iOS's on-screen keyboard and
-make it appear if a keyboard is attached. After a run with a keyboard attached,
-iOS keeps showing its keyboard until you detach and attach the keyboard again
-(D-174).
+stay plugged in (D-169). A device is tested in the orientation it is in, or the
+one `IOS_ORIENTATION=PORTRAIT` or `LANDSCAPE` turns it to. Its keyboard can be
+attached or not: the tests type on iOS's on-screen keyboard and make it appear
+if a keyboard is attached. After a run with a keyboard attached, iOS keeps
+showing its keyboard until you detach and attach the keyboard again (D-174).
 
 Do this once for each Mac and each device. "Phone" below means either one.
 

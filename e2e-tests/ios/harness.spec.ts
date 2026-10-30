@@ -1,4 +1,4 @@
-import { test, expect, type FlickStart } from "./phone";
+import { test, expect, type FlickStart, type Phone } from "./phone";
 import { longNote } from "../long-note";
 
 // Every test fails if there is an error in Obsidian's console. These prove the
@@ -134,7 +134,7 @@ test("a glide's ending comes with what the screen held as it started", async ({ 
     await phone.openStream();
     const blocks = await phone.run(() => document.querySelectorAll(".daily-note-block").length);
 
-    await phone.glideEnding("up");
+    await phone.glide("up");
 
     const attached = test.info().attachments.find(({ name }) => name === "flick start");
     expect(attached, "no flick start attached").toBeDefined();
@@ -145,38 +145,89 @@ test("a glide's ending comes with what the screen held as it started", async ({ 
     expect(start.bases.some(({ rows }) => rows > 0)).toBe(true);
 });
 
-// iOS sometimes cuts glides on any page for a few minutes (docs/TODO.md). A cut
-// that a plain page's glide shares is iOS's, not the stream's.
-test("a glide cut short on a plain page too is iOS's cut", async ({ phone }) => {
+// A box that can scroll stops a glide (ADR 0008), even one that scrolls only
+// for a few frames.
+test("a glide records a box that could scroll for a moment", async ({ phone }) => {
     await phone.openStream();
-    await phone.flick("up");
     await phone.run(() => {
-        const freezing = new AbortController();
-        (window as unknown as { freezing: AbortController }).freezing = freezing;
-        // Each scroll container, after each lift.
+        const note = document.querySelector(".daily-note-block:not(.is-unloaded) .daily-note-content")!;
         document.addEventListener(
             "touchend",
-            () => {
-                let heard = 0;
-                const freeze = (e: Event) => {
-                    if (++heard < 5) return;
-                    document.removeEventListener("scroll", freeze, { capture: true });
-                    const pane = e.target as HTMLElement;
-                    pane.style.overflow = "hidden";
-                    requestAnimationFrame(() => (pane.style.overflow = ""));
-                };
-                document.addEventListener("scroll", freeze, { capture: true, signal: freezing.signal });
-            },
-            { signal: freezing.signal }
+            () =>
+                requestAnimationFrame(() => {
+                    const box = note.appendChild(document.createElement("div"));
+                    box.className = "scroll-box-probe";
+                    box.style.cssText = "overflow: auto; height: 10px";
+                    requestAnimationFrame(() => requestAnimationFrame(() => box.remove()));
+                }),
+            { once: true }
         );
     });
 
-    try {
-        expect(await phone.glideEnding("up")).toBe("cut short by iOS");
-    } finally {
-        // So no later test is frozen.
-        await phone.run(() => (window as unknown as { freezing: AbortController }).freezing.abort());
-    }
+    const { faults } = await phone.glide("up");
+
+    expect(faults).toContainEqual(expect.stringContaining("a box that could scroll: div.scroll-box-probe"));
+    const glides = test.info().attachments.filter(({ name }) => name === "glide");
+    const { changes } = JSON.parse(glides.at(-1)!.body!.toString()) as { changes: { kind: string; what: string }[] };
+    const probe = changes.filter(({ what }) => what.includes("scroll-box-probe")).map(({ kind }) => kind);
+    expect(probe).toEqual(expect.arrayContaining(["scroll box", "scroll box gone"]));
+});
+
+// The stream must not set the scroll position while a glide moves (ADR 0013).
+test("a glide records a write to the scroll position before it ended", async ({ phone }) => {
+    await phone.openStream();
+    await phone.flick("up");
+    await phone.run(() => {
+        const pane = document.querySelector(".daily-notes-stream-container")!.parentElement!;
+        let heard = 0;
+        const write = () => {
+            if (++heard < 5) return;
+            pane.removeEventListener("scroll", write);
+            pane.scrollTop += 1;
+        };
+        document.addEventListener("touchend", () => pane.addEventListener("scroll", write), { once: true });
+    });
+
+    const { faults } = await phone.glide("up");
+
+    expect(faults).toEqual([
+        expect.stringMatching(/^scrollTop \d+ ms after the lift, \d+ ms after the scroll last moved$/),
+    ]);
+});
+
+// The stream's own writes wait until the scroll is still (SCROLL_IDLE_MS).
+test("a glide's faults leave out a write once the scroll is still", async ({ phone }) => {
+    await phone.openStream();
+    await phone.flick("up");
+    await phone.run(() => {
+        const pane = document.querySelector(".daily-notes-stream-container")!.parentElement!;
+        let moved = 0;
+        const heard = () => (moved = performance.now());
+        document.addEventListener(
+            "touchend",
+            () => {
+                heard();
+                pane.addEventListener("scroll", heard);
+                const wait = () => {
+                    if (performance.now() - moved < 400) {
+                        requestAnimationFrame(wait);
+                        return;
+                    }
+                    pane.removeEventListener("scroll", heard);
+                    pane.scrollTop += 1;
+                };
+                requestAnimationFrame(wait);
+            },
+            { once: true }
+        );
+    });
+
+    const { faults } = await phone.glide("up");
+
+    expect(faults).toEqual([]);
+    const glides = test.info().attachments.filter(({ name }) => name === "glide");
+    const { stops } = JSON.parse(glides.at(-1)!.body!.toString()) as { stops: unknown[] };
+    expect(stops, "the write was recorded").toHaveLength(1);
 });
 
 // A scroll that ends while still fast, in the middle of the stream, is what
@@ -207,7 +258,12 @@ test("a glide cut short mid-stream is told from one that slows to its end", asyn
         }
     });
 
-    expect(await phone.glideEnding("up")).toBe("cut short");
+    const { ending, faults } = await phone.glide("up");
+
+    expect(ending).toBe("cut short");
+    expect(faults).toEqual([
+        expect.stringMatching(/^freeze \d+ ms after the lift, \d+ ms after the scroll last moved$/),
+    ]);
     // What happened around the cut is attached, to explain a cut no test made.
     const attached = test.info().attachments.find(({ name }) => name === "cut-short glide")!;
     const { events } = JSON.parse(attached.body!.toString()) as { events: { kind: string; what: string }[] };

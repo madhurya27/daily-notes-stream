@@ -11,22 +11,19 @@ there is a screen recording of them (D-099).
 - [ ] Remove the outline Obsidian draws around a property under the pointer: it
       suggests the property can be edited, which the read-only stream doesn't
       allow. Check desktop and the phone layout.
-- [ ] Flaky iOS tests, still unexplained. Compare with `main` back to back, at
-      least 10 runs each: the failure rates swing within an hour.
-    - Compare the `flick start` that each glide attaches (`glideEnding`) in
-      failing runs with passing ones. The run reports in
-      `test-results/ios-runs/` keep it.
-    - "A glide owing the notes above hands over what it owes" (`jump.spec.ts`)
-      on the iPad: 1 failure in 180 runs (a 180 px jump). It never showed with
-      logging on (D-187).
-    - `stream.spec.ts:97`, a flick up over a Base: cut in 8 of 10 runs on `main`
-      too. The 14,364 px shift mid-glide, when `2026-08-30.md`'s Bases fill in
-      above the screen, is correct to owe.
-    - `stream.spec.ts:137`, a framed web page: cut in 1 to 6 of 20 runs, with
-      nothing owed.
-    - `stream.spec.ts:65`, flicks from the top: cuts come in bursts that hit
-      `main` too. On 2026-10-29 on the iPad, 10 of 10 failed, and 5 of 10 on
-      `main` just after; then 30 runs alternating the two all passed.
+- [ ] On an iPad in portrait, a tap on the title leaves the top blank for about
+      0.75 s: a long note near the top renders 7 slices before the short newest
+      note is drawn (ADR 0020). `header.spec.ts` "a tap on the title draws a
+      short newest note before a long one near it" fails there every time, on
+      `main` too (2026-10-30); landscape passes.
+- [ ] "A glide owing the notes above hands over what it owes" (`jump.spec.ts`)
+      fails about 1 in 180 runs on the iPad: the text jumps 180 px. It never
+      showed with logging on (D-187).
+- [ ] Shorten `stream.spec.ts`'s two trips to the oldest note: since the glide
+      lane (D-189), they also flick through its 61 plain days, about a minute
+      each on the iPad. They must still reach the stream's real end, below the
+      lane. Try putting the lane above the journal's oldest days instead, or
+      making its days shorter while each side stays longer than a glide.
 - [ ] Try adding the e2e tests to CI on Linux.
 - [ ] Once the directory's scorecard lint understands moment's types, go back to
       Obsidian's `moment` and delete `src/notes/moment.ts` (D-152).
