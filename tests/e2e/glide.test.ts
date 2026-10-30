@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
     changesDuring,
+    daysAhead,
+    drewDuringGlide,
     glideEnding,
     glideFaults,
     longestStall,
@@ -344,5 +346,67 @@ describe("glideFaults", () => {
         expect(faults({ events })).toEqual([
             "a box that could scroll: div.callout in Journal/2026-07-30.md (auto visible)",
         ]);
+    });
+});
+
+describe("drewDuringGlide", () => {
+    const NOTE = "Journal/2026-07-24.md";
+    const change = (kind: string, what: string, last: number) => ({ kind, what, count: 1, first: last, last });
+
+    it("is true when nodes changed in the note after the lift", () => {
+        const changes = [change("nodes", `div.daily-note-content in ${NOTE}`, 120)];
+        expect(drewDuringGlide(changes, NOTE)).toBe(true);
+    });
+
+    it("counts a change inside one of the note's Bases", () => {
+        const changes = [change("nodes", `div.bases-view in ${NOTE}, Base 1, table`, 120)];
+        expect(drewDuringGlide(changes, NOTE)).toBe(true);
+    });
+
+    it("is false when the nodes changed only before the lift", () => {
+        const changes = [change("nodes", `div.daily-note-content in ${NOTE}`, -1)];
+        expect(drewDuringGlide(changes, NOTE)).toBe(false);
+    });
+
+    it("is true for nodes changed at the lift", () => {
+        const changes = [change("nodes", `div.daily-note-content in ${NOTE}`, 0)];
+        expect(drewDuringGlide(changes, NOTE)).toBe(true);
+    });
+
+    it("is false for another note's nodes", () => {
+        const changes = [change("nodes", "div.daily-note-content in Journal/2026-07-25.md", 120)];
+        expect(drewDuringGlide(changes, NOTE)).toBe(false);
+    });
+
+    it("is false for a change to the note's class or style", () => {
+        const changes = [change("class", `div.daily-note-block in ${NOTE}`, 120)];
+        expect(drewDuringGlide(changes, NOTE)).toBe(false);
+    });
+});
+
+describe("daysAhead", () => {
+    it("picks the second day on a phone's tall notes, in both directions", () => {
+        const sizes = { screen: 850, note: 2730, depth: 300 };
+        expect(daysAhead("up", sizes)).toBe(2);
+        expect(daysAhead("down", sizes)).toBe(2);
+    });
+
+    it("picks the third day on a tablet's shorter notes, in both directions", () => {
+        const sizes = { screen: 800, note: 1500, depth: 300 };
+        expect(daysAhead("up", sizes)).toBe(3);
+        expect(daysAhead("down", sizes)).toBe(3);
+    });
+
+    it("goes further on a taller screen, whose rendering reaches further", () => {
+        const sizes = { screen: 2000, note: 1500, depth: 300 };
+        expect(daysAhead("up", sizes)).toBe(5);
+        expect(daysAhead("down", sizes)).toBe(5);
+    });
+
+    it("takes a day a full screen of scrolling away, not one further", () => {
+        expect(daysAhead("up", { screen: 100, note: 400, depth: 50 })).toBe(1);
+        expect(daysAhead("up", { screen: 100, note: 400, depth: 51 })).toBe(2);
+        expect(daysAhead("down", { screen: 100, note: 400, depth: 249 })).toBe(2);
+        expect(daysAhead("down", { screen: 100, note: 400, depth: 250 })).toBe(1);
     });
 });

@@ -3484,3 +3484,30 @@ ahead.
 - A shorter lane alone — both trips still took about 90 s.
 - Moving the lane above the journal's oldest days — `EMBEDS_NOTE` would have to
   move below it, and the tests that scroll to that note would cross the lane.
+
+## D-191 — Glide tests also render embeds in the glide's path (2026-10-30)
+
+**Decision:** `stream.spec.ts` also writes what a glide meets into a lane day
+further along, and fails unless that day was drawn during the glide. A regular
+test does it with the mixed stallers. Setting `GLIDE_SWEEP` runs one kind at a
+time, with plain text as the control. The lane stays plain apart from the day a
+test fills, and each test restores it (D-189). `daysAhead` picks the day from
+the pane's and a note's heights: the nearest that starts rendering only after a
+screen of scrolling.
+
+**Why:** the slot holds an embed under the finger as a glide starts, and every
+note the glide reached was plain, so nothing rendered an embed mid-glide.
+
+**Known risk:** on an iPad, the second day first drew only 50–104 ms after the
+lift (72 glides, plain text), and all 72 glides with embeds there passed. If a
+test ever fails with `flick N drew <day>` because the day finished drawing
+before the lift, raise the one screen of scrolling in `daysAhead`. It is not a
+bug in the stream.
+
+**Rejected:**
+
+- Embeds left in the lane's days — every glide would meet different notes, which
+  is the variation D-189 removed.
+- A fixed number of days — three was drawn on an iPad and missed on an iPhone.
+- Sweeping in every run — 22 tests of three flicks each, for a question asked
+  only when a glide misbehaves.

@@ -1,5 +1,6 @@
 import { test, expect, type Phone } from "./phone";
-import { EMBEDS_NOTE, LANE_SLOT, LANE_TEXT, STALLERS } from "./vault";
+import { daysAhead, drewDuringGlide } from "./glide";
+import { EMBEDS_NOTE, laneDayAhead, LANE_SLOT, LANE_TEXT, STALLERS } from "./vault";
 
 /**
  * How many notes above the stream's end the trip to it starts: more than a
@@ -60,7 +61,7 @@ async function glidesInLane(
     direction: "up" | "down",
     { markdown = "", target = "", depth = 300, ready = async () => {} } = {}
 ): Promise<void> {
-    await phone.fillSlot(markdown && `${markdown}\n\n${LANE_TEXT}`);
+    await phone.fillSlot(markdown ? `${markdown}\n\n${LANE_TEXT}` : undefined);
     try {
         for (const flick of [1, 2, 3]) {
             await phone.startInLane(target, depth);
@@ -69,6 +70,30 @@ async function glidesInLane(
         }
     } finally {
         await phone.fillSlot();
+    }
+}
+
+/**
+ * Three flicks `direction` from the plain slot, onto `markdown` in a day
+ * further along, chosen for this screen so it renders while the stream is
+ * moving (D-191).
+ */
+async function glidesOnto(phone: Phone, direction: "up" | "down", markdown: string): Promise<void> {
+    const depth = 300;
+    await phone.startInLane("", depth);
+    const days = daysAhead(direction, { ...(await phone.laneSizes()), depth });
+    test.info().annotations.push({ type: "days ahead", description: `${days}` });
+    const day = laneDayAhead(direction, days);
+    await phone.fillSlot(`${markdown}\n\n${LANE_TEXT}`, day);
+    try {
+        for (const flick of [1, 2, 3]) {
+            await phone.startInLane("", depth);
+            const { faults, changes } = await phone.glide(direction);
+            expect(faults, `flick ${flick}`).toEqual([]);
+            expect(drewDuringGlide(changes, day), `flick ${flick} drew ${day}`).toBe(true);
+        }
+    } finally {
+        await phone.fillSlot(undefined, day);
     }
 }
 
@@ -82,6 +107,42 @@ for (const direction of ["up", "down"] as const)
 test("a flick up over math, Bases, a wide table and code glides on", async ({ phone }) => {
     await glidesInLane(phone, "up", { markdown: STALLERS.join("\n") });
 });
+
+for (const direction of ["up", "down"] as const)
+    test(`a flick ${direction} glides on as math, Bases, a wide table and code render ahead`, async ({ phone }) => {
+        await glidesOnto(phone, direction, STALLERS.join("\n"));
+    });
+
+/**
+ * One kind of thing at a time, to find which one disturbs a glide. Not the
+ * stream's frames: they load only once it stops (D-087).
+ */
+const KINDS = [
+    ["plain text", "Plain text and nothing else."],
+    ["inline math", "Effort: $\\dot{V}O_2 \\approx 48$, $CO_2$."],
+    ["display math", "$$\\sum_{i=1}^{n} x_i + \\int_0^1 f(t)\\,dt$$"],
+    [
+        "a wide table",
+        "| Route | Notes on the route, long enough to overrun a phone's width and then some |\n| --- | --- |\n| Old town | Cobbles after the bridge, then the long climb past the market |",
+    ],
+    [
+        "a long line of code",
+        "```\nconst pace = splits.map((split) => split.seconds / split.metres).reduce((sum, each) => sum + each, 0);\n```",
+    ],
+    ["a callout", "> [!note] A callout\n> With a line in it."],
+    ["an embedded note", "![[Reading list]]"],
+    ["a PDF", "![[Manual.pdf]]"],
+    ["a table Base", "![[Names.base]]"],
+    ["a Base of cards", "![[Reading.base]]"],
+    ["a kanban Base", "![[Kanban.base]]"],
+] as const;
+
+for (const [what, markdown] of KINDS)
+    for (const direction of ["up", "down"] as const)
+        test(`sweep: a flick ${direction} glides on as ${what} renders ahead`, async ({ phone }) => {
+            test.skip(process.env.GLIDE_SWEEP !== "1", "set GLIDE_SWEEP=1 to sweep");
+            await glidesOnto(phone, direction, markdown);
+        });
 
 for (const [what, target, depth] of [
     ["text", ".daily-note-content > p", -20],

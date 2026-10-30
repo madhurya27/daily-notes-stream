@@ -112,6 +112,35 @@ export function changesDuring(events: GlideEvent[], lift: number): GlideChange[]
     return [...changes.values()].sort((a, b) => a.first - b.first);
 }
 
+/** How many screens beyond the pane the stream renders (`RENDER_VIEWPORTS`). */
+const RENDERED_SCREENS = 1.5;
+
+/**
+ * How many days from where a glide starts, `depth` px into a note, to put what
+ * it should meet: the nearest day that starts rendering only after a screen of
+ * scrolling. A stroke scrolls 0.7 of a screen, so the day draws after the lift,
+ * and a glide scrolls further than this, so it draws before the glide ends.
+ * Flicking up, the day renders as its top nears the pane's bottom. Flicking
+ * down, as its bottom nears the pane's top. On an iPad, the day first drew only
+ * 50-104 ms after the lift, so it could draw too early (D-191).
+ */
+export function daysAhead(
+    direction: "up" | "down",
+    { screen, note, depth }: { screen: number; note: number; depth: number }
+): number {
+    return direction === "up"
+        ? Math.ceil(((2 + RENDERED_SCREENS) * screen + depth) / note)
+        : Math.ceil(((1 + RENDERED_SCREENS) * screen - depth) / note) + 1;
+}
+
+/**
+ * Whether `note` was drawn during the glide: nodes changed in it from the lift
+ * on, so what it holds rendered while the stream was moving.
+ */
+export function drewDuringGlide(changes: GlideChange[], note: string): boolean {
+    return changes.some(({ kind, what, last }) => kind === "nodes" && last >= 0 && what.includes(` in ${note}`));
+}
+
 /**
  * Something the stream did that ends a glide on iOS: a write to the pane's
  * scroll position (`how` names the call), or `freeze` for the pane frozen for a

@@ -27,6 +27,8 @@ pnpm run test:ios       # build, then run e2e-tests/ios/ on a plugged-in, unlock
 pnpm run test:ipados    # the same on a plugged-in iPad, keyboard attached or not (D-169, D-174)
 IOS_SEED_DAYS=1825 pnpm run test:ios   # the same on five years of notes (D-158); about 7 min, the same as on 21 days
 xcrun devicectl list devices   # which device is connected? Don't use system_profiler: it misses it
+GLIDE_SWEEP=1 pnpm run test:ipados stream.spec.ts -g sweep --max-failures=0
+                        # one kind of embed at a time rendering in a glide's path, to find what disturbs it (D-191); about 10 min
 pnpm run test:memory    # tests of memory, render cost and edit cost, on a five-year test vault (E2E_SEED_DAYS)
 SCROLL_COST=1 E2E_SEED_DAYS=365 pnpm exec playwright test scroll-cost --project=desktop
                         # scrolls with a real mouse wheel on a slowed CPU; RATES, SPEEDS, DOWN_UP=1 and SCREEN=4k175 change the test

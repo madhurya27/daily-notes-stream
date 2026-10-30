@@ -6,6 +6,7 @@ import {
     glideFaults,
     longestStall,
     neverScrolled,
+    type GlideChange,
     type GlideEnding,
     type GlideEvent,
     type Heard,
@@ -15,7 +16,7 @@ import {
 /**
  * How a glide ended, and what the stream did that can end one (`glideFaults`).
  */
-export type Glide = { ending: GlideEnding; faults: string[] };
+export type Glide = { ending: GlideEnding; faults: string[]; changes: GlideChange[] };
 import { keyboardAfterRun } from "./keyboard";
 import { connect, OBSIDIAN, SAFARI } from "./session";
 import { LANE_SLOT, LANE_TEXT, returnToTestersVault, useVault } from "./vault";
@@ -518,11 +519,11 @@ export class Phone {
     }
 
     /**
-     * Writes `markdown` into the lane's slot (`LANE_SLOT`), or its plain text
-     * back, and waits until Obsidian has read it: the stream renders from the
-     * metadata cache.
+     * Writes `markdown` into a lane day, its slot unless `day` says otherwise,
+     * or its plain text back, and waits until Obsidian has read it: the stream
+     * renders from the metadata cache.
      */
-    async fillSlot(markdown: string = LANE_TEXT): Promise<void> {
+    async fillSlot(markdown: string = LANE_TEXT, day: string = LANE_SLOT): Promise<void> {
         await this.runAsync(
             async (path: string, text: string) => {
                 const { vault, metadataCache } = window.app;
@@ -538,7 +539,7 @@ export class Phone {
                 await vault.modify(file, text);
                 await read;
             },
-            LANE_SLOT,
+            day,
             `${markdown}\n`
         );
     }
@@ -553,6 +554,24 @@ export class Phone {
         await this.openStream();
         await this.jumpTo(LANE_SLOT.slice("Journal/".length, -".md".length));
         await this.placeAt(`.daily-note-block[data-source-path="${LANE_SLOT}"] ${target}`.trim(), depth);
+    }
+
+    /**
+     * The pane's height, and how far the lane's slot is from the note below it,
+     * once rendered.
+     */
+    laneSizes(): Promise<{ screen: number; note: number }> {
+        return this.run(
+            (s: string, slot: string) => {
+                const stream = document.querySelector(s)!;
+                const blocks = [...stream.querySelectorAll<HTMLElement>(".daily-note-block")];
+                const at = blocks.findIndex((block) => block.dataset.sourcePath === slot);
+                const top = (i: number) => blocks[i]!.getBoundingClientRect().top;
+                return { screen: stream.parentElement!.clientHeight, note: top(at + 1) - top(at) };
+            },
+            STREAM,
+            LANE_SLOT
+        );
     }
 
     /**
@@ -1185,6 +1204,7 @@ export class Phone {
         const ending = glideEnding(heard);
         base.info().annotations.push({ type: "glide", description: ending });
         const faults = glideFaults({ frames: heard, stops, events });
+        const changes = changesDuring(events, heard[0]!.at);
         // To compare a cut glide with full ones.
         await base.info().attach("glide", {
             body: JSON.stringify({
@@ -1192,7 +1212,7 @@ export class Phone {
                 faults,
                 frames: heard,
                 stops,
-                changes: changesDuring(events, heard[0]!.at),
+                changes,
             }),
             contentType: "application/json",
         });
@@ -1202,7 +1222,7 @@ export class Phone {
                 body: JSON.stringify({ frames: heard, events }),
                 contentType: "application/json",
             });
-        return { ending, faults };
+        return { ending, faults, changes };
     }
 
     /**

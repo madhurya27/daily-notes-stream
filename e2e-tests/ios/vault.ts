@@ -165,6 +165,8 @@ const dayPath = (offset: number) => `Journal/${new Date(SLOT_DAY + offset * 86_4
  * of it, so a glide never reaches a note outside it.
  */
 export const LANE_SLOT = dayPath(0);
+/** The lane day `days` from the slot, in the direction a flick scrolls. */
+export const laneDayAhead = (direction: "up" | "down", days: number) => dayPath(direction === "up" ? -days : days);
 /** A lane day's text: plain paragraphs, about 1,500 px tall on an iPad. */
 export const LANE_TEXT = Array.from(
     { length: 8 },
