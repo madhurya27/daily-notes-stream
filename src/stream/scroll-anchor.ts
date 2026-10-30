@@ -1,6 +1,7 @@
 import { Platform, debounce } from "obsidian";
 import { BASE_SLOT_CLASS } from "../render/bases/bases-as-cards";
 import { NOTE_CONTENT_CLASS } from "../render/note-renderer";
+import { GlideCarry, ScrollSpeed } from "./glide-carry";
 import { blockAt } from "./stream-blocks";
 
 /**
@@ -118,6 +119,11 @@ export class ScrollAnchor {
      */
     // Stryker disable next-line BooleanLiteral: attach calls detach first, which resets it.
     private touching = false;
+    /** The observer is delivering a report. */
+    private hearingReport = false;
+    private readonly speed = new ScrollSpeed();
+    /** Carries on a glide stopped before its scroll runs out (D-192). */
+    private carry: GlideCarry | null = null;
     private readonly settleOnceStill = debounce(() => this.settle(), SCROLL_IDLE_MS, true);
     /**
      * Every note is loaded, so nothing more will come below the stream's end to
@@ -142,7 +148,12 @@ export class ScrollAnchor {
         // styles.css sets overflow-anchor to none, so the browser's own partial
         // anchoring does not correct the scroll a second time.
         scrollRoot.addClass("is-scroll-anchored");
-        this.observer = new ResizeObserver(() => this.hold());
+        this.observer = new ResizeObserver(() => {
+            this.hearingReport = true;
+            this.hold();
+            this.hearingReport = false;
+        });
+        this.carry = new GlideCarry(scrollRoot, () => this.settle());
     }
 
     observe(block: HTMLElement): void {
@@ -249,6 +260,7 @@ export class ScrollAnchor {
     }
 
     fingerDown(): void {
+        this.carry?.cancel();
         this.touching = true;
     }
 
@@ -288,15 +300,20 @@ export class ScrollAnchor {
         const moved = this.clamped(this.stepFrom) ? 0 : this.stepFrom - this.scrollRoot.scrollTop;
         this.stepFrom = this.scrollRoot.scrollTop;
         this.hold();
+        // The script is writing the scroll, so iOS is not scrolling it.
+        if (this.carry!.carrying) return;
+        this.speed.heard(moved);
         const bounced = this.bouncing && this.scrollRoot.scrollTop >= 0 && !this.touching;
         this.bouncing = this.scrollRoot.scrollTop < 0 || (this.bouncing && this.touching);
         if (this.owed !== 0 && bounced) this.handOver();
         else if (this.topDueInView(moved)) this.stopGlide(0);
         // One step further: iOS paints one step past the scroll position it
         // reports, and stopping there moved the text back against the scroll.
-        else if (this.owed !== 0 && (this.endDueInView(moved) || this.scrollRunsOutAbove(moved)))
+        else if (this.endDueInView(moved)) this.stopGlide(this.scrollRoot.scrollTop + this.owed - moved);
+        else if (this.owed !== 0 && this.scrollRunsOutAbove(moved)) {
             this.stopGlide(this.scrollRoot.scrollTop + this.owed - moved);
-        else if (this.owed !== 0) this.settleOnceStill();
+            this.carry!.start(this.speed.pxPerMs());
+        } else if (this.owed !== 0) this.settleOnceStill();
         else if (this.scrollRoot.scrollTop === 0) this.headedForTop = false;
     }
 
@@ -336,7 +353,6 @@ export class ScrollAnchor {
      * back by the browser, as on a turn, moved nothing.
      */
     private endDueInView(moved: number): boolean {
-        // Stryker disable next-line EqualityOperator: only asked while something is owed.
         return moved < 0 && this.owed > 0 && this.loadedToEnd() && this.below() - this.owed <= -STEPS_AHEAD * moved;
     }
 
@@ -357,6 +373,7 @@ export class ScrollAnchor {
      * way, and moving that into the scroll on arrival would stop below the top.
      */
     headForTop(): void {
+        this.carry?.cancel();
         this.headedForTop = true;
     }
 
@@ -366,12 +383,15 @@ export class ScrollAnchor {
      * frame later.
      */
     placed(): void {
+        this.carry?.cancel();
         this.settleOnceStill.cancel();
         this.unshift();
         this.pick();
     }
 
     detach(): void {
+        this.carry?.cancel();
+        this.carry = null;
         this.settleOnceStill.cancel();
         this.observer?.disconnect();
         this.observer = null;
@@ -599,7 +619,20 @@ export class ScrollAnchor {
         if (drawn === this.drawnBase) return;
         if (this.drawnBase) this.observer!.unobserve(this.drawnBase);
         this.drawnBase = drawn;
-        if (drawn) this.observer!.observe(drawn);
+        if (!drawn) return;
+        if (this.hearingReport) this.observeDrawnBaseNextFrame(drawn);
+        else this.observer!.observe(drawn);
+    }
+
+    /**
+     * Bases swaps what it draws at the same depth. Observed during a report, it
+     * would not be delivered until the next frame anyway, and WebKit logs that
+     * as an error (D-192).
+     */
+    private observeDrawnBaseNextFrame(drawn: Element): void {
+        window.requestAnimationFrame(() => {
+            if (this.drawnBase === drawn) this.observer!.observe(drawn);
+        });
     }
 
     /**

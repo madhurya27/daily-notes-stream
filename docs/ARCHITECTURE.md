@@ -142,7 +142,9 @@ a Base fills in, an image loads. These parts keep the reader's place:
   still runs in the next task (D-185). Unloading and `ScrollAnchor` keep their
   own waits.
 - `ScrollAnchor` undoes changes in height above the reader, on platforms that
-  don't do this themselves. Chromium does it itself; iOS's WebKit does not.
+  don't do this themselves. Chromium does it itself; iOS's WebKit does not. When
+  it stops a glide up that owes growth, `GlideCarry` (`glide-carry.ts`) carries
+  on from the glide's speed (D-192).
 
 Jumps, search steps and Back (`getEphemeralState`) go through
 `scroll-position.ts`. `scrollIntoPlace` sets the scroll again and again until

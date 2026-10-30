@@ -1127,6 +1127,7 @@ describe("ScrollAnchor", () => {
             observer().resized(blocks[0]!);
 
             expect(base.getBoundingClientRect().top).toBe(-200);
+            vi.advanceTimersToNextFrame();
             expect(observer().targets).toContain(redrawn);
         });
 
@@ -1184,6 +1185,7 @@ describe("ScrollAnchor", () => {
             expect(base.getBoundingClientRect().top).toBe(-50);
 
             // Bases fills the table after drawing it.
+            vi.advanceTimersToNextFrame();
             expect(observer().targets).toContain(drawn);
             add(drawn, 300);
             observer().resized(drawn);
@@ -1223,6 +1225,75 @@ describe("ScrollAnchor", () => {
             anchor.onScroll();
 
             expect(observer().targets).not.toContain(drawn);
+        });
+
+        /** A pane whose top is in a Base, watched by the anchor. */
+        function watchedBase() {
+            const { pane, content, blocks, addBase } = makePane([[400], 400]);
+            const { base, draw } = addBase(blocks[0]!);
+            const first = draw(...Array<number>(10).fill(100));
+            anchor.attach(pane, content, moreBelow);
+            for (const block of blocks) anchor.observe(block);
+            observer().resized(...blocks);
+            pane.scrollTop = 900;
+            anchor.onScroll();
+            return { base, draw, first, blocks };
+        }
+
+        // Bases swaps its placeholder for what it draws, at the same depth.
+        // Observing that during a report left it undelivered, which WebKit logs
+        // as an error, and it was reported a frame later anyway.
+        it("hears what a Base drew instead one frame after a resize report", () => {
+            const { base, draw, first } = watchedBase();
+
+            base.empty();
+            const next = draw(...Array<number>(10).fill(100));
+            observer().resized(first);
+
+            expect(observer().targets).not.toContain(first);
+            expect(observer().targets).not.toContain(next);
+            vi.advanceTimersToNextFrame();
+            expect(observer().targets).toContain(next);
+        });
+
+        it("does not hear what a Base drew once the pane's top has left it", () => {
+            const { base, draw, first } = watchedBase();
+            base.empty();
+            const next = draw(...Array<number>(10).fill(100));
+            observer().resized(first);
+
+            base.empty();
+            const latest = draw(...Array<number>(10).fill(100));
+            anchor.onScroll();
+            vi.advanceTimersToNextFrame();
+
+            expect(observer().targets).not.toContain(next);
+            expect(observer().targets).toContain(latest);
+        });
+
+        it("hears a Base at once when the pane's top reaches it by scrolling", () => {
+            const { pane, content, blocks, addBase } = makePane([[400], 400]);
+            const drawn = addBase(blocks[0]!).draw(...Array<number>(10).fill(100));
+            anchor.attach(pane, content, moreBelow);
+
+            pane.scrollTop = 900;
+            anchor.onScroll();
+
+            expect(observer().targets).toContain(drawn);
+        });
+
+        it("does not hear what a Base drew once detached", () => {
+            const { base, draw, first } = watchedBase();
+            base.empty();
+            draw(...Array<number>(10).fill(100));
+            observer().resized(first);
+            const heard = observer();
+
+            anchor.detach();
+            const targets = heard.targets.size;
+            vi.advanceTimersToNextFrame();
+
+            expect(heard.targets.size).toBe(targets);
         });
 
         // There is little below a note that was jumped to. The stream shrinks
@@ -1691,6 +1762,141 @@ describe("ScrollAnchor", () => {
         expect(stopped).toBe(60);
         expect(pane.scrollTop).toBe(340);
         expect(shift(content)).toBe(0);
+    });
+
+    /** Scrolls up `step` px every `ms`, until the anchor stops it. */
+    function flickUp(pane: HTMLElement, step: number, ms: number): void {
+        for (let top = pane.scrollTop - step; top >= 0; top -= step) {
+            vi.advanceTimersByTime(ms);
+            pane.scrollTop = top;
+            anchor.onScroll();
+            if (pane.hasClass("is-scroll-frozen")) return;
+        }
+        throw new Error("The anchor never stopped the glide.");
+    }
+
+    const frames = (count: number) => {
+        for (let i = 0; i < count; i++) vi.advanceTimersToNextFrame();
+    };
+
+    // The scroll ran out thousands of pixels before the newest note, and the
+    // reader had to flick again. The glide goes on from its own speed instead.
+    it("carries on a fast glide stopped before its scroll runs out, to the stream's top", () => {
+        const { pane, content, blocks, resize } = watch([400, 400, 400, 400, 400], 900);
+        resize(blocks[0]!, 700);
+        observer().resized(blocks[0]!);
+
+        flickUp(pane, 40, 16);
+        expect(pane.scrollTop).toBeGreaterThan(0);
+        frames(600);
+
+        expect(pane.scrollTop).toBe(0);
+        expect(content.getBoundingClientRect().top).toBe(0);
+        expect(shift(content)).toBe(0);
+        expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it("lets a slow glide stopped before its scroll runs out end on the way, as iOS would", () => {
+        const { pane, blocks, resize } = watch([400, 400, 400, 400, 400], 900);
+        resize(blocks[0]!, 5000);
+        observer().resized(blocks[0]!);
+
+        flickUp(pane, 2, 16);
+        const stoppedAt = pane.scrollTop;
+        frames(600);
+
+        expect(pane.scrollTop).toBeLessThan(stoppedAt);
+        expect(pane.scrollTop).toBeGreaterThan(stoppedAt - 200);
+        expect(vi.getTimerCount()).toBe(0);
+    });
+
+    // A note above renders taller while the glide carries on. iOS no longer
+    // controls the scroll, so that goes into it at the next frame.
+    it("moves what a note above owes into the scroll at each frame it carries on", () => {
+        const { pane, content, blocks, resize } = watch([400, 400, 400, 400, 400], 900);
+        resize(blocks[1]!, 1400);
+        observer().resized(blocks[1]!);
+        flickUp(pane, 80, 16);
+        vi.advanceTimersToNextFrame();
+        const at = pane.scrollTop;
+
+        resize(blocks[0]!, 600);
+        observer().resized(blocks[0]!);
+        expect(shift(content)).toBe(-200);
+        vi.advanceTimersToNextFrame();
+
+        expect(shift(content)).toBe(0);
+        expect(pane.scrollTop).toBeGreaterThan(at);
+        frames(600);
+        expect(pane.scrollTop).toBe(0);
+    });
+
+    // A note above renders while it carries on, near the top. Heard as a glide,
+    // that stopped it again.
+    it("does not stop what it carries on for a note above rendering near the top", () => {
+        const { pane, blocks, resize } = watch([400, 400, 400, 400, 400], 900);
+        resize(blocks[1]!, 1400);
+        observer().resized(blocks[1]!);
+        flickUp(pane, 480, 16);
+        vi.advanceTimersToNextFrame();
+        vi.advanceTimersToNextFrame();
+
+        resize(blocks[0]!, 420);
+        observer().resized(blocks[0]!);
+        anchor.onScroll();
+
+        expect(pane.hasClass("is-scroll-frozen")).toBe(false);
+    });
+
+    // Its own writes are heard as scroll events, and are not a glide to stop.
+    it("takes the scroll events of carrying on for no glide", () => {
+        const { pane, blocks, resize } = watch([400, 400, 400, 400, 400], 900);
+        resize(blocks[0]!, 700);
+        observer().resized(blocks[0]!);
+        flickUp(pane, 40, 16);
+        vi.advanceTimersToNextFrame();
+
+        const before: number[] = [];
+        for (let i = 0; i < 20; i++) {
+            vi.advanceTimersToNextFrame();
+            before.push(pane.scrollTop);
+            anchor.onScroll();
+            expect(pane.scrollTop).toBe(before.at(-1));
+            expect(pane.hasClass("is-scroll-frozen")).toBe(false);
+        }
+    });
+
+    it.each([
+        ["a finger on the pane", () => anchor.fingerDown()],
+        ["a scroll set for the layout", () => anchor.placed()],
+        ["a scroll to the top", () => anchor.headForTop()],
+    ])("stops carrying on at %s", (_, stop) => {
+        const { pane, blocks, resize } = watch([400, 400, 400, 400, 400], 900);
+        resize(blocks[0]!, 700);
+        observer().resized(blocks[0]!);
+        flickUp(pane, 40, 16);
+        vi.advanceTimersToNextFrame();
+        const at = pane.scrollTop;
+
+        stop();
+        frames(10);
+
+        expect(pane.scrollTop).toBe(at);
+    });
+
+    it("stops carrying on when detached", () => {
+        const { pane, blocks, resize } = watch([400, 400, 400, 400, 400], 900);
+        resize(blocks[0]!, 700);
+        observer().resized(blocks[0]!);
+        flickUp(pane, 40, 16);
+        vi.advanceTimersToNextFrame();
+        const at = pane.scrollTop;
+
+        anchor.detach();
+        frames(10);
+
+        expect(pane.scrollTop).toBe(at);
+        expect(vi.getTimerCount()).toBe(0);
     });
 
     // On an iPad, a step of 51 px, then 81 px at 168 px from the top, was

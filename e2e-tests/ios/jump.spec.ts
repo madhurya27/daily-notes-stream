@@ -40,7 +40,7 @@ function emptyHeightsAbove(phone: Phone): Promise<number[]> {
  * A frame of the stream: its scroll position, how far it is shifted from it,
  * and how far its top is below where it sits at the top.
  */
-type Frame = { at: number; top: number; shift: number; streamTop: number };
+type Frame = { at: number; top: number; shift: number; streamTop: number; frozen: boolean; finger: boolean };
 
 /**
  * Starts recording each frame, until `frames` reports them. Not up to a count:
@@ -55,7 +55,11 @@ async function recordFrames(phone: Phone): Promise<void> {
         // Read while still, with nothing owed: where the stream is at scroll
         // position 0.
         const atTop = below() + pane.scrollTop;
-        const recording = { frames: [] as Frame[], on: true };
+        const recording = { frames: [] as Frame[], on: true, heard: new AbortController() };
+        let finger = false;
+        const { signal } = recording.heard;
+        document.addEventListener("touchstart", () => (finger = true), { capture: true, passive: true, signal });
+        document.addEventListener("touchend", () => (finger = false), { capture: true, passive: true, signal });
         (window as unknown as { streamFrames: typeof recording }).streamFrames = recording;
         const frame = () => {
             recording.frames.push({
@@ -63,6 +67,8 @@ async function recordFrames(phone: Phone): Promise<void> {
                 top: pane.scrollTop,
                 shift: parseFloat(stream.style.getPropertyValue("--daily-notes-scroll-shift")) || 0,
                 streamTop: below() - atTop,
+                frozen: pane.classList.contains("is-scroll-frozen"),
+                finger,
             });
             if (recording.on) requestAnimationFrame(frame);
         };
@@ -73,8 +79,11 @@ async function recordFrames(phone: Phone): Promise<void> {
 /** Stops recording, and reports each frame recorded. */
 const frames = (phone: Phone) =>
     phone.run(() => {
-        const recording = (window as unknown as { streamFrames: { frames: Frame[]; on: boolean } }).streamFrames;
+        const recording = (
+            window as unknown as { streamFrames: { frames: Frame[]; on: boolean; heard: AbortController } }
+        ).streamFrames;
         recording.on = false;
+        recording.heard.abort();
         return recording.frames;
     });
 
@@ -84,8 +93,9 @@ const frames = (phone: Phone) =>
  */
 const forgetFrames = (phone: Phone) =>
     phone.run(() => {
-        const page = window as unknown as { streamFrames?: { on: boolean } };
+        const page = window as unknown as { streamFrames?: { on: boolean; heard: AbortController } };
         if (page.streamFrames) page.streamFrames.on = false;
+        page.streamFrames?.heard.abort();
         delete page.streamFrames;
     });
 
@@ -113,6 +123,46 @@ test("a glide owing the notes above hands over what it owes, the text never jump
         ).toBe(true);
         expect(seen.at(-1)!.shift).toBe(0);
         expect(Math.max(...drifts.map(Math.abs)), `drifts: ${drifts.join(", ")}`).toBeLessThan(5);
+    } finally {
+        await forgetFrames(phone);
+        await phone.restoreHeights();
+    }
+});
+
+/** Whether a glide has been stopped since `recordFrames`. */
+const glideStopped = (phone: Phone) =>
+    phone.run(() =>
+        (window as unknown as { streamFrames: { frames: Frame[] } }).streamFrames.frames.some((f) => f.frozen)
+    );
+
+/** For each stop with no finger on it, the frames moved before the next. */
+function framesMovedAfterStops(seen: Frame[]): number[] {
+    return seen.flatMap((frame, stop) => {
+        if (!frame.frozen || frame.finger) return [];
+        const after = seen.slice(stop + 1);
+        const finger = after.findIndex((f) => f.finger);
+        const carried = finger < 0 ? after : after.slice(0, finger);
+        return [carried.filter((f, i) => i > 0 && f.top !== carried[i - 1]!.top).length];
+    });
+}
+
+// The stop above left a hard flick thousands of pixels short of the newest
+// note, and the reader had to flick again. It goes on from its own speed
+// (D-192). A short stroke may end before the stop, so each flick rests first,
+// and no later finger cancels what follows. This does not check how the text
+// moves: Bases filling in on the way move it, with or without this.
+test("a hard flick stopped while owing carries on with no finger on it", async ({ phone }) => {
+    await phone.estimateShortAbove("2026-09-12");
+    try {
+        await phone.openStream();
+        await phone.jumpTo("2026-09-12");
+        await recordFrames(phone);
+
+        for (let flicks = 0; flicks < 5 && !(await glideStopped(phone)); flicks++)
+            await phone.flick("down", 1, { share: 0.85, ms: 30 });
+
+        const carried = framesMovedAfterStops(await frames(phone));
+        expect(Math.max(0, ...carried), "frames it moved in after a stop").toBeGreaterThan(5);
     } finally {
         await forgetFrames(phone);
         await phone.restoreHeights();

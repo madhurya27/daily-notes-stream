@@ -3511,3 +3511,34 @@ bug in the stream.
 - A fixed number of days — three was drawn on an iPad and missed on an iPhone.
 - Sweeping in every run — 22 tests of three flicks each, for a question asked
   only when a glide misbehaves.
+
+## D-192 — A glide stopped before its scroll runs out carries on from its speed (2026-10-30)
+
+**Decision:** changes D-143. After that stop, `GlideCarry` writes the scroll
+each frame, from 90% of the glide's speed over the last 100 ms, at iOS's
+friction. If that would pass the top, it slows just enough to land there. One
+step makes up at most 33 ms. What notes above owe moves into the scroll each
+frame. A finger, a tap on the title or a scroll set for the layout ends it.
+`ScrollAnchor` observes what a Base drew one frame after a resize report.
+
+**Why:** on an iPad with estimates of 100 px, the stop came with 5,673–6,810 px
+owed, so a hard flick ended far from the newest note. Once iOS is stopped, it
+leaves writes to the scroll alone. At full speed the stop showed as a stall. At
+75% it looked smooth on the iPad, and 90% keeps more of the distance. A step for
+a whole slow frame moved the text over 1,000 px at once. Bases swaps its
+placeholder at the same depth, so observing the new element during a report
+logged a loop error in 4 of 24 runs. It was delivered a frame later anyway.
+
+**Known limit:** the carry runs on the main thread, so rendering can delay its
+frames, which an iOS glide does not feel. A gentle flick still ends short of the
+top, as iOS would have.
+
+**Rejected:**
+
+- Stopping on the stream's top when within `STEPS_AHEAD` steps while owing — the
+  debt was about 20 steps, so it would never fire.
+- 50% or 75% of the speed — travel less than 90%.
+- Lowering the friction so a slower start travels as far — it would not match
+  the rest of iOS's scrolling.
+- Holding back renders during the handover — the text stays still for 13–38 ms
+  already, about 1–2 frames, and the stop needs one.

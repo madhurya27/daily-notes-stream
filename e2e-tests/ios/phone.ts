@@ -609,7 +609,8 @@ export class Phone {
         await this.run(
             (s: string, kinds: string[], at: string) => {
                 const blocks = kinds.join(", ");
-                const pane = document.querySelector(s)!.parentElement!;
+                const stream = document.querySelector<HTMLElement>(s)!;
+                const pane = stream.parentElement!;
                 const box = pane.getBoundingClientRect();
                 const line = at === "top" ? box.top : box.top + box.height / 2;
                 /**
@@ -630,6 +631,7 @@ export class Phone {
                 // (ScrollAnchor), or a jump nobody has explained yet.
                 let unseen = 0;
                 let lastScroll = pane.scrollTop;
+                let lastShift = 0;
                 /** The scroll's last step, as the page heard it. */
                 let glide = 0;
                 /**
@@ -717,7 +719,13 @@ export class Phone {
                 const read = (): boolean => {
                     if (!follow.on || !eye) return false;
                     const scroll = pane.scrollTop;
-                    const step = scroll - lastScroll;
+                    // The anchor moved its shift into the scroll. In a glide it
+                    // carries on, a step of the scroll is in the same read.
+                    const shift = parseFloat(stream.style.getPropertyValue("--daily-notes-scroll-shift")) || 0;
+                    const settled = shift === 0 ? -lastShift : 0;
+                    lastShift = shift;
+                    unseen += settled;
+                    const step = scroll - lastScroll - settled;
                     lastScroll = scroll;
                     follow.rendered = Math.max(follow.rendered, follow.unloaded - unloaded());
                     const block = pane.querySelector(`.daily-note-block[data-source-path="${eye.path}"]`);

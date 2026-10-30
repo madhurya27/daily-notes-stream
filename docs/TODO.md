@@ -19,6 +19,14 @@ there is a screen recording of them (D-099).
 - [ ] "A glide owing the notes above hands over what it owes" (`jump.spec.ts`)
       fails about 1 in 180 runs on the iPad: the text jumps 180 px. It never
       showed with logging on (D-187).
+- [ ] Hold a Base's box until its note re-pins. On the iPhone, with notes above
+      estimated at 100 px, a Base's box grew from 112 to 172 px while its note
+      kept its height, and the text below it moved 60–120 px for 26–68 ms, until
+      the note re-pinned. Find where a box still grows without `BASE_RESIZED`,
+      and hold it, so box, note and anchor change in one task (ADR 0013). It
+      clips the Base meanwhile, as a pinned note clips what is below it now.
+      Check it against D-159's let-go. Then hard flicks could use the 5 px drift
+      limit that `jump.spec.ts` keeps for usual ones.
 - [ ] Try adding the e2e tests to CI on Linux.
 - [ ] Once the directory's scorecard lint understands moment's types, go back to
       Obsidian's `moment` and delete `src/notes/moment.ts` (D-152).
