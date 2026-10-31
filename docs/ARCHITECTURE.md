@@ -33,7 +33,8 @@ One for the plugin, shared by all views:
   the template as a pattern.
 - `LinkChanges` — which daily notes gained or lost a link.
 - `LayoutMemory` — for each layout: note heights (`note-heights.ts`), Bases that
-  are too wide (`layout-table.ts`) and the template's height.
+  are too wide (`layout-table.ts`) and the template's height. Its size is
+  limited (D-195).
 - `CollapsibleStateStore` — which sections are collapsed.
 
 One for each view: `DailyNoteService` (the daily notes, including those in

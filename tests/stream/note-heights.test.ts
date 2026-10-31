@@ -2,6 +2,49 @@ import { describe, expect, it, vi } from "vitest";
 import { NoteHeights } from "../../src/stream/note-heights";
 
 describe("NoteHeights", () => {
+    const stats = (mtimes: Record<string, number>) => (path: string) =>
+        mtimes[path] === undefined ? undefined : { mtime: mtimes[path], size: 1 };
+
+    it("counts a height and a change time for each note", () => {
+        const heights = new NoteHeights(undefined, stats({ "a.md": 1 }));
+        heights.keep("now", "a.md", 100);
+
+        expect(heights.savedSize()).toBe(4 + 18 + (4 + 19));
+    });
+
+    it("forgets a layout, and the change time of a note measured only there", () => {
+        const heights = new NoteHeights(undefined, stats({ "both.md": 1, "old.md": 2 }));
+        heights.keep("old", "both.md", 100);
+        heights.keep("now", "both.md", 100);
+        heights.keep("old", "old.md", 100);
+
+        heights.forgetLayout("old");
+
+        expect(heights.layouts()).toEqual(["now"]);
+        expect(heights.toJSON().mtimes).toEqual([["both.md", 1]]);
+    });
+
+    it("forgets the tenth of notes changed longest ago, and says which it kept", () => {
+        const mtimes = Object.fromEntries(Array.from({ length: 25 }, (_, i) => [`${i}.md`, 100 - i]));
+        const heights = new NoteHeights(undefined, stats(mtimes));
+        for (const path of Object.keys(mtimes)) heights.keep("now", path, 100);
+
+        const kept = heights.forgetLeastRecentlyChanged();
+
+        const expected = Array.from({ length: 22 }, (_, i) => `${i}.md`);
+        expect([...kept].sort()).toEqual([...expected].sort());
+        expect(heights.entries("now").map(([path]) => path)).toEqual(expected);
+        expect(heights.toJSON().mtimes.map(([path]) => path)).toEqual(expected);
+    });
+
+    it("forgets the last note too, so forgetting always makes progress", () => {
+        const heights = new NoteHeights(undefined, stats({ "a.md": 1 }));
+        heights.keep("now", "a.md", 100);
+
+        expect(heights.forgetLeastRecentlyChanged().size).toBe(0);
+        expect(heights.entries("now")).toEqual([]);
+    });
+
     it("keeps a note's last height, per layout", () => {
         const heights = new NoteHeights();
         heights.keep("600:16px", "a.md", 300);

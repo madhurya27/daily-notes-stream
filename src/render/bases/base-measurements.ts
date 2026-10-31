@@ -1,5 +1,8 @@
 import { LayoutTable, type SavedLayoutTable } from "../../stream/layout-table";
 
+/** What an entry saves besides its key: `["\\n",{"tooWide":true}],` */
+const ENTRY_CHARS = 23;
+
 interface Measurement {
     /** Measured too wide for a table. */
     tooWide: true;
@@ -52,8 +55,16 @@ export class BaseMeasurements {
         this.table.forget(path);
     }
 
+    forgetLayout(layout: string): void {
+        this.table.forgetLayout(layout);
+    }
+
     retainOnly(paths: ReadonlySet<string>): void {
         this.table.retainOnly(paths);
+    }
+
+    savedSize(): number {
+        return this.table.savedSize(ENTRY_CHARS);
     }
 
     toJSON(): SavedMeasurements {

@@ -86,6 +86,10 @@ export class LayoutTable<V> {
         this.removeWhere((notePath) => notePath === path);
     }
 
+    forgetLayout(layout: string): void {
+        if (this.layouts.delete(layout)) this.changed(layout);
+    }
+
     /** Forgets notes deleted while the plugin was not running to see it. */
     retainOnly(paths: ReadonlySet<string>): void {
         this.removeWhere((notePath) => !paths.has(notePath));
@@ -93,6 +97,18 @@ export class LayoutTable<V> {
 
     toJSON(): SavedLayoutTable<V> {
         return [...this.layouts].map(([layout, entries]) => [layout, [...entries]]);
+    }
+
+    /**
+     * About how many characters `toJSON` takes: each key, plus `perEntry` for
+     * its value and punctuation. Far quicker than building the string.
+     */
+    savedSize(perEntry: number): number {
+        let size = 0;
+        for (const entries of this.layouts.values()) {
+            for (const key of entries.keys()) size += key.length + perEntry;
+        }
+        return size;
     }
 
     /**

@@ -3585,3 +3585,30 @@ after the values that made the Base too wide are gone, as they did for one note.
   and it misses the padding of pills and links.
 - Sharing only Bases that do not use `this` — those are what a template repeats
   most, so most of the gain goes.
+
+## D-195 — Layout memory holds 600,000 characters at most (2026-10-30)
+
+**Decision:** before each save, while what would be saved is over the limit,
+`LayoutMemory` forgets the layout used longest ago. In its last layout, it
+forgets the tenth of notes changed longest ago, with their Bases. They are
+estimated, and measured again when drawn.
+
+**Why:** all of a device's vaults and plugins share localStorage, and a full
+store refuses their saves too. Measured by filling it (2026-10-30): about 5.24
+million characters on an iPad, and 52.4 million in desktop Obsidian, so this is
+about 11% of an iPad's. It counts characters, not bytes. The limit holds about
+7,600 notes in one layout, or about 3,000 in all four. Its size is counted by
+adding up path lengths, which takes about 0.01 ms at this size, at most once a
+second.
+
+**Rejected:**
+
+- A limit on the number of Bases — it failed before (D-035), and heights take
+  most of the space.
+- Whole-pixel heights — saves about 16%, and brings back a stop 1 px before the
+  top (D-105).
+- Forgetting the oldest notes by date — `LayoutMemory` only knows paths, and a
+  note's change time is close to its date.
+- Forgetting one note at a time — every later save would have to shrink again.
+- Measuring with `JSON.stringify` — exact, but 35 times slower, about 0.4 ms for
+  a string that is thrown away. Obsidian builds it again to save it.

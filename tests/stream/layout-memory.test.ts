@@ -1,5 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { LAYOUT_MEMORY_KEY, LayoutMemory, SAVE_DELAY_MS, layoutOf } from "../../src/stream/layout-memory";
+import {
+    LAYOUT_MEMORY_KEY,
+    LayoutMemory,
+    SAVED_SIZE_LIMIT,
+    SAVE_DELAY_MS,
+    layoutOf,
+} from "../../src/stream/layout-memory";
 import { asApp } from "../stream-view-fixture";
 
 /**
@@ -88,6 +94,103 @@ describe("LayoutMemory", () => {
         vi.advanceTimersByTime(SAVE_DELAY_MS);
 
         expect(app.saveLocalStorage).toHaveBeenCalledOnce();
+    });
+
+    describe("past its size limit", () => {
+        /** What was last saved, and its size as localStorage holds it. */
+        const lastSaved = (app: ReturnType<typeof makeApp>) => app.saveLocalStorage.mock.lastCall![1];
+        const savedSize = (app: ReturnType<typeof makeApp>) => JSON.stringify(lastSaved(app)).length;
+
+        /** A size that fits what `fill` saved, less `over` characters. */
+        function limitBelow(fill: (memory: LayoutMemory) => void, mtimes: Map<string, number>, over = 1): number {
+            const memory = new LayoutMemory(asApp(makeApp(null, mtimes)));
+            fill(memory);
+            return memory.savedSize() - over;
+        }
+
+        it("saves everything that exactly fits", () => {
+            const mtimes = new Map([["a.md", 1]]);
+            const fill = (memory: LayoutMemory) => memory.notes.keep("600:16px", "a.md", 300);
+            const app = makeApp(null, mtimes);
+            const memory = new LayoutMemory(asApp(app), limitBelow(fill, mtimes, 0));
+
+            fill(memory);
+            memory.flush();
+
+            expect(memory.notes.heightOf("600:16px", "a.md")).toBe(300);
+        });
+
+        it("forgets the layout used longest ago first", () => {
+            const mtimes = new Map([["a.md", 1]]);
+            const fill = (memory: LayoutMemory) => {
+                memory.notes.keep("old", "a.md", 100);
+                memory.bases.markTooWide({ layout: "old", path: "a.md", base: "b1" });
+                memory.notes.keep("now", "a.md", 300);
+                memory.bases.markTooWide({ layout: "now", path: "a.md", base: "b1" });
+            };
+            const app = makeApp(null, mtimes);
+            const memory = new LayoutMemory(asApp(app), limitBelow(fill, mtimes));
+
+            fill(memory);
+            memory.flush();
+
+            expect(memory.notes.heightOf("old", "a.md")).toBeUndefined();
+            expect(memory.bases.toJSON().map(([layout]) => layout)).toEqual(["now"]);
+            expect(memory.notes.heightOf("now", "a.md")).toBe(300);
+        });
+
+        // Daily notes are mostly changed on their own day, so the notes changed
+        // longest ago are the ones furthest from where people read.
+        it("in its last layout, forgets the notes changed longest ago, and their Bases", () => {
+            const paths = Array.from({ length: 20 }, (_, i) => `${String(i).padStart(2, "0")}.md`);
+            const mtimes = new Map(paths.map((path, i) => [path, 100 - i]));
+            const fill = (memory: LayoutMemory) => {
+                for (const path of paths) {
+                    memory.notes.keep("now", path, 300);
+                    memory.bases.markTooWide({ layout: "now", path, base: `${path}-base` });
+                }
+            };
+            const app = makeApp(null, mtimes);
+            const memory = new LayoutMemory(asApp(app), limitBelow(fill, mtimes));
+
+            fill(memory);
+            memory.flush();
+
+            expect(memory.notes.entries("now").map(([path]) => path)).toEqual(paths.slice(0, 18));
+            expect(memory.bases.isTooWide({ layout: "now", path: "x", base: "17.md-base" })).toBe(true);
+            expect(memory.bases.isTooWide({ layout: "now", path: "x", base: "18.md-base" })).toBe(false);
+        });
+
+        // Building the string to measure it takes 35 times as long, every save.
+        it("counts its size to within 5% of what is saved, without going under", () => {
+            const paths = Array.from({ length: 500 }, (_, i) => `Journal/2026/2026-10-${i}.md`);
+            const mtimes = new Map(paths.map((path) => [path, 1793318400000]));
+            const app = makeApp(null, mtimes);
+            const memory = new LayoutMemory(asApp(app));
+            for (const path of paths) {
+                memory.notes.keep("402:16px", path, 412.515625);
+                memory.bases.markTooWide({ layout: "402:16px", path, base: `${path}-base` });
+            }
+
+            memory.flush();
+
+            expect(memory.savedSize()).toBeGreaterThanOrEqual(savedSize(app));
+            expect(memory.savedSize()).toBeLessThan(savedSize(app) * 1.05);
+        });
+
+        it("holds 600,000 characters at most, however large the vault", () => {
+            const paths = Array.from({ length: 12000 }, (_, i) => `Journal/${i}.md`);
+            const mtimes = new Map(paths.map((path, i) => [path, i]));
+            const app = makeApp(null, mtimes);
+            const memory = new LayoutMemory(asApp(app));
+            for (const path of paths) memory.notes.keep("now", path, 412.515625);
+
+            memory.flush();
+
+            expect(SAVED_SIZE_LIMIT).toBe(600_000);
+            expect(savedSize(app)).toBeLessThanOrEqual(SAVED_SIZE_LIMIT);
+            expect(memory.notes.heightOf("now", "Journal/11999.md")).toBe(412.515625);
+        });
     });
 
     it("forgets a deleted note's heights and what its Bases measured", () => {

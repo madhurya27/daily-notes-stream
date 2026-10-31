@@ -65,6 +65,22 @@ describe("BaseMeasurements", () => {
         expect(measured.toJSON()).toEqual([["600:16px", [["new.md\nold.md-base", { tooWide: true }]]]]);
     });
 
+    it("counts its entries' keys and what each adds", () => {
+        const measured = new BaseMeasurements();
+        measured.markTooWide(key("a.md"));
+
+        expect(measured.savedSize()).toBe("a.md\nb1".length + 23);
+    });
+
+    it("forgets a whole layout", () => {
+        const measured = new BaseMeasurements();
+        measured.markTooWide(key("a.md"));
+
+        measured.forgetLayout("600:16px");
+
+        expect(measured.toJSON()).toEqual([]);
+    });
+
     it("says when it changed, and only then", () => {
         const changed = vi.fn();
         const measured = new BaseMeasurements(changed);

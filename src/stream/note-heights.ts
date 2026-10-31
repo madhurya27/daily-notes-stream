@@ -13,6 +13,14 @@ export interface NoteStat {
     size: number;
 }
 
+/** The share of notes kept each time the oldest are forgotten (D-195). */
+const SHARE_KEPT = 0.9;
+
+/** What a height saves besides its path: `["",12345.515625],` */
+const HEIGHT_CHARS = 18;
+/** What a change time saves besides its path: `["",1793318400000],` */
+const MTIME_CHARS = 19;
+
 /** A layout's estimates, worked out from the heights measured in it (D-135). */
 interface Learned {
     /** The height that 90% of heights are below, and never the tallest one. */
@@ -142,11 +150,36 @@ export class NoteHeights {
         this.mtimes.delete(path);
     }
 
+    forgetLayout(layout: string): void {
+        this.table.forgetLayout(layout);
+        for (const path of this.mtimes.keys()) if (this.heightsOf(path).length === 0) this.mtimes.delete(path);
+    }
+
+    /**
+     * Forgets the tenth of notes changed longest ago, to make room (D-195).
+     * Returns the notes kept.
+     */
+    forgetLeastRecentlyChanged(): ReadonlySet<string> {
+        const newestFirst = [...this.mtimes].sort(([, a], [, b]) => b - a).map(([path]) => path);
+        const kept = new Set(newestFirst.slice(0, Math.floor(newestFirst.length * SHARE_KEPT)));
+        this.keepOnly(kept);
+        return kept;
+    }
+
     /** Forgets every note not in `paths`, or changed since it was measured. */
     retainOnly(paths: ReadonlySet<string>): void {
-        const current = new Set([...paths].filter((path) => this.mtimes.get(path) === this.statOf(path)?.mtime));
-        this.table.retainOnly(current);
-        for (const path of this.mtimes.keys()) if (!current.has(path)) this.mtimes.delete(path);
+        this.keepOnly(new Set([...paths].filter((path) => this.mtimes.get(path) === this.statOf(path)?.mtime)));
+    }
+
+    private keepOnly(paths: ReadonlySet<string>): void {
+        this.table.retainOnly(paths);
+        for (const path of this.mtimes.keys()) if (!paths.has(path)) this.mtimes.delete(path);
+    }
+
+    savedSize(): number {
+        let size = this.table.savedSize(HEIGHT_CHARS);
+        for (const path of this.mtimes.keys()) size += path.length + MTIME_CHARS;
+        return size;
     }
 
     toJSON(): SavedNoteHeights {

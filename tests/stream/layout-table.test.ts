@@ -29,6 +29,29 @@ describe("LayoutTable", () => {
         expect(values.layoutNames()).toEqual(["a", "c"]);
     });
 
+    it("forgets a whole layout, and says so only if it held one", () => {
+        const changed = vi.fn();
+        const values = table(changed);
+        values.set("a", "x.md", 1);
+        changed.mockClear();
+
+        values.forgetLayout("b");
+        expect(changed).not.toHaveBeenCalled();
+
+        values.forgetLayout("a");
+        expect(changed).toHaveBeenCalledWith("a");
+        expect(values.layoutNames()).toEqual([]);
+    });
+
+    it("counts each layout's keys and what each entry adds", () => {
+        const values = table();
+        values.set("a", "x.md", 1);
+        values.set("a", "yy.md", 2);
+        values.set("b", "x.md", 3);
+
+        expect(values.savedSize(10)).toBe(4 + 10 + (5 + 10) + (4 + 10));
+    });
+
     // Every pane width and font size is a separate layout.
     it("forgets the layout used longest ago, past its limit", () => {
         const values = table(undefined, 2);
