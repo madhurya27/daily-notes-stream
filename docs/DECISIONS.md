@@ -936,7 +936,8 @@ going up to the element's block. When no part of the stream is at that point, it
 finds the block by binary search on the list of blocks.
 
 - It stops at anything with a held height, because a held note's text is not yet
-  where Back measured the place.
+  where Back measured the place. Changed by D-197: only until the reader
+  scrolls.
 - Before each new choice, it records what moved as owed, because a note rendered
   between frames reaches the scroll event before its resize report.
 - If the element is replaced, the anchor uses its block instead.
@@ -1626,8 +1627,9 @@ position does not cut a scroll short.
 stream's top into the pane within two more steps the size of its last step sets
 the scroll to the top and removes the shift. It also freezes the pane for that
 frame (`is-scroll-frozen`, `overflow: hidden`), so the scroll stops with the
-newest note at the top. When the browser pulls the scroll back to the stream's
-end, that does not count as a step.
+newest note at the top. Changed by D-198: a glide no longer goes straight to the
+top. When the browser pulls the scroll back to the stream's end, that does not
+count as a step.
 
 **Why:** when notes above are rendered shorter than their estimated height, the
 scroll has more room left than there is content above. The glide reached the
@@ -3628,3 +3630,51 @@ and four more each for WebKit's fixture. Four is enough.
 
 **Rejected:** opening the windows in global setup — a run of one test would open
 four. One window per slot and project — it still opens eight.
+
+## D-197 — The anchor holds the text in a held note the reader scrolled into (2026-10-31)
+
+**Decision:** the place stops at a held note only until the reader scrolls, that
+is, after the stream sets the scroll (`ScrollAnchor.placed`). After that, it
+goes down to the element at the pane's top, as in any other note. When a Base in
+a note says it set a height, the anchor is told in that task, even if the note's
+held height stayed the same.
+
+**Why:** the element at the pane's top is what must stay still (D-053). A note
+held at its remembered height keeps its height as its Bases fill in, so the
+anchor held the note's top while the text at the pane's top moved by what each
+Base grew: 36-240 px, in hard flicks on an iPad, and visible in a recording. In
+6 filmed runs, the anchor was on a held note in 13 of the 23 frames that
+drifted; after this change, in 0 of 10. In what still drifts, the anchor mostly
+holds a Base, and what is below that Base has to move.
+
+**Rejected:**
+
+- Holding a new Base at a fixed starting height — the text moved as far.
+- Remembering each Base's height — more saved data, and a Base can have
+  different rows in different notes.
+- Going down into a held note after Back as well — its text is not yet where
+  Back measured the place (D-053).
+
+## D-198 — A glide stopped before the stream's top carries on to it (2026-10-31)
+
+**Decision:** changes D-091. The stop at the stream's top sets the scroll a step
+on from where it was reported, removes the shift, and carries on with
+`GlideCarry` (D-192), which lands on the top. A scroll under a finger or on its
+way to the top still goes straight there: a carry would fight the finger, and
+may end short of the top.
+
+**Why:** `STEPS_AHEAD` is measured in steps, so at 200-380 px a step the stop
+came 600-830 px from the top, and setting the scroll to 0 moved the text that
+far in one frame on an iPad, even for 12 px owed. In 12 flick runs the stop
+fired twice, moving 833 and 698 px to the top. In 26 runs with the carry it
+fired 3 times and never went straight to the top: its largest move in a frame
+was 474 px, as large as an ordinary step of these flicks, then it slowed to the
+top in about 15 frames. A recording showed no jump and no empty space above the
+note.
+
+**Rejected:**
+
+- Fewer steps ahead — still a jump of hundreds of pixels, and iOS's uneven
+  events overshot into empty space at two steps (D-176).
+- Stopping only for a large shift — a small one still shows that much empty
+  space.

@@ -1392,14 +1392,83 @@ describe("ScrollAnchor", () => {
         // Back restores a place measured against a note's full layout. While
         // its height is held, the note is still filling in, and the text at the
         // top is not yet where it will be.
-        it("anchors at a note still held, not at text still settling inside it", () => {
+        it("anchors at a note still held where the scroll was set for it, not at text inside it", () => {
+            const { pane, content, blocks, resize } = watch([[400, 400, 400], 400], 0);
+            blocks[0]!.style.setProperty("--daily-note-held-height", "1200px");
+            pane.scrollTop = 500;
+            anchor.placed();
+
+            resize(blocks[0]!.children[0]!, 1000);
+            observer().resized(blocks[0]!);
+
+            expect(shift(content)).toBe(0);
+        });
+
+        // A Base filling in above the pane's top moved the text there by 36-240
+        // px in hard flicks on an iPad, because the place stopped at the note.
+        it("holds the text in a held note the reader scrolled into", () => {
             const { pane, content, blocks, resize } = watch([[400, 400, 400], 400], 0);
             blocks[0]!.style.setProperty("--daily-note-held-height", "1200px");
             pane.scrollTop = 500;
             anchor.onScroll();
 
             resize(blocks[0]!.children[0]!, 1000);
-            observer().resized(blocks[0]!);
+            anchor.resized();
+
+            expect(shift(content)).toBe(-600);
+            expect(blocks[0]!.children[1]!.getBoundingClientRect().top).toBe(-100);
+        });
+
+        // Opened on a place restored before any scroll was heard.
+        it("anchors at a held note until it hears the reader scroll", () => {
+            const { pane, content, blocks, resize } = makePane([[400, 400, 400], 400]);
+            pane.scrollTop = 500;
+            blocks[0]!.style.setProperty("--daily-note-held-height", "1200px");
+            anchor.attach(pane, content, moreBelow);
+
+            anchor.resized();
+            resize(blocks[0]!.children[0]!, 1000);
+            anchor.resized();
+
+            expect(shift(content)).toBe(0);
+        });
+
+        it("forgets the reader's scroll when it is attached again", () => {
+            const { pane, content, blocks, resize } = watch([[400, 400, 400], 400], 500);
+            anchor.detach();
+            blocks[0]!.style.setProperty("--daily-note-held-height", "1200px");
+            anchor.attach(pane, content, moreBelow);
+
+            anchor.resized();
+            resize(blocks[0]!.children[0]!, 1000);
+            anchor.resized();
+
+            expect(shift(content)).toBe(0);
+        });
+
+        it("holds the text in a held note once the reader scrolls on from a set scroll", () => {
+            const { pane, content, blocks, resize } = watch([[400, 400, 400], 400], 0);
+            blocks[0]!.style.setProperty("--daily-note-held-height", "1200px");
+            pane.scrollTop = 500;
+            anchor.placed();
+            pane.scrollTop = 510;
+            anchor.onScroll();
+
+            resize(blocks[0]!.children[0]!, 1000);
+            anchor.resized();
+
+            expect(shift(content)).toBe(-600);
+        });
+
+        it("does not count a set scroll's own event as the reader scrolling", () => {
+            const { pane, content, blocks, resize } = watch([[400, 400, 400], 400], 0);
+            blocks[0]!.style.setProperty("--daily-note-held-height", "1200px");
+            pane.scrollTop = 500;
+            anchor.placed();
+            anchor.onScroll();
+
+            resize(blocks[0]!.children[0]!, 1000);
+            anchor.resized();
 
             expect(shift(content)).toBe(0);
         });
@@ -1411,7 +1480,7 @@ describe("ScrollAnchor", () => {
             const { pane, content, blocks, resize, turn } = watch([[400, 400, 400], 400], 0);
             blocks[0]!.style.setProperty("--daily-note-held-height", "1200px");
             pane.scrollTop = 500;
-            anchor.onScroll();
+            anchor.placed();
             blocks[0]!.style.removeProperty("--daily-note-held-height");
 
             anchor.released(blocks[0]!);
@@ -1726,6 +1795,21 @@ describe("ScrollAnchor", () => {
         return null;
     }
 
+    /** Scrolls up `step` px every `ms`, until the anchor stops it. */
+    function flickUp(pane: HTMLElement, step: number, ms: number): void {
+        for (let top = pane.scrollTop - step; top >= 0; top -= step) {
+            vi.advanceTimersByTime(ms);
+            pane.scrollTop = top;
+            anchor.onScroll();
+            if (pane.hasClass("is-scroll-frozen")) return;
+        }
+        throw new Error("The anchor never stopped the glide.");
+    }
+
+    const frames = (count: number) => {
+        for (let i = 0; i < count; i++) vi.advanceTimersToNextFrame();
+    };
+
     // Notes above shrinking leave the stream shifted down. Scrolling up reaches
     // the newest note with scroll left, and went on into empty space. Stopping
     // when it arrived was too late: iOS had already drawn one frame past it. So
@@ -1740,11 +1824,41 @@ describe("ScrollAnchor", () => {
         const stopped = glideUp(pane, 20, 0);
 
         expect(stopped).toBe(360);
+        expect(pane.scrollTop).toBe(40);
+        expect(shift(content)).toBe(0);
+    });
+
+    // Setting the scroll to the top at that stop moved the text up to 833 px in
+    // one frame on an iPad. The glide goes on from its own speed instead.
+    it("carries on a glide stopped before the stream's top, to the top", () => {
+        const { pane, content, blocks, resize } = watch([400, 400, 400, 400, 400], 900);
+        resize(blocks[0]!, 100);
+        observer().resized(blocks[0]!);
+
+        flickUp(pane, 40, 16);
+        expect(pane.scrollTop).toBeGreaterThan(0);
+        frames(600);
+
         expect(pane.scrollTop).toBe(0);
         expect(content.getBoundingClientRect().top).toBe(0);
         expect(shift(content)).toBe(0);
-        vi.advanceTimersToNextFrame();
         expect(vi.getTimerCount()).toBe(0);
+    });
+
+    // A write each frame would fight the finger, and a scroll to the top must
+    // arrive.
+    it.each([
+        ["under a finger", () => anchor.fingerDown()],
+        ["on its way to the top", () => anchor.headForTop()],
+    ])("sets a scroll %s straight to the stream's top", (_, start) => {
+        const { pane, blocks, resize } = watch([400, 400, 400, 400, 400], 900);
+        resize(blocks[0]!, 100);
+        observer().resized(blocks[0]!);
+        start();
+
+        flickUp(pane, 40, 16);
+
+        expect(pane.scrollTop).toBe(0);
     });
 
     // Notes above growing leave the stream shifted up. Scrolling up reached a
@@ -1763,21 +1877,6 @@ describe("ScrollAnchor", () => {
         expect(pane.scrollTop).toBe(340);
         expect(shift(content)).toBe(0);
     });
-
-    /** Scrolls up `step` px every `ms`, until the anchor stops it. */
-    function flickUp(pane: HTMLElement, step: number, ms: number): void {
-        for (let top = pane.scrollTop - step; top >= 0; top -= step) {
-            vi.advanceTimersByTime(ms);
-            pane.scrollTop = top;
-            anchor.onScroll();
-            if (pane.hasClass("is-scroll-frozen")) return;
-        }
-        throw new Error("The anchor never stopped the glide.");
-    }
-
-    const frames = (count: number) => {
-        for (let i = 0; i < count; i++) vi.advanceTimersToNextFrame();
-    };
 
     // The scroll ran out thousands of pixels before the newest note, and the
     // reader had to flick again. The glide goes on from its own speed instead.

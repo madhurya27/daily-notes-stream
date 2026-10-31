@@ -348,7 +348,10 @@ export class NoteWindowManager {
      * (D-108).
      */
     onBaseResized(target: EventTarget | null): void {
-        this.contentResized([target]);
+        const { heard, told } = this.contentResized([target]);
+        // Held at its remembered height, the note kept its height, but what is
+        // below the Base moved in this task (ADR 0013).
+        if (heard && !told) this.anchor.resized();
     }
 
     /**

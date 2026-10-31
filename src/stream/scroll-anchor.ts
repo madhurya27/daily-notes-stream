@@ -67,6 +67,13 @@ export class ScrollAnchor {
     // which unloads it.
     private place: Place = [];
     /**
+     * The reader scrolled since the stream last set the scroll. A set scroll
+     * was measured against a note's full layout, so a place read then stops at
+     * a note still held (D-053). A reader's place is the text there (D-197).
+     */
+    // Stryker disable next-line BooleanLiteral: attach calls detach, which sets it, before it is read.
+    private readerScrolled = false;
+    /**
      * The same, for the first element that starts inside the pane. This one is
      * kept instead once the pane's width changes (D-057).
      */
@@ -299,6 +306,7 @@ export class ScrollAnchor {
         // not a step of a scroll.
         const moved = this.clamped(this.stepFrom) ? 0 : this.stepFrom - this.scrollRoot.scrollTop;
         this.stepFrom = this.scrollRoot.scrollTop;
+        if (moved !== 0) this.readerScrolled = true;
         this.hold();
         // The script is writing the scroll, so iOS is not scrolling it.
         if (this.carry!.carrying) return;
@@ -306,14 +314,12 @@ export class ScrollAnchor {
         const bounced = this.bouncing && this.scrollRoot.scrollTop >= 0 && !this.touching;
         this.bouncing = this.scrollRoot.scrollTop < 0 || (this.bouncing && this.touching);
         if (this.owed !== 0 && bounced) this.handOver();
-        else if (this.topDueInView(moved)) this.stopGlide(0);
+        else if (this.topDueInView(moved)) this.stopBeforeTop(moved);
         // One step further: iOS paints one step past the scroll position it
         // reports, and stopping there moved the text back against the scroll.
         else if (this.endDueInView(moved)) this.stopGlide(this.scrollRoot.scrollTop + this.owed - moved);
-        else if (this.owed !== 0 && this.scrollRunsOutAbove(moved)) {
-            this.stopGlide(this.scrollRoot.scrollTop + this.owed - moved);
-            this.carry!.start(this.speed.pxPerMs());
-        } else if (this.owed !== 0) this.settleOnceStill();
+        else if (this.owed !== 0 && this.scrollRunsOutAbove(moved)) this.stopAndCarry(moved);
+        else if (this.owed !== 0) this.settleOnceStill();
         else if (this.scrollRoot.scrollTop === 0) this.headedForTop = false;
     }
 
@@ -333,6 +339,24 @@ export class ScrollAnchor {
         this.headedForTop = false;
         this.unshift();
         this.pick();
+    }
+
+    /**
+     * Stops a scroll a step on from where it was reported, and carries it on
+     * from its speed (D-192).
+     */
+    private stopAndCarry(moved: number): void {
+        this.stopGlide(this.scrollRoot!.scrollTop + this.owed - moved);
+        this.carry!.start(this.speed.pxPerMs());
+    }
+
+    /**
+     * A carry would fight a finger, and may end short of the top, where a
+     * scroll to the top must arrive (D-198).
+     */
+    private stopBeforeTop(moved: number): void {
+        if (this.touching || this.headedForTop) this.stopGlide(0);
+        else this.stopAndCarry(moved);
     }
 
     /**
@@ -386,6 +410,9 @@ export class ScrollAnchor {
         this.carry?.cancel();
         this.settleOnceStill.cancel();
         this.unshift();
+        this.readerScrolled = false;
+        if (!this.scrollRoot) return;
+        this.stepFrom = this.scrollRoot.scrollTop;
         this.pick();
     }
 
@@ -400,6 +427,7 @@ export class ScrollAnchor {
         this.drawnBase = null;
         this.bouncing = false;
         this.touching = false;
+        this.readerScrolled = false;
         // Stryker disable next-line ArrayDeclaration: before the next pick, no element of an old place is in the pane.
         this.place = [];
         this.scrollRoot?.removeClass("is-scroll-anchored");
@@ -475,8 +503,7 @@ export class ScrollAnchor {
         this.place = [];
         // Stryker disable next-line ArrayDeclaration: only read while the text reflows, and no element of an old one is in the pane.
         this.reflowPlace = [];
-        const stream = this.stream;
-        if (!stream) return;
+        const stream = this.stream!;
         const pane = this.scrollRoot!.getBoundingClientRect();
         this.placeScroll = this.scrollRoot!.scrollTop;
         this.placeWidth = this.scrollRoot!.clientWidth;
@@ -562,7 +589,7 @@ export class ScrollAnchor {
         for (const at of path) {
             place.push({ el: at, top: this.topInPane(at), height: this.heightOf(at) });
             if (at.hasClass(BASE_SLOT_CLASS)) break;
-            if ((at as HTMLElement).style.getPropertyValue("--daily-note-held-height")) break;
+            if (!this.readerScrolled && (at as HTMLElement).style.getPropertyValue("--daily-note-held-height")) break;
         }
         return place;
     }

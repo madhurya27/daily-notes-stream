@@ -1684,6 +1684,18 @@ describe("NoteWindowManager pins a rendered note", () => {
         expect(told).toHaveBeenCalledOnce();
     });
 
+    // Held at its remembered height, the note keeps its height as its Base
+    // grows, but what is below the Base moves in this task.
+    it("tells the anchor as a Base in it grows, though the note keeps its height", async () => {
+        const { manager, block } = await rendered(natural(() => 640));
+        const slot = block.createDiv();
+        told.mockClear();
+
+        manager.onBaseResized(slot);
+
+        expect(told).toHaveBeenCalledOnce();
+    });
+
     describe("at the pane's top as it scrolls", () => {
         /**
          * Renders FILE at the pane's top, with its content ending `end()` below

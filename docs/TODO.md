@@ -21,18 +21,20 @@ there is a screen recording of them (D-099).
       fails about 1 in 180 runs on the iPad in landscape: the text jumps 180 px.
       In portrait it failed 2 of 13 runs, by 240 px, so it is not tagged
       `@portrait` until this is fixed. It never showed with logging on (D-187).
-- [ ] Keep the text at the pane's top still while a held note's Bases fill in.
-      In hard flicks on the iPad, in the newest note, `placeOf` stops at the
-      held note, so the anchor holds the note's top. A Base above the reader
-      then grows without changing the note's height, and the text moves by that
-      growth: 36-240 px, at a scroll of 192-783 px, and visible in a recording.
-      Then `jump.spec.ts` could limit the top text in hard flicks to 5 px of
-      drift. Other single reads of up to 898 px, and the iPhone's 26-68 ms jump,
-      are not explained.
-- [ ] `search.spec.ts` "a search paints every match" logged a 5 s stall drawing
-      `EMBEDS_NOTE` when run straight after `far-notes.spec.ts` and
-      `far-runs.spec.ts` on an iPad: the first time in 2 of 2 such runs, and not
-      in the full run. The cause is unknown.
+- [ ] Explain the moves that are left at the pane's top in hard flicks on the
+      iPad (D-197): single reads as a note is first drawn, and before D-197 up
+      to 898 px mid-glide. `jump.spec.ts` cannot limit hard flicks to 5 px of
+      drift until `followReader` tells text below a Base the anchor holds, which
+      has to move, from text that should not. The iPhone's 26-68 ms jump was not
+      measured again.
+- [ ] Closing a view while `EMBEDS_NOTE` draws leaves its
+      `MarkdownRenderer.render` unfinished, at least for 90 s. So
+      `warnIfStalled` logs a stall for a closed view, and fails device tests
+      whose `openStream` closes one mid-draw; a new view draws normally. Don't
+      warn for a closed view. `Transport destroyed`, from Obsidian's PDF viewer,
+      came with it once. Not yet shown: that the PDF is what never finishes.
+- [ ] `harness.spec.ts` "shrinks the window" read 271 x 181 once in a full run
+      (D-183), and not in 60 runs of it or its file. Poll the size.
 - [ ] Try adding the e2e tests to CI on Linux.
 - [ ] Once the directory's scorecard lint understands moment's types, go back to
       Obsidian's `moment` and delete `src/notes/moment.ts` (D-152).
