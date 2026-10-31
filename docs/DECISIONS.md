@@ -3613,3 +3613,18 @@ ms at this size, at most once a second.
 - Forgetting one note at a time — every later save would have to shrink again.
 - Measuring with `JSON.stringify` — exact, but 35 times slower, about 0.4 ms for
   a string that is thrown away. Obsidian builds it again to save it.
+
+## D-196 — Each e2e worker slot keeps one Obsidian window for the whole run (2026-10-30)
+
+**Decision:** a window belongs to a Playwright `parallelIndex`, not a worker.
+The first worker on a slot opens it, and later workers on that slot connect to
+it. A project change switches its layout with `emulateMobile`. Global teardown
+closes the windows. After a failed test, the window is closed and the next
+worker opens a new one.
+
+**Why:** Playwright starts new workers for each project and each set of worker
+fixtures, so a passing run opened 16 windows: four each for desktop and mobile,
+and four more each for WebKit's fixture. Four is enough.
+
+**Rejected:** opening the windows in global setup — a run of one test would open
+four. One window per slot and project — it still opens eight.

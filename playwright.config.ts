@@ -11,8 +11,8 @@ export default defineConfig<MobileLayoutOptions>({
     // A phone, not Obsidian on this Mac. See playwright.ios.config.ts.
     testIgnore: "ios/**",
     globalSetup: "./e2e-tests/global-setup.ts",
-    // One Obsidian copy and vault for each worker. More workers would not get
-    // enough CPU.
+    // One Obsidian copy and vault for each of these, kept for the whole run
+    // (D-196). More workers would not get enough CPU.
     workers: 4,
     // A run stops at its first failure. --max-failures=0 keeps going, for a
     // full report.
@@ -27,7 +27,8 @@ export default defineConfig<MobileLayoutOptions>({
     use: { trace: "retain-on-failure" },
     // Every test runs twice. Obsidian's mobile stylesheet and phone layout are
     // different enough that a rule can be right in one and wrong in the other.
-    // Each project has its own copy of Obsidian, so neither affects the other.
+    // The projects share the copies of Obsidian, which switch layout between
+    // them.
     projects: [
         { name: "desktop", use: { mobileLayout: false } },
         { name: "mobile", use: { mobileLayout: true } },

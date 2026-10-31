@@ -1,4 +1,4 @@
-import { test, expect, LAYOUT_VIEWPORT } from "./obsidian";
+import { test, expect, LAYOUT_VIEWPORT, openWindow } from "./obsidian";
 
 test("the test window follows the system color scheme", async ({ obsidian }) => {
     const { page } = obsidian;
@@ -107,7 +107,7 @@ test("keeps drawing frames after a test changes the viewport", async ({ obsidian
     await cdp.send("Emulation.setDeviceMetricsOverride", { ...viewport, deviceScaleFactor: 1, mobile: false });
     await cdp.detach();
     // A hidden window whose viewport was set again drew two frames a second,
-    // from the next time a tab opened until the worker restarted.
+    // from the next time a tab opened until the window closed.
     await page.evaluate(async () => {
         const note = window.app.vault.getMarkdownFiles()[0]!;
         await window.app.workspace.getLeaf("tab").openFile(note);
@@ -129,4 +129,14 @@ test("keeps drawing frames after a test changes the viewport", async ({ obsidian
 
     expect(framesInASecond).toBeGreaterThan(30);
     await page.evaluate(() => window.app.workspace.getLeaf(false).detach());
+});
+
+test("a new worker uses the window of the one before", async ({ obsidian }, testInfo) => {
+    const { app, leave } = await openWindow(`${testInfo.parallelIndex}`);
+    try {
+        expect(app.vaultPath).toBe(obsidian.vaultPath);
+        expect(await app.page.evaluate(() => window.app.workspace.layoutReady)).toBe(true);
+    } finally {
+        await leave();
+    }
 });

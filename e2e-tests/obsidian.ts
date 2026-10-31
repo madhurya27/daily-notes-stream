@@ -7,9 +7,9 @@ import {
     type Locator,
     type Page,
 } from "@playwright/test";
-import { execFileSync, spawn, type ChildProcess } from "child_process";
+import { execFileSync, spawn } from "child_process";
 import { createServer } from "net";
-import { mkdirSync, mkdtempSync, writeFileSync, copyFileSync, rmSync } from "fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync, copyFileSync, rmSync } from "fs";
 import { tmpdir } from "os";
 import { dirname, join, resolve } from "path";
 import { fileURLToPath } from "url";
@@ -234,10 +234,79 @@ export interface ObsidianApp {
     windowsOnScreen: () => WindowOnScreen[];
 }
 
-async function launch(): Promise<{
+/** What a new worker needs to find a window that is already open. */
+interface WindowRecord {
+    port: number;
+    userDataDir: string;
+    vaultPath: string;
+}
+
+/** A window opened for a worker. */
+export interface OpenWindow {
     app: ObsidianApp;
-    dispose: () => Promise<void>;
-}> {
+    /** Disconnects, and leaves the window open for the next worker. */
+    leave: () => Promise<void>;
+    /** Closes the window, so the next worker opens a new one. */
+    discard: () => Promise<void>;
+}
+
+/**
+ * The window for `slot`, opened the first time it is asked for. Playwright
+ * starts new workers for each project and each set of worker fixtures, and the
+ * window outlives them (D-196).
+ */
+export async function openWindow(slot: string): Promise<OpenWindow> {
+    const recordFile = join(process.env.E2E_WINDOWS_DIR!, `${slot}.json`);
+    const found = existsSync(recordFile) ? (JSON.parse(readFileSync(recordFile, "utf8")) as WindowRecord) : null;
+    if (found && mainProcessPid(found.userDataDir) !== null) return attach(found, recordFile, false);
+    if (found) removeWindow(found, recordFile);
+
+    const record = await launch();
+    writeFileSync(recordFile, JSON.stringify(record));
+    return attach(record, recordFile, true);
+}
+
+function removeWindow({ userDataDir, vaultPath }: WindowRecord, recordFile: string): void {
+    killByUserDataDir(userDataDir);
+    rmSync(vaultPath, { recursive: true, force: true });
+    rmSync(userDataDir, { recursive: true, force: true });
+    rmSync(recordFile, { force: true });
+}
+
+async function attach(record: WindowRecord, recordFile: string, isNew: boolean): Promise<OpenWindow> {
+    const { port, userDataDir, vaultPath } = record;
+    let browser: Browser | null = null;
+    // Defined before startup, so an error below still shuts the instance down.
+    const discard = async () => {
+        await browser?.close().catch(() => {});
+        removeWindow(record, recordFile);
+    };
+
+    try {
+        // Set up as soon as Playwright can reach the page. The focus grab
+        // before that is the only one left.
+        browser = await connectWithRetry(port);
+        const page = browser.contexts()[0]!.pages()[0]!;
+        if (isNew) await startUp(page);
+        // Playwright switches to light mode each time it attaches. null
+        // restores the system setting.
+        await page.emulateMedia({ colorScheme: null });
+        // Makes sure the window is hidden, instead of trusting the last event.
+        if (isNew && !SHOW_WINDOW) await showCloaked(page);
+        const connected = browser;
+        return {
+            app: observe(page, userDataDir, vaultPath),
+            leave: () => connected.close(),
+            discard,
+        };
+    } catch (error) {
+        await discard();
+        throw error;
+    }
+}
+
+/** Starts a copy of Obsidian on a new vault and profile. */
+async function launch(): Promise<WindowRecord> {
     const vaultPath = seedVault();
     const userDataDir = mkdtempSync(join(tmpdir(), "dns-userdata-"));
     writeFileSync(
@@ -286,51 +355,22 @@ async function launch(): Promise<{
 
     const port = await freePort();
     const args = [`--user-data-dir=${userDataDir}`, `--remote-debugging-port=${port}`, ...NO_THROTTLE, ...NO_ANIMATION];
-    // detached: Electron's helper processes survive if only the parent is
-    // killed, so signal the whole group.
-    const proc: ChildProcess | null = SHOW_WINDOW
-        ? spawn(OBSIDIAN, args, { stdio: "ignore", detached: true })
-        : launchHidden(args, userDataDir);
-
-    let browser: Browser | null = null;
-    // Defined before startup, so an error below still shuts the instance down.
-    const dispose = async () => {
-        await browser?.close().catch(() => {});
-        if (proc) await killTree(proc);
-        else killByUserDataDir(userDataDir);
-        rmSync(vaultPath, { recursive: true, force: true });
-        rmSync(userDataDir, { recursive: true, force: true });
-    };
-
-    try {
-        // Set up as soon as Playwright can reach the page. The focus grab
-        // before that is the only one left.
-        const app = await startUp((browser = await connectWithRetry(port)), userDataDir, vaultPath);
-        // Makes sure the window is hidden, instead of trusting the last event.
-        if (!SHOW_WINDOW) await showCloaked(app.page);
-        return { app, dispose };
-    } catch (error) {
-        await dispose();
-        throw error;
-    }
+    if (SHOW_WINDOW) spawn(OBSIDIAN, args, { stdio: "ignore", detached: true }).unref();
+    else launchHidden(args);
+    return { port, userDataDir, vaultPath };
 }
 
 /**
  * Goes through Obsidian's first-run steps until the plugin is running and the
  * window is hidden.
  */
-async function startUp(browser: Browser, userDataDir: string, vaultPath: string): Promise<ObsidianApp> {
-    const context = browser.contexts()[0]!;
-    const page = context.pages()[0]!;
+async function startUp(page: Page): Promise<void> {
     // The window is 300x200. Lay out the page at a normal size so scrolling
     // works.
     if (!SHOW_WINDOW) {
         await cloakWindow(page);
         await layOut(page, VIEWPORT);
     }
-    // Playwright switches to light mode when it attaches. null restores the
-    // system setting.
-    await page.emulateMedia({ colorScheme: null });
     await page.waitForLoadState("domcontentloaded");
     // layoutReady fires once the workspace, and plugin loading, have finished.
     await page.waitForFunction(() => window.app?.workspace?.layoutReady === true, null, {
@@ -359,7 +399,10 @@ async function startUp(browser: Browser, userDataDir: string, vaultPath: string)
     // renders.
     await page.evaluate(() => window.app.setting?.close?.());
     await expect(page.locator(".modal-container")).toHaveCount(0);
+}
 
+/** The app as tests see it. */
+function observe(page: Page, userDataDir: string, vaultPath: string): ObsidianApp {
     const isFrontmost = () => {
         const pid = mainProcessPid(userDataDir);
         return pid !== null && systemEvents(pid, "get frontmost") === "true";
@@ -378,9 +421,8 @@ async function startUp(browser: Browser, userDataDir: string, vaultPath: string)
  * returns no process id, so cleanup matches the user-data-dir, which also finds
  * the helper processes.
  */
-function launchHidden(args: string[], userDataDir: string): null {
+function launchHidden(args: string[]): void {
     execFileSync("open", ["-n", "-g", "-j", "-a", OBSIDIAN_BUNDLE, "--args", ...args], { stdio: "ignore" });
-    return null;
 }
 
 /** The main display's size, so the window can be put in its far corner. */
@@ -572,28 +614,6 @@ function killByUserDataDir(userDataDir: string): void {
     }
 }
 
-/**
- * Signals the whole Electron process group, and uses a stronger signal if it
- * does not stop.
- */
-async function killTree(proc: ChildProcess): Promise<void> {
-    if (proc.pid === undefined) return;
-    const exited = new Promise<void>((res) => proc.once("exit", () => res()));
-    try {
-        process.kill(-proc.pid, "SIGTERM");
-    } catch {
-        proc.kill("SIGTERM");
-    }
-    const timer = new Promise<"timeout">((res) => setTimeout(() => res("timeout"), 5_000));
-    if ((await Promise.race([exited, timer])) === "timeout") {
-        try {
-            process.kill(-proc.pid, "SIGKILL");
-        } catch {
-            proc.kill("SIGKILL");
-        }
-    }
-}
-
 /** Obsidian needs a moment before the debugging port accepts connections. */
 async function connectWithRetry(port: number): Promise<Browser> {
     const deadline = Date.now() + 60_000;
@@ -642,14 +662,21 @@ async function resetPluginState(page: Page): Promise<void> {
 }
 
 /**
- * One Obsidian instance for each worker. Tests share it, and each opens a new
- * view.
+ * True once a test in this worker has failed. What that test left behind must
+ * not reach the next worker, so its window is closed.
+ */
+let testFailed = false;
+
+/**
+ * One Obsidian instance for each worker at a time. Tests share it, and each
+ * opens a new view.
  */
 export const test = base.extend<TestFixtures, WorkerFixtures>({
     freshPluginState: [
-        async ({ obsidian }, use) => {
+        async ({ obsidian }, use, testInfo) => {
             await resetPluginState(obsidian.page);
             await use();
+            if (testInfo.status !== testInfo.expectedStatus) testFailed = true;
         },
         { auto: true },
     ],
@@ -665,25 +692,26 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
     ],
     mobileLayout: [false, { scope: "worker", option: true }],
     obsidian: [
-        async ({ mobileLayout }, use: (app: ObsidianApp) => Promise<void>) => {
-            const { app, dispose } = await launch();
-            if (mobileLayout) await applyMobileLayout(app.page);
+        async ({ mobileLayout }, use: (app: ObsidianApp) => Promise<void>, workerInfo) => {
+            const { app, leave, discard } = await openWindow(`${workerInfo.parallelIndex}`);
+            await matchLayout(app.page, mobileLayout);
             await use(app);
-            await dispose();
+            await (testFailed ? discard() : leave());
         },
         { scope: "worker", timeout: 120_000 },
     ],
 });
 
 /**
- * Puts the instance in Obsidian's phone layout for the whole worker. is-mobile
- * comes from emulateMobile, and is-phone only from a narrow viewport. The bugs
- * this catches, such as a wide table pushing the page sideways, or a cursor
- * suggesting a tap that does nothing, need both.
+ * Puts the instance in the project's layout, if an earlier worker left it in
+ * the other one. is-mobile comes from emulateMobile, and is-phone only from a
+ * narrow viewport. The bugs this catches, such as a wide table pushing the page
+ * sideways, or a cursor suggesting a tap that does nothing, need both.
  */
-async function applyMobileLayout(page: Page): Promise<void> {
-    await layOut(page, PHONE_VIEWPORT);
-    await page.evaluate(() => window.app.emulateMobile(true));
+async function matchLayout(page: Page, mobile: boolean): Promise<void> {
+    if ((await page.evaluate(() => window.app.isMobile)) === mobile) return;
+    if (mobile) await layOut(page, PHONE_VIEWPORT);
+    await page.evaluate((mobile) => window.app.emulateMobile(mobile), mobile);
     // emulateMobile removes the workspace and builds it again. Every leaf is
     // removed with it, so tests must open their own view afterwards (they all
     // do).

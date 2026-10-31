@@ -116,12 +116,14 @@ test.describe("a multi-year vault scrolled to the end", () => {
         const scroller = container.locator("xpath=..");
 
         await scroller.evaluate((el) => void (el.scrollTop = el.scrollHeight));
-        await expect(container.locator(".daily-note-block").first()).toHaveClass(/is-unloaded/);
+        // A note with a remembered height is hidden first, and unloaded only
+        // once it is far enough away.
+        await expect(container.locator(".daily-note-block").first()).toHaveClass(/is-far|is-unloaded/);
 
         await scroller.evaluate((el) => void (el.scrollTop = 0));
 
         const top = container.locator(".daily-note-block").first();
-        await expect(top).not.toHaveClass(/is-unloaded/);
+        await expect(top).not.toHaveClass(/is-far|is-unloaded/);
         await expect(top.locator(".daily-note-content")).toBeVisible();
     });
 });
