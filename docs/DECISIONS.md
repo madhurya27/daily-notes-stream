@@ -577,7 +577,7 @@ draws Bases as Obsidian does (ADR 0008). Each `base` code block, and each
 Base can be re-rendered on its own. If the headers alone are wider than the
 note, cards are drawn straight away (measured once, from Bases' header font and
 padding). Otherwise the table is drawn and measured when it is first laid out.
-The result is kept for each note and layout.
+The result is kept for each Base and layout (D-194).
 
 The cards are a copy only for display: Bases only saves a code block through an
 editor, and a save would write `type: cards` into the file. A copy of an
@@ -3562,3 +3562,26 @@ an iPad run of about 12.
 - Failing the run if the device is turned the wrong way — it stops a run for
   something the run can fix.
 - Every test in both orientations on an iPad — it doubles a run, to over 20 min.
+
+## D-194 — A Base too wide in one note is drawn as cards in every note (2026-10-30)
+
+**Decision:** "too wide" is shared by every note holding the same Base at the
+same layout: the same Markdown and definition. Only the first note draws a table
+to find out. The entry belongs to the note that recorded it. If that note is
+deleted, the next note measures again.
+
+**Why:** a template repeats a Base in every daily note, so each new note drew a
+table only to replace it. With short headers and long values, on a slowed CPU,
+each note after the first went from 149 to 82 ms until its cards showed, the
+median of three runs.
+
+**Accepted:** a note with shorter values gets cards where its own table would
+have fit, which matters most for a Base filtered by `this`. Cards also stay
+after the values that made the Base too wide are gone, as they did for one note.
+
+**Rejected:**
+
+- A hidden Bases view that measures the query's values — the query still runs,
+  and it misses the padding of pills and links.
+- Sharing only Bases that do not use `this` — those are what a template repeats
+  most, so most of the gain goes.

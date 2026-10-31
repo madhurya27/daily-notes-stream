@@ -3,6 +3,8 @@ import { test, expect, atTextScale, atTextSize, openStream, LAYOUT_VIEWPORT, unl
 
 /** Newer than every test note, so it is first in the stream. */
 const NOTE = "Notes/2026-03-15.md";
+/** Newer still, so it is added above `NOTE`. */
+const NEXT_NOTE = "Notes/2026-03-16.md";
 
 function table(name: string, columns: string[], ...extra: string[]): string[] {
     return ["  - type: table", `    name: ${name}`, ...extra, "    order:", ...columns.map((c) => `      - ${c}`)];
@@ -81,7 +83,7 @@ test.describe("Bases on mobile", () => {
                     if (file) await window.app.vault.delete(file);
                 }
             },
-            [NOTE, "Two.base"]
+            [NOTE, NEXT_NOTE, "Two.base"]
         );
     });
 
@@ -137,6 +139,42 @@ test.describe("Bases on mobile", () => {
         const base = (await openStream(page)).locator(".daily-note-base").first();
 
         await expect(cards(base).first()).toBeVisible();
+        expect(await page.evaluate(() => (window as unknown as { tablesDrawn: number }).tablesDrawn)).toBe(0);
+    });
+
+    // A Base from the template repeats in every daily note, so only the first
+    // draws a table to find out.
+    test("draws a table for the first note holding a Base too wide, and none for the next", async ({ obsidian }) => {
+        const { page } = obsidian;
+        await seed(page, block(...VALUES_WIDE));
+        const first = (await openStream(page)).locator(".daily-note-base").first();
+        await expect(cards(first).first()).toBeVisible();
+
+        await page.evaluate(() => {
+            const w = window as unknown as { tablesDrawn: number };
+            w.tablesDrawn = 0;
+            new MutationObserver((records) => {
+                for (const record of records)
+                    for (const node of Array.from(record.addedNodes))
+                        if (
+                            node instanceof Element &&
+                            !node.matches(".daily-note-bases-probe") &&
+                            node.querySelector(".bases-thead")
+                        )
+                            w.tablesDrawn++;
+            }).observe(document.body, { childList: true, subtree: true });
+        });
+        await page.evaluate(
+            async ([path, text]) => {
+                await window.app.vault.create(path!, text!);
+            },
+            [NEXT_NOTE, block(...VALUES_WIDE).join("\n")]
+        );
+        const next = page.locator(`.daily-note-block[data-source-path="${NEXT_NOTE}"] .daily-note-base`);
+        // Bases only draws cards near the screen, and this note is above it.
+        await next.scrollIntoViewIfNeeded();
+
+        await expect(cards(next).first()).toBeVisible();
         expect(await page.evaluate(() => (window as unknown as { tablesDrawn: number }).tablesDrawn)).toBe(0);
     });
 

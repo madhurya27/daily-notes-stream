@@ -94,18 +94,18 @@ describe("LayoutMemory", () => {
         const memory = new LayoutMemory(asApp(makeApp()));
         for (const path of ["gone.md", "kept.md"]) {
             memory.notes.keep("600:16px", path, 300);
-            memory.bases.markTooWide({ layout: "600:16px", path, base: "b1" });
+            memory.bases.markTooWide({ layout: "600:16px", path, base: `${path}-base` });
         }
 
         memory.forget("gone.md");
 
         expect(memory.notes.toJSON().heights).toEqual([["600:16px", [["kept.md", 300]]]]);
-        expect(memory.bases.toJSON()).toEqual([["600:16px", [["kept.md\nb1", { tooWide: true }]]]]);
+        expect(memory.bases.toJSON()).toEqual([["600:16px", [["kept.md\nkept.md-base", { tooWide: true }]]]]);
     });
 
     it("carries a note's measurements across a rename, and forgets a deleted note's", () => {
         const memory = new LayoutMemory(asApp(makeApp()));
-        const base = (path: string) => ({ layout: "600:16px", path, base: "b1" });
+        const base = (path: string) => ({ layout: "600:16px", path, base: `${path}-base` });
         for (const path of ["old.md", "gone.md", "stale.md"]) {
             memory.notes.keep("600:16px", path, 300);
             memory.bases.markTooWide(base(path));
@@ -116,7 +116,7 @@ describe("LayoutMemory", () => {
         memory.retainOnly(new Set(["new.md"]));
 
         expect(memory.notes.toJSON().heights).toEqual([["600:16px", [["new.md", 300]]]]);
-        expect(memory.bases.toJSON()).toEqual([["600:16px", [["new.md\nb1", { tooWide: true }]]]]);
+        expect(memory.bases.toJSON()).toEqual([["600:16px", [["new.md\nold.md-base", { tooWide: true }]]]]);
     });
 
     // Edited while the plugin was off, or on another device, so it is estimated

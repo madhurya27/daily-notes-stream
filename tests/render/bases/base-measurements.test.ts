@@ -12,6 +12,32 @@ describe("BaseMeasurements", () => {
         expect(measured.isTooWide(key("a.md"))).toBe(true);
         expect(measured.isTooWide(key("a.md", "b2"))).toBe(false);
         expect(measured.isTooWide(key("a.md", "b1", "400:16px"))).toBe(false);
+    });
+
+    // A Base from the template repeats in every daily note, so only the first
+    // draws a table to find out.
+    it("counts a Base too wide in one note as too wide in every note", () => {
+        const measured = new BaseMeasurements();
+        measured.markTooWide(key("a.md"));
+
+        expect(measured.isTooWide(key("b.md"))).toBe(true);
+        expect(measured.isTooWide(key("b.md", "2b1"))).toBe(false);
+        expect(measured.isTooWide(key("b.md", "b1", "400:16px"))).toBe(false);
+    });
+
+    it("keeps one entry for a Base, however many notes hold it", () => {
+        const measured = new BaseMeasurements();
+        measured.markTooWide(key("a.md"));
+        measured.markTooWide(key("b.md"));
+
+        expect(measured.toJSON()).toEqual([["600:16px", [["a.md\nb1", { tooWide: true }]]]]);
+    });
+
+    it("forgets a Base with the only note that recorded it", () => {
+        const measured = new BaseMeasurements();
+        measured.markTooWide(key("a.md"));
+        measured.forget("a.md");
+
         expect(measured.isTooWide(key("b.md"))).toBe(false);
     });
 
@@ -30,13 +56,13 @@ describe("BaseMeasurements", () => {
 
     it("carries a note's Bases across a rename, and forgets a deleted note's", () => {
         const measured = new BaseMeasurements();
-        for (const path of ["old.md", "gone.md", "stale.md"]) measured.markTooWide(key(path));
+        for (const path of ["old.md", "gone.md", "stale.md"]) measured.markTooWide(key(path, `${path}-base`));
 
         measured.rename("old.md", "new.md");
         measured.forget("gone.md");
         measured.retainOnly(new Set(["new.md"]));
 
-        expect(measured.toJSON()).toEqual([["600:16px", [["new.md\nb1", { tooWide: true }]]]]);
+        expect(measured.toJSON()).toEqual([["600:16px", [["new.md\nold.md-base", { tooWide: true }]]]]);
     });
 
     it("says when it changed, and only then", () => {

@@ -31,8 +31,8 @@ declare global {
  * follows (D-033). If the headers alone are wider than the note, cards are
  * rendered at once. Otherwise the table is rendered, measured when it is first
  * laid out, and re-rendered on its own if needed. The result is kept for each
- * note and layout, so a note that is unloaded and comes back is rendered only
- * once.
+ * Base and layout, so a note that comes back, or another note holding the same
+ * Base, is rendered only once (D-194).
  *
  * Bases fills a view after rendering it, and fills it again on a live update.
  * So a Base is held at the height it showed until it stops changing; otherwise

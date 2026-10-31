@@ -22,7 +22,8 @@ export type SavedMeasurements = SavedLayoutTable<Measurement>;
 /**
  * Which Bases were too wide for a table, kept with the notes' heights (ADR
  * 0010), so a Base that comes back is drawn as cards straight away. Its height
- * is kept by its note.
+ * is kept by its note. One note's entry stands for every note holding that
+ * Base.
  */
 export class BaseMeasurements {
     private readonly table: LayoutTable<Measurement>;
@@ -31,8 +32,12 @@ export class BaseMeasurements {
         this.table = new LayoutTable(isMeasurement, changed, limit);
     }
 
-    isTooWide(key: BaseKey): boolean {
-        return this.get(key)?.tooWide === true;
+    /**
+     * Whether any note has this Base recorded as too wide, because a template
+     * repeats a Base in every daily note (D-194).
+     */
+    isTooWide({ layout, base }: BaseKey): boolean {
+        return this.table.hasKey(layout, (key) => key.endsWith(`\n${base}`));
     }
 
     markTooWide(key: BaseKey): void {
@@ -57,10 +62,6 @@ export class BaseMeasurements {
 
     restore(saved: unknown): void {
         this.table.restore(saved);
-    }
-
-    private get({ layout, path, base }: BaseKey): Measurement | undefined {
-        return this.table.get(layout, `${path}\n${base}`);
     }
 }
 

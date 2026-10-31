@@ -16,6 +16,19 @@ describe("LayoutTable", () => {
         expect(values.entries("400:16px")).toEqual([]);
     });
 
+    it("says whether any key in a layout matches, and counts that as using it", () => {
+        const values = table(undefined, 2);
+        values.set("a", "x.md", 1);
+        values.set("b", "y.md", 2);
+
+        expect(values.hasKey("a", (key) => key === "y.md")).toBe(false);
+        expect(values.hasKey("a", (key) => key === "x.md")).toBe(true);
+        expect(values.hasKey("c", () => true)).toBe(false);
+        values.set("c", "z.md", 3);
+
+        expect(values.layoutNames()).toEqual(["a", "c"]);
+    });
+
     // Every pane width and font size is a separate layout.
     it("forgets the layout used longest ago, past its limit", () => {
         const values = table(undefined, 2);

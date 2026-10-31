@@ -47,6 +47,15 @@ export class LayoutTable<V> {
         return [...(this.layouts.get(layout) ?? [])];
     }
 
+    /**
+     * Whether any of `layout`'s keys matches. Marks the layout as just used, so
+     * it is forgotten last.
+     */
+    hasKey(layout: string, matches: (key: string) => boolean): boolean {
+        const entries = this.use(layout);
+        return entries !== undefined && [...entries.keys()].some(matches);
+    }
+
     /** Every layout, starting with the one used longest ago. */
     layoutNames(): string[] {
         return [...this.layouts.keys()];

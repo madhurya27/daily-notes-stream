@@ -67,14 +67,14 @@ let widths: FakeWidths;
 /**
  * A note's content element holding `markdown`'s Bases, rendered.
  */
-async function renderNote(markdown: string, component = loaded()): Promise<HTMLElement> {
+async function renderNote(markdown: string, component = loaded(), file = note): Promise<HTMLElement> {
     const { markdown: body, bases: sources } = extractBases(markdown);
     const content = document.createElement("div");
     Object.defineProperty(content, "clientWidth", { get: () => noteWidth });
     for (const line of body.split("\n")) {
         if (line.includes("daily-note-base")) content.createDiv({ cls: "daily-note-base" });
     }
-    await bases.render(content, note, component, sources);
+    await bases.render(content, file, component, sources);
     return content;
 }
 
@@ -347,6 +347,16 @@ describe("NoteBases measuring a drawn table", () => {
         const again = await renderNote(BLOCK);
 
         expect(drawn(slotOf(again))).toContain("type: cards");
+    });
+
+    it("draws the same Base straight as cards in the next note", async () => {
+        reportLayout(layOut(slotOf(await renderNote(BLOCK)), 900));
+        render.mockClear();
+
+        const next = await renderNote(BLOCK, loaded(), new TFile("Notes/2025-01-02.md"));
+
+        expect(render).toHaveBeenCalledOnce();
+        expect(drawn(slotOf(next))).toContain("type: cards");
     });
 
     it("measures again at another width", async () => {
