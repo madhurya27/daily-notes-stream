@@ -286,7 +286,7 @@ class BaseSlot {
         const component = (this.component = this.noteComponent.addChild(new Component()));
         const markdown = mode === "cards" ? this.cards! : this.source.markdown;
         await MarkdownRenderer.render(this.app, markdown, this.placeholder, this.file.path, component);
-        if (!this.measuring) this.rise();
+        if (!this.measuring && this.rise()) this.told();
         const drawn = this.placeholder.lastElementChild;
         if (drawn) this.resizes.observe(drawn);
     }

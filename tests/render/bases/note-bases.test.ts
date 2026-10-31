@@ -735,6 +735,24 @@ describe("NoteBases holding a Base while it refills", () => {
         expect(held(slotOf(content))).toBe("76px");
     });
 
+    it("tells its note when a redraw ends taller than its hold", async () => {
+        const content = await renderNote(BLOCK);
+        const slot = slotOf(content);
+        layOutAt(slot, 300);
+        let told = 0;
+        slot.addEventListener(BASE_RESIZED, () => told++);
+        render.mockImplementation(async (_app, _markdown, el) => {
+            el.createDiv();
+            tall(el, 500);
+        });
+
+        reportLayout(layOut(slot, 900));
+        await vi.advanceTimersByTimeAsync(0);
+
+        expect(held(slot)).toBe("500px");
+        expect(told).toBeGreaterThan(0);
+    });
+
     it("grows to what it lays out at unheld, not at its hold", async () => {
         const content = await renderNote(BLOCK);
         const slot = slotOf(content) as HTMLElement;
