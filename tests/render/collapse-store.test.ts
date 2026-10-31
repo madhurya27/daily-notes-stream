@@ -277,26 +277,6 @@ describe("CollapsibleStateStore", () => {
         expect(next.collapsedOr("file.md", "intro", false)).toBe(false);
     });
 
-    it("logs a refused save once, and throws from none", () => {
-        const error = vi.spyOn(console, "error").mockImplementation(() => {});
-        store.setCollapsed("file.md", "heading-1", true);
-        app.saveLocalStorage.mockImplementation(() => {
-            throw new DOMException("full", "QuotaExceededError");
-        });
-
-        expect(() => store.setCollapsed("file.md", "heading-2", true)).not.toThrow();
-        expect(() => store.retainSections("file.md", new Set())).not.toThrow();
-        expect(() => store.retainOnly(new Set())).not.toThrow();
-        expect(() => store.clearForFile("file.md")).not.toThrow();
-        expect(() => store.migrate("file.md", "moved.md")).not.toThrow();
-
-        expect(error).toHaveBeenCalledExactlyOnceWith(
-            "DailyNotesStream: Failed to save collapse state",
-            expect.any(DOMException)
-        );
-        error.mockRestore();
-    });
-
     it("saves a migration and a clear for the next session", () => {
         store.setCollapsed("file.md", "intro", true);
         store.setCollapsed("other.md", "intro", true);

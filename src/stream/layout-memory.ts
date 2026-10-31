@@ -1,7 +1,6 @@
 import { App, debounce } from "obsidian";
 import { BaseMeasurements } from "../render/bases/base-measurements";
 import { NoteHeights } from "./note-heights";
-import { saveLoggingOnce } from "../local-storage";
 
 /**
  * Kept for each vault and each device, because a height is only correct on the
@@ -37,7 +36,6 @@ export class LayoutMemory {
     );
     readonly bases = new BaseMeasurements(() => this.saveSoon());
     private readonly saveSoon = debounce(() => this.save(), SAVE_DELAY_MS);
-    private readonly saveLogged = saveLoggingOnce("layout memory");
 
     constructor(
         private readonly app: App,
@@ -86,13 +84,11 @@ export class LayoutMemory {
 
     private save(): void {
         while (this.savedSize() > this.limit) this.shrink();
-        this.saveLogged(() =>
-            this.app.saveLocalStorage(LAYOUT_MEMORY_KEY, {
-                version: VERSION,
-                notes: this.notes.toJSON(),
-                bases: this.bases.toJSON(),
-            })
-        );
+        this.app.saveLocalStorage(LAYOUT_MEMORY_KEY, {
+            version: VERSION,
+            notes: this.notes.toJSON(),
+            bases: this.bases.toJSON(),
+        });
     }
 
     /**

@@ -171,8 +171,9 @@ vault's hotkey for "Search current file" (`hotkey.ts`).
 | Which notes are empty | vault localStorage, on each device | it is only a cache (D-072)   |
 | Collapsed sections    | vault localStorage                 | `collapse-store.ts`, D-121   |
 
-Every localStorage store saves through `saveLoggingOnce`. If a save is refused,
-the error is logged once and never thrown (D-071).
+Obsidian's `saveLocalStorage` catches a refused save's error itself. So when
+localStorage is full, saves fail silently, and what they held is lost at the
+next restart. All of a device's vaults and plugins share it (D-195).
 
 ## Obsidian internals
 

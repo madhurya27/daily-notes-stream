@@ -5,7 +5,6 @@ import { isTemplateOnly, templatePattern } from "./template-match";
 import type { BacklinkIndex } from "./backlink-index";
 import type { DailyNotesStreamSettings } from "../settings";
 import type { DailyNoteSettings } from "../obsidian-internals";
-import { saveLoggingOnce } from "../local-storage";
 
 /**
  * How much bigger than its template a note can be and still be read. A bigger
@@ -95,7 +94,6 @@ export class EmptyNotes {
      */
     private checkedAt: number | null = null;
     private readonly saveSoon = debounce(() => this.save(), SAVE_DELAY_MS);
-    private readonly saveLogged = saveLoggingOnce("which notes are empty");
 
     constructor(
         private readonly reader: NoteReader,
@@ -188,9 +186,7 @@ export class EmptyNotes {
 
     private save(): void {
         const empty = [...this.verdicts].filter(([, verdict]) => verdict.empty).map(([path, v]) => [path, v.mtime]);
-        this.saveLogged(() =>
-            this.store.save({ version: VERSION, template: this.template?.key, checkedAt: this.checkedAt, empty })
-        );
+        this.store.save({ version: VERSION, template: this.template?.key, checkedAt: this.checkedAt, empty });
     }
 
     /**

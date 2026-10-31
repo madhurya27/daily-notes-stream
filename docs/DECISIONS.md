@@ -1271,12 +1271,12 @@ either.
 
 ## D-071 — A failure only breaks one thing, and is logged (2026-09-28)
 
-**Decision:** every asynchronous entry point and every localStorage save catches
-errors, logs them to the console, and carries on. A note that cannot be rendered
-says so, a read that fails shows its note, a refused save is logged once
-(`saveLoggingOnce`), saved state that cannot be read counts as none, and a list
+**Decision:** every asynchronous entry point catches errors, logs them to the
+console, and carries on. A note that cannot be rendered says so, a read that
+fails shows its note, saved state that cannot be read counts as none, and a list
 that fails to build lists nothing until the next refresh. Only a failed jump
-shows a notice.
+shows a notice. A refused save needs nothing: Obsidian's `saveLocalStorage`
+catches the error itself (D-195).
 
 **Why:** a stream has many notes, and one bad note, or a full localStorage, must
 not make the rest blank. When unsure, the stream shows too much, but it never
@@ -3596,10 +3596,11 @@ estimated, and measured again when drawn.
 **Why:** all of a device's vaults and plugins share localStorage, and a full
 store refuses their saves too. Measured by filling it (2026-10-30): about 5.24
 million characters on an iPad, and 52.4 million in desktop Obsidian, so this is
-about 11% of an iPad's. It counts characters, not bytes. The limit holds about
-7,600 notes in one layout, or about 3,000 in all four. Its size is counted by
-adding up path lengths, which takes about 0.01 ms at this size, at most once a
-second.
+about 11% of an iPad's. It counts characters, not bytes. Obsidian's
+`saveLocalStorage` catches a refused save's error, on both, so nothing reports a
+full store. The limit holds about 7,600 notes in one layout, or about 3,000 in
+all four. Its size is counted by adding up path lengths, which takes about 0.01
+ms at this size, at most once a second.
 
 **Rejected:**
 

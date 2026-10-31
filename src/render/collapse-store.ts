@@ -1,5 +1,4 @@
 import { App } from "obsidian";
-import { saveLoggingOnce } from "../local-storage";
 
 /** Kept for each vault, like the layout memory. */
 export const COLLAPSE_STATE_KEY = "daily-notes-stream:collapse";
@@ -26,7 +25,6 @@ export function isOldCollapseKey(name: string): boolean {
  */
 export class CollapsibleStateStore {
     private readonly files: Map<string, Sections>;
-    private readonly saveLogged = saveLoggingOnce("collapse state");
 
     constructor(private readonly app: App) {
         this.files = restore(app.loadLocalStorage(COLLAPSE_STATE_KEY));
@@ -92,7 +90,7 @@ export class CollapsibleStateStore {
     /** Starts again with nothing folded, as on a new device. */
     forgetAll(): void {
         this.files.clear();
-        this.saveLogged(() => this.app.saveLocalStorage(COLLAPSE_STATE_KEY, null));
+        this.app.saveLocalStorage(COLLAPSE_STATE_KEY, null);
     }
 
     clearForFile(filePath: string): void {
@@ -101,7 +99,7 @@ export class CollapsibleStateStore {
 
     private save(): void {
         const files = [...this.files].map(([path, sections]) => [path, [...sections]]);
-        this.saveLogged(() => this.app.saveLocalStorage(COLLAPSE_STATE_KEY, { version: VERSION, files }));
+        this.app.saveLocalStorage(COLLAPSE_STATE_KEY, { version: VERSION, files });
     }
 }
 

@@ -171,10 +171,12 @@ test.describe("Bases on mobile", () => {
             [NEXT_NOTE, block(...VALUES_WIDE).join("\n")]
         );
         const next = page.locator(`.daily-note-block[data-source-path="${NEXT_NOTE}"] .daily-note-base`);
-        // Bases only draws cards near the screen, and this note is above it.
-        await next.scrollIntoViewIfNeeded();
-
-        await expect(cards(next).first()).toBeVisible();
+        // Bases only draws cards near the screen, and this note is above it. It
+        // can grow after a scroll, which leaves it above the screen again.
+        await expect(async () => {
+            await next.scrollIntoViewIfNeeded();
+            await expect(cards(next).first()).toBeVisible({ timeout: 500 });
+        }).toPass();
         expect(await page.evaluate(() => (window as unknown as { tablesDrawn: number }).tablesDrawn)).toBe(0);
     });
 

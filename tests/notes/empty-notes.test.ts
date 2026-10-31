@@ -521,24 +521,4 @@ describe("EmptyNotes across sessions", () => {
 
         expect(notesRead(next).sort()).toEqual(["empty.md", "written.md"]);
     });
-
-    it("logs a refused save once, and keeps working", async () => {
-        const errors = vi.spyOn(console, "error").mockImplementation(() => {});
-        const vault = vaultOf({ ...TEXTS });
-        vault.store.save.mockImplementation(() => {
-            throw new Error("quota");
-        });
-
-        await vault.notes.checkAll([vault.fileAt("empty.md")]);
-        vault.notes.flush();
-        await vault.notes.checkAll([vault.fileAt("written.md")]);
-        vault.notes.flush();
-
-        expect(errors).toHaveBeenCalledExactlyOnceWith(
-            "DailyNotesStream: Failed to save which notes are empty",
-            expect.any(Error)
-        );
-        expect(vault.notes.isEmpty(vault.fileAt("empty.md"))).toBe(true);
-        errors.mockRestore();
-    });
 });
