@@ -142,6 +142,22 @@ export function drewDuringGlide(changes: GlideChange[], note: string): boolean {
 }
 
 /**
+ * How a glide left the lane, which it must not (D-189): each note outside it
+ * that drew from the lift on, and reaching the top or the stream's end. Read
+ * from what happened, so it holds at any text size, zoom or orientation.
+ */
+export function leftLane(
+    { ending, changes }: { ending: GlideEnding; changes: GlideChange[] },
+    lane: string[]
+): string[] {
+    const drawn = changes.flatMap(({ kind, what, last }) => {
+        const note = / in (.+?\.md)/.exec(what)?.[1];
+        return kind === "nodes" && last >= 0 && note && !lane.includes(note) ? [`drew ${note}`] : [];
+    });
+    return [...new Set(drawn), ...(ending === "at an edge" ? ["reached the stream's edge"] : [])];
+}
+
+/**
  * Something the stream did that ends a glide on iOS: a write to the pane's
  * scroll position (`how` names the call), or `freeze` for the pane frozen for a
  * frame (`is-scroll-frozen`). `owing` is whether the stream owed a shift then.

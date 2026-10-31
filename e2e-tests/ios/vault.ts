@@ -69,11 +69,6 @@ const NEWEST = Object.keys(DEMO)
  */
 export const SHORT_NOTE_WITH_BASE = "Journal/2026-09-22.md";
 export const SHORT_NOTE = "Journal/2026-09-21.md";
-/**
- * A short note with a Base, more than 16 screens down on an iPad, so a script
- * can place it far enough below the screen to be unloaded.
- */
-export const DEEP_NOTE_WITH_BASE = "Journal/2026-09-13.md";
 /** The kanban in the short note with Bases, the note above `SHORT_NOTE`. */
 export const SHORT_KANBAN = `.daily-note-block[data-source-path="${SHORT_NOTE_WITH_BASE}"] .daily-note-base:has(+ .daily-note-base)`;
 /**
@@ -162,12 +157,16 @@ const dayPath = (offset: number) => `Journal/${new Date(SLOT_DAY + offset * 86_4
  * Plain days below the oldest note, where every glide test flicks: the same
  * notes around each glide, so only what a test writes into `LANE_SLOT`
  * differs. Each side is longer than a full glide and the notes rendered ahead
- * of it, so a glide never reaches a note outside it.
+ * of it, so a glide never reaches a note outside it: `glidesInLane` and
+ * `glidesOnto` fail if one does.
  */
 export const LANE_SLOT = dayPath(0);
 /** The lane day `days` from the slot, in the direction a flick scrolls. */
 export const laneDayAhead = (direction: "up" | "down", days: number) => dayPath(direction === "up" ? -days : days);
-/** A lane day's text: plain paragraphs, about 1,500 px tall on an iPad. */
+/**
+ * A lane day's text: plain paragraphs, 1,440 px tall on an iPad at default
+ * settings.
+ */
 export const LANE_TEXT = Array.from(
     { length: 8 },
     (_, i) =>
@@ -180,9 +179,8 @@ export const LANE_TEXT = Array.from(
     .join("\n\n");
 /** How many days the lane has, its slot included. */
 const LANE_DAYS = 2 * LANE_SIDE + 1;
-const LANE = Object.fromEntries(
-    Array.from({ length: LANE_DAYS }, (_, i) => [dayPath(i - LANE_SIDE), `${LANE_TEXT}\n`])
-);
+export const LANE_NOTES = Array.from({ length: LANE_DAYS }, (_, i) => dayPath(i - LANE_SIDE));
+const LANE = Object.fromEntries(LANE_NOTES.map((path) => [path, `${LANE_TEXT}\n`]));
 const TEST_NOTES = {
     ...Object.fromEntries(Object.entries(DEMO).filter(([path]) => !(FREE_DAYS as readonly string[]).includes(path))),
     ...EMBEDS,

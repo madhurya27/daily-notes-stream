@@ -5,8 +5,10 @@ import {
     drewDuringGlide,
     glideEnding,
     glideFaults,
+    leftLane,
     longestStall,
     neverScrolled,
+    type GlideEnding,
     type Heard,
 } from "../../e2e-tests/ios/glide";
 
@@ -346,6 +348,53 @@ describe("glideFaults", () => {
         expect(faults({ events })).toEqual([
             "a box that could scroll: div.callout in Journal/2026-07-30.md (auto visible)",
         ]);
+    });
+});
+
+describe("leftLane", () => {
+    const LANE = ["Journal/2026-07-30.md", "Journal/2026-07-31.md"];
+    const OUTSIDE = "Journal/2026-08-30.md";
+    const drew = (what: string, last = 120, kind = "nodes") => ({ kind, what, count: 1, first: last, last });
+    const left = (changes: ReturnType<typeof drew>[], ending: GlideEnding = "slowed") =>
+        leftLane({ ending, changes }, LANE);
+
+    it("finds nothing when only the lane's notes drew", () => {
+        expect(left([drew(`div.daily-note-content in ${LANE[0]}`)])).toEqual([]);
+    });
+
+    it("names a note outside the lane that drew", () => {
+        expect(left([drew(`div.daily-note-content in ${OUTSIDE}`)])).toEqual([`drew ${OUTSIDE}`]);
+    });
+
+    it("names the note when what drew is inside its Base", () => {
+        expect(left([drew(`div.bases-view in ${OUTSIDE}, Base 1, table`)])).toEqual([`drew ${OUTSIDE}`]);
+    });
+
+    it("names each note once", () => {
+        const twice = [drew(`p in ${OUTSIDE}`), drew(`ul in ${OUTSIDE}`)];
+        expect(left(twice)).toEqual([`drew ${OUTSIDE}`]);
+    });
+
+    it("ignores what drew before the lift", () => {
+        expect(left([drew(`p in ${OUTSIDE}`, -1)])).toEqual([]);
+    });
+
+    it("counts what drew at the lift", () => {
+        expect(left([drew(`p in ${OUTSIDE}`, 0)])).toEqual([`drew ${OUTSIDE}`]);
+    });
+
+    it("ignores a change that drew nothing", () => {
+        expect(left([drew(`div in ${OUTSIDE}`, 120, "class")])).toEqual([]);
+    });
+
+    it("ignores nodes outside any note", () => {
+        expect(left([drew("div.modal")])).toEqual([]);
+    });
+
+    // Past the oldest lane day, with no older notes, the glide runs out of
+    // stream and draws nothing.
+    it("names a glide that reached an edge", () => {
+        expect(left([], "at an edge")).toEqual(["reached the stream's edge"]);
     });
 });
 

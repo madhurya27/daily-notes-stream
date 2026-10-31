@@ -15,10 +15,12 @@ there is a screen recording of them (D-099).
       0.75 s: a long note near the top renders 7 slices before the short newest
       note is drawn (ADR 0020). `header.spec.ts` "a tap on the title draws a
       short newest note before a long one near it" fails there every time, on
-      `main` too (2026-10-30); landscape passes.
+      `main` too (2026-10-30); landscape passes. Once fixed, tag the test
+      `@portrait`.
 - [ ] "A glide owing the notes above hands over what it owes" (`jump.spec.ts`)
-      fails about 1 in 180 runs on the iPad: the text jumps 180 px. It never
-      showed with logging on (D-187).
+      fails about 1 in 180 runs on the iPad in landscape: the text jumps 180 px.
+      In portrait it failed 2 of 13 runs, by 240 px, so it is not tagged
+      `@portrait` until this is fixed. It never showed with logging on (D-187).
 - [ ] Hold a Base's box until its note re-pins. On the iPhone, with notes above
       estimated at 100 px, a Base's box grew from 112 to 172 px while its note
       kept its height, and the text below it moved 60–120 px for 26–68 ms, until
@@ -27,6 +29,10 @@ there is a screen recording of them (D-099).
       clips the Base meanwhile, as a pinned note clips what is below it now.
       Check it against D-159's let-go. Then hard flicks could use the 5 px drift
       limit that `jump.spec.ts` keeps for usual ones.
+- [ ] `search.spec.ts` "a search paints every match" logged a 5 s stall drawing
+      `EMBEDS_NOTE` when run straight after `far-notes.spec.ts` and
+      `far-runs.spec.ts` on an iPad: the first time in 2 of 2 such runs, and not
+      in the full run. The cause is unknown.
 - [ ] Try adding the e2e tests to CI on Linux.
 - [ ] Once the directory's scorecard lint understands moment's types, go back to
       Obsidian's `moment` and delete `src/notes/moment.ts` (D-152).

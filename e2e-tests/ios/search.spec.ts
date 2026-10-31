@@ -151,7 +151,7 @@ test.describe("a step back to a hidden note with a Base above its match", () => 
     const step = async (phone: Phone) => {
         await phone.run((match: string) => {
             const page = window as unknown as Watch;
-            page.frames = [];
+            page.seenFrames = [];
             page.watching = true;
             const read = () => {
                 const tops = new Map<Range, number | null>();
@@ -159,7 +159,7 @@ test.describe("a step back to a hidden note with a Base above its match", () => 
                     const { top, height } = range.getBoundingClientRect();
                     tops.set(range, height > 0 ? Math.round(top) : null);
                 }
-                page.frames.push(tops);
+                page.seenFrames.push(tops);
             };
             // A task after the frame reads what it showed: a resize that is put
             // right before the frame is drawn is not seen.
@@ -181,7 +181,7 @@ test.describe("a step back to a hidden note with a Base above its match", () => 
             const rect = range?.getBoundingClientRect();
             return {
                 onScreen: !!rect && rect.height > 0 && rect.top >= top && rect.bottom <= bottom,
-                tops: range ? page.frames.map((tops) => tops.get(range) ?? null) : [],
+                tops: range ? page.seenFrames.map((tops) => tops.get(range) ?? null) : [],
             };
         }, CURRENT);
     };
@@ -193,7 +193,7 @@ test.describe("a step back to a hidden note with a Base above its match", () => 
         return tops.slice(tops.findIndex(there)).filter((top) => !there(top));
     };
 
-    test("lands on its match and holds it still", async ({ phone }) => {
+    test("lands on its match and holds it still", { tag: "@portrait" }, async ({ phone }) => {
         await phone.tap('.view-action[aria-label="Search"]');
         await expect.poll(() => phone.has(BAR), "the search bar did not open").toBe(true);
         await phone.run(
@@ -233,7 +233,7 @@ test.describe("a step back to a hidden note with a Base above its match", () => 
 });
 
 /** What `step` keeps on the page while it watches: each frame's matches. */
-type Watch = { frames: Map<Range, number | null>[]; watching: boolean };
+type Watch = { seenFrames: Map<Range, number | null>[]; watching: boolean };
 
 // A match under the keyboard or the navbar is on the page but not seen. A
 // search must not mark it, or Enter would move past it (D-179).

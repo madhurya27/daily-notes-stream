@@ -1,5 +1,5 @@
 import { test as base, expect } from "@playwright/test";
-import { drivesIPad, orientationToDrive, type Orientation } from "./device";
+import { drivesIPad, screenNote, type Orientation } from "./device";
 import {
     changesDuring,
     glideEnding,
@@ -1744,7 +1744,19 @@ export class Phone {
     }
 }
 
-export const test = base.extend<{ quietConsole: void }, { phone: Phone }>({
+/** Set for each project in `playwright.ios.config.ts`. */
+export type DeviceOptions = { orientation: Orientation };
+
+export const test = base.extend<{ quietConsole: void; screenNoted: void }, { phone: Phone } & DeviceOptions>({
+    orientation: ["PORTRAIT", { option: true, scope: "worker" }],
+    screenNoted: [
+        async ({ phone }, use) => {
+            const screen = await phone.run(() => ({ width: window.innerWidth, height: window.innerHeight }));
+            base.info().annotations.push({ type: "screen", description: screenNote(process.env, screen) });
+            await use();
+        },
+        { auto: true },
+    ],
     // Errors during a test fail it, wherever they appear, so no check has to
     // ask for them.
     quietConsole: [
@@ -1755,19 +1767,17 @@ export const test = base.extend<{ quietConsole: void }, { phone: Phone }>({
         { auto: true },
     ],
     phone: [
-        async ({}, use) => {
+        async ({ orientation }, use) => {
             const driver = await connect();
             // Otherwise WebDriverAgent waits after each gesture for animations
             // to end, which takes 15 s in Obsidian. rest() waits for the stream
             // instead.
             await driver.updateSettings({ animationCoolOffTimeout: 0, waitForIdleTimeout: 0 });
             const phone = new Phone(driver);
-            // An iPad is used in landscape, and an iPhone upright, unless
-            // IOS_ORIENTATION turns it. The run leaves it as it found it.
+            // The run leaves the device turned as it found it (D-193).
             const found = (await driver.getOrientation()) as Orientation;
-            const wanted = orientationToDrive(process.env);
             try {
-                if (wanted) await driver.setOrientation(wanted);
+                await driver.setOrientation(orientation);
                 await phone.assertUnlocked();
                 await useVault(phone);
                 expect(await phone.consoleErrors(), "errors in Obsidian's console, opening the vault").toEqual([]);

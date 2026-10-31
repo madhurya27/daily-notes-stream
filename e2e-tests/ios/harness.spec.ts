@@ -1,6 +1,14 @@
 import { test, expect, type FlickStart, type Phone } from "./phone";
 import { longNote } from "../long-note";
 
+// A report says what the test ran on.
+test("a test notes the device and the shape of its screen", { tag: "@portrait" }, async ({ phone }) => {
+    const note = test.info().annotations.find(({ type }) => type === "screen");
+    const { width, height } = await phone.run(() => ({ width: window.innerWidth, height: window.innerHeight }));
+
+    expect(note?.description).toMatch(new RegExp(`^(iPhone|iPad) (portrait|landscape), ${width}x${height}$`));
+});
+
 // Every test fails if there is an error in Obsidian's console. These prove the
 // check fails, one for each way an error can reach it.
 for (const [how, cause] of [

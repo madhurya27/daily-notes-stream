@@ -3453,7 +3453,8 @@ the oldest note (`LANE_SLOT` in `e2e-tests/ios/vault.ts`). A test writes what it
 flicks over, such as a Base, into the lane's middle day. Before each flick,
 `phone.startInLane` forgets stored note heights, opens the stream again and
 jumps straight to that day. Each side of the lane is longer than a glide and the
-notes rendered ahead of it.
+notes rendered ahead of it, and a glide test fails if a note outside the lane
+draws, or the glide reaches the stream's edge (`leftLane`).
 
 **Why:** each glide test started somewhere else, reached it by scrolling a
 screen at a time, and glided past different notes, so what was loaded, rendered
@@ -3471,7 +3472,7 @@ the lane, 1 of 135.
 **Decision:** no device test flicks the whole stream. The test of the stream's
 end starts 15 notes above it, inside the lane. The test of re-pinning flicks
 from the top past `EMBEDS_NOTE` and back. The lane (D-189) shrinks to 10 days
-each side, about 15,000 px on an iPad.
+each side, about 14,400 px on an iPad.
 
 **Why:** a test that crosses less fails for fewer reasons, and runs faster.
 Glides in the lane travel at most about 10,700 px, plus about 1,800 px rendered
@@ -3542,3 +3543,22 @@ top, as iOS would have.
   the rest of iOS's scrolling.
 - Holding back renders during the handover — the text stays still for 13–38 ms
   already, about 1–2 frames, and the stop needs one.
+
+## D-193 — A device run sets its orientation (2026-10-30)
+
+**Decision:** a run tests an iPad in landscape, then repeats the tests tagged
+`@portrait` in portrait: those that depend on the pane's height. An iPhone runs
+in portrait. `IOS_ORIENTATION` runs every test in the one it names. The run
+turns the device back at the end. Each test notes the device and its screen's
+size in the report (`screen`).
+
+**Why:** a run stayed as the device was left, so results changed with where it
+last was, and the report could not say which. Landscape is how an iPad is mostly
+used, and portrait lays it out more like an iPhone. The tag adds about 3 min to
+an iPad run of about 12.
+
+**Rejected:**
+
+- Failing the run if the device is turned the wrong way — it stops a run for
+  something the run can fix.
+- Every test in both orientations on an iPad — it doubles a run, to over 20 min.

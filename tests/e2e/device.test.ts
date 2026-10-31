@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { deviceToDrive, drivesIPad, orientationToDrive } from "../../e2e-tests/ios/device";
+import { deviceToDrive, drivesIPad, deviceProjects, screenNote } from "../../e2e-tests/ios/device";
 
 function device(name: string, deviceType: string, transportType = "wired", reality = "physical") {
     return {
@@ -48,19 +48,41 @@ describe("drivesIPad", () => {
     });
 });
 
-describe("orientationToDrive", () => {
-    it("is the orientation IOS_ORIENTATION names", () => {
-        expect(orientationToDrive({ IOS_ORIENTATION: "PORTRAIT" })).toBe("PORTRAIT");
-        expect(orientationToDrive({ IOS_ORIENTATION: "LANDSCAPE" })).toBe("LANDSCAPE");
+describe("deviceProjects", () => {
+    const every = (orientation: string) => ({ name: orientation.toLowerCase(), use: { orientation } });
+
+    it("runs every test upright on an iPhone, however the device was left", () => {
+        expect(deviceProjects({})).toEqual([every("PORTRAIT")]);
     });
 
-    it("is none without IOS_ORIENTATION, so the device stays as it is", () => {
-        expect(orientationToDrive({})).toBeUndefined();
+    // Landscape is how an iPad is mostly used. Portrait is laid out more like
+    // an iPhone, and running every test twice would double a run's time.
+    it("runs every test on an iPad on its side, then the tagged tests upright", () => {
+        expect(deviceProjects({ IOS_DEVICE: "iPad" })).toEqual([
+            every("LANDSCAPE"),
+            { ...every("PORTRAIT"), grep: /@portrait/ },
+        ]);
+    });
+
+    it("runs every test in only the one IOS_ORIENTATION names", () => {
+        expect(deviceProjects({ IOS_DEVICE: "iPad", IOS_ORIENTATION: "PORTRAIT" })).toEqual([every("PORTRAIT")]);
+        expect(deviceProjects({ IOS_ORIENTATION: "LANDSCAPE" })).toEqual([every("LANDSCAPE")]);
     });
 
     it("refuses any other orientation", () => {
-        expect(() => orientationToDrive({ IOS_ORIENTATION: "portrait" })).toThrow(
+        expect(() => deviceProjects({ IOS_ORIENTATION: "portrait" })).toThrow(
             "IOS_ORIENTATION must be PORTRAIT or LANDSCAPE, not portrait"
         );
+    });
+});
+
+// A report must say what it ran on.
+describe("screenNote", () => {
+    it("names an iPad on its side", () => {
+        expect(screenNote({ IOS_DEVICE: "iPad" }, { width: 1180, height: 820 })).toBe("iPad landscape, 1180x820");
+    });
+
+    it("names an upright iPhone", () => {
+        expect(screenNote({}, { width: 402, height: 874 })).toBe("iPhone portrait, 402x874");
     });
 });

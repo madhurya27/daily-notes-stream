@@ -1,6 +1,6 @@
 import { test, expect, type Phone } from "./phone";
-import { daysAhead, drewDuringGlide } from "./glide";
-import { EMBEDS_NOTE, laneDayAhead, LANE_SLOT, LANE_TEXT, STALLERS } from "./vault";
+import { daysAhead, drewDuringGlide, leftLane } from "./glide";
+import { EMBEDS_NOTE, laneDayAhead, LANE_NOTES, LANE_SLOT, LANE_TEXT, STALLERS } from "./vault";
 
 /**
  * How many notes above the stream's end the trip to it starts: more than a
@@ -66,7 +66,9 @@ async function glidesInLane(
         for (const flick of [1, 2, 3]) {
             await phone.startInLane(target, depth);
             await ready();
-            expect((await phone.glide(direction)).faults, `flick ${flick}`).toEqual([]);
+            const glide = await phone.glide(direction);
+            expect(glide.faults, `flick ${flick}`).toEqual([]);
+            expect(leftLane(glide, LANE_NOTES), `flick ${flick} left the lane`).toEqual([]);
         }
     } finally {
         await phone.fillSlot();
@@ -81,16 +83,21 @@ async function glidesInLane(
 async function glidesOnto(phone: Phone, direction: "up" | "down", markdown: string): Promise<void> {
     const depth = 300;
     await phone.startInLane("", depth);
-    const days = daysAhead(direction, { ...(await phone.laneSizes()), depth });
-    test.info().annotations.push({ type: "days ahead", description: `${days}` });
+    const sizes = await phone.laneSizes();
+    const days = daysAhead(direction, { ...sizes, depth });
+    test.info().annotations.push(
+        { type: "days ahead", description: `${days}` },
+        { type: "lane sizes", description: `pane ${sizes.screen} px, note ${sizes.note} px` }
+    );
     const day = laneDayAhead(direction, days);
     await phone.fillSlot(`${markdown}\n\n${LANE_TEXT}`, day);
     try {
         for (const flick of [1, 2, 3]) {
             await phone.startInLane("", depth);
-            const { faults, changes } = await phone.glide(direction);
-            expect(faults, `flick ${flick}`).toEqual([]);
-            expect(drewDuringGlide(changes, day), `flick ${flick} drew ${day}`).toBe(true);
+            const glide = await phone.glide(direction);
+            expect(glide.faults, `flick ${flick}`).toEqual([]);
+            expect(leftLane(glide, LANE_NOTES), `flick ${flick} left the lane`).toEqual([]);
+            expect(drewDuringGlide(glide.changes, day), `flick ${flick} drew ${day}`).toBe(true);
         }
     } finally {
         await phone.fillSlot(undefined, day);
@@ -109,9 +116,13 @@ test("a flick up over math, Bases, a wide table and code glides on", async ({ ph
 });
 
 for (const direction of ["up", "down"] as const)
-    test(`a flick ${direction} glides on as math, Bases, a wide table and code render ahead`, async ({ phone }) => {
-        await glidesOnto(phone, direction, STALLERS.join("\n"));
-    });
+    test(
+        `a flick ${direction} glides on as math, Bases, a wide table and code render ahead`,
+        { tag: "@portrait" },
+        async ({ phone }) => {
+            await glidesOnto(phone, direction, STALLERS.join("\n"));
+        }
+    );
 
 /**
  * One kind of thing at a time, to find which one disturbs a glide. Not the
@@ -169,7 +180,7 @@ for (const [what, target, depth] of [
 // Its cards are about 1,250 px tall, so from 300 px in, it fills the screen
 // under both strokes.
 for (const direction of ["up", "down"] as const)
-    test(`a flick ${direction} over a Base deep in the stream glides on`, async ({ phone }) => {
+    test(`a flick ${direction} over a Base deep in the stream glides on`, { tag: "@portrait" }, async ({ phone }) => {
         await glidesInLane(phone, direction, {
             markdown: "### Reading\n\n![[Reading.base]]",
             target: ".daily-note-base",

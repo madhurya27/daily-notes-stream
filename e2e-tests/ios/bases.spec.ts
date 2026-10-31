@@ -1,9 +1,9 @@
 import { test, expect, type Phone } from "./phone";
 import {
     A_MONTH,
-    DEEP_NOTE_WITH_BASE,
     KANBAN,
     KANBAN_FILE,
+    LANE_SLOT,
     MIDDLE,
     SHORT_KANBAN,
     SHORT_NOTE,
@@ -200,46 +200,58 @@ for (const [what, slot, file, body] of [
 // A glide can hide a note (ADR 0023) before Bases lays out its rows. Why the
 // Base must keep its hold: `BaseSlot`'s let-go (D-159). Each move is told to
 // the stream as a jump's is, so it is never taken for a glide to stop (D-176).
-test("a Base drawn and hidden before it laid out shows its rows without a resize error", async ({ phone }) => {
-    await phone.openStream();
-    await phone.jumpTo(DEEP_NOTE_WITH_BASE.slice("Journal/".length, -".md".length));
-    const steps = await phone.runAsync(
-        async (s: string, path: string) => {
-            const pane = document.querySelector(s)!.parentElement!;
-            const block = () => document.querySelector(`.daily-note-block[data-source-path="${path}"]`)!;
-            const offset = () => block().getBoundingClientRect().top - pane.getBoundingClientRect().top;
-            const wait = (ms: number) => new Promise((done) => setTimeout(done, ms));
-            const frame = () => new Promise((done) => requestAnimationFrame(done));
-            const { stream } = window.app.workspace.getLeavesOfType("daily-notes-stream-view")[0].view;
-            // Moves the scroll so the note's top is `screens` below the
-            // pane's.
-            const place = (screens: number) => {
-                pane.scrollTop += offset() - screens * pane.clientHeight;
-                stream.window.placed();
-            };
-            // Whether `done` became true within 300 frames.
-            const reached = async (done: () => boolean) => {
-                for (let i = 0; i < 300 && !done(); i++) await frame();
-                return done();
-            };
-            const steps: string[] = [];
-            // Far enough away to be unloaded once scrolling stops.
-            place(16);
-            if (await reached(() => block().classList.contains("is-unloaded"))) steps.push("unloaded");
-            // Inside the rendering distance, but not on screen.
-            place(2);
-            if (await reached(() => !!block().querySelector(".daily-note-base .bases-view"))) steps.push("rendered");
-            // Past the hiding distance at once, until the Base lets go.
-            place(7);
-            if (await reached(() => block().classList.contains("is-far"))) steps.push("hidden");
-            place(0);
-            await wait(1500);
-            return steps;
-        },
-        STREAM,
-        DEEP_NOTE_WITH_BASE
-    );
+test(
+    "a Base drawn and hidden before it laid out shows its rows without a resize error",
+    { tag: "@portrait" },
+    async ({ phone }) => {
+        // The whole journal is above the slot, so it can be placed far enough
+        // down on any screen.
+        await phone.fillSlot("![[Reading.base]]");
+        try {
+            await phone.openStream();
+            await phone.jumpTo(LANE_SLOT.slice("Journal/".length, -".md".length));
+            const steps = await phone.runAsync(
+                async (s: string, path: string) => {
+                    const pane = document.querySelector(s)!.parentElement!;
+                    const block = () => document.querySelector(`.daily-note-block[data-source-path="${path}"]`)!;
+                    const offset = () => block().getBoundingClientRect().top - pane.getBoundingClientRect().top;
+                    const wait = (ms: number) => new Promise((done) => setTimeout(done, ms));
+                    const frame = () => new Promise((done) => requestAnimationFrame(done));
+                    const { stream } = window.app.workspace.getLeavesOfType("daily-notes-stream-view")[0].view;
+                    // Moves the scroll so the note's top is `screens` below the
+                    // pane's.
+                    const place = (screens: number) => {
+                        pane.scrollTop += offset() - screens * pane.clientHeight;
+                        stream.window.placed();
+                    };
+                    // Whether `done` became true within 300 frames.
+                    const reached = async (done: () => boolean) => {
+                        for (let i = 0; i < 300 && !done(); i++) await frame();
+                        return done();
+                    };
+                    const steps: string[] = [];
+                    // Far enough away to be unloaded once scrolling stops.
+                    place(16);
+                    if (await reached(() => block().classList.contains("is-unloaded"))) steps.push("unloaded");
+                    // Inside the rendering distance, but not on screen.
+                    place(2);
+                    if (await reached(() => !!block().querySelector(".daily-note-base .bases-view")))
+                        steps.push("rendered");
+                    // Past the hiding distance at once, until the Base lets go.
+                    place(7);
+                    if (await reached(() => block().classList.contains("is-far"))) steps.push("hidden");
+                    place(0);
+                    await wait(1500);
+                    return steps;
+                },
+                STREAM,
+                LANE_SLOT
+            );
 
-    expect(steps).toEqual(["unloaded", "rendered", "hidden"]);
-    expect(await phone.consoleErrors(), "errors in Obsidian's console").toEqual([]);
-});
+            expect(steps).toEqual(["unloaded", "rendered", "hidden"]);
+        } finally {
+            await phone.fillSlot();
+        }
+        expect(await phone.consoleErrors(), "errors in Obsidian's console").toEqual([]);
+    }
+);
