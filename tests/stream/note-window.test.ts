@@ -5,6 +5,7 @@ import { SCROLL_IDLE_MS, ScrollAnchor } from "../../src/stream/scroll-anchor";
 import { NoteHeights } from "../../src/stream/note-heights";
 import { HOLD_LIMIT_MS, SETTLE_MS } from "../../src/stream/height-hold";
 import { STALL_MS } from "../../src/stream/stall-warning";
+import { ViewTimers } from "../../src/stream/view-timers";
 import { FarRuns, type Box } from "../../src/render/far-runs";
 import type { DrawOrder } from "../../src/render/note-renderer";
 
@@ -193,7 +194,14 @@ function makeManager(
     scrollRoot = makeScrollRoot(800),
     heights = new NoteHeights()
 ) {
-    const manager = new NoteWindowManager(renderer as never, makeQueue(), heights, () => LAYOUT, measure);
+    const manager = new NoteWindowManager(
+        renderer as never,
+        makeQueue(),
+        new ViewTimers(),
+        heights,
+        () => LAYOUT,
+        measure
+    );
     const stream = document.createElement("div");
     manager.attach(scrollRoot, stream, moreBelow);
     return { manager, renderer, scrollRoot, stream, heights };
@@ -240,7 +248,13 @@ afterEach(() => {
 
 describe("NoteWindowManager measurement", () => {
     it("measures the laid-out box by default", () => {
-        const manager = new NoteWindowManager(makeRenderer() as never, makeQueue(), new NoteHeights(), () => LAYOUT);
+        const manager = new NoteWindowManager(
+            makeRenderer() as never,
+            makeQueue(),
+            new ViewTimers(),
+            new NoteHeights(),
+            () => LAYOUT
+        );
         manager.attach(document.createElement("div"), document.createElement("div"), moreBelow);
         const block = manager.add(FILE);
         block.getBoundingClientRect = () => ({ height: 321 }) as DOMRect;
@@ -346,6 +360,7 @@ describe("NoteWindowManager remembered heights", () => {
             const manager = new NoteWindowManager(
                 makeRenderer() as never,
                 makeQueue(),
+                new ViewTimers(),
                 heights,
                 () => LAYOUT,
                 () => 500,
@@ -457,7 +472,13 @@ describe("NoteWindowManager remembered heights", () => {
     // calls to add.
     it("reads the layout once for a batch of placeholders", async () => {
         const layoutOf = vi.fn(() => LAYOUT);
-        const manager = new NoteWindowManager(makeRenderer() as never, makeQueue(), new NoteHeights(), layoutOf);
+        const manager = new NoteWindowManager(
+            makeRenderer() as never,
+            makeQueue(),
+            new ViewTimers(),
+            new NoteHeights(),
+            layoutOf
+        );
         manager.attach(makeScrollRoot(800), document.createElement("div"), moreBelow);
 
         for (let day = 1; day <= 3; day++) manager.add(new TFile(`Notes/2025-01-0${day}.md`));
@@ -698,6 +719,7 @@ describe("NoteWindowManager after the pane's width changes", () => {
         const manager = new NoteWindowManager(
             makeRenderer({ render }) as never,
             makeQueue(),
+            new ViewTimers(),
             heights,
             () => layout,
             () => 640,
@@ -1263,7 +1285,13 @@ describe("NoteWindowManager margins", () => {
     });
 
     it("reserves nothing when resized before it is attached", async () => {
-        const manager = new NoteWindowManager(makeRenderer() as never, makeQueue(), new NoteHeights(), () => LAYOUT);
+        const manager = new NoteWindowManager(
+            makeRenderer() as never,
+            makeQueue(),
+            new ViewTimers(),
+            new NoteHeights(),
+            () => LAYOUT
+        );
         const block = manager.add(FILE);
         const reserved = placeholderHeight(block);
 
@@ -1304,6 +1332,7 @@ describe("NoteWindowManager margins", () => {
         const manager = new NoteWindowManager(
             makeRenderer() as never,
             makeQueue(),
+            new ViewTimers(),
             new NoteHeights(),
             () => LAYOUT,
             () => 0
@@ -2026,7 +2055,13 @@ describe("NoteWindowManager.scrollToTop", () => {
     });
 
     it("does nothing before the view is attached", () => {
-        const manager = new NoteWindowManager(makeRenderer() as never, makeQueue(), new NoteHeights(), () => LAYOUT);
+        const manager = new NoteWindowManager(
+            makeRenderer() as never,
+            makeQueue(),
+            new ViewTimers(),
+            new NoteHeights(),
+            () => LAYOUT
+        );
         expect(() => manager.scrollToTop()).not.toThrow();
     });
 });
@@ -2977,7 +3012,13 @@ describe("NoteWindowManager teardown", () => {
     });
 
     it("remove before attach is harmless", () => {
-        const manager = new NoteWindowManager(makeRenderer() as never, makeQueue(), new NoteHeights(), () => LAYOUT);
+        const manager = new NoteWindowManager(
+            makeRenderer() as never,
+            makeQueue(),
+            new ViewTimers(),
+            new NoteHeights(),
+            () => LAYOUT
+        );
         const block = manager.add(FILE);
 
         expect(() => manager.remove(block)).not.toThrow();
@@ -3178,6 +3219,7 @@ describe("NoteWindowManager teardown", () => {
         const manager = new NoteWindowManager(
             makeRenderer() as never,
             makeQueue(),
+            new ViewTimers(),
             new NoteHeights(),
             () => LAYOUT,
             () => 0
@@ -3257,7 +3299,13 @@ describe("NoteWindowManager scroll anchoring", () => {
     it("hands the anchor the stream, and tells it when every note is loaded", () => {
         const attach = vi.spyOn(ScrollAnchor.prototype, "attach");
         const loadedToEnd = () => true;
-        const manager = new NoteWindowManager(makeRenderer() as never, makeQueue(), new NoteHeights(), () => LAYOUT);
+        const manager = new NoteWindowManager(
+            makeRenderer() as never,
+            makeQueue(),
+            new ViewTimers(),
+            new NoteHeights(),
+            () => LAYOUT
+        );
         const root = makeScrollRoot(800);
         const stream = document.createElement("div");
 
@@ -3471,6 +3519,7 @@ describe("NoteWindowManager hides a long note's far runs", () => {
         const manager = new NoteWindowManager(
             renderer as never,
             makeQueue(),
+            new ViewTimers(),
             new NoteHeights(),
             () => layout,
             () => 500
@@ -3841,6 +3890,7 @@ describe("NoteWindowManager hides a long note's far runs", () => {
         const manager = new NoteWindowManager(
             renderer as never,
             makeQueue(),
+            new ViewTimers(),
             new NoteHeights(),
             () => LAYOUT,
             () => 500

@@ -39,7 +39,8 @@ One for the plugin, shared by all views:
 
 One for each view: `DailyNoteService` (the daily notes, including those in
 nested folders, newest first), `NoteStream` with its window, blocks and state,
-`NoteRenderer`, `CollapsibleManager`, `StreamSearch` and `SearchBar`.
+`NoteRenderer`, `CollapsibleManager`, `StreamSearch`, `SearchBar` and
+`ViewTimers` (timers it cancels as it closes, D-199).
 
 The plugin adds its `vault` and `metadataCache` listeners before any view opens.
 So when a view's own handler runs, the shared indexes are already up to date.

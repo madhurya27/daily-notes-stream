@@ -11,6 +11,7 @@ import { ScrollBoxGuard } from "./scroll-box-guard";
 import { FrameDeferral } from "./frame-deferral";
 import { SCROLL_IDLE_MS } from "./scroll-anchor";
 import { warnIfStalled } from "./stall-warning";
+import type { ViewTimers } from "./view-timers";
 import { youtubeThumbnail } from "../render/video-thumbnails";
 import { webPageLink } from "../render/web-page-links";
 import {
@@ -105,13 +106,15 @@ export class NoteStream {
         renderer: NoteRenderer,
         /** Every height measured, kept between sessions (ADR 0010). */
         memory: Pick<LayoutMemory, "notes">,
+        /** The view's timers, which it cancels as it closes. */
+        private readonly timers: ViewTimers,
         /**
          * Its daily notes changed (added, removed or saved), and the change has
          * been applied.
          */
         private readonly notesChanged: () => void = () => {}
     ) {
-        this.window = new NoteWindowManager(renderer, this.enqueue.bind(this), memory.notes, () =>
+        this.window = new NoteWindowManager(renderer, this.enqueue.bind(this), timers, memory.notes, () =>
             layoutOf(this.blocks.el)
         );
         this.scrollBoxes = new ScrollBoxGuard(this.window.clock, (view) => renderer.onBaseLayout(view));
@@ -626,7 +629,7 @@ export class NoteStream {
      */
     private enqueue(task: () => Promise<void>): Promise<void> {
         this.queue = this.queue
-            .then(() => (this.closed ? undefined : warnIfStalled("A change to the stream", task)))
+            .then(() => (this.closed ? undefined : warnIfStalled("A change to the stream", task, this.timers)))
             .catch((e) => console.error("DailyNotesStream: Failed to update the stream", e));
         return this.queue;
     }

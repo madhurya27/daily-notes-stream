@@ -386,6 +386,17 @@ describe("DailyNotesStreamView — wiring", () => {
         handOn.mockRestore();
     });
 
+    // A closed view's render may never end, and nothing waits for it (D-199).
+    it("cancels its timers as the view unloads", async () => {
+        const { view } = await makeViewSetup();
+        const cancelAll = vi.spyOn(view["timers"], "cancelAll");
+        view.load();
+
+        view.unload();
+
+        expect(cancelAll).toHaveBeenCalledOnce();
+    });
+
     it("closes the stream as the view closes", async () => {
         const { view } = await makeViewSetup();
         const close = vi.spyOn(view["stream"], "close");

@@ -54,8 +54,12 @@ test("shrinks the window to Obsidian's minimum", async ({ obsidian }) => {
     // uses a centered full-size window instead, which then flashes over the
     // user's screen before it is hidden. An extended desktop makes that easy to
     // happen, so the corner must be on a real display.
-    const sizes = obsidian.windowsOnScreen().map(({ width, height }) => ({ width, height }));
-    expect(sizes).toContainEqual({ width: 300, height: 200 });
+    // Asks Electron: macOS's window list can report another size (D-183).
+    const size = await obsidian.page.evaluate(() => {
+        const { width, height } = window.electron.remote.getCurrentWindow().getBounds();
+        return { width, height };
+    });
+    expect(size).toEqual({ width: 300, height: 200 });
 });
 
 test("lays the page out at a normal size despite the small window", async ({ obsidian }) => {

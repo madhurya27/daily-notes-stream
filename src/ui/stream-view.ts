@@ -13,6 +13,7 @@ import { JumpToDateModal } from "./jump-to-date-modal";
 import { NoteRenderer } from "../render/note-renderer";
 import { CollapsibleManager } from "../render/collapsible";
 import { NoteStream } from "../stream/note-stream";
+import { ViewTimers } from "../stream/view-timers";
 import type { DailyNoteService } from "../notes/daily-note-service";
 import { StreamSearch } from "../stream/stream-search";
 import { SearchHighlighter } from "../render/search-highlights";
@@ -48,6 +49,7 @@ export class DailyNotesStreamView extends ItemView implements HoverParent {
     private plugin: DailyNotesStreamPlugin;
     private renderer: NoteRenderer;
     private collapsible: CollapsibleManager;
+    private readonly timers = new ViewTimers();
     private stream: NoteStream;
     private search: StreamSearch;
     private searchBar: SearchBar;
@@ -88,7 +90,9 @@ export class DailyNotesStreamView extends ItemView implements HoverParent {
             plugin.backlinks,
             (file) => this.service.isToday(file.path)
         );
-        this.stream = new NoteStream(this.service, this.renderer, plugin.layoutMemory, () => this.refreshSearch());
+        this.stream = new NoteStream(this.service, this.renderer, plugin.layoutMemory, this.timers, () =>
+            this.refreshSearch()
+        );
 
         this.search = new StreamSearch(
             {
@@ -159,6 +163,7 @@ export class DailyNotesStreamView extends ItemView implements HoverParent {
         this.registerEvent(vault.on("rename", (f, old) => this.stream.onFileRename(f, old)));
         // A Base file has no metadata to wait for.
         this.registerEvent(vault.on("modify", (f) => void this.renderer.onBaseModified(f)));
+        this.register(() => this.timers.cancelAll());
         this.registerEvent(onPostProcessorChange(this.app, () => void this.refresh()));
         // A link to an empty note shows it. When its last link is removed, it
         // is hidden again (ADR 0011).

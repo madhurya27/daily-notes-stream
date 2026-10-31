@@ -27,14 +27,14 @@ there is a screen recording of them (D-099).
       drift until `followReader` tells text below a Base the anchor holds, which
       has to move, from text that should not. The iPhone's 26-68 ms jump was not
       measured again.
-- [ ] Closing a view while `EMBEDS_NOTE` draws leaves its
-      `MarkdownRenderer.render` unfinished, at least for 90 s. So
-      `warnIfStalled` logs a stall for a closed view, and fails device tests
-      whose `openStream` closes one mid-draw; a new view draws normally. Don't
-      warn for a closed view. `Transport destroyed`, from Obsidian's PDF viewer,
-      came with it once. Not yet shown: that the PDF is what never finishes.
-- [ ] `harness.spec.ts` "shrinks the window" read 271 x 181 once in a full run
-      (D-183), and not in 60 runs of it or its file. Poll the size.
+- [ ] `Transport destroyed`, from Obsidian's PDF viewer, failed a device test
+      once in `search.spec.ts:196`. It may come from closing a view while a PDF
+      loads; closing one during a draw did not log it in 2 tries.
+- [ ] Make closing a view cancel what it started without a hand-kept list
+      (D-199): move timers and debouncers onto `ViewTimers`, or a note's
+      component for a note's own, make `ViewTimers` a child component of the
+      view, add a lint rule against raw `window.setTimeout`, and shrink
+      `NoteStream.close()`.
 - [ ] Try adding the e2e tests to CI on Linux.
 - [ ] Once the directory's scorecard lint understands moment's types, go back to
       Obsidian's `moment` and delete `src/notes/moment.ts` (D-152).

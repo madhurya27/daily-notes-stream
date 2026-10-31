@@ -8,6 +8,7 @@ import { Reservations, type Reserving } from "./reservations";
 import { FarRunWatch } from "./far-run-watch";
 import { blockAt } from "./stream-blocks";
 import { warnIfStalled } from "./stall-warning";
+import type { ViewTimers } from "./view-timers";
 
 /**
  * The height a block keeps, in pane heights, before anything has been measured
@@ -165,6 +166,8 @@ export class NoteWindowManager {
          * 0004). The view chains its promise; nothing here waits for it.
          */
         private readonly enqueue: (task: () => Promise<void>) => unknown,
+        /** The view's timers, which it cancels as it closes. */
+        private readonly timers: ViewTimers,
         /** Every height measured, kept between sessions (ADR 0010). */
         private readonly heights: NoteHeights,
         /**
@@ -585,20 +588,23 @@ export class NoteWindowManager {
             // range, so the note the reader stopped on is drawn next. And a
             // note on screen is drawn before one that is only near it (ADR
             // 0020).
-            const rendered = await warnIfStalled(`Drawing ${window.file.path}`, () =>
-                this.renderer.renderInto(
-                    block,
-                    window.file,
-                    async (note) => {
-                        // Drawn from its end, it grows at its top, so its top
-                        // part may still grow.
-                        if (block.hasClass(DRAWING_FROM_END))
-                            this.hideFarRunsOf(block, this.renderer.runsOf(note).slice(1));
-                        if (!this.onScreen.has(block)) await this.renderWaitingOnScreen();
-                        return !window.unloadWanted;
-                    },
-                    window.order ?? this.orderFor(block)
-                )
+            const rendered = await warnIfStalled(
+                `Drawing ${window.file.path}`,
+                () =>
+                    this.renderer.renderInto(
+                        block,
+                        window.file,
+                        async (note) => {
+                            // Drawn from its end, it grows at its top, so its
+                            // top part may still grow.
+                            if (block.hasClass(DRAWING_FROM_END))
+                                this.hideFarRunsOf(block, this.renderer.runsOf(note).slice(1));
+                            if (!this.onScreen.has(block)) await this.renderWaitingOnScreen();
+                            return !window.unloadWanted;
+                        },
+                        window.order ?? this.orderFor(block)
+                    ),
+                this.timers
             );
             // Read the place again over what it rendered: nothing scrolled or
             // changed size while it rendered.

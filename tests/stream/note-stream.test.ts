@@ -16,6 +16,7 @@ import { BASE_SLOT_CLASS } from "../../src/render/bases/bases-as-cards";
 import { flushPromises } from "../stream-view-fixture";
 import { SCROLL_IDLE_MS } from "../../src/stream/scroll-anchor";
 import { STALL_MS } from "../../src/stream/stall-warning";
+import { ViewTimers } from "../../src/stream/view-timers";
 import { SETTLE_MS } from "../../src/stream/height-hold";
 
 /** What the stream created its window with, besides what it calls on it. */
@@ -64,6 +65,7 @@ vi.mock("../../src/stream/note-window", () => ({
         constructor(
             _renderer: unknown,
             readonly enqueue: (task: () => Promise<void>) => Promise<void>,
+            _timers: unknown,
             heights: NoteHeights,
             layoutOf: () => string
         ) {
@@ -188,7 +190,13 @@ beforeEach(() => {
     renderer = { onBaseLayout: vi.fn() };
     heights = new NoteHeights();
     notesChanged = vi.fn<() => void>();
-    stream = new NoteStream(service, renderer as unknown as NoteRenderer, { notes: heights }, notesChanged);
+    stream = new NoteStream(
+        service,
+        renderer as unknown as NoteRenderer,
+        { notes: heights },
+        new ViewTimers(),
+        notesChanged
+    );
     noteWindow = fakes.windows.at(-1)!;
     infiniteScroll = fakes.scrolls.at(-1)!;
     guard = fakes.guards.at(-1)!;
@@ -405,9 +413,12 @@ describe("an event before the stream opens", () => {
     // The view listens while its notes are listed. What it hears waits until
     // there is a container to change.
     it("waits for open, then applies", async () => {
-        const unopened = new NoteStream(service, renderer as unknown as NoteRenderer, {
-            notes: heights,
-        });
+        const unopened = new NoteStream(
+            service,
+            renderer as unknown as NoteRenderer,
+            { notes: heights },
+            new ViewTimers()
+        );
         const doomed = note("2025-01-01");
         await listed(doomed);
 
@@ -743,7 +754,13 @@ describe("the day's turn", () => {
         beforeEach(() => {
             stream.close();
             vi.useFakeTimers({ now: new Date(2025, 0, 2, 12) });
-            stream = new NoteStream(service, renderer as unknown as NoteRenderer, { notes: heights }, notesChanged);
+            stream = new NoteStream(
+                service,
+                renderer as unknown as NoteRenderer,
+                { notes: heights },
+                new ViewTimers(),
+                notesChanged
+            );
             noteWindow = fakes.windows.at(-1)!;
             infiniteScroll = fakes.scrolls.at(-1)!;
             stream.open(pane, container);

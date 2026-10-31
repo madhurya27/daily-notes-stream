@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach, type MockInstance } from "vitest";
 import { STALL_MS, warnIfStalled } from "../../src/stream/stall-warning";
+import { ViewTimers } from "../../src/stream/view-timers";
 
 describe("warnIfStalled", () => {
     let logged: MockInstance<typeof console.error>;
@@ -23,7 +24,7 @@ describe("warnIfStalled", () => {
 
     it("says nothing of a task that ends in time", async () => {
         const { task, finish } = pending();
-        const watched = warnIfStalled("Drawing Notes/2026-03-14.md", task);
+        const watched = warnIfStalled("Drawing Notes/2026-03-14.md", task, new ViewTimers());
         await vi.advanceTimersByTimeAsync(STALL_MS - 1);
         finish();
         await watched;
@@ -34,7 +35,7 @@ describe("warnIfStalled", () => {
 
     it("logs once a task has run for 5 seconds, naming it", async () => {
         const { task } = pending();
-        void warnIfStalled("Drawing Notes/2026-03-14.md", task);
+        void warnIfStalled("Drawing Notes/2026-03-14.md", task, new ViewTimers());
         await vi.advanceTimersByTimeAsync(5_000);
 
         expect(logged).toHaveBeenCalledOnce();
@@ -43,15 +44,34 @@ describe("warnIfStalled", () => {
         );
     });
 
+    // Closing a view leaves a render that may never end, and nothing waits for
+    // it any more.
+    it("logs nothing once its timers are cancelled", async () => {
+        const timers = new ViewTimers();
+        void warnIfStalled("Drawing Notes/2026-03-14.md", pending().task, timers);
+
+        timers.cancelAll();
+        await vi.advanceTimersByTimeAsync(STALL_MS);
+
+        expect(logged).not.toHaveBeenCalled();
+    });
+
+    it("cancels its timer once the task ends", async () => {
+        const timers = new ViewTimers();
+        await warnIfStalled("Drawing Notes/2026-03-14.md", async () => {}, timers);
+
+        expect(vi.getTimerCount()).toBe(0);
+    });
+
     it("hands back what the task returns", async () => {
-        expect(await warnIfStalled("Drawing Notes/2026-03-14.md", async () => 42)).toBe(42);
+        expect(await warnIfStalled("Drawing Notes/2026-03-14.md", async () => 42, new ViewTimers())).toBe(42);
     });
 
     it("says when a stalled task ends, and after how long", async () => {
         // Timed from when the task started, not from when the page loaded.
         await vi.advanceTimersByTimeAsync(60_000);
         const { task, finish } = pending();
-        const watched = warnIfStalled("Drawing Notes/2026-03-14.md", task);
+        const watched = warnIfStalled("Drawing Notes/2026-03-14.md", task, new ViewTimers());
         await vi.advanceTimersByTimeAsync(25_000);
         finish();
         await watched;
@@ -60,10 +80,14 @@ describe("warnIfStalled", () => {
     });
 
     it("says when a stalled task fails, and passes its error on", async () => {
-        const watched = warnIfStalled("Loading more notes", async () => {
-            await new Promise((resolve) => setTimeout(resolve, STALL_MS));
-            throw new Error("gone");
-        });
+        const watched = warnIfStalled(
+            "Loading more notes",
+            async () => {
+                await new Promise((resolve) => setTimeout(resolve, STALL_MS));
+                throw new Error("gone");
+            },
+            new ViewTimers()
+        );
         const failed = expect(watched).rejects.toThrow("gone");
         await vi.advanceTimersByTimeAsync(STALL_MS);
         await failed;

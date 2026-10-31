@@ -2944,6 +2944,8 @@ MB.
 
 ## D-164 — A change to the stream that runs for 5 seconds logs an error (2026-10-19)
 
+Changed by D-199: not after the view closes.
+
 **Decision:** every change in the stream's queue, and the drawing of each note,
 logs an error in the developer console once it has run for 5 seconds, with its
 name, and again when it ends. The messages are in the published build. It is an
@@ -3344,11 +3346,16 @@ harness tests read the test window at 271 × 181 instead of 300 × 200, and the
 settings window at 811 × 631. Sampled for a second after startup, 8 of 16 runs
 caught a window part way; with the setting, none of 16 did.
 
+Later: the first full run after a mutation run read 271 × 181 in 3 of 3 tries,
+for all of 15 s, while Electron reported 300 × 200. So macOS's window list can
+stay wrong, for a reason not found, and the size check asks Electron.
+
 **Rejected:**
 
 - Waiting for the animation to end — macOS gives other processes no signal.
 - Retrying the checks for a few seconds — it hides the cause, and every check
-  that measures a window would need it.
+  that measures a window would need it. It also would not have helped: see
+  above.
 - Turning the animations off for the whole system — it changes the user's Mac.
 
 ## D-185 — Work that waits for the pane to be still shares one clock (2026-10-28)
@@ -3678,3 +3685,23 @@ note.
   events overshot into empty space at two steps (D-176).
 - Stopping only for a large shift — a small one still shows that much empty
   space.
+
+## D-199 — A view cancels its stall warnings as it closes (2026-10-31)
+
+**Decision:** each view owns a `ViewTimers`, which holds running timers and
+cancels them all as the view unloads (`this.register`). `warnIfStalled` (D-164)
+starts its timers there. Other timers do not use it yet.
+
+**Why:** a view closed while `2026-08-30.md` drew left Obsidian's
+`MarkdownRenderer.render` unfinished for at least 90 s, in 2 of 2 tries on an
+iPad. It then logged a stall, though a new view has its own queue and draws
+normally. Device tests failed on that error when `openStream` closed a view
+mid-draw.
+
+**Rejected:**
+
+- Cancelling the render — Obsidian's API has no way to.
+- Checking for a closed view when the timer fires — the timer outlives the view.
+- A longer stall time — it still fires for a render that never ends.
+- `this.register` for each timer — entries cannot be removed, so they would pile
+  up until the view closes.
