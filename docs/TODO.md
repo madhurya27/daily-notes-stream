@@ -11,10 +11,6 @@ there is a screen recording of them (D-099).
 - [ ] Remove the outline Obsidian draws around a property under the pointer: it
       suggests the property can be edited, which the read-only stream doesn't
       allow. Check desktop and the phone layout.
-- [ ] `followReader` reads the stream's shift dropping to 0 as a handover. When
-      a size change above cancels the shift, it reports a drift the text never
-      made: 60 px on 2026-10-31 under a script's scroll, whose text moved only
-      with each step. It may be the 60 px seen once in `jump.spec.ts`.
 - [ ] `Transport destroyed`, from Obsidian's PDF viewer, failed a device test
       once in `search.spec.ts:196`. It may come from closing a view while a PDF
       loads; closing one during a draw did not log it in 2 tries.

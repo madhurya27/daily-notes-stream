@@ -3740,8 +3740,9 @@ These are still held at the height they measured:
   reader's.
 - a note drawn again in place, which empties first
 
-`followReader` hears the anchor's own handovers (`settle`), since a note can
-grow before the next read.
+`followReader` hears the anchor's own handovers (`settle`, `stopGlide`), since a
+note can grow before the next read, and a size change above can take the shift
+to 0 with nothing written to the scroll.
 
 **Why:** a hold keeps the next note in place while the text inside the note
 moves. Holding the text at the pane's top (D-197) then moved the next note up,

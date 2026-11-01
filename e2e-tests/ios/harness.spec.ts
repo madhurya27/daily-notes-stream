@@ -123,6 +123,52 @@ for (const at of ["middle", "top"] as const)
         ).toBeGreaterThan(0);
     });
 
+// A size change above can cancel what the anchor owes. The shift drops to 0
+// with nothing written to the scroll, and the text moves only with the scroll.
+// This scrolls up the stream, because a step in the other direction, or none,
+// can pass as one the stream set (`written`).
+test("the reader's follower reports no drift when a size change above cancels the shift mid-scroll", async ({
+    phone,
+}) => {
+    await phone.openStream();
+    await phone.flick("up");
+    await phone.flick("up");
+    await phone.followReader();
+
+    const shifts = await phone.runAsync(async () => {
+        const stream = document.querySelector<HTMLElement>(".daily-notes-stream-container")!;
+        const pane = stream.parentElement!;
+        const paneTop = pane.getBoundingClientRect().top;
+        const above = [...stream.querySelectorAll<HTMLElement>(".daily-note-block.is-pinned")]
+            .filter((block) => block.getBoundingClientRect().bottom < paneTop)
+            .at(-1)!;
+        const { anchor } = window.app.workspace.getLeavesOfType("daily-notes-stream-view")[0]!.view.stream.window;
+        const scrollUp = async () => {
+            for (let frames = 0; frames < 5; frames++) {
+                await new Promise(requestAnimationFrame);
+                pane.scrollTop -= 10;
+            }
+        };
+        const resizeBy = (change: number) => {
+            const height = parseFloat(above.style.getPropertyValue("--daily-note-pinned-height"));
+            above.style.setProperty("--daily-note-pinned-height", `${height + change}px`);
+            anchor.resized();
+            return stream.style.getPropertyValue("--daily-notes-scroll-shift");
+        };
+        await scrollUp();
+        const owing = resizeBy(60);
+        await scrollUp();
+        const cancelled = resizeBy(-60);
+        await scrollUp();
+        await new Promise(requestAnimationFrame);
+        return [owing, cancelled];
+    });
+
+    const { drifts } = await phone.stopFollowing();
+    expect(shifts).toEqual(["-60px", ""]);
+    expect(Math.max(...drifts.map(Math.abs)), `drifts: ${drifts.join(", ")}`).toBeLessThan(5);
+});
+
 // Otherwise a test would pass on only the part of a glide the reader saw.
 test("the reader's follower fails when it loses its text", async ({ phone }) => {
     await phone.openStream();

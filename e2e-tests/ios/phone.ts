@@ -631,7 +631,6 @@ export class Phone {
                 // (ScrollAnchor), or a jump nobody has explained yet.
                 let unseen = 0;
                 let lastScroll = pane.scrollTop;
-                let lastShift = 0;
                 /** The scroll's last step, as the page heard it. */
                 let glide = 0;
                 /**
@@ -693,9 +692,10 @@ export class Phone {
                     }
                     current.base = { el, bottom, height, scrolled: scrolled() };
                 };
-                // What the anchor wrote to the scroll as it handed its shift
-                // over. A note above can grow before the next read, so a read
-                // may never see the shift at 0.
+                // What the anchor moved from its shift into the scroll. Heard,
+                // not read from the shift: a note above can grow before the
+                // next read, so a read may never see the shift at 0, and a size
+                // change above can take the shift to 0 with nothing written.
                 let handedOver = 0;
                 const anchor =
                     window.app.workspace.getLeavesOfType("daily-notes-stream-view")[0]!.view.stream.window.anchor;
@@ -706,7 +706,18 @@ export class Phone {
                     settle.call(this);
                     handedOver += pane.scrollTop - before;
                 };
-                const stopHearingSettle = () => delete anchor.settle;
+                const stopGlide = anchor.stopGlide as (scrollTop: number) => void;
+                if (!stopGlide) throw new Error("ScrollAnchor has no stopGlide to follow.");
+                // Not how far the scroll moved: that includes the scroll's last
+                // step, which `written` allows for.
+                anchor.stopGlide = function (this: unknown, scrollTop: number) {
+                    handedOver += anchor.owed as number;
+                    stopGlide.call(this, scrollTop);
+                };
+                const stopHearingAnchor = () => {
+                    delete anchor.settle;
+                    delete anchor.stopGlide;
+                };
                 let eye = pick();
                 if (!eye) throw new Error(`No text at or below the pane's ${at}.`);
                 const unloaded = () => pane.querySelectorAll(".daily-note-block.is-unloaded").length;
@@ -717,7 +728,7 @@ export class Phone {
                     rendered: 0,
                     on: true,
                     heard: new AbortController(),
-                    stopHearingSettle,
+                    stopHearingAnchor,
                     /** How many reads it made before it lost its text. */
                     lostAfter: null as number | null,
                 };
@@ -734,12 +745,10 @@ export class Phone {
                 const read = (): boolean => {
                     if (!follow.on || !eye) return false;
                     const scroll = pane.scrollTop;
-                    // The anchor moved its shift into the scroll. In a glide it
-                    // carries on, a step of the scroll is in the same read.
-                    const shift = parseFloat(stream.style.getPropertyValue("--daily-notes-scroll-shift")) || 0;
-                    const settled = handedOver !== 0 ? handedOver : shift === 0 ? -lastShift : 0;
+                    // In a glide it carries on, a step of the scroll is in the
+                    // same read as what the anchor handed over.
+                    const settled = handedOver;
                     handedOver = 0;
-                    lastShift = shift;
                     unseen += settled;
                     const step = scroll - lastScroll - settled;
                     lastScroll = scroll;
@@ -802,14 +811,14 @@ export class Phone {
                         rendered: number;
                         on: boolean;
                         heard: AbortController;
-                        stopHearingSettle: () => void;
+                        stopHearingAnchor: () => void;
                         lostAfter: number | null;
                     };
                 }
             ).streamReader;
             follow.on = false;
             follow.heard.abort();
-            follow.stopHearingSettle();
+            follow.stopHearingAnchor();
             const { drifts, moves, rendered, lostAfter } = follow;
             return { drifts, moves, rendered, lostAfter };
         });
