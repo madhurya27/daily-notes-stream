@@ -1,4 +1,4 @@
-import { Component, TFile, debounce, type Debouncer } from "obsidian";
+import { Component, TFile, type Debouncer } from "obsidian";
 import { DRAWING_FROM_END, type DrawOrder, type NoteRenderer, type RenderedNote } from "../render/note-renderer";
 import type { NoteHeights } from "./note-heights";
 import { SCROLL_IDLE_MS, ScrollAnchor } from "./scroll-anchor";
@@ -110,7 +110,7 @@ export class NoteWindowManager {
      * Rendering or unloading a note moves everything below it. Above the pane,
      * that would move the reader's place.
      */
-    private readonly anchor = new ScrollAnchor();
+    private readonly anchor = new ScrollAnchor(this.timers);
     private scrollRoot: HTMLElement | null = null;
     private stream: HTMLElement | null = null;
     /**
@@ -134,19 +134,19 @@ export class NoteWindowManager {
      * When the pane last scrolled or resized. What waits for that to stop
      * waits on it, in this file and in the stream.
      */
-    readonly clock = new StillClock();
+    readonly clock = new StillClock(this.timers);
     /**
      * Not on the clock: its wait starts when a note leaves. A jump draws its
      * note far away, then scrolls to it, and the pane is still in between.
      */
-    private readonly unloadOnceStill = debounce(() => this.unloadLeaving(), SCROLL_IDLE_MS, true);
+    private readonly unloadOnceStill = this.timers.debounce(() => this.unloadLeaving(), SCROLL_IDLE_MS, true);
     private readonly reserveOnceStill = () => this.clock.whenStill(this.reserveNow);
     private readonly reserveNow = () => this.reserve();
     /**
      * The anchor keeps the place read before a turn until it is still itself,
      * which the clock does not know. Asking the clock again would ask at once.
      */
-    private readonly reserveAfterReflow = debounce(() => this.reserveOnceStill(), SCROLL_IDLE_MS);
+    private readonly reserveAfterReflow = this.timers.debounce(() => this.reserveOnceStill(), SCROLL_IDLE_MS);
     /**
      * Parts of long notes, hidden when they are further away than the hiding
      * distance (ADR 0023).
@@ -825,7 +825,7 @@ export class NoteWindowManager {
      */
     private watchSettling(block: HTMLElement, window: NoteWindow, footer: Promise<void>): void {
         if (window.measured) {
-            const hold = new HeightHold(block, window.height, () => {
+            const hold = new HeightHold(block, window.height, this.timers, () => {
                 // Released while the note is still rendered. The pin hid the
                 // drop until now.
                 if (window.hold !== hold) return;
@@ -842,7 +842,7 @@ export class NoteWindowManager {
             // Unloaded or re-rendered while the footer was rendering. That
             // render waits for its own note to stop changing.
             if (window.component !== component) return;
-            window.keepOnceSettled = debounce(() => this.keepHeight(block, window), SETTLE_MS, true);
+            window.keepOnceSettled = this.timers.debounce(() => this.keepHeight(block, window), SETTLE_MS, true);
             window.keepOnceSettled();
         });
     }

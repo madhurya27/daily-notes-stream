@@ -1,4 +1,5 @@
 import { SCROLL_IDLE_MS } from "./scroll-anchor";
+import type { ViewTimers } from "./view-timers";
 
 /**
  * Runs work that must wait for the pane to stop scrolling or resizing. All of
@@ -12,6 +13,8 @@ export class StillClock {
     /** What runs once the pane is still, in the order asked. */
     private readonly due = new Set<() => void>();
     private timer: number | null = null;
+
+    constructor(private readonly timers: ViewTimers) {}
 
     /**
      * The pane scrolled or was resized. Only noted: a wait under way checks
@@ -35,7 +38,7 @@ export class StillClock {
     /** Waits out what is left of the wait from the last move. */
     private waitOut(): void {
         const left = Math.max(this.movedAt + SCROLL_IDLE_MS - performance.now(), 0);
-        this.timer = window.setTimeout(() => this.run(), left);
+        this.timer = this.timers.start(() => this.run(), left);
     }
 
     private run(): void {
@@ -50,7 +53,8 @@ export class StillClock {
     }
 
     private clear(): void {
-        window.clearTimeout(this.timer ?? undefined);
+        // Stryker disable next-line ConditionalExpression: clearing a timer that does not exist does nothing.
+        if (this.timer !== null) this.timers.cancel(this.timer);
         this.timer = null;
     }
 }

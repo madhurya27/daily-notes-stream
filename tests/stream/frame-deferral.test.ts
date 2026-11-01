@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { FrameDeferral } from "../../src/stream/frame-deferral";
 import { SCROLL_IDLE_MS } from "../../src/stream/scroll-anchor";
 import { StillClock } from "../../src/stream/still-clock";
+import { ViewTimers } from "../../src/stream/view-timers";
 
 const PAGE = "https://www.youtube.com/embed/aqz-KE-bpKQ";
 
@@ -31,7 +32,7 @@ beforeEach(() => {
     document.body.appendChild(container);
     standIn = () => null;
     wrapper = () => null;
-    clock = new StillClock();
+    clock = new StillClock(new ViewTimers());
     frames = new FrameDeferral(
         clock,
         (frame, src) => standIn(frame, src),

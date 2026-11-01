@@ -1,5 +1,6 @@
 import { SETTLE_MS } from "./height-hold";
 import { blockAt } from "./stream-blocks";
+import type { ViewTimers } from "./view-timers";
 
 /**
  * Where the stream is scrolled to, in a form Obsidian's history can keep: the
@@ -162,13 +163,14 @@ export function keepInPlace(
     placed: Placed,
     placement: Placement,
     scrollEl: HTMLElement,
-    stream: HTMLElement
+    stream: HTMLElement,
+    timers: ViewTimers
 ): () => void {
     const holder = elementOf(placed);
     let settle = 0;
     const waitForStill = () => {
-        window.clearTimeout(settle);
-        settle = window.setTimeout(letGo, SETTLE_MS);
+        timers.cancel(settle);
+        settle = timers.start(letGo, SETTLE_MS);
     };
     const observer = new ResizeObserver(() => {
         if (!holder.isConnected) return letGo();
@@ -177,7 +179,7 @@ export function keepInPlace(
         waitForStill();
     });
     function letGo(): void {
-        window.clearTimeout(settle);
+        timers.cancel(settle);
         observer.disconnect();
     }
     observer.observe(stream);

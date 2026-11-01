@@ -747,6 +747,8 @@ describe("the day's turn", () => {
     });
 
     describe("with the stream open and still at midnight", () => {
+        let viewTimers: ViewTimers;
+
         /**
          * Opens a stream again with the fake clock, so its midnight timer is
          * fake.
@@ -758,7 +760,7 @@ describe("the day's turn", () => {
                 service,
                 renderer as unknown as NoteRenderer,
                 { notes: heights },
-                new ViewTimers(),
+                (viewTimers = new ViewTimers()),
                 notesChanged
             );
             noteWindow = fakes.windows.at(-1)!;
@@ -825,6 +827,7 @@ describe("the day's turn", () => {
             stream.onDailyNoteSettingsChange();
 
             stream.close();
+            viewTimers.cancelAll();
 
             expect(vi.getTimerCount()).toBe(0);
         });

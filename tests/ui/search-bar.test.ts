@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from "vitest";
 import { Component } from "obsidian";
 import { SearchBar, SEARCH_DEBOUNCE_MS } from "../../src/ui/search-bar";
+import { ViewTimers } from "../../src/stream/view-timers";
 
 describe("SearchBar", () => {
     let actions: {
@@ -36,6 +37,8 @@ describe("SearchBar", () => {
         if (observer?.observed.has(el)) observer.callback([], observer as unknown as ResizeObserver);
     };
 
+    let timers: ViewTimers;
+
     beforeEach(() => {
         vi.useFakeTimers();
         vi.stubGlobal("ResizeObserver", FakeResizeObserver);
@@ -43,7 +46,8 @@ describe("SearchBar", () => {
         actions = { search: vi.fn(), next: vi.fn(), previous: vi.fn(), close: vi.fn() };
         component = new Component();
         component.load();
-        bar = new SearchBar(component, actions);
+        timers = new ViewTimers();
+        bar = new SearchBar(component, timers, actions);
         document.body.appendChild(bar.el);
         input = bar.el.querySelector("input")!;
     });
@@ -233,5 +237,17 @@ describe("SearchBar", () => {
         bar.setStatus("2 / 5");
 
         expect(bar.el.querySelector(".document-search-count")!.textContent).toBe("2 / 5");
+    });
+
+    // A search typed just before the view closed ran on a closed view.
+    it("does not search for what was typed once the view's timers end", async () => {
+        bar.open();
+        input.value = "Effort";
+        input.dispatchEvent(new Event("input"));
+
+        timers.cancelAll();
+        await vi.runAllTimersAsync();
+
+        expect(actions.search).not.toHaveBeenCalled();
     });
 });

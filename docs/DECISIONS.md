@@ -3686,17 +3686,23 @@ note.
 - Stopping only for a large shift — a small one still shows that much empty
   space.
 
-## D-199 — A view cancels its stall warnings as it closes (2026-10-31)
+## D-199 — A view's timers end with it (2026-10-31)
 
-**Decision:** each view owns a `ViewTimers`, which holds running timers and
-cancels them all as the view unloads (`this.register`). `warnIfStalled` (D-164)
-starts its timers there. Other timers do not use it yet.
+**Decision:** a view's code starts timers and debouncers only on its
+`ViewTimers`, a child component that cancels them as the view unloads. Lint
+forbids `setTimeout`, `setInterval` and Obsidian's `debounce` in `src/stream`
+and `src/ui`. A note's own timers, in `src/render`, end with its component.
+Memory shared by all views (`layout-memory.ts`) has no view to end with.
+`detach()` still cancels what must stop for a rebuild, which is not a close.
 
 **Why:** a view closed while `2026-08-30.md` drew left Obsidian's
 `MarkdownRenderer.render` unfinished for at least 90 s, in 2 of 2 tries on an
 iPad. It then logged a stall, though a new view has its own queue and draws
 normally. Device tests failed on that error when `openStream` closed a view
 mid-draw.
+
+A hand-kept list in `NoteStream.close()` missed these timers, and also a typed
+search, which then ran on the closed view.
 
 **Rejected:**
 

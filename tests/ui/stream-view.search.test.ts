@@ -186,14 +186,15 @@ describe("DailyNotesStreamView — search", () => {
         expect(app.vault.cachedRead.mock.calls.length).toBe(reads);
     });
 
-    it("drops a recount still waiting when the view closes", async () => {
+    it("drops a recount still waiting when the view unloads", async () => {
         input().value = "dentist";
         input().dispatchEvent(new Event("input"));
         await settle();
         const reads = app.vault.cachedRead.mock.calls.length;
 
         notesChanged();
-        await view.onClose();
+        view.load();
+        view.unload();
         await settle();
 
         expect(app.vault.cachedRead.mock.calls.length).toBe(reads);

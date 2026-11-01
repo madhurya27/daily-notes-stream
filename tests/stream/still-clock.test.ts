@@ -1,12 +1,13 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { StillClock } from "../../src/stream/still-clock";
 import { SCROLL_IDLE_MS } from "../../src/stream/scroll-anchor";
+import { ViewTimers } from "../../src/stream/view-timers";
 
 let clock: StillClock;
 
 beforeEach(() => {
     vi.useFakeTimers();
-    clock = new StillClock();
+    clock = new StillClock(new ViewTimers());
 });
 afterEach(() => {
     vi.useRealTimers();

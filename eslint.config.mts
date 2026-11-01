@@ -35,6 +35,9 @@ const commentWidthOnly = [
 const notForCommentWidthOnly = <T extends { ignores?: string[] }>(configs: T[]): T[] =>
     configs.map((config) => ({ ...config, ignores: [...(config.ignores ?? []), ...commentWidthOnly] }));
 
+const WINDOW_APP_MESSAGE = "Use this.app.";
+const VIEW_TIMER_MESSAGE = "Start a view's timers on its ViewTimers, so they end with it (D-199).";
+
 export default tseslint.config(
     {
         ignores: commentWidthOnly,
@@ -78,7 +81,7 @@ export default tseslint.config(
         rules: {
             "no-console": ["error", { allow: ["error"] }],
             // The global app exists for debugging and may be removed.
-            "no-restricted-properties": ["error", { object: "window", property: "app", message: "Use this.app." }],
+            "no-restricted-properties": ["error", { object: "window", property: "app", message: WINDOW_APP_MESSAGE }],
             "no-restricted-syntax": [
                 "error",
                 {
@@ -131,6 +134,39 @@ export default tseslint.config(
         },
     },
     // manifest.json, for validate-manifest. The TS parser reads it as JSON.
+    // A view's timers end with it only if they start on its ViewTimers (D-199).
+    // A note's own timers, in render/, end with the note's component. Memory
+    // shared by all views has no view to end with.
+    {
+        files: ["src/stream/**/*.ts", "src/ui/**/*.ts"],
+        ignores: ["src/stream/view-timers.ts", "src/stream/layout-memory.ts"],
+        rules: {
+            "no-restricted-properties": [
+                "error",
+                { object: "window", property: "app", message: WINDOW_APP_MESSAGE },
+                { object: "window", property: "setTimeout", message: VIEW_TIMER_MESSAGE },
+                { object: "window", property: "setInterval", message: VIEW_TIMER_MESSAGE },
+            ],
+            "no-restricted-globals": [
+                "error",
+                { name: "setTimeout", message: VIEW_TIMER_MESSAGE },
+                { name: "setInterval", message: VIEW_TIMER_MESSAGE },
+            ],
+            "no-restricted-imports": [
+                "error",
+                {
+                    paths: [
+                        {
+                            name: "obsidian",
+                            importNames: ["moment"],
+                            message: "Import moment from src/notes/moment.ts, which the scorecard can type (D-152).",
+                        },
+                        { name: "obsidian", importNames: ["debounce"], message: VIEW_TIMER_MESSAGE },
+                    ],
+                },
+            ],
+        },
+    },
     {
         files: ["manifest.json"],
         languageOptions: { parser: tseslint.parser },

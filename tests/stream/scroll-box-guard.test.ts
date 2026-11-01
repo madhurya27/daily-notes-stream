@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { ScrollBoxGuard } from "../../src/stream/scroll-box-guard";
 import { SCROLL_IDLE_MS } from "../../src/stream/scroll-anchor";
 import { StillClock } from "../../src/stream/still-clock";
+import { ViewTimers } from "../../src/stream/view-timers";
 
 const still = () => vi.advanceTimersByTimeAsync(SCROLL_IDLE_MS);
 
@@ -34,7 +35,7 @@ beforeEach(() => {
     laidOut.mockReset();
     container = document.createElement("div");
     document.body.appendChild(container);
-    clock = new StillClock();
+    clock = new StillClock(new ViewTimers());
     guard = new ScrollBoxGuard(clock, laidOut);
     guard.attach(container);
 });

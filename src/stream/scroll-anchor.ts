@@ -1,8 +1,9 @@
-import { Platform, debounce } from "obsidian";
+import { Platform } from "obsidian";
 import { BASE_SLOT_CLASS } from "../render/bases/bases-as-cards";
 import { NOTE_CONTENT_CLASS } from "../render/note-renderer";
 import { GlideCarry, ScrollSpeed } from "./glide-carry";
 import { blockAt } from "./stream-blocks";
+import type { ViewTimers } from "./view-timers";
 
 /**
  * How long the scroll must stay still before the stream treats it as stopped
@@ -44,6 +45,8 @@ type Place = { el: Element; top: number; height: number }[];
  * directly made the page jump on a phone.
  */
 export class ScrollAnchor {
+    constructor(private readonly timers: ViewTimers) {}
+
     private observer: ResizeObserver | null = null;
     private scrollRoot: HTMLElement | null = null;
     /**
@@ -131,7 +134,7 @@ export class ScrollAnchor {
     private readonly speed = new ScrollSpeed();
     /** Carries on a glide stopped before its scroll runs out (D-192). */
     private carry: GlideCarry | null = null;
-    private readonly settleOnceStill = debounce(() => this.settle(), SCROLL_IDLE_MS, true);
+    private readonly settleOnceStill = this.timers.debounce(() => this.settle(), SCROLL_IDLE_MS, true);
     /**
      * Every note is loaded, so nothing more will come below the stream's end to
      * fill space a shift leaves empty there.

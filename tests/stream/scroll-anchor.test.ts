@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { Platform } from "obsidian";
 import { ScrollAnchor, SCROLL_IDLE_MS } from "../../src/stream/scroll-anchor";
+import { ViewTimers } from "../../src/stream/view-timers";
 
 class FakeResizeObserver {
     static instances: FakeResizeObserver[] = [];
@@ -166,7 +167,7 @@ describe("ScrollAnchor", () => {
         FakeResizeObserver.instances = [];
         vi.stubGlobal("ResizeObserver", FakeResizeObserver);
         vi.stubGlobal("CSS", { supports: () => false });
-        anchor = new ScrollAnchor();
+        anchor = new ScrollAnchor(new ViewTimers());
     });
 
     afterEach(() => {

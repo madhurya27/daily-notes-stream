@@ -1,13 +1,4 @@
-import {
-    ItemView,
-    Platform,
-    Scope,
-    WorkspaceLeaf,
-    debounce,
-    type Hotkey,
-    type HoverParent,
-    type HoverPopover,
-} from "obsidian";
+import { ItemView, Platform, Scope, WorkspaceLeaf, type Hotkey, type HoverParent, type HoverPopover } from "obsidian";
 import type DailyNotesStreamPlugin from "../main";
 import { JumpToDateModal } from "./jump-to-date-modal";
 import { NoteRenderer } from "../render/note-renderer";
@@ -49,7 +40,7 @@ export class DailyNotesStreamView extends ItemView implements HoverParent {
     private plugin: DailyNotesStreamPlugin;
     private renderer: NoteRenderer;
     private collapsible: CollapsibleManager;
-    private readonly timers = new ViewTimers();
+    private readonly timers = this.addChild(new ViewTimers());
     private stream: NoteStream;
     private search: StreamSearch;
     private searchBar: SearchBar;
@@ -104,7 +95,7 @@ export class DailyNotesStreamView extends ItemView implements HoverParent {
             this.collapsible,
             (status) => this.searchBar.setStatus(status)
         );
-        this.searchBar = new SearchBar(this, {
+        this.searchBar = new SearchBar(this, this.timers, {
             search: (query) => void this.search.search(query),
             next: () => void this.search.next(),
             previous: () => void this.search.previous(),
@@ -163,7 +154,6 @@ export class DailyNotesStreamView extends ItemView implements HoverParent {
         this.registerEvent(vault.on("rename", (f, old) => this.stream.onFileRename(f, old)));
         // A Base file has no metadata to wait for.
         this.registerEvent(vault.on("modify", (f) => void this.renderer.onBaseModified(f)));
-        this.register(() => this.timers.cancelAll());
         this.registerEvent(onPostProcessorChange(this.app, () => void this.refresh()));
         // A link to an empty note shows it. When its last link is removed, it
         // is hidden again (ADR 0011).
@@ -228,7 +218,6 @@ export class DailyNotesStreamView extends ItemView implements HoverParent {
 
     async onClose() {
         this.lifecycle = "closed";
-        this.refreshSearch.cancel();
         this.stream.close();
     }
 
@@ -243,7 +232,11 @@ export class DailyNotesStreamView extends ItemView implements HoverParent {
     }
 
     /** An open search reads the notes again once the stream's notes change. */
-    private readonly refreshSearch = debounce(() => void this.search.refresh(), SEARCH_REFRESH_DEBOUNCE_MS, true);
+    private readonly refreshSearch = this.timers.debounce(
+        () => void this.search.refresh(),
+        SEARCH_REFRESH_DEBOUNCE_MS,
+        true
+    );
 
     /** Asks for a date, then jumps to it. */
     promptJumpToDate(): void {

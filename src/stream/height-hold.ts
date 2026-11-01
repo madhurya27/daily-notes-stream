@@ -1,3 +1,5 @@
+import type { ViewTimers } from "./view-timers";
+
 /**
  * If nothing changes size for this long, it counts as done, because Bases gives
  * no sign that it is.
@@ -27,10 +29,11 @@ export class HeightHold {
     constructor(
         private readonly el: HTMLElement,
         height: number,
+        private readonly timers: ViewTimers,
         private readonly released: () => void = () => {}
     ) {
         el.style.setProperty("--daily-note-held-height", `${height}px`);
-        this.timer = window.setTimeout(() => this.release(), HOLD_LIMIT_MS);
+        this.timer = timers.start(() => this.release(), HOLD_LIMIT_MS);
     }
 
     get holding(): boolean {
@@ -40,7 +43,7 @@ export class HeightHold {
     release(): void {
         if (!this.held) return;
         this.held = false;
-        window.clearTimeout(this.timer);
+        this.timers.cancel(this.timer);
         this.el.style.removeProperty("--daily-note-held-height");
         this.released();
     }

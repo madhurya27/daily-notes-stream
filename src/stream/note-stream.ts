@@ -1,5 +1,5 @@
 import { basesLoaded } from "../render/bases/bases-loaded";
-import { Debouncer, Notice, Platform, TFile, TAbstractFile, debounce } from "obsidian";
+import { Debouncer, Notice, Platform, TFile, TAbstractFile } from "obsidian";
 import type { DailyNoteService } from "../notes/daily-note-service";
 import { moment, type Moment } from "../notes/moment";
 import type { NoteRenderer } from "../render/note-renderer";
@@ -78,13 +78,12 @@ export class NoteStream {
      * be thrown away.
      */
     private closed = false;
-    private midnight: number | null = null;
     /**
      * The day changed while the reader was moving the pane. The stream catches
      * up once they stop.
      */
     private dayTurnWaiting = false;
-    private readonly catchUpDayOnceStill = debounce(
+    private readonly catchUpDayOnceStill = this.timers.debounce(
         () => {
             this.dayTurnWaiting = false;
             void this.enqueueChange(async () => {});
@@ -147,7 +146,7 @@ export class NoteStream {
      */
     private armMidnight(): void {
         const untilMidnight = moment().add(1, "day").startOf("day").diff(Date.now());
-        this.midnight = window.setTimeout(() => {
+        this.timers.start(() => {
             this.dayTurnWaiting = true;
             this.catchUpDayOnceStill();
             this.armMidnight();
@@ -163,12 +162,7 @@ export class NoteStream {
 
     close(): void {
         this.closed = true;
-        // Stryker disable next-line ConditionalExpression: clearing a timer that does not exist does nothing.
-        if (this.midnight !== null) window.clearTimeout(this.midnight);
-        this.catchUpDayOnceStill.cancel();
         this.letGoOfCentered();
-        this.onDailyNoteSettingsChange.cancel();
-        this.flushModified.cancel();
         this.scroll.detach();
         this.window.detach();
         this.scrollBoxes.detach();
@@ -209,7 +203,7 @@ export class NoteStream {
         this.flushModified();
     }
 
-    private flushModified: Debouncer<[], void> = debounce(
+    private flushModified: Debouncer<[], void> = this.timers.debounce(
         () => {
             const files = [...this.pendingModified.values()];
             this.pendingModified.clear();
@@ -412,11 +406,11 @@ export class NoteStream {
         // Stryker disable StringLiteral: any placement except "start" centers.
         // Held from the first scroll: a Base hidden far away lays out again a
         // frame after it is shown, while the scroll is still settling.
-        this.letGoOfCentered = keepInPlace(range, "center", this.scrollRoot, this.blocks.el);
+        this.letGoOfCentered = keepInPlace(range, "center", this.scrollRoot, this.blocks.el, this.timers);
         await scrollIntoPlace(range, "center", this.scrollRoot, this.layout);
         // Held again, so it is kept for its full time after the scroll settles.
         this.letGoOfCentered();
-        this.letGoOfCentered = keepInPlace(range, "center", this.scrollRoot, this.blocks.el);
+        this.letGoOfCentered = keepInPlace(range, "center", this.scrollRoot, this.blocks.el, this.timers);
         // Stryker restore StringLiteral
     }
 
@@ -572,7 +566,7 @@ export class NoteStream {
      * A change to the settings can change which files are daily notes, so the
      * list and every rendered note may be wrong.
      */
-    onDailyNoteSettingsChange: Debouncer<[], void> = debounce(
+    onDailyNoteSettingsChange: Debouncer<[], void> = this.timers.debounce(
         () => {
             void this.enqueueChange(async () => {
                 if (!(await this.service.refreshIfSettingsChanged())) return;

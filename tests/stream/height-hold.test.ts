@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { HeightHold, HOLD_LIMIT_MS } from "../../src/stream/height-hold";
+import { ViewTimers } from "../../src/stream/view-timers";
 
 const PROPERTY = "--daily-note-held-height";
 
@@ -14,13 +15,13 @@ describe("HeightHold", () => {
     afterEach(() => vi.useRealTimers());
 
     it("holds the element at the height, through the custom property styles.css reads", () => {
-        new HeightHold(el, 812);
+        new HeightHold(el, 812, new ViewTimers());
 
         expect(held()).toBe("812px");
     });
 
     it("lets go when released", () => {
-        const hold = new HeightHold(el, 812);
+        const hold = new HeightHold(el, 812, new ViewTimers());
 
         hold.release();
 
@@ -31,7 +32,7 @@ describe("HeightHold", () => {
     // Something that never stops changing, such as a Base updating live, is not
     // held forever.
     it("lets go by itself once the limit passes", async () => {
-        new HeightHold(el, 812);
+        new HeightHold(el, 812, new ViewTimers());
 
         await vi.advanceTimersByTimeAsync(HOLD_LIMIT_MS - 1);
         expect(held()).toBe("812px");
@@ -40,9 +41,9 @@ describe("HeightHold", () => {
     });
 
     it("leaves a later hold alone once released", async () => {
-        new HeightHold(el, 812).release();
+        new HeightHold(el, 812, new ViewTimers()).release();
         await vi.advanceTimersByTimeAsync(HOLD_LIMIT_MS / 2);
-        const later = new HeightHold(el, 900);
+        const later = new HeightHold(el, 900, new ViewTimers());
 
         await vi.advanceTimersByTimeAsync(HOLD_LIMIT_MS / 2);
 
@@ -54,9 +55,9 @@ describe("HeightHold", () => {
     // 0013).
     it("says it let go, by release or by the limit, once each", async () => {
         const released = vi.fn();
-        const hold = new HeightHold(el, 812, released);
+        const hold = new HeightHold(el, 812, new ViewTimers(), released);
         const timed = vi.fn();
-        new HeightHold(document.createElement("div"), 812, timed);
+        new HeightHold(document.createElement("div"), 812, new ViewTimers(), timed);
 
         hold.release();
         hold.release();
@@ -67,7 +68,7 @@ describe("HeightHold", () => {
     });
 
     it("says whether it still holds", async () => {
-        const hold = new HeightHold(el, 812);
+        const hold = new HeightHold(el, 812, new ViewTimers());
         expect(hold.holding).toBe(true);
 
         await vi.advanceTimersByTimeAsync(HOLD_LIMIT_MS);

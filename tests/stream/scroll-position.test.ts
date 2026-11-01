@@ -7,6 +7,7 @@ import {
     scrollIntoPlace,
 } from "../../src/stream/scroll-position";
 import { SETTLE_MS } from "../../src/stream/height-hold";
+import { ViewTimers } from "../../src/stream/view-timers";
 /**
  * Creates a minimal fake HTMLElement whose getBoundingClientRect the test
  * controls.
@@ -335,7 +336,7 @@ describe("keepInPlace", () => {
     it("centers it again when the stream grows above it", () => {
         const center = { at: 400 };
         const el = match(center);
-        keepInPlace(el, "center", pane, stream);
+        keepInPlace(el, "center", pane, stream, new ViewTimers());
 
         center.at = 6400;
         resized();
@@ -354,7 +355,7 @@ describe("keepInPlace", () => {
         const heading = section.createDiv().createEl("h3");
         heading.scrollIntoView = vi.fn();
         heading.getBoundingClientRect = () => ({ top: center.at - 10, bottom: center.at + 10 }) as DOMRect;
-        keepInPlace(heading, "center", pane, stream);
+        keepInPlace(heading, "center", pane, stream, new ViewTimers());
 
         center.at = 1300;
         resized(base);
@@ -371,7 +372,7 @@ describe("keepInPlace", () => {
         range.selectNodeContents(text);
         range.getBoundingClientRect = () => ({ top: center.at - 10, bottom: center.at + 10 }) as DOMRect;
         pane.scrollTop = 0;
-        keepInPlace(range, "center", pane, stream);
+        keepInPlace(range, "center", pane, stream, new ViewTimers());
 
         center.at = 1300;
         resized(base);
@@ -382,7 +383,7 @@ describe("keepInPlace", () => {
 
     it("leaves it alone while it is still in place", () => {
         const el = match({ at: 401 });
-        keepInPlace(el, "center", pane, stream);
+        keepInPlace(el, "center", pane, stream, new ViewTimers());
 
         resized();
 
@@ -391,7 +392,7 @@ describe("keepInPlace", () => {
 
     it("leaves it alone within two pixels of its place", () => {
         const el = match({ at: 402 });
-        keepInPlace(el, "center", pane, stream);
+        keepInPlace(el, "center", pane, stream, new ViewTimers());
 
         resized();
 
@@ -405,13 +406,13 @@ describe("keepInPlace", () => {
         const heading = section.createDiv().createEl("h3");
         heading.getBoundingClientRect = () => ({ top: 390, bottom: 410 }) as DOMRect;
 
-        keepInPlace(heading, "center", pane, stream);
+        keepInPlace(heading, "center", pane, stream, new ViewTimers());
 
         expect([...FakeResizeObserver.last.observed]).toEqual([stream, base]);
     });
 
     it("lets go once the stream is still", () => {
-        keepInPlace(match({ at: 400 }), "center", pane, stream);
+        keepInPlace(match({ at: 400 }), "center", pane, stream, new ViewTimers());
 
         vi.advanceTimersByTime(SETTLE_MS);
 
@@ -419,7 +420,7 @@ describe("keepInPlace", () => {
     });
 
     it("keeps holding while the stream keeps resizing", () => {
-        keepInPlace(match({ at: 400 }), "center", pane, stream);
+        keepInPlace(match({ at: 400 }), "center", pane, stream, new ViewTimers());
 
         vi.advanceTimersByTime(SETTLE_MS - 1);
         resized();
@@ -429,7 +430,7 @@ describe("keepInPlace", () => {
     });
 
     it("lets go when stopped", () => {
-        const stop = keepInPlace(match({ at: 400 }), "center", pane, stream);
+        const stop = keepInPlace(match({ at: 400 }), "center", pane, stream, new ViewTimers());
 
         stop();
 
@@ -440,7 +441,7 @@ describe("keepInPlace", () => {
     it("lets go of an element no longer in the stream", () => {
         const center = { at: 400 };
         const el = match(center);
-        keepInPlace(el, "center", pane, stream);
+        keepInPlace(el, "center", pane, stream, new ViewTimers());
 
         el.remove();
         center.at = 6400;

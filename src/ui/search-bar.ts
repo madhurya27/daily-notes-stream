@@ -1,4 +1,5 @@
-import { Component, debounce, setIcon } from "obsidian";
+import { Component, setIcon } from "obsidian";
+import type { ViewTimers } from "../stream/view-timers";
 
 /** Long enough that a word typed quickly is only searched once. */
 export const SEARCH_DEBOUNCE_MS = 250;
@@ -31,6 +32,7 @@ export class SearchBar {
 
     constructor(
         component: Component,
+        private readonly timers: ViewTimers,
         private readonly actions: SearchBarActions
     ) {
         this.el = createDiv();
@@ -96,7 +98,11 @@ export class SearchBar {
         return counts;
     }
 
-    private readonly searchTyped = debounce(() => this.actions.search(this.inputEl.value), SEARCH_DEBOUNCE_MS, true);
+    private readonly searchTyped = this.timers.debounce(
+        () => this.actions.search(this.inputEl.value),
+        SEARCH_DEBOUNCE_MS,
+        true
+    );
 
     private onKeydown(evt: KeyboardEvent): void {
         if (evt.key === "Escape") {

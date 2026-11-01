@@ -30,11 +30,6 @@ there is a screen recording of them (D-099).
 - [ ] `Transport destroyed`, from Obsidian's PDF viewer, failed a device test
       once in `search.spec.ts:196`. It may come from closing a view while a PDF
       loads; closing one during a draw did not log it in 2 tries.
-- [ ] Make closing a view cancel what it started without a hand-kept list
-      (D-199): move timers and debouncers onto `ViewTimers`, or a note's
-      component for a note's own, make `ViewTimers` a child component of the
-      view, add a lint rule against raw `window.setTimeout`, and shrink
-      `NoteStream.close()`.
 - [ ] Try adding the e2e tests to CI on Linux.
 - [ ] Once the directory's scorecard lint understands moment's types, go back to
       Obsidian's `moment` and delete `src/notes/moment.ts` (D-152).
