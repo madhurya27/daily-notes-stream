@@ -41,6 +41,8 @@ moves in the meantime. A note whose sections cannot stand on their own
 - In a tall pane, a short newest note leaves the top of the long note below it
   on the screen. On an iPad in portrait, the newest note waited about 660 ms
   behind 7 of its slices, and now waits for at most one.
+- Which note starts next is decided separately (D-201). This record covers only
+  which notes may go ahead of a long note between its slices.
 - Below 6,000 characters, rendering all at once blocks the thread no longer than
   a slice does, and finishes sooner. At phone speed (D-131), a 5,900-character
   note blocks the thread for 26–27 ms rendered all at once, against 25–26 ms for

@@ -24,6 +24,11 @@ export class StillClock {
         this.movedAt = performance.now();
     }
 
+    /** Whether the pane has not moved for `SCROLL_IDLE_MS`. */
+    isStill(): boolean {
+        return performance.now() - this.movedAt >= SCROLL_IDLE_MS;
+    }
+
     /** Runs `task` once the pane is still. Asked again before then, once. */
     whenStill(task: () => void): void {
         this.due.add(task);
@@ -43,7 +48,7 @@ export class StillClock {
 
     private run(): void {
         this.timer = null;
-        if (performance.now() - this.movedAt < SCROLL_IDLE_MS) {
+        if (!this.isStill()) {
             this.waitOut();
             return;
         }

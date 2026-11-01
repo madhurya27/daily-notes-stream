@@ -3,6 +3,7 @@ import { DRAWING_FROM_END, type DrawOrder, type NoteRenderer, type RenderedNote 
 import type { NoteHeights } from "./note-heights";
 import { SCROLL_IDLE_MS, ScrollAnchor } from "./scroll-anchor";
 import { StillClock } from "./still-clock";
+import { nextToDraw, type ScrollDirection } from "./draw-order";
 import { HeightHold, SETTLE_MS } from "./height-hold";
 import { Reservations, type Reserving } from "./reservations";
 import { FarRunWatch } from "./far-run-watch";
@@ -106,7 +107,8 @@ export class NoteWindowManager {
      */
     private readonly pinnedEnds = new WeakMap<HTMLElement, number>();
     /**
-     * Renders queued but not started. A note on screen among them may go first.
+     * Renders queued but not started. Each turn in the queue draws the one the
+     * reader needs next (D-201).
      */
     private readonly waiting = new Map<HTMLElement, NoteWindow>();
     /**
@@ -116,6 +118,9 @@ export class NoteWindowManager {
     private readonly anchor = new ScrollAnchor(this.timers);
     private scrollRoot: HTMLElement | null = null;
     private stream: HTMLElement | null = null;
+    /** The scroll position last heard, and which way it last moved. */
+    private lastScrollTop = 0;
+    private lastDirection: ScrollDirection = 0;
     /**
      * The layout that heights are read and saved for. It is read once and kept
      * until the current task ends.
@@ -199,6 +204,8 @@ export class NoteWindowManager {
     attach(scrollRoot: HTMLElement, stream: HTMLElement, loadedToEnd: () => boolean): void {
         this.detachObservers();
         this.scrollRoot = scrollRoot;
+        this.lastScrollTop = scrollRoot.scrollTop;
+        this.lastDirection = 0;
         this.stream = stream;
         this.observeMargins(scrollRoot);
         this.screenObserver = new IntersectionObserver(
@@ -321,6 +328,7 @@ export class NoteWindowManager {
     /** A scroll restarts the wait for blocks that went out of range. */
     onScroll(): void {
         this.clock.moved();
+        this.noteDirection();
         this.repinAtTop();
         this.anchor.onScroll();
         if (this.leaving.size > 0) this.unloadOnceStill();
@@ -339,6 +347,14 @@ export class NoteWindowManager {
         const block = blockAt(this.stream!, this.scrollRoot.getBoundingClientRect().top) as HTMLElement | null;
         const end = block && this.pinnedEnds.get(block);
         if (block && end !== undefined && end !== this.contentEnd(block)) this.repin(block);
+    }
+
+    private noteDirection(): void {
+        // A scroll queued while the view closed arrives after detach.
+        if (!this.scrollRoot) return;
+        const { scrollTop } = this.scrollRoot;
+        this.lastDirection = (Math.sign(scrollTop - this.lastScrollTop) || this.lastDirection) as ScrollDirection;
+        this.lastScrollTop = scrollTop;
     }
 
     /**
@@ -577,7 +593,21 @@ export class NoteWindowManager {
         window.order = order;
         window.rendering = true;
         this.waiting.set(block, window);
-        this.enqueue(() => this.renderWaiting(block));
+        this.enqueue(() => this.renderNext());
+    }
+
+    /**
+     * Each note waiting has a turn in the queue, so whichever note a turn
+     * draws, every note has been drawn once the queue is empty. Read from the
+     * layout: `onScreen` reports a frame late, and a glide moves far in one.
+     */
+    private async renderNext(): Promise<void> {
+        const waiting = [...this.waiting.keys()];
+        if (waiting.length === 0) return;
+        // Before it is attached, there is no reader to draw for.
+        if (!this.scrollRoot) return this.renderWaiting(waiting[0]!);
+        const direction = this.clock.isStill() ? 0 : this.lastDirection;
+        await this.renderWaiting(nextToDraw(waiting, this.scrollRoot.getBoundingClientRect(), direction));
     }
 
     /**

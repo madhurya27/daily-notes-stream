@@ -2718,10 +2718,10 @@ describe("NoteWindowManager draws the notes on screen first", () => {
      * A long note draws `SLICES` slices, and asks between them whether to go
      * on. Any other note draws one.
      */
-    function makeLongNoteRenderer(longPath: string) {
+    function makeLongNoteRenderer(...longPaths: string[]) {
         const renderer = makeRenderer();
         renderer.renderInto = vi.fn(async (block: HTMLElement, file: TFile, goOn = () => Promise.resolve(true)) => {
-            const slices = file.path === longPath ? SLICES : 1;
+            const slices = longPaths.includes(file.path) ? SLICES : 1;
             for (let i = 0; i < slices; i++) {
                 if (i > 0 && !(await goOn(new Component()))) {
                     block.empty();
@@ -2820,6 +2820,28 @@ describe("NoteWindowManager draws the notes on screen first", () => {
         expect(drawn).toEqual([LONG.path, LONG.path, LONG.path, SHORT.path]);
     });
 
+    // Between its own slices, the long note on screen drew the one above it, so
+    // the note off screen no longer finds that one waiting.
+    it("draws once a note on screen that another went ahead of it to draw", async () => {
+        drawn = [];
+        const THIRD = new TFile("Notes/2025-01-03.md");
+        const renderer = makeLongNoteRenderer(LONG.path, SHORT.path);
+        const { manager } = makeManager(renderer);
+        onTestFinished(() => manager.detach());
+        const [offScreen, onScreenLong, above] = [LONG, SHORT, THIRD].map((file) => manager.add(file));
+        document.body.append(offScreen!, above!, onScreenLong!);
+        fire(observers.render, offScreen!, true);
+        await vi.advanceTimersByTimeAsync(5);
+        for (const block of [onScreenLong!, above!]) {
+            fire(observers.render, block, true);
+            fire(observers.screen, block, true);
+        }
+        await drawAll();
+
+        expect(drawn.filter((path) => path === THIRD.path)).toHaveLength(1);
+        expect(isRendered(above!)).toBe(true);
+    });
+
     it("forgets the notes on screen once removed", async () => {
         const { manager } = makeManager(makeLongNoteRenderer(LONG.path));
         drawn = [];
@@ -2835,6 +2857,161 @@ describe("NoteWindowManager draws the notes on screen first", () => {
 
         expect(drawn).toEqual([LONG.path, LONG.path, LONG.path, SHORT.path]);
         manager.detach();
+    });
+});
+
+describe("NoteWindowManager draws what the reader reaches next first", () => {
+    const PANE_HEIGHT = 800;
+    /** Every note drawn, in order. Each takes 10 ms. */
+    let drawn: string[];
+
+    const layOut = (block: HTMLElement, top: number) =>
+        (block.getBoundingClientRect = () => ({ top, bottom: top + 100, height: 100 }) as DOMRect);
+
+    /**
+     * A note at each of `tops` px from the pane's top, and one on screen
+     * drawing now, so the rest wait, queued in the order given.
+     */
+    async function waitingAt(tops: Record<string, number>) {
+        drawn = [];
+        const renderer = makeRenderer({
+            render: async (block) => {
+                await new Promise((resolve) => setTimeout(resolve, 10));
+                drawn.push(block.dataset.sourcePath!);
+            },
+        });
+        const root = makeScrollRoot(PANE_HEIGHT);
+        root.getBoundingClientRect = () => ({ top: 0, bottom: PANE_HEIGHT, height: PANE_HEIGHT }) as DOMRect;
+        const { manager } = makeManager(renderer, undefined, root);
+        onTestFinished(() => manager.detach());
+        const first = manager.add(new TFile("first"));
+        layOut(first, 300);
+        document.body.append(first);
+        const blocks = Object.entries(tops).map(([name, top]) => {
+            const block = manager.add(new TFile(name));
+            layOut(block, top);
+            document.body.append(block);
+            return block;
+        });
+        const scrollTo = (scrollTop: number) => {
+            root.scrollTop = scrollTop;
+            manager.onScroll();
+        };
+        const queueAll = async () => {
+            fire(observers.render, first, true);
+            await vi.advanceTimersByTimeAsync(5); // into the first note
+            for (const block of blocks) fire(observers.render, block, true);
+            await vi.advanceTimersByTimeAsync(100);
+            return drawn.slice(1);
+        };
+        return { scrollTo, queueAll };
+    }
+
+    it("draws a note on screen before notes off screen that were queued first", async () => {
+        const { queueAll } = await waitingAt({ near: 1000, screen: 200 });
+
+        expect(await queueAll()).toEqual(["screen", "near"]);
+    });
+
+    it("draws the notes on screen from the top down", async () => {
+        const { queueAll } = await waitingAt({ lower: 600, upper: 100 });
+
+        expect(await queueAll()).toEqual(["upper", "lower"]);
+    });
+
+    it("draws a note on screen, then the rest, whatever its side of the pane", async () => {
+        const { queueAll } = await waitingAt({ farBelow: 2000, above: -300, below: 900, screen: 400 });
+
+        expect(await queueAll()).toEqual(["screen", "below", "above", "farBelow"]);
+    });
+
+    describe("scrolling up the stream", () => {
+        it("draws what is about to come on screen above before what it scrolled past below", async () => {
+            const { scrollTo, queueAll } = await waitingAt({ past: 850, ahead: -1000 });
+            scrollTo(1000);
+            scrollTo(900);
+
+            expect(await queueAll()).toEqual(["ahead", "past"]);
+        });
+
+        it("draws the nearest of what is about to come on screen first", async () => {
+            const { scrollTo, queueAll } = await waitingAt({ further: -1000, nearest: -200 });
+            scrollTo(1000);
+            scrollTo(900);
+
+            expect(await queueAll()).toEqual(["nearest", "further"]);
+        });
+    });
+
+    describe("scrolling down the stream", () => {
+        it("draws what is about to come on screen below before what it scrolled past above", async () => {
+            const { scrollTo, queueAll } = await waitingAt({ past: -150, ahead: 2000 });
+            scrollTo(1000);
+            scrollTo(1100);
+
+            expect(await queueAll()).toEqual(["ahead", "past"]);
+        });
+
+        it("draws what it scrolled past last, nearest first", async () => {
+            const { scrollTo, queueAll } = await waitingAt({ farPast: -900, nearPast: -150 });
+            scrollTo(1000);
+            scrollTo(1100);
+
+            expect(await queueAll()).toEqual(["nearPast", "farPast"]);
+        });
+    });
+
+    // A scroll event can come with the scroll where it was.
+    it("keeps the direction through a scroll event that moved nothing", async () => {
+        const { scrollTo, queueAll } = await waitingAt({ past: -150, ahead: 2000 });
+        scrollTo(1000);
+        scrollTo(1100);
+        scrollTo(1100);
+
+        expect(await queueAll()).toEqual(["ahead", "past"]);
+    });
+
+    // Once the reader has stopped, nothing is ahead or behind.
+    it("goes by distance alone once the scroll is still", async () => {
+        const { scrollTo, queueAll } = await waitingAt({ ahead: 2000, past: -150 });
+        scrollTo(1000);
+        scrollTo(1100);
+        await still();
+
+        expect(await queueAll()).toEqual(["past", "ahead"]);
+    });
+
+    // A long note waiting is treated as any other: its slices start when its
+    // turn comes.
+    it("draws a long note on screen before a short note off screen queued first", async () => {
+        drawn = [];
+        const renderer = makeRenderer();
+        renderer.renderInto = vi.fn(async (block: HTMLElement, file: TFile, goOn = () => Promise.resolve(true)) => {
+            const slices = file.path === "long" ? 3 : 1;
+            for (let i = 0; i < slices; i++) {
+                if (i > 0 && !(await goOn(new Component()))) return null;
+                await new Promise((resolve) => setTimeout(resolve, 10));
+                drawn.push(file.path);
+            }
+            block.createDiv({ cls: "daily-note-content" });
+            return { component: new Component(), footer: Promise.resolve() };
+        });
+        const root = makeScrollRoot(PANE_HEIGHT);
+        root.getBoundingClientRect = () => ({ top: 0, bottom: PANE_HEIGHT, height: PANE_HEIGHT }) as DOMRect;
+        const { manager } = makeManager(renderer, undefined, root);
+        onTestFinished(() => manager.detach());
+        const [first, near, long] = ["first", "near", "long"].map((name) => manager.add(new TFile(name)));
+        layOut(first!, 300);
+        layOut(near!, 1000);
+        layOut(long!, 200);
+        document.body.append(first!, near!, long!);
+        fire(observers.render, first!, true);
+        await vi.advanceTimersByTimeAsync(5);
+        fire(observers.render, near!, true);
+        fire(observers.render, long!, true);
+        await vi.advanceTimersByTimeAsync(100);
+
+        expect(drawn).toEqual(["first", "long", "long", "long", "near"]);
     });
 });
 

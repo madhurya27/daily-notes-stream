@@ -22,11 +22,14 @@ there is a screen recording of them (D-099).
       is, and draw the middle last. Once on an iPad in portrait, after a tap on
       the title, the long note's strip below the newest note stayed blank for
       about 320 ms, then showed the wrong part of the note for about 340 ms.
-- [ ] A short note on screen waits for short notes off screen that came into
-      range before it: scrolling up from note 10 to note 2 draws 5, 4 and 3
-      first. Measure the wait on a hard flick. If a reader would see it, draw
-      the waiting notes on screen before any note off screen, which ADR 0020
-      does only between a long note's slices.
+- [ ] Stop a PDF holding up the queue: a note with one takes 400–460 ms to draw
+      on an iPad, with frames still short, so the queue is waiting rather than
+      the CPU working. With a PDF in each of 30 notes, a flick left the whole
+      screen blank for 867–1,002 ms, against 193–274 ms without PDFs (D-201).
+- [ ] Order a long note's slices as notes are ordered (D-201): what is on screen
+      and near it first, then what the scroll is heading for, and what it has
+      passed last. Between slices, only notes on screen go first now, so a long
+      note off screen still holds up one about to come on screen.
 - [ ] Try adding the e2e tests to CI on Linux.
 - [ ] Once the directory's scorecard lint understands moment's types, go back to
       Obsidian's `moment` and delete `src/notes/moment.ts` (D-152).

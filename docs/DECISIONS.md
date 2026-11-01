@@ -3766,3 +3766,31 @@ that fast.
   under a trackpad or mouse, which send no touch.
 - Following only the text at the pane's top in the test — it hid the next note
   moving, and misread text that had just reached the top.
+
+## D-201 — Waiting notes draw in the order the reader needs them (2026-11-01)
+
+**Decision:** each turn in the queue draws the waiting note the reader needs
+next (`nextToDraw`): those on screen from the top down, then those the scroll is
+heading for, then those it has passed, each nearest first. Once the pane has
+been still for `SCROLL_IDLE_MS`, distance alone decides. This covers which note
+starts next, short or long. Between a long note's slices, ADR 0020 still
+decides.
+
+**Why:** the queue drew notes in the order they came into range. On an iPad in
+portrait, four-stroke flicks through 30 notes with three Bases, a PDF and
+Mermaid each, with heights forgotten, left a note blank for 1,110–1,258 ms, up
+to the whole screen, with 3 notes off screen drawn ahead of notes on screen. Now
+none are, and the longest blank is 867–1,002 ms. A note that started before it
+came on screen cannot give way, so up to 510 ms of that is still spent off
+screen. Light notes never waited at this speed, in 12 runs on five years of
+notes. Most of what is left is PDFs: without one in each note, the longest blank
+is 193–274 ms.
+
+**Rejected:**
+
+- Only notes on screen going first, in queue order otherwise — a note about to
+  come on screen would wait behind ones already passed.
+- A queue per priority — vault events share the queue (ADR 0004), and each turn
+  picking a note keeps their order.
+- Reading `onScreen` to rank notes — it reports a frame late, and a glide can
+  move hundreds of pixels in a frame.

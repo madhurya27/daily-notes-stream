@@ -66,7 +66,8 @@ So when a view's own handler runs, the shared indexes are already up to date.
    Parts of a long note far from the screen are replaced by empty spacers
    (`far-runs.ts`, [ADR 0021](adr/0021-hide-far-runs-of-long-notes.md)), and
    `far-run-watch.ts` watches them. Hidden notes and hidden parts show again
-   when they come back near the screen. Each rendered note owns a child
+   when they come back near the screen. Waiting notes draw in the order the
+   reader needs them (`draw-order.ts`, D-201). Each rendered note owns a child
    `Component`, which is thrown away when the note is unloaded. When the reader
    scrolls up into a long note, it is drawn from its end
    ([ADR 0022](adr/0022-draw-long-notes-from-the-end-met.md)).
