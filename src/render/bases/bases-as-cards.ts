@@ -4,7 +4,7 @@ import { parseYaml, stringifyYaml } from "obsidian";
  * The first line of a code block: up to three spaces, then three or more
  * ` or ~, then the info string.
  */
-const FENCE_OPEN = /^( {0,3})(`{3,}|~{3,})\s*([^\s`]*)/;
+export const FENCE_OPEN = /^( {0,3})(`{3,}|~{3,})\s*([^\s`]*)/;
 /**
  * A Base embed on a line of its own: `![[X.base]]`, `![[X.base#View]]`,
  * `![[X.base|300]]`.
@@ -103,7 +103,7 @@ export function extractBases(markdown: string): { markdown: string; bases: BaseS
  * Whether `line` closes the code block: a fence of the same character, at least
  * as long.
  */
-function closes(fence: Fence, line: string): boolean {
+export function closes(fence: Pick<Fence, "marker">, line: string): boolean {
     const trimmed = line.trim();
     return trimmed.length >= fence.marker.length && trimmed === fence.marker[0]!.repeat(trimmed.length);
 }

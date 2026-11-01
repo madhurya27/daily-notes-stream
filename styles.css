@@ -704,6 +704,14 @@ body:not(.is-mobile) :is(.daily-note-content, .daily-note-mention-excerpt) :is(t
     pointer-events: none;
 }
 
+/* Until it has loaded, a PDF has the shape of a Letter page, not Obsidian's 800
+   px, so what is below it barely moves. Then its own height replaces this
+   (D-202). */
+.is-mobile .daily-note-block .daily-note-pdf .pdf-embed {
+    height: auto;
+    aspect-ratio: 8.5 / 11;
+}
+
 /* A card's border is a ring Bases draws just outside the card, where the grid
    ends. The view around the grid still cuts things off, in its padding. */
 .is-mobile .daily-note-block :is(.bases-cards-container, .bases-cards-group) {

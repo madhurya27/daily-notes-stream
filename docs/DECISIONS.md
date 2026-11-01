@@ -3794,3 +3794,29 @@ is 193–274 ms.
   picking a note keeps their order.
 - Reading `onScreen` to rank notes — it reports a frame late, and a glide can
   move hundreds of pixels in a frame.
+
+## D-202 — A note does not wait for its PDF to load (2026-11-01)
+
+**Decision:** a PDF on a line of its own is taken out of the note's Markdown,
+leaving a slot, and drawn there separately (`pdf-embeds.ts`). The note's draw
+waits only until the PDF's box is in place. On mobile, the box has the shape of
+a Letter page until the PDF's own height replaces it. A PDF inside a line of
+text is still drawn with its note.
+
+**Why:** `MarkdownRenderer.render` finishes only once the PDF has loaded, about
+400 ms for a 1 KB file on an iPad, with the note's text ready after 2 ms. The
+note stayed hidden and the queue waited, with frames still short. In four-stroke
+flicks through 30 notes with three Bases, a PDF and Mermaid each, on an iPad in
+portrait, the longest blank note fell from 800–928 ms to 0 ms. A reader now sees
+the text, and an empty box for up to about 800 ms, which `main` showed for up to
+1,564 ms when heights were forgotten, and not at all when they were remembered.
+Obsidian's 800 px box grew to 903 px on load, moving the text below by 103 px; a
+page's shape leaves 3 px. An A4 page will still grow by about 84 px.
+
+**Rejected:**
+
+- Not waiting for `MarkdownRenderer.render` at all, for every note — math and
+  Mermaid also wait in it, but what follows it (links, Bases, wide tables) needs
+  its result, so a note would show half finished.
+- Drawing each embed after the note's text — PDFs are nearly all of the wait.
+  Three Bases take 23 ms to render.

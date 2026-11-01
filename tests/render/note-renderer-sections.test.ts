@@ -195,6 +195,26 @@ describe("NoteRenderer, a note by section", () => {
         expect(render).toHaveBeenCalledTimes(10);
     });
 
+    // Today's note, drawn section by section, must not wait for its PDF either
+    // (D-202).
+    it("finishes a section with its PDF still loading", async () => {
+        renderer = makeRenderer(today);
+        vi.spyOn(MarkdownRenderer, "render")
+            .mockClear()
+            .mockImplementation((_app, markdown, el) => {
+                if (!markdown.includes("![[")) {
+                    el.innerHTML = markdown;
+                    return Promise.resolve();
+                }
+                el.createSpan({ cls: "pdf-embed" });
+                return new Promise(() => {});
+            });
+
+        await open(["Before.", "![[Manual.pdf]]", "After."]);
+
+        expect(document.body.querySelector(".daily-note-pdf .pdf-embed")).not.toBeNull();
+    });
+
     it("renders a note expected to be saved by section from the first, today's", async () => {
         renderer = makeRenderer(today);
         const render = renderParagraphs();

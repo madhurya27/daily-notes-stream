@@ -37,6 +37,84 @@ test("a PDF shows its first page without a toolbar, and a tap opens it", async (
     await expect.poll(() => phone.run(() => window.app.workspace.getActiveFile()?.path)).toBe("Attachments/Manual.pdf");
 });
 
+const PDF_DAY = FREE_DAYS[0].slice("Journal/".length, -".md".length);
+
+/**
+ * Opens the stream with a note holding a PDF on a free day for `body`, and puts
+ * the note back.
+ */
+async function withPdfNote<T>(phone: Phone, body: () => Promise<T>): Promise<T> {
+    const path = FREE_DAYS[0];
+    const original = await phone.writeNote(path, "Words first.\n\n![[Manual.pdf]]\n\nWords after.\n");
+    try {
+        await phone.openStream();
+        return await body();
+    } finally {
+        await phone.restoreNote(path, original);
+    }
+}
+
+// The note's text is there at once, and the queue does not wait for the PDF to
+// load (D-202).
+test("a note with a PDF finishes drawing before the PDF has loaded", async ({ phone }) => {
+    await withPdfNote(phone, async () => {
+        const path = FREE_DAYS[0];
+        await phone.run((path: string) => {
+            const { renderer } = window.app.workspace.getLeavesOfType("daily-notes-stream-view")[0]!.view.stream.window;
+            const renderInto = renderer.renderInto;
+            renderer.renderInto = async function (this: unknown, block: HTMLElement, ...rest: unknown[]) {
+                const drawn = await renderInto.call(this, block, ...rest);
+                if (block.dataset.sourcePath === path)
+                    (window as unknown as { pdfAtDrawn: unknown }).pdfAtDrawn = {
+                        words: block.textContent!.includes("Words after."),
+                        box: !!block.querySelector(".pdf-embed"),
+                        canvas: !!block.querySelector("canvas"),
+                        height: block.querySelector(".pdf-embed")!.getBoundingClientRect().height,
+                    };
+                return drawn;
+            };
+        }, path);
+
+        await phone.jumpTo(PDF_DAY);
+
+        const atDrawn = await phone.run(
+            () =>
+                (
+                    window as unknown as {
+                        pdfAtDrawn: { words: boolean; box: boolean; canvas: boolean; height: number };
+                    }
+                ).pdfAtDrawn
+        );
+        expect(atDrawn).toMatchObject({ words: true, box: true, canvas: false });
+        const note = `.daily-note-block[data-source-path="${path}"]`;
+        await expect
+            .poll(() => phone.run((pdf: string) => !!document.querySelector(pdf), `${note} .pdf-embed canvas`))
+            .toBe(true);
+        // Starting a page's shape, the text below it barely moves as it loads.
+        const loaded = await phone.run(
+            (box: string) => document.querySelector(box)!.getBoundingClientRect().height,
+            `${note} .pdf-embed`
+        );
+        expect(Math.abs(loaded - atDrawn.height), `from ${atDrawn.height} to ${loaded}`).toBeLessThan(10);
+    });
+});
+
+// A PDF now loads outside the queue, so its note can go away first. Every test
+// fails on an error in the console.
+test("closing the stream while a PDF loads logs no error", async ({ phone }) => {
+    await withPdfNote(phone, async () => {
+        await phone.runAsync(async (date: string) => {
+            const view = window.app.workspace.getLeavesOfType("daily-notes-stream-view")[0]!.view;
+            const moved = view.stream.jumpToDate(window.moment(date, "YYYY-MM-DD"));
+            const pdf = () => document.querySelector(".pdf-embed");
+            while (!pdf()) await new Promise(requestAnimationFrame);
+            window.app.workspace.detachLeavesOfType("daily-notes-stream-view");
+            await moved;
+        }, PDF_DAY);
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+    });
+});
+
 test("a video shows its thumbnail under a play button, and a tap opens it on YouTube", async ({ phone }) => {
     await phone.openStream();
     await phone.placeAt(VIDEO, -40);

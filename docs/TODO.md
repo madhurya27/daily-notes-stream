@@ -22,10 +22,14 @@ there is a screen recording of them (D-099).
       is, and draw the middle last. Once on an iPad in portrait, after a tap on
       the title, the long note's strip below the newest note stayed blank for
       about 320 ms, then showed the wrong part of the note for about 340 ms.
-- [ ] Stop a PDF holding up the queue: a note with one takes 400–460 ms to draw
-      on an iPad, with frames still short, so the queue is waiting rather than
-      the CPU working. With a PDF in each of 30 notes, a flick left the whole
-      screen blank for 867–1,002 ms, against 193–274 ms without PDFs (D-201).
+- [ ] A hard flick through notes about 9,000 px tall, each with three Bases,
+      moved what is on screen on an iPad in portrait. A note's tail and the note
+      below moved 284 px beyond the scroll in 2 of 12 runs, when the shift took
+      on more than the note grew (2,458 px for 2,173), and 180 px in 2 of 12.
+      Moves of about 4,900 px are a note growing upward, with its tail still, so
+      a reader does not see them. `followReader` also reported up to 4,728 px,
+      which frame data can't confirm: check with a screen recording.
+- [ ] A PDF inside a line of text still holds up the queue (D-202).
 - [ ] Order a long note's slices as notes are ordered (D-201): what is on screen
       and near it first, then what the scroll is heading for, and what it has
       passed last. Between slices, only notes on screen go first now, so a long

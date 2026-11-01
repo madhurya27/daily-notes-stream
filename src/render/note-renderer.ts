@@ -14,6 +14,7 @@ import {
     type PaneType,
     type View,
 } from "obsidian";
+import { extractPdfs, PDF_SLOT_CLASS, untilPdfBox } from "./pdf-embeds";
 import { CollapsibleManager, PROPERTIES_SECTION_KEY } from "./collapsible";
 import type { SearchHighlighter } from "./search-highlights";
 import { stackWideTables } from "./wide-tables";
@@ -251,6 +252,12 @@ interface DrawnNote {
 function withoutBases(source: string): { markdown: string; bases: BaseSource[] } {
     // Stryker disable next-line ArrayDeclaration: desktop leaves no slot, so nothing reads the list.
     return Platform.isMobile ? extractBases(source) : { markdown: source, bases: [] };
+}
+
+/** The note's Markdown to render, and what is drawn apart from it. */
+function apart(source: string): { markdown: string; bases: BaseSource[]; pdfs: string[] } {
+    const { markdown, pdfs } = extractPdfs(source);
+    return { ...withoutBases(markdown), pdfs };
 }
 
 function hasBases(source: string): boolean {
@@ -513,12 +520,31 @@ export class NoteRenderer {
     private async renderWhole(contentEl: HTMLElement, file: TFile, noteComponent: Component, markdown: string) {
         // On mobile, nothing in the stream may scroll (ADR 0008). Desktop
         // renders wide content as Obsidian does, scrolling in its own box.
-        const { markdown: body, bases } = withoutBases(markdown);
+        const { markdown: body, bases, pdfs } = apart(markdown);
         await MarkdownRenderer.render(this.app, body, contentEl, file.path, noteComponent);
         this.markUnresolvedLinks(contentEl);
+        await this.startPdfs(contentEl, pdfs, file, noteComponent);
         await this.finishNote(contentEl, file, noteComponent, bases);
         if (Platform.isMobile) fitWideEquations(contentEl, noteComponent, this.widths);
         wrapTextBesideBlocks(contentEl);
+    }
+
+    /**
+     * Starts drawing each of `pdfs` in its slot in `el`, and returns once each
+     * has its box. They load after that, outside the queue (D-202).
+     */
+    private async startPdfs(el: HTMLElement, pdfs: string[], file: TFile, component: Component): Promise<void> {
+        const slots = el.querySelectorAll<HTMLElement>(`.${PDF_SLOT_CLASS}`);
+        await Promise.all(
+            pdfs.map((pdf, index) => {
+                const slot = slots[index]!;
+                return untilPdfBox(slot, () =>
+                    MarkdownRenderer.render(this.app, pdf, slot, file.path, component).catch((error) =>
+                        console.error(`DailyNotesStream: Failed to draw a PDF in ${file.path}:`, error)
+                    )
+                );
+            })
+        );
     }
 
     /**
@@ -589,9 +615,10 @@ export class NoteRenderer {
     ): Promise<RenderedSection> {
         const component = noteComponent.addChild(new Component());
         const holder = contentEl.insertBefore(createDiv(), next);
-        const { markdown, bases } = withoutBases(source);
+        const { markdown, bases, pdfs } = apart(source);
         await MarkdownRenderer.render(this.app, markdown, holder, file.path, component);
         this.markUnresolvedLinks(holder);
+        await this.startPdfs(holder, pdfs, file, component);
         if (Platform.isMobile) fitWideEquations(contentEl, component, this.widths, holder);
         wrapTextBesideBlocks(holder);
         const nodes = Array.from(holder.childNodes);

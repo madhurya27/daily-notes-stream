@@ -1013,6 +1013,152 @@ describe("NoteRenderer internal links", () => {
     });
 });
 
+// The note's text is in place at once, and its PDF takes about 400 ms more to
+// load, which the queue must not wait for (D-202).
+describe("NoteRenderer draws a note without waiting for its PDF", () => {
+    /** Draws what it is given. A PDF gets its box, then never finishes. */
+    function renderWithPdfLoading() {
+        return vi
+            .spyOn(MarkdownRenderer, "render")
+            .mockClear()
+            .mockImplementation((_app, markdown, el) => {
+                if (!markdown.includes("![[")) {
+                    el.innerHTML = markdown;
+                    return Promise.resolve();
+                }
+                el.createSpan({ cls: "internal-embed pdf-embed", attr: { src: markdown } });
+                return new Promise(() => {});
+            });
+    }
+
+    function makeNoteRenderer(app: ReturnType<typeof makeApp>) {
+        return new NoteRenderer(
+            asApp(app),
+            new Component(),
+            makeCollapsible(),
+            makeSettings(),
+            new SearchHighlighter(),
+            new BaseMeasurements(),
+            new BacklinkIndex(() => ({}))
+        );
+    }
+
+    /** Draws what it is given. A PDF draws nothing, and finishes. */
+    function drawNoBoxes() {
+        vi.spyOn(MarkdownRenderer, "render")
+            .mockClear()
+            .mockImplementation(async (_app, markdown, el) => {
+                if (!markdown.includes("![[")) el.innerHTML = markdown;
+            });
+    }
+
+    const NOTE = new TFile("Notes/2025-01-01.md");
+
+    afterEach(() => vi.restoreAllMocks());
+
+    it("finishes with the PDF still loading, its box in place between the text", async () => {
+        renderWithPdfLoading();
+        const app = makeApp({ readResult: "Before.\n\n![[Manual.pdf]]\n\nAfter." });
+
+        const block = await renderNote(makeNoteRenderer(app), NOTE);
+
+        const content = block.querySelector(".daily-note-content")!;
+        expect(content.querySelector(".daily-note-pdf .pdf-embed")?.getAttribute("src")).toBe("![[Manual.pdf]]");
+        expect(content.textContent).toContain("Before.");
+        expect(content.textContent).toContain("After.");
+    });
+
+    // Its height is what the note is measured at, so the draw must not end
+    // before it.
+    it("waits for the box, past anything else the PDF adds first", async () => {
+        let paragraph: HTMLElement | null = null;
+        vi.spyOn(MarkdownRenderer, "render")
+            .mockClear()
+            .mockImplementation((_app, markdown, el) => {
+                if (!markdown.includes("![[")) {
+                    el.innerHTML = markdown;
+                    return Promise.resolve();
+                }
+                // Obsidian puts the box inside a paragraph.
+                paragraph = el.createEl("p");
+                return new Promise(() => {});
+            });
+        let finished = false;
+        const app = makeApp({ readResult: "![[Manual.pdf]]" });
+        const drawing = renderNote(makeNoteRenderer(app), NOTE).then(() => (finished = true));
+
+        await new Promise((resolve) => setTimeout(resolve));
+        expect(finished).toBe(false);
+
+        paragraph!.createSpan({ cls: "pdf-embed" });
+        await drawing;
+        expect(finished).toBe(true);
+    });
+
+    it("draws each PDF in its own place", async () => {
+        renderWithPdfLoading();
+        const app = makeApp({ readResult: "![[a.pdf]]\n\nBetween.\n\n![[b.pdf]]" });
+
+        const block = await renderNote(makeNoteRenderer(app), NOTE);
+
+        const boxes = [...block.querySelectorAll(".daily-note-pdf .pdf-embed")];
+        expect(boxes.map((box) => box.getAttribute("src"))).toEqual(["![[a.pdf]]", "![[b.pdf]]"]);
+    });
+
+    it("draws a PDF with its note's path and component", async () => {
+        const render = renderWithPdfLoading();
+        const app = makeApp({ readResult: "![[Manual.pdf]]" });
+
+        const block = renderNoteBlock();
+        const rendered = await makeNoteRenderer(app).renderInto(block, NOTE);
+
+        const pdfCall = render.mock.calls.find(([, markdown]) => markdown === "![[Manual.pdf]]")!;
+        expect(pdfCall[3]).toBe(NOTE.path);
+        expect(pdfCall[4]).toBe(rendered!.component);
+    });
+
+    function renderNoteBlock() {
+        return makeNoteRenderer(makeApp()).createBlock(NOTE);
+    }
+
+    // A file that is missing draws no box, and finishes.
+    it("finishes when a PDF draws no box", async () => {
+        drawNoBoxes();
+        const app = makeApp({ readResult: "![[missing.pdf]]" });
+
+        const block = await renderNote(makeNoteRenderer(app), NOTE);
+
+        expect(block.querySelector(".daily-note-pdf")).not.toBeNull();
+    });
+
+    it("stops watching for the box once the PDF has finished", async () => {
+        drawNoBoxes();
+        const disconnect = vi.spyOn(MutationObserver.prototype, "disconnect");
+
+        await renderNote(makeNoteRenderer(makeApp({ readResult: "![[missing.pdf]]" })), NOTE);
+
+        expect(disconnect).toHaveBeenCalled();
+    });
+
+    // It runs on after the note is drawn, so nothing else would catch it.
+    it("logs a PDF that fails, and keeps the note", async () => {
+        const failure = new Error("no such PDF");
+        vi.spyOn(MarkdownRenderer, "render")
+            .mockClear()
+            .mockImplementation((_app, markdown, el) => {
+                if (markdown.includes("![[")) return Promise.reject(failure);
+                el.innerHTML = markdown;
+                return Promise.resolve();
+            });
+        const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+
+        const block = await renderNote(makeNoteRenderer(makeApp({ readResult: "Words.\n\n![[bad.pdf]]" })), NOTE);
+
+        expect(logged).toHaveBeenCalledWith(`DailyNotesStream: Failed to draw a PDF in ${NOTE.path}:`, failure);
+        expect(block.querySelector(".daily-note-content")?.textContent).toContain("Words.");
+    });
+});
+
 // On a phone a PDF is a preview of its first page (D-083).
 describe("NoteRenderer PDF embeds", () => {
     async function renderPdf(app: ReturnType<typeof makeApp>) {
