@@ -583,6 +583,148 @@ describe("ScrollAnchor", () => {
         expect(shift(content)).toBe(100);
     });
 
+    describe("keepWhatFollows", () => {
+        it("keeps the next note still as the note before it shrinks", () => {
+            const { content, blocks, resize } = watch([400, 1000, 400], 900);
+
+            anchor.keepWhatFollows(blocks[1]!);
+            resize(blocks[1]!, 600);
+            anchor.resized();
+
+            expect(shift(content)).toBe(400);
+        });
+
+        it("keeps its place when no note follows", () => {
+            const { content, blocks, resize } = watch([400, 1000], 900);
+
+            anchor.keepWhatFollows(blocks[1]!);
+            resize(blocks[1]!, 600);
+            anchor.resized();
+
+            expect(shift(content)).toBe(0);
+        });
+
+        it("does nothing where the platform keeps the place itself", () => {
+            const parent = document.createElement("div");
+            const block = parent.createDiv();
+            parent.createDiv();
+
+            expect(() => new ScrollAnchor(new ViewTimers()).keepWhatFollows(block)).not.toThrow();
+        });
+
+        // Its layout may include a change that no resize has reported yet.
+        it("owes what already moved before it reads what follows", () => {
+            const { content, blocks, resize } = watch([400, 1000, 400], 900);
+
+            resize(blocks[0]!, 500);
+            anchor.keepWhatFollows(blocks[1]!);
+
+            expect(shift(content)).toBe(-100);
+        });
+    });
+
+    describe("readerMovedPane", () => {
+        const moved = (pane: HTMLElement) => {
+            pane.scrollTop += 50;
+            anchor.onScroll();
+        };
+
+        it("is false until the reader moves the pane", () => {
+            watch([400, 400], 100);
+
+            anchor.placed();
+
+            expect(anchor.readerMovedPane()).toBe(false);
+        });
+
+        it("is true once a finger moved the pane", () => {
+            const { pane } = watch([400, 400], 100);
+            anchor.placed();
+
+            anchor.fingerDown();
+            moved(pane);
+
+            expect(anchor.readerMovedPane()).toBe(true);
+        });
+
+        it("stays true in the glide after the finger lifts", () => {
+            const { pane } = watch([400, 400], 100);
+            anchor.placed();
+            anchor.fingerDown();
+            moved(pane);
+
+            anchor.fingerUp();
+            moved(pane);
+
+            expect(anchor.readerMovedPane()).toBe(true);
+        });
+
+        it("is true for a scroll with no finger, as a trackpad or mouse makes", () => {
+            const { pane } = watch([400, 400], 100);
+            anchor.placed();
+
+            moved(pane);
+
+            expect(anchor.readerMovedPane()).toBe(true);
+        });
+
+        it("stays false for a tap, which moves nothing", () => {
+            watch([400, 400], 100);
+            anchor.placed();
+
+            anchor.fingerDown();
+            anchor.onScroll();
+
+            expect(anchor.readerMovedPane()).toBe(false);
+        });
+
+        it("is false again once the stream sets the scroll", () => {
+            const { pane } = watch([400, 400], 100);
+            moved(pane);
+
+            pane.scrollTop += 50;
+            anchor.placed();
+            anchor.onScroll();
+
+            expect(anchor.readerMovedPane()).toBe(false);
+        });
+
+        it("is false again after detach", () => {
+            const { pane } = watch([400, 400], 100);
+            moved(pane);
+
+            anchor.detach();
+
+            expect(anchor.readerMovedPane()).toBe(false);
+        });
+
+        it("does not count a scroll the stream made to keep something in place", () => {
+            const { pane } = watch([400, 400], 100);
+            anchor.placed();
+
+            pane.scrollTop += 50;
+            anchor.streamScrolled();
+            anchor.onScroll();
+
+            expect(anchor.readerMovedPane()).toBe(false);
+        });
+
+        it("still counts the reader's scroll after one the stream made", () => {
+            const { pane } = watch([400, 400], 100);
+            anchor.placed();
+            pane.scrollTop += 50;
+            anchor.streamScrolled();
+
+            moved(pane);
+
+            expect(anchor.readerMovedPane()).toBe(true);
+        });
+
+        it("ignores the stream's scroll where the platform keeps the place itself", () => {
+            expect(() => new ScrollAnchor(new ViewTimers()).streamScrolled()).not.toThrow();
+        });
+    });
+
     it("holds the next note where the pane's top falls in the gap at the end of a note's content", () => {
         const { pane, blocks, add, resize } = watch([400, [], 400], 0);
         const body = add(blocks[1]!);

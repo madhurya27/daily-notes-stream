@@ -502,6 +502,11 @@ describe("NoteWindowManager remembered heights", () => {
 describe("NoteWindowManager holds a rendered note until it settles", () => {
     const heldHeight = (block: HTMLElement) => block.style.getPropertyValue("--daily-note-held-height");
 
+    const readerScrolled = () => {
+        const spy = vi.spyOn(ScrollAnchor.prototype, "readerMovedPane").mockReturnValue(true);
+        onTestFinished(() => spy.mockRestore());
+    };
+
     /**
      * Renders a block for FILE, which measured `remembered` before, if given.
      */
@@ -523,6 +528,107 @@ describe("NoteWindowManager holds a rendered note until it settles", () => {
 
         expect(heldHeight(block)).toBe("812px");
         expect(placeholderHeight(block)).toBe("");
+    });
+
+    // Held, a Base filling in moved the text at the pane's top, but not the
+    // next note, so keeping that text still moved the next note up (D-200).
+    it("holds nothing on a note the reader's scroll reached", async () => {
+        readerScrolled();
+
+        const { block } = await renderRemembering(812);
+
+        expect(heldHeight(block)).toBe("");
+    });
+
+    // It starts shorter than its saved height, so what is below it on screen
+    // would jump away and back as its Bases fill in. The pane is 0-800 px.
+    describe("after the reader scrolled, drawn at", () => {
+        async function heldDrawnAt(top: number, bottom: number) {
+            readerScrolled();
+            const heights = new NoteHeights();
+            heights.keep(LAYOUT, FILE.path, 812);
+            const scrollRoot = makeScrollRoot(800);
+            scrollRoot.getBoundingClientRect = () => ({ top: 0, bottom: 800 }) as DOMRect;
+            const { manager } = makeManager(makeRenderer(), () => 640, scrollRoot, heights);
+            const block = manager.add(FILE);
+            block.getBoundingClientRect = () => ({ top, bottom }) as DOMRect;
+            document.body.appendChild(block);
+            fire(observers.render, block, true);
+            await settle();
+            return heldHeight(block);
+        }
+
+        // Measured from the pane's top, wherever the pane is.
+        it("with most of it above a pane that starts lower down", async () => {
+            readerScrolled();
+            const heights = new NoteHeights();
+            heights.keep(LAYOUT, FILE.path, 812);
+            const scrollRoot = makeScrollRoot(800);
+            scrollRoot.getBoundingClientRect = () => ({ top: 100, bottom: 900 }) as DOMRect;
+            const { manager } = makeManager(makeRenderer(), () => 640, scrollRoot, heights);
+            const block = manager.add(FILE);
+            block.getBoundingClientRect = () => ({ top: -100, bottom: 200 }) as DOMRect;
+            document.body.appendChild(block);
+            fire(observers.render, block, true);
+            await settle();
+
+            expect(heldHeight(block)).toBe("");
+        });
+
+        it.each([
+            ["starting at the pane's top", 0, 100, "812px"],
+            ["crossing the pane's bottom", 700, 900, "812px"],
+            ["with most of it above the pane", -300, 100, ""],
+            ["with half of it above the pane", -100, 100, "812px"],
+            ["with most of it on screen, a rounding above the pane", -0.01, 300, "812px"],
+            ["ending at the pane's bottom", -900, 800, ""],
+            ["covering the pane", -100, 900, "812px"],
+            ["covering the pane, most of it above", -2000, 900, "812px"],
+            ["ending at the pane's top", -200, 0, ""],
+            ["starting at the pane's bottom", 800, 1000, ""],
+        ])("%s", async (_where, top, bottom, held) => {
+            expect(await heldDrawnAt(top, bottom)).toBe(held);
+        });
+    });
+
+    // Partly above the screen, it grows upward, so what follows stays still.
+    describe("after the reader scrolled, the anchor keeps what follows a note drawn", () => {
+        async function keptDrawnAt(top: number, bottom: number) {
+            readerScrolled();
+            const kept = vi.spyOn(ScrollAnchor.prototype, "keepWhatFollows");
+            onTestFinished(() => kept.mockRestore());
+            const scrollRoot = makeScrollRoot(800);
+            scrollRoot.getBoundingClientRect = () => ({ top: 0, bottom: 800 }) as DOMRect;
+            const { manager } = makeManager(makeRenderer(), () => 640, scrollRoot);
+            const block = manager.add(FILE);
+            block.getBoundingClientRect = () => ({ top, bottom }) as DOMRect;
+            document.body.appendChild(block);
+            fire(observers.render, block, true);
+            await settle();
+            return kept.mock.calls.length;
+        }
+
+        it.each([
+            ["with most of it above the pane", -300, 100, 1],
+            ["with half of it above the pane", -100, 100, 0],
+            ["ending at the pane's bottom", -900, 800, 1],
+            ["covering the pane", -100, 900, 0],
+            ["ending at the pane's top", -200, 0, 0],
+            ["starting at the pane's top", 0, 100, 0],
+        ])("%s", async (_where, top, bottom, calls) => {
+            expect(await keptDrawnAt(top, bottom)).toBe(calls);
+        });
+    });
+
+    // Drawn again in place, it empties first: not a change in its height.
+    it("holds a note drawn again in place, even after the reader scrolled", async () => {
+        const { manager, block } = await renderRemembering(undefined);
+        await vi.advanceTimersByTimeAsync(SETTLE_MS);
+        readerScrolled();
+
+        await manager.refresh(block);
+
+        expect(heldHeight(block)).toBe("640px");
     });
 
     // Holding a guessed height would leave a gap after a short note until it
@@ -655,6 +761,15 @@ describe("NoteWindowManager holds a rendered note until it settles", () => {
         manager.onTouch(block.firstElementChild);
 
         expect(heldHeight(block)).toBe("");
+    });
+
+    it("tells the anchor when the stream scrolled to keep something in place", () => {
+        const { manager } = makeManager();
+        const told = vi.spyOn(manager["anchor"], "streamScrolled");
+
+        manager.streamScrolled();
+
+        expect(told).toHaveBeenCalled();
     });
 
     // A finger on a bounce at the top keeps the bounce going, so the anchor

@@ -406,11 +406,11 @@ export class NoteStream {
         // Stryker disable StringLiteral: any placement except "start" centers.
         // Held from the first scroll: a Base hidden far away lays out again a
         // frame after it is shown, while the scroll is still settling.
-        this.letGoOfCentered = keepInPlace(range, "center", this.scrollRoot, this.blocks.el, this.timers);
+        this.letGoOfCentered = keepInPlace(range, "center", this.scrollRoot, this.blocks.el, this.timers, this.layout);
         await scrollIntoPlace(range, "center", this.scrollRoot, this.layout);
         // Held again, so it is kept for its full time after the scroll settles.
         this.letGoOfCentered();
-        this.letGoOfCentered = keepInPlace(range, "center", this.scrollRoot, this.blocks.el, this.timers);
+        this.letGoOfCentered = keepInPlace(range, "center", this.scrollRoot, this.blocks.el, this.timers, this.layout);
         // Stryker restore StringLiteral
     }
 
@@ -504,6 +504,7 @@ export class NoteStream {
         layoutChanges: () => this.window.layoutChanges,
         drain: () => this.enqueue(async () => {}),
         placed: () => this.window.placed(),
+        streamScrolled: () => this.window.streamScrolled(),
         handOver: () => this.window.handOver(),
     };
 

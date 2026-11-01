@@ -127,9 +127,10 @@ a Base fills in, an image loads. These parts keep the reader's place:
   measured in a layout gets a height that 90% of the heights measured there are
   below (D-092). It never gets more than its file size times the most pixels per
   byte of any note measured there (D-135).
-- `HeightHold` keeps a note at its earlier height while it is re-rendered. A
-  Base's box keeps a fixed height, the tallest it has been, until the Base
-  settles (D-095, D-159).
+- `HeightHold` keeps a note at its earlier height while it is re-rendered or
+  first drawn. In a glide, a note drawn off screen, or with only its tail on
+  screen, has no hold and grows as it fills in (D-200). A Base's box keeps a
+  fixed height, the tallest it has been, until the Base settles (D-095, D-159).
 - `NoteWindowManager` pins each rendered note, and only changes it in the same
   task in which it tells `ScrollAnchor`
   ([ADR 0013](adr/0013-pin-rendered-note-heights.md)). Once scrolling stops, it

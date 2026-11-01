@@ -70,6 +70,11 @@ export interface StreamLayout {
      */
     placed(): void;
     /**
+     * The scroll just moved to keep something in place. The reader did not move
+     * it, and the scroll anchor's place still holds.
+     */
+    streamScrolled(): void;
+    /**
      * Moves what the scroll anchor owes into the scroll. While the stream is
      * shifted, its notes are drawn away from where the scroll puts them.
      */
@@ -164,7 +169,8 @@ export function keepInPlace(
     placement: Placement,
     scrollEl: HTMLElement,
     stream: HTMLElement,
-    timers: ViewTimers
+    timers: ViewTimers,
+    layout: Pick<StreamLayout, "streamScrolled">
 ): () => void {
     const holder = elementOf(placed);
     let settle = 0;
@@ -174,8 +180,10 @@ export function keepInPlace(
     };
     const observer = new ResizeObserver(() => {
         if (!holder.isConnected) return letGo();
-        if (Math.abs(offsetFromPlace(placed, placement, scrollEl)) > SCROLL_TOLERANCE_PX)
+        if (Math.abs(offsetFromPlace(placed, placement, scrollEl)) > SCROLL_TOLERANCE_PX) {
             scrollToPlace(placed, placement, scrollEl);
+            layout.streamScrolled();
+        }
         waitForStill();
     });
     function letGo(): void {

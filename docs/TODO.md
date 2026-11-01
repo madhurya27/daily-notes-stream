@@ -17,16 +17,16 @@ there is a screen recording of them (D-099).
       short newest note before a long one near it" fails there every time, on
       `main` too (2026-10-30); landscape passes. Once fixed, tag the test
       `@portrait`.
-- [ ] "A glide owing the notes above hands over what it owes" (`jump.spec.ts`)
-      fails about 1 in 180 runs on the iPad in landscape: the text jumps 180 px.
-      In portrait it failed 2 of 13 runs, by 240 px, so it is not tagged
-      `@portrait` until this is fixed. It never showed with logging on (D-187).
 - [ ] Explain the moves that are left at the pane's top in hard flicks on the
       iPad (D-197): single reads as a note is first drawn, and before D-197 up
       to 898 px mid-glide. `jump.spec.ts` cannot limit hard flicks to 5 px of
       drift until `followReader` tells text below a Base the anchor holds, which
       has to move, from text that should not. The iPhone's 26-68 ms jump was not
       measured again.
+- [ ] `followReader` reads the stream's shift dropping to 0 as a handover. When
+      a size change above cancels the shift, it reports a drift the text never
+      made: 60 px on 2026-10-31 under a script's scroll, whose text moved only
+      with each step. It may be the 60 px seen once in `jump.spec.ts`.
 - [ ] `Transport destroyed`, from Obsidian's PDF viewer, failed a device test
       once in `search.spec.ts:196`. It may come from closing a view while a PDF
       loads; closing one during a draw did not log it in 2 tries.

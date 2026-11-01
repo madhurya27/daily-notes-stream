@@ -192,8 +192,8 @@ test.describe("linked mentions", () => {
     });
 
     // The footer reads the linking notes after the note draws. A note that the
-    // reader scrolls back to must not end up too short in between, or the text
-    // below it would jump on iOS.
+    // reader scrolls back to, drawn on screen, must not end up too short in
+    // between, or the text below it would jump on iOS (D-200).
     test("holds a note coming back into view at its height while its mentions are read", async ({ obsidian }) => {
         const { page } = obsidian;
         await footerOfNewest(page);
@@ -233,7 +233,7 @@ test.describe("linked mentions", () => {
             const seen: number[] = [];
             const observer = new ResizeObserver(() => seen.push(block.getBoundingClientRect().height));
             observer.observe(block);
-            document.querySelectorAll(".daily-note-block")[1]!.scrollIntoView({ block: "start" });
+            block.scrollIntoView({ block: "start" });
             await new Promise((resolve) => setTimeout(resolve, 2000));
             observer.disconnect();
             vault.cachedRead = read;

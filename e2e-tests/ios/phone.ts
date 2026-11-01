@@ -693,6 +693,20 @@ export class Phone {
                     }
                     current.base = { el, bottom, height, scrolled: scrolled() };
                 };
+                // What the anchor wrote to the scroll as it handed its shift
+                // over. A note above can grow before the next read, so a read
+                // may never see the shift at 0.
+                let handedOver = 0;
+                const anchor =
+                    window.app.workspace.getLeavesOfType("daily-notes-stream-view")[0]!.view.stream.window.anchor;
+                const settle = anchor.settle as () => void;
+                if (!settle) throw new Error("ScrollAnchor has no settle to follow.");
+                anchor.settle = function (this: unknown) {
+                    const before = pane.scrollTop;
+                    settle.call(this);
+                    handedOver += pane.scrollTop - before;
+                };
+                const stopHearingSettle = () => delete anchor.settle;
                 let eye = pick();
                 if (!eye) throw new Error(`No text at or below the pane's ${at}.`);
                 const unloaded = () => pane.querySelectorAll(".daily-note-block.is-unloaded").length;
@@ -703,6 +717,7 @@ export class Phone {
                     rendered: 0,
                     on: true,
                     heard: new AbortController(),
+                    stopHearingSettle,
                     /** How many reads it made before it lost its text. */
                     lostAfter: null as number | null,
                 };
@@ -722,7 +737,8 @@ export class Phone {
                     // The anchor moved its shift into the scroll. In a glide it
                     // carries on, a step of the scroll is in the same read.
                     const shift = parseFloat(stream.style.getPropertyValue("--daily-notes-scroll-shift")) || 0;
-                    const settled = shift === 0 ? -lastShift : 0;
+                    const settled = handedOver !== 0 ? handedOver : shift === 0 ? -lastShift : 0;
+                    handedOver = 0;
                     lastShift = shift;
                     unseen += settled;
                     const step = scroll - lastScroll - settled;
@@ -786,12 +802,14 @@ export class Phone {
                         rendered: number;
                         on: boolean;
                         heard: AbortController;
+                        stopHearingSettle: () => void;
                         lostAfter: number | null;
                     };
                 }
             ).streamReader;
             follow.on = false;
             follow.heard.abort();
+            follow.stopHearingSettle();
             const { drifts, moves, rendered, lostAfter } = follow;
             return { drifts, moves, rendered, lostAfter };
         });

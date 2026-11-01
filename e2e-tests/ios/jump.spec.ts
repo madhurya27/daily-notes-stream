@@ -105,7 +105,7 @@ const forgetFrames = (phone: Phone) =>
 // owed is moved into the scroll, and the text at the pane's top, which the
 // anchor holds, never jumps. Two strokes ended short of the stop in 8 of 8
 // glides on an iPad; three reach it.
-test("a glide owing the notes above hands over what it owes, the text never jumping", async ({ phone }) => {
+test("a glide owing the notes above hands over what it owes, the text never jumping @portrait", async ({ phone }) => {
     await phone.estimateShortAbove("2026-09-12");
     try {
         await phone.openStream();
@@ -127,6 +127,62 @@ test("a glide owing the notes above hands over what it owes, the text never jump
         await forgetFrames(phone);
         await phone.restoreHeights();
     }
+});
+
+/** Scrolls until `date`'s note is drawn, so the notes above have heights. */
+const scrollDownWithNoFinger = (phone: Phone, date: string) =>
+    phone.runAsync(async (path: string) => {
+        const stream = document.querySelector(".daily-notes-stream-container")!;
+        const pane = stream.parentElement!;
+        const block = () => stream.querySelector(`[data-source-path$="${path}.md"]:not(.is-unloaded)`);
+        for (let frame = 0; frame < 2000 && !block(); frame++) {
+            pane.scrollTop += 200;
+            await new Promise(requestAnimationFrame);
+        }
+    }, date);
+
+/**
+ * Moves the pane up with no touch, one step a frame, as a trackpad or mouse
+ * would: the tests cannot drive those. Returns the notes held while off screen.
+ */
+const scrollUpWithNoFinger = (phone: Phone) =>
+    phone.runAsync(async () => {
+        const stream = document.querySelector(".daily-notes-stream-container")!;
+        const pane = stream.parentElement!;
+        const heldOffScreen: string[] = [];
+        const heard = new MutationObserver((changes) => {
+            const { top, bottom } = pane.getBoundingClientRect();
+            for (const { target } of changes) {
+                const block = target as HTMLElement;
+                // A Base's box has a hold of its own, which is not the note's.
+                if (!block.dataset.sourcePath || !block.style.getPropertyValue("--daily-note-held-height")) continue;
+                const at = block.getBoundingClientRect();
+                if (at.bottom <= top || at.top >= bottom) heldOffScreen.push(block.dataset.sourcePath);
+            }
+        });
+        heard.observe(stream, { attributes: true, attributeFilter: ["style"], subtree: true });
+        for (let frame = 0; frame < 600 && pane.scrollTop > 0; frame++) {
+            pane.scrollTop -= 100;
+            await new Promise(requestAnimationFrame);
+        }
+        heard.disconnect();
+        return heldOffScreen;
+    });
+
+// A note drawn off screen grows as it fills in whatever moved the pane (D-200).
+// A script's steady scroll does not make the next note jump even with a hold,
+// so this checks the hold, not the text.
+test("a scroll with no finger holds no note off screen @portrait", async ({ phone }) => {
+    await phone.openStream();
+    await scrollDownWithNoFinger(phone, "2026-09-12");
+    await phone.jumpTo("2026-09-12");
+    await phone.followReader({ at: "top" });
+
+    const heldOffScreen = await scrollUpWithNoFinger(phone);
+
+    const { rendered } = await phone.stopFollowing();
+    expect(rendered, "notes above rendered during the scroll").toBeGreaterThan(0);
+    expect(heldOffScreen).toEqual([]);
 });
 
 /** Whether a glide has been stopped since `recordFrames`. */

@@ -3711,3 +3711,57 @@ search, which then ran on the closed view.
 - A longer stall time — it still fires for a render that never ends.
 - `this.register` for each timer — entries cannot be removed, so they would pile
   up until the view closes.
+- `FinalizationRegistry` — it runs at an unknown time, or never.
+- Frame waits on `ViewTimers` — they run once and check that they are still
+  needed.
+
+## D-200 — In a glide, a note drawn off screen grows as it fills in (2026-10-31)
+
+**Decision:** after the reader moved the pane, with a finger, a trackpad, a
+mouse or a key, a note drawn off screen, or with only its tail on screen, has no
+height hold. It starts at the height of what is drawn, and grows as its Bases
+and embeds fill in:
+
+- Above the screen, the scroll anchor cancels that, so it grows upward.
+- With its tail on screen, most of it above the pane, the anchor keeps what
+  follows it still as it is drawn, then the text at the pane's top, so it also
+  grows upward.
+- Below the screen, it grows downward.
+
+These are still held at the height they measured:
+
+- any other note on screen as it is drawn. With its start on screen, what is
+  below it would jump away and back, and growing upward would move its start off
+  screen. Covering the pane, keeping its end still would move it off screen.
+- any note drawn when the reader has not moved the pane since the stream set the
+  scroll, since Back and a jump are measured against the full height. Without a
+  hold, Back came back to the wrong note. The stream says which scrolls are its
+  own (`placed`, `streamScrolled`), and a test's script scroll counts as the
+  reader's.
+- a note drawn again in place, which empties first
+
+`followReader` hears the anchor's own handovers (`settle`), since a note can
+grow before the next read.
+
+**Why:** a hold keeps the next note in place while the text inside the note
+moves. Holding the text at the pane's top (D-197) then moved the next note up,
+by 60-300 px mid-glide, in 9 of 12 runs of `jump.spec.ts` on an iPad in
+portrait. It applies to anything that grows, not only Bases.
+
+**Known limit:** a setting changed within about 300 ms of a glide, with a note
+still growing upward, can come back up to the note's growth away (964 px in
+`empty-notes.spec.ts`, with a script scrolling). A reader cannot open a setting
+that fast.
+
+**Rejected:**
+
+- A spacer below the note's last Base, sized from the saved height — a blank in
+  the middle of the screen, chosen against on screenshots. It did not help with
+  the pane's top between two Bases, or with what is not a Base.
+- Remembering each Base's height (D-197) — more saved data.
+- Holding every note on screen as it is drawn — a glide often draws one crossing
+  the pane's top, and the next note moved up by 300 px in 3 of 12 runs.
+- Only a finger's scroll counting as the reader's — the next note still jumped
+  under a trackpad or mouse, which send no touch.
+- Following only the text at the pane's top in the test — it hid the next note
+  moving, and misread text that had just reached the top.

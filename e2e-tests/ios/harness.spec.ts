@@ -89,35 +89,39 @@ test("a stream opened from deep in it is at its top, over a long newest note", a
 
 // The follower checks every scrolling test. A recording showed this jump, and
 // no jump where a glide that owes stops (jump.spec.ts).
-test("the reader's follower reports a note above growing mid-glide, unshifted", async ({ phone }) => {
-    await phone.openStream();
-    await phone.flick("up");
-    await phone.followReader();
-    await phone.run(() => {
-        const pane = document.querySelector(".daily-notes-stream-container")!.parentElement!;
-        let heard = 0;
-        // A pinned block's size is not observed, so the anchor never hears
-        // about it (ADR 0013).
-        const grow = () => {
-            if (++heard < 5) return;
-            pane.removeEventListener("scroll", grow);
-            const paneTop = pane.getBoundingClientRect().top;
-            const above = [...pane.querySelectorAll<HTMLElement>(".daily-note-block.is-pinned")].find(
-                (block) => block.getBoundingClientRect().bottom < paneTop
-            )!;
-            const height = parseFloat(above.style.getPropertyValue("--daily-note-pinned-height"));
-            above.style.setProperty("--daily-note-pinned-height", `${height + 300}px`);
-        };
-        pane.addEventListener("scroll", grow);
+for (const at of ["middle", "top"] as const)
+    test(`the reader's follower at the pane's ${at} reports a note above growing mid-glide, unshifted`, async ({
+        phone,
+    }) => {
+        await phone.openStream();
+        await phone.flick("up");
+        await phone.followReader({ at });
+        await phone.run(() => {
+            const pane = document.querySelector(".daily-notes-stream-container")!.parentElement!;
+            let heard = 0;
+            // A pinned block's size is not observed, so the anchor never hears
+            // about it (ADR 0013).
+            const grow = () => {
+                if (++heard < 5) return;
+                pane.removeEventListener("scroll", grow);
+                const paneTop = pane.getBoundingClientRect().top;
+                const above = [...pane.querySelectorAll<HTMLElement>(".daily-note-block.is-pinned")].find(
+                    (block) => block.getBoundingClientRect().bottom < paneTop
+                )!;
+                const height = parseFloat(above.style.getPropertyValue("--daily-note-pinned-height"));
+                above.style.setProperty("--daily-note-pinned-height", `${height + 300}px`);
+            };
+            pane.addEventListener("scroll", grow);
+        });
+
+        await phone.flick("up");
+
+        const { drifts } = await phone.stopFollowing();
+        expect(
+            drifts.filter((drift) => Math.abs(drift - 300) <= 1).length,
+            `drifts: ${drifts.join(", ")}`
+        ).toBeGreaterThan(0);
     });
-
-    await phone.flick("up");
-
-    const { drifts } = await phone.stopFollowing();
-    expect(drifts.filter((drift) => Math.abs(drift - 300) <= 1).length, `drifts: ${drifts.join(", ")}`).toBeGreaterThan(
-        0
-    );
-});
 
 // Otherwise a test would pass on only the part of a glide the reader saw.
 test("the reader's follower fails when it loses its text", async ({ phone }) => {

@@ -427,6 +427,11 @@ export class NoteWindowManager {
         this.anchor.placed();
     }
 
+    /** The stream just moved the scroll to keep something in place. */
+    streamScrolled(): void {
+        this.anchor.streamScrolled();
+    }
+
     /**
      * Moves what the anchor owes into the scroll now, and draws the notes where
      * it puts them.
@@ -469,6 +474,7 @@ export class NoteWindowManager {
                 this.renderer.discard(rendered.component);
                 return;
             }
+            this.holdAtMeasuredHeight(block, window);
             this.filled(block, window, rendered);
         } finally {
             this.changes++;
@@ -624,12 +630,36 @@ export class NoteWindowManager {
                 this.runs.forgetSpacers(block);
                 return;
             }
+            this.settleHeight(block, window);
             this.filled(block, window, rendered);
         } finally {
             this.changes++;
             window.rendering = false;
             window.unloadWanted = false;
         }
+    }
+
+    /**
+     * What a note just drawn does until it settles. In a glide, a note off
+     * screen grows as it fills in. One with only its tail on screen, most of it
+     * above the pane, grows upward. Any other note on screen is held: what is
+     * below it would jump away and back, and keeping its end still would move
+     * its start off screen. Outside a glide, every note is held: a scroll the
+     * stream set was measured against its full height (D-200). Read from the
+     * layout: `onScreen` reports a frame late, and a glide can bring a note on
+     * screen in that frame.
+     */
+    private settleHeight(block: HTMLElement, window: NoteWindow): void {
+        if (!this.anchor.readerMovedPane()) {
+            this.holdAtMeasuredHeight(block, window);
+            return;
+        }
+        const { top, bottom } = block.getBoundingClientRect();
+        const pane = this.scrollRoot!.getBoundingClientRect();
+        if (bottom <= pane.top || top >= pane.bottom) return;
+        const tailOnScreen = bottom <= pane.bottom && pane.top - top > bottom - pane.top;
+        if (tailOnScreen) this.anchor.keepWhatFollows(block);
+        else this.holdAtMeasuredHeight(block, window);
     }
 
     /** `rendered` was drawn into `block`, which shows it from now on. */
@@ -819,22 +849,27 @@ export class NoteWindowManager {
 
     /**
      * While its height is held, the block cannot shrink, so a dip only shows in
-     * what was rendered inside it. Waiting for the note to stop changing starts
-     * once `footer` is rendered: the linked mentions read other notes first,
-     * and a pause while they do does not mean the note is done.
+     * what was rendered inside it.
+     */
+    private holdAtMeasuredHeight(block: HTMLElement, window: NoteWindow): void {
+        if (!window.measured) return;
+        const hold = new HeightHold(block, window.height, this.timers, () => {
+            // Released while the note is still rendered. The pin hid the drop
+            // until now.
+            if (window.hold !== hold) return;
+            window.hold = null;
+            this.repin(block);
+            this.anchor.released(block);
+        });
+        window.hold = hold;
+    }
+
+    /**
+     * Waiting for the note to stop changing starts once `footer` is rendered:
+     * the linked mentions read other notes first, and a pause while they do
+     * does not mean the note is done.
      */
     private watchSettling(block: HTMLElement, window: NoteWindow, footer: Promise<void>): void {
-        if (window.measured) {
-            const hold = new HeightHold(block, window.height, this.timers, () => {
-                // Released while the note is still rendered. The pin hid the
-                // drop until now.
-                if (window.hold !== hold) return;
-                window.hold = null;
-                this.repin(block);
-                this.anchor.released(block);
-            });
-            window.hold = hold;
-        }
         window.watched = Array.from(block.children);
         this.watch(window.watched);
         const { component } = window;

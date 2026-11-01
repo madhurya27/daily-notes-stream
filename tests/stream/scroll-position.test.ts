@@ -110,6 +110,7 @@ describe("scrollIntoPlace", () => {
             drain: vi.fn().mockResolvedValue(undefined),
             placed: vi.fn(),
             handOver: vi.fn(),
+            streamScrolled: vi.fn(),
         };
     }
 
@@ -314,6 +315,8 @@ describe("keepInPlace", () => {
     pane.appendChild(stream);
     document.body.appendChild(pane);
 
+    const layout = { streamScrolled: vi.fn() };
+
     /** A match 20px tall, centered at `center.at`, which a test can move. */
     function match(center: { at: number }) {
         const el = document.createElement("span");
@@ -326,6 +329,7 @@ describe("keepInPlace", () => {
     beforeEach(() => {
         vi.useFakeTimers();
         vi.stubGlobal("ResizeObserver", FakeResizeObserver);
+        layout.streamScrolled.mockClear();
     });
     afterEach(() => {
         vi.useRealTimers();
@@ -336,12 +340,31 @@ describe("keepInPlace", () => {
     it("centers it again when the stream grows above it", () => {
         const center = { at: 400 };
         const el = match(center);
-        keepInPlace(el, "center", pane, stream, new ViewTimers());
+        keepInPlace(el, "center", pane, stream, new ViewTimers(), layout);
 
         center.at = 6400;
         resized();
 
         expect(el.scrollIntoView).toHaveBeenCalledWith({ block: "center" });
+    });
+
+    // The reader did not move the pane, so a note drawn next is still held.
+    it("says the scroll is the stream's, not the reader's", () => {
+        const center = { at: 400 };
+        keepInPlace(match(center), "center", pane, stream, new ViewTimers(), layout);
+
+        center.at = 6400;
+        resized();
+
+        expect(layout.streamScrolled).toHaveBeenCalledOnce();
+    });
+
+    it("says nothing when it did not scroll", () => {
+        keepInPlace(match({ at: 400 }), "center", pane, stream, new ViewTimers(), layout);
+
+        resized();
+
+        expect(layout.streamScrolled).not.toHaveBeenCalled();
     });
 
     // A note with a remembered height is held at its full height. A Base
@@ -355,7 +378,7 @@ describe("keepInPlace", () => {
         const heading = section.createDiv().createEl("h3");
         heading.scrollIntoView = vi.fn();
         heading.getBoundingClientRect = () => ({ top: center.at - 10, bottom: center.at + 10 }) as DOMRect;
-        keepInPlace(heading, "center", pane, stream, new ViewTimers());
+        keepInPlace(heading, "center", pane, stream, new ViewTimers(), layout);
 
         center.at = 1300;
         resized(base);
@@ -372,7 +395,7 @@ describe("keepInPlace", () => {
         range.selectNodeContents(text);
         range.getBoundingClientRect = () => ({ top: center.at - 10, bottom: center.at + 10 }) as DOMRect;
         pane.scrollTop = 0;
-        keepInPlace(range, "center", pane, stream, new ViewTimers());
+        keepInPlace(range, "center", pane, stream, new ViewTimers(), layout);
 
         center.at = 1300;
         resized(base);
@@ -383,7 +406,7 @@ describe("keepInPlace", () => {
 
     it("leaves it alone while it is still in place", () => {
         const el = match({ at: 401 });
-        keepInPlace(el, "center", pane, stream, new ViewTimers());
+        keepInPlace(el, "center", pane, stream, new ViewTimers(), layout);
 
         resized();
 
@@ -392,7 +415,7 @@ describe("keepInPlace", () => {
 
     it("leaves it alone within two pixels of its place", () => {
         const el = match({ at: 402 });
-        keepInPlace(el, "center", pane, stream, new ViewTimers());
+        keepInPlace(el, "center", pane, stream, new ViewTimers(), layout);
 
         resized();
 
@@ -406,13 +429,13 @@ describe("keepInPlace", () => {
         const heading = section.createDiv().createEl("h3");
         heading.getBoundingClientRect = () => ({ top: 390, bottom: 410 }) as DOMRect;
 
-        keepInPlace(heading, "center", pane, stream, new ViewTimers());
+        keepInPlace(heading, "center", pane, stream, new ViewTimers(), layout);
 
         expect([...FakeResizeObserver.last.observed]).toEqual([stream, base]);
     });
 
     it("lets go once the stream is still", () => {
-        keepInPlace(match({ at: 400 }), "center", pane, stream, new ViewTimers());
+        keepInPlace(match({ at: 400 }), "center", pane, stream, new ViewTimers(), layout);
 
         vi.advanceTimersByTime(SETTLE_MS);
 
@@ -420,7 +443,7 @@ describe("keepInPlace", () => {
     });
 
     it("keeps holding while the stream keeps resizing", () => {
-        keepInPlace(match({ at: 400 }), "center", pane, stream, new ViewTimers());
+        keepInPlace(match({ at: 400 }), "center", pane, stream, new ViewTimers(), layout);
 
         vi.advanceTimersByTime(SETTLE_MS - 1);
         resized();
@@ -430,7 +453,7 @@ describe("keepInPlace", () => {
     });
 
     it("lets go when stopped", () => {
-        const stop = keepInPlace(match({ at: 400 }), "center", pane, stream, new ViewTimers());
+        const stop = keepInPlace(match({ at: 400 }), "center", pane, stream, new ViewTimers(), layout);
 
         stop();
 
@@ -441,7 +464,7 @@ describe("keepInPlace", () => {
     it("lets go of an element no longer in the stream", () => {
         const center = { at: 400 };
         const el = match(center);
-        keepInPlace(el, "center", pane, stream, new ViewTimers());
+        keepInPlace(el, "center", pane, stream, new ViewTimers(), layout);
 
         el.remove();
         center.at = 6400;

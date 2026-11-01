@@ -179,6 +179,35 @@ export class ScrollAnchor {
     }
 
     /**
+     * `block`, which crosses the pane's top, is about to change height. It
+     * grows upward, so what follows it is kept still (D-200).
+     */
+    keepWhatFollows(block: HTMLElement): void {
+        const next = block.nextElementSibling;
+        if (!this.scrollRoot || !next) return;
+        this.hold();
+        this.place = this.placeOf(this.stream!, next);
+        this.reflowPlace = this.place;
+    }
+
+    /**
+     * Whether the reader moved the pane since the stream last set the scroll,
+     * with a finger, a trackpad, a mouse or a key. The stream's own scrolls say
+     * so, through `placed` and `streamScrolled`.
+     */
+    readerMovedPane(): boolean {
+        return this.readerScrolled;
+    }
+
+    /**
+     * The stream just moved the scroll to keep something in place. The scroll
+     * event that follows is not the reader's.
+     */
+    streamScrolled(): void {
+        if (this.scrollRoot) this.stepFrom = this.scrollRoot.scrollTop;
+    }
+
+    /**
      * `block`'s height only changes when it is re-pinned, which calls
      * `resized()` (ADR 0013). If it were observed, its report would come one
      * round after the report of the content that caused it, and WebKit logs

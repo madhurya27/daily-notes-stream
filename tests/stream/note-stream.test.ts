@@ -57,6 +57,7 @@ vi.mock("../../src/stream/note-window", () => ({
         onFingerUp = vi.fn();
         refresh = vi.fn().mockResolvedValue(undefined);
         placed = vi.fn();
+        streamScrolled = vi.fn();
         handOver = vi.fn();
         clock = {};
         layoutChanges = 0;
@@ -1592,6 +1593,13 @@ describe("what a search moves through", () => {
             resized();
 
             expect(pane.scrollTop).toBe(6000);
+        });
+
+        // The reader did not move the pane, so a note drawn next is still held.
+        it("tells the window the scroll is the stream's", () => {
+            resized();
+
+            expect(noteWindow.streamScrolled).toHaveBeenCalled();
         });
 
         it("is let go once another is readied", async () => {
