@@ -11,12 +11,6 @@ there is a screen recording of them (D-099).
 - [ ] Remove the outline Obsidian draws around a property under the pointer: it
       suggests the property can be edited, which the read-only stream doesn't
       allow. Check desktop and the phone layout.
-- [ ] On an iPad in portrait, a tap on the title leaves the top blank for about
-      0.75 s: a long note near the top renders 7 slices before the short newest
-      note is drawn (ADR 0020). `header.spec.ts` "a tap on the title draws a
-      short newest note before a long one near it" fails there every time, on
-      `main` too (2026-10-30); landscape passes. Once fixed, tag the test
-      `@portrait`.
 - [ ] `followReader` reads the stream's shift dropping to 0 as a handover. When
       a size change above cancels the shift, it reports a drift the text never
       made: 60 px on 2026-10-31 under a script's scroll, whose text moved only
@@ -24,6 +18,19 @@ there is a screen recording of them (D-099).
 - [ ] `Transport destroyed`, from Obsidian's PDF viewer, failed a device test
       once in `search.spec.ts:196`. It may come from closing a view while a PDF
       loads; closing one during a draw did not log it in 2 tries.
+- [ ] Scrolling up to a note while a long note below it still draws from its end
+      leaves that note's top, now on screen, to be drawn last (ADR 0022).
+      Measure the blank when flicking up through a 10,000-line note and with a
+      tap on the title from inside it, including two long notes next to each
+      other. If a reader would see it, choose the next run by where the reader
+      is, and draw the middle last. Once on an iPad in portrait, after a tap on
+      the title, the long note's strip below the newest note stayed blank for
+      about 320 ms, then showed the wrong part of the note for about 340 ms.
+- [ ] A short note on screen waits for short notes off screen that came into
+      range before it: scrolling up from note 10 to note 2 draws 5, 4 and 3
+      first. Measure the wait on a hard flick. If a reader would see it, draw
+      the waiting notes on screen before any note off screen, which ADR 0020
+      does only between a long note's slices.
 - [ ] Try adding the e2e tests to CI on Linux.
 - [ ] Once the directory's scorecard lint understands moment's types, go back to
       Obsidian's `moment` and delete `src/notes/moment.ts` (D-152).
@@ -44,7 +51,8 @@ Measured and accepted. Opened again if a reader notices.
       with heights remembered, and 3 of 6 with them forgotten. Rendering notes
       up to 3 panes away was not clearly better. Other blank moments are over
       text already rendered, and Obsidian's own reading view shows those too (up
-      to 185 ms).
+      to 185 ms). A note not yet drawn shows nothing at all; its date in the
+      empty box might look less like a failure, with no drawing cost.
 - [ ] On the iPad, a glide that renders a note with many Bases leaves part of
       the screen black for about 0.3 s. Longest late frame (2026-10-26):
     - eight Bases: 359 ms, filmed black for 280 ms. Three: 124 ms. One or two:

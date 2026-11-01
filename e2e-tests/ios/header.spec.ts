@@ -101,12 +101,15 @@ const CASES = [
             [3, 1000],
         ],
         measured: true,
+        details: {},
     },
     {
         // Under a short newest note, a long note never measured is within the
         // rendering distance when the glide ends, and it rendered to its end
         // first. On an iPhone: 333–341 ms, and 44–49 ms once a note on screen
-        // is rendered before it.
+        // is rendered before it. In a tall pane, the long note is on screen
+        // below the newest, which waited 0.7 s until a note gave way to one
+        // above it.
         name: "a tap on the title draws a short newest note before a long one near it",
         notes: [
             [0, 30],
@@ -114,6 +117,7 @@ const CASES = [
             [3, 1000],
         ],
         measured: false,
+        details: { tag: "@portrait" },
     },
 ] as const;
 
@@ -121,8 +125,8 @@ const CASES = [
 // blank was other notes rendering first, so this counts their slices (ADR
 // 0020) while the top was blank. The slice running when the glide arrives may
 // finish first.
-for (const { name, notes, measured } of CASES)
-    test(name, async ({ phone }) => {
+for (const { name, notes, measured, details } of CASES)
+    test(name, details, async ({ phone }) => {
         const written = await writeNotes(phone, notes);
         try {
             if (!measured) await phone.forgetHeights();

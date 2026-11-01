@@ -19,10 +19,11 @@ rendered, is rendered one section at a time, as before (ADR 0019). Between runs,
 once 25 ms have been used, the renderer gives the thread back through a timer,
 so everything already waiting runs first. If the note leaves the screen in the
 meantime, it stops at its next slice and stays empty. If it is removed from the
-document, it stops drawing. A note that is off the screen lets any note waiting
-on the screen draw between its slices, then carries on where it stopped. The
-block stays clipped at its reserved or pinned height until the note is drawn, so
-nothing moves in the meantime. A note whose sections cannot stand on their own
+document, it stops drawing. Between its slices, a note off the screen lets any
+note waiting on the screen draw, and a note on the screen lets those waiting on
+the screen above it draw. Then it carries on where it stopped. The block stays
+clipped at its reserved or pinned height until the note is drawn, so nothing
+moves in the meantime. A note whose sections cannot stand on their own
 (ADR 0019) is still rendered in one call.
 
 ## Consequences
@@ -37,6 +38,9 @@ nothing moves in the meantime. A note whose sections cannot stand on their own
   measured, the glide ended with the long note within the rendering distance,
   and the long note rendered to its end first. On an iPhone, the newest note
   waited 286–341 ms, and now waits 44–49 ms.
+- In a tall pane, a short newest note leaves the top of the long note below it
+  on the screen. On an iPad in portrait, the newest note waited about 660 ms
+  behind 7 of its slices, and now waits for at most one.
 - Below 6,000 characters, rendering all at once blocks the thread no longer than
   a slice does, and finishes sooner. At phone speed (D-131), a 5,900-character
   note blocks the thread for 26–27 ms rendered all at once, against 25–26 ms for
@@ -66,5 +70,11 @@ nothing moves in the meantime. A note whose sections cannot stand on their own
   there is no idle time.
 - **Starting again a note that gave way to another** — loses the slices already
   drawn.
+- **A note on the screen giving way to any other on the screen** — the other
+  could be a long note just showing at the bottom, and this one would wait for
+  all of it, with perhaps one slice drawn.
+- **Never unloading the newest note** — it fixes only a tap on the title, not a
+  short note reached above a long one anywhere else. A long newest note would
+  stay in memory, with its embeds running.
 - **Hiding the note until it is drawn** — a blank note for seconds, where the
   top could already be read.

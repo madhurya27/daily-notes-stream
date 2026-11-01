@@ -90,7 +90,8 @@ rebuild, runs through one promise queue, so none interleaves at an `await`
   6,000 characters or more is rendered in groups of sections, and a shorter one
   is rendered all at once. Either way, after each section or group, the renderer
   gives the thread back once it has used up its slice of time (`time-slice.ts`).
-  A note off the screen lets a note waiting on the screen be drawn first
+  A note off the screen lets a note waiting on the screen be drawn first, and a
+  note on the screen lets one waiting above it
   ([ADR 0020](adr/0020-render-long-notes-in-slices.md)).
 - Taps and clicks on titles, links and fold arrows are handled by one listener
   for each kind of gesture, on the stream's container. The view is the hover

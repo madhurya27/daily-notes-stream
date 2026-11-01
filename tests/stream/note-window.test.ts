@@ -2769,7 +2769,24 @@ describe("NoteWindowManager draws the notes on screen first", () => {
         expect(isRendered(short)).toBe(true);
     });
 
-    it("keeps drawing a long note on screen itself", async () => {
+    // In a tall pane, a short newest note leaves the top of a long note on
+    // screen below it. The top stayed blank for 0.7 s on an iPad in portrait.
+    it("draws a note on screen above a long note on screen between its slices", async () => {
+        const { long, short } = setUp();
+        document.body.append(short, long);
+        fire(observers.render, long, true);
+        fire(observers.screen, long, true);
+        await vi.advanceTimersByTimeAsync(5);
+        fire(observers.render, short, true);
+        fire(observers.screen, short, true);
+        await drawAll();
+
+        expect(drawn).toEqual([LONG.path, SHORT.path, LONG.path, LONG.path]);
+    });
+
+    // The note below could be long too, and the one on screen would wait for
+    // all of it, with only one slice drawn.
+    it("keeps drawing a long note on screen ahead of a note on screen below it", async () => {
         const { long, short } = setUp();
         fire(observers.render, long, true);
         fire(observers.screen, long, true);

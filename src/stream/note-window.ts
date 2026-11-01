@@ -43,6 +43,9 @@ const FAR = "is-far";
  */
 const MIN_VIEWPORT_PX = 400;
 
+const isAbove = (block: HTMLElement, other: HTMLElement): boolean =>
+    (block.compareDocumentPosition(other) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0;
+
 interface NoteWindow extends Reserving {
     /**
      * Not null exactly while the block holds rendered content.
@@ -591,9 +594,8 @@ export class NoteWindowManager {
             if (window.unloadWanted) return;
 
             // Between the slices of a long note, it stops if it has gone out of
-            // range, so the note the reader stopped on is drawn next. And a
-            // note on screen is drawn before one that is only near it (ADR
-            // 0020).
+            // range, so the note the reader stopped on is drawn next. And
+            // other notes on screen may be drawn first (ADR 0020).
             const rendered = await warnIfStalled(
                 `Drawing ${window.file.path}`,
                 () =>
@@ -605,7 +607,7 @@ export class NoteWindowManager {
                             // top part may still grow.
                             if (block.hasClass(DRAWING_FROM_END))
                                 this.hideFarRunsOf(block, this.renderer.runsOf(note).slice(1));
-                            if (!this.onScreen.has(block)) await this.renderWaitingOnScreen();
+                            await this.renderWaitingBefore(block);
                             return !window.unloadWanted;
                         },
                         window.order ?? this.orderFor(block)
@@ -691,13 +693,17 @@ export class NoteWindowManager {
         const note = block.getBoundingClientRect();
         return note.top + note.bottom < root.top + root.bottom ? "from-end" : "from-start";
     }
+
     /**
-     * Still inside the queue's task, so no other change runs meanwhile (ADR
-     * 0004).
+     * Renders the notes on screen that go before `drawing`: any of them if it
+     * is off screen, and those above it if it is on screen. One below it may be
+     * long, and `drawing` would wait for all of it. Still inside the queue's
+     * task, so no other change runs meanwhile (ADR 0004).
      */
-    private async renderWaitingOnScreen(): Promise<void> {
+    private async renderWaitingBefore(drawing: HTMLElement): Promise<void> {
         for (const block of [...this.waiting.keys()]) {
-            if (this.onScreen.has(block)) await this.renderWaiting(block);
+            if (!this.onScreen.has(block)) continue;
+            if (!this.onScreen.has(drawing) || isAbove(block, drawing)) await this.renderWaiting(block);
         }
     }
 
