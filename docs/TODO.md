@@ -17,12 +17,6 @@ there is a screen recording of them (D-099).
       short newest note before a long one near it" fails there every time, on
       `main` too (2026-10-30); landscape passes. Once fixed, tag the test
       `@portrait`.
-- [ ] Explain the moves that are left at the pane's top in hard flicks on the
-      iPad (D-197): single reads as a note is first drawn, and before D-197 up
-      to 898 px mid-glide. `jump.spec.ts` cannot limit hard flicks to 5 px of
-      drift until `followReader` tells text below a Base the anchor holds, which
-      has to move, from text that should not. The iPhone's 26-68 ms jump was not
-      measured again.
 - [ ] `followReader` reads the stream's shift dropping to 0 as a handover. When
       a size change above cancels the shift, it reports a drift the text never
       made: 60 px on 2026-10-31 under a script's scroll, whose text moved only
