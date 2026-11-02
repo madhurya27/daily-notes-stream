@@ -307,6 +307,27 @@ test("the reader's follower counts the anchor keeping its fraction of a Base as 
     expect(Math.max(...drifts.map(Math.abs)), `drifts: ${drifts.join(", ")}`).toBeLessThan(5);
 });
 
+// A note that is no longer drawn keeps its text in the page, hidden, and hidden
+// text measures at the window's top. That is no move of the text.
+test("the reader's follower moves on from text that is hidden, reporting no drift", async ({ phone }) => {
+    await phone.openStream();
+    await phone.flick("up");
+    await phone.followReader();
+
+    await phone.runAsync(async () => {
+        const pane = document.querySelector(".daily-notes-stream-container")!.parentElement!;
+        const { top, height } = pane.getBoundingClientRect();
+        const text = [...pane.querySelectorAll<HTMLElement>(".daily-note-content > *")].find(
+            (el) => el.getBoundingClientRect().bottom > top + height / 2
+        )!;
+        text.style.display = "none";
+        for (let frames = 0; frames < 3; frames++) await new Promise(requestAnimationFrame);
+    });
+
+    const { drifts } = await phone.stopFollowing();
+    expect(Math.max(...drifts.map(Math.abs)), `drifts: ${drifts.join(", ")}`).toBeLessThan(5);
+});
+
 // Otherwise a test would pass on only the part of a glide the reader saw.
 test("the reader's follower fails when it loses its text", async ({ phone }) => {
     await phone.openStream();

@@ -31,9 +31,6 @@ there is a screen recording of them (D-099).
       text up, and the anchor holds the text, which moves the tail and the next
       note down: 128 px in 1 of 8 hard flicks. With its tail on screen, the note
       could hold its tail instead.
-- [ ] `followReader` cannot see a jump of the whole stream: it counts the move
-      as scrolling. It also reads `top: 0` once from text whose note is no
-      longer drawn, which reported 7,967 px for one read (D-204).
 - [ ] A PDF inside a line of text still holds up the queue (D-202).
 - [ ] Order a long note's slices as notes are ordered (D-201): what is on screen
       and near it first, then what the scroll is heading for, and what it has

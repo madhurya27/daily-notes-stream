@@ -3906,3 +3906,23 @@ diagram by its `viewBox`, so there is no scroll container for ADR 0008 to stop.
 
 **Known limits, both Pele's:** after a pan, the first tap on reset is ignored.
 On a diagram taller than the screen, the zoom toolbar can be off screen.
+
+## D-207 — The iOS follower reports a scroll that iOS undoes (2026-11-02)
+
+**Decision:** `followReader` treats a step back by what the anchor just handed
+over under a finger, within 100 ms, as iOS undoing the write, if the amount is
+over twice the scroll's last step and the step matches it to within two of those
+steps. The text's move then counts as drift. Text with no client rects is
+dropped for the text then at its line, with no read reported.
+
+**Why:** forced under a finger on an iPad, the anchor's write of 1,702 px showed
+for one frame, then the scroll went back by 1,709 px. The follower took that for
+scrolling and reported no drift for the jump of D-204. Hidden text measures at
+the window's top, which reported 7,967 px for one read in a filmed flick.
+
+**Rejected:**
+
+- The same rule without the finger — a script's scroll and a glide's handover
+  matched it, failing `harness.spec.ts:205` and `jump.spec.ts:126`.
+- Reading the scroll a frame later to count a handover — every read until then
+  would mix the handover with the scroll's steps.

@@ -397,6 +397,52 @@ test("a finger landing as the stream's wait ends moves the text only with the fi
     }
 });
 
+// The same dropped scroll, with the stream's wait for the finger taken away.
+// iOS undoes the write, which looks like a scroll back by all that was handed
+// over, and the follower must not take it for one.
+test("the reader's follower reports the jump when iOS drops a scroll set under a finger", async ({ phone }) => {
+    await phone.estimateShortAbove("2026-09-12");
+    try {
+        await phone.openStream();
+        await phone.jumpTo("2026-09-12");
+        await phone.run(() => {
+            const anchor = window.app.workspace.getLeavesOfType("daily-notes-stream-view")[0]!.view.stream.window
+                .anchor as unknown as HeldAnchor;
+            (window as unknown as { heldWait: HeldAnchor["settleOnceStill"] }).heldWait = anchor.settleOnceStill;
+            anchor.settleOnceStill = Object.assign(() => {}, { cancel: () => {}, run: () => {} });
+        });
+        // A flick may meet only notes of the height estimated for them.
+        for (let flicks = 0; flicks < 4 && Math.abs(await owedNow(phone)) <= MOVED_WITH_FINGER; flicks++)
+            await phone.flick("down", 1);
+        expect(Math.abs(await owedNow(phone)), "the flicks left the stream owing").toBeGreaterThan(MOVED_WITH_FINGER);
+        await phone.followReader();
+
+        await phone.run(() => {
+            const anchor = window.app.workspace.getLeavesOfType("daily-notes-stream-view")[0]!.view.stream.window
+                .anchor as unknown as HeldAnchor & { settle: () => void; settleUnlessTouching: () => void };
+            const wait = (window as unknown as { heldWait: HeldAnchor["settleOnceStill"] }).heldWait;
+            anchor.settleUnlessTouching = () => anchor.settle();
+            document.addEventListener(
+                "touchstart",
+                () => {
+                    anchor.settleOnceStill = wait;
+                    setTimeout(() => {
+                        wait();
+                        wait.run();
+                    }, 100);
+                },
+                { once: true, passive: true }
+            );
+        });
+        await phone.flick("down", 1, { share: 0.2, ms: 400 });
+
+        const { drifts } = await phone.stopFollowing();
+        expect(Math.max(...drifts.map(Math.abs)), `drifts: ${drifts.join(", ")}`).toBeGreaterThan(MOVED_WITH_FINGER);
+    } finally {
+        await phone.restoreHeights();
+    }
+});
+
 // A long note is drawn from its end, then laid out from its start. Read after
 // that, the anchor held its text, then the next note where that left it, so all
 // of what was on screen moved: 120-297 px in hard flicks (D-203).

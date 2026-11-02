@@ -603,7 +603,8 @@ export class Phone {
      *
      * A Base on screen above the text that changes size moves it, by as much
      * as the Base changed: Bases draws a table's rows as it comes on screen.
-     * That is no drift.
+     * That is no drift. A scroll the anchor set that iOS then undoes is: the
+     * text moved with nothing to explain it (D-207).
      */
     async followReader({ at = "middle" }: { at?: "middle" | "top" } = {}): Promise<void> {
         await this.run(
@@ -645,6 +646,19 @@ export class Phone {
                         Math.sign(moved) === -Math.sign(glide) &&
                         Math.abs(moved) <= Math.abs(glide) + 1);
                 const scrolled = () => pane.scrollTop - unseen;
+                /** What the anchor last handed over under a finger and when. */
+                let handover = { amount: 0, at: 0 };
+                /**
+                 * iOS shows a scroll set under a finger for a frame, then
+                 * undoes it (D-204). A finger does not take a step back by just
+                 * what was handed over, give or take its own steps, when that
+                 * is over twice its last step.
+                 */
+                const undoesHandover = (step: number) =>
+                    performance.now() - handover.at < 100 &&
+                    handover.amount !== 0 &&
+                    Math.abs(handover.amount) > 2 * Math.abs(glide) &&
+                    Math.abs(step + handover.amount) <= 2 * Math.abs(glide) + 2;
                 // Below the screen too: a Base may fill it below the line.
                 const pick = () => {
                     const at = [...pane.querySelectorAll(blocks)].find(
@@ -676,6 +690,12 @@ export class Phone {
                  * one on screen in the read that it grows.
                  */
                 const lastRead = new Map<Element, { bottom: number; height: number; scrolled: number }>();
+                const remember = (el: Element) => {
+                    const { bottom, height } = el.getBoundingClientRect();
+                    lastRead.set(el, { bottom, height, scrolled: scrolled() });
+                };
+                // From the start: a Base may change before the first read.
+                pane.querySelectorAll(".daily-note-base").forEach(remember);
                 /**
                  * Adds to `pushed` how far each Base above the text, with its
                  * end on screen, moved apart from the scroll since the last
@@ -691,7 +711,7 @@ export class Phone {
                             const grew = height - before.height;
                             current.pushed += Math.min(Math.max(moved, Math.min(grew, 0)), Math.max(grew, 0));
                         }
-                        lastRead.set(el, { bottom, height, scrolled: scrolled() });
+                        remember(el);
                     }
                 };
                 // What the anchor moved from its shift into the scroll. Heard,
@@ -699,14 +719,17 @@ export class Phone {
                 // next read, so a read may never see the shift at 0, and a size
                 // change above can take the shift to 0 with nothing written.
                 let handedOver = 0;
+                let handedUnderFinger = false;
                 const anchor =
                     window.app.workspace.getLeavesOfType("daily-notes-stream-view")[0]!.view.stream.window.anchor;
                 const settle = anchor.settle as () => void;
                 if (!settle) throw new Error("ScrollAnchor has no settle to follow.");
                 anchor.settle = function (this: unknown) {
                     const before = pane.scrollTop;
+                    const touched = anchor.touching as boolean;
                     settle.call(this);
                     handedOver += pane.scrollTop - before;
+                    handedUnderFinger = touched;
                 };
                 const stopGlide = anchor.stopGlide as (scrollTop: number) => void;
                 if (!stopGlide) throw new Error("ScrollAnchor has no stopGlide to follow.");
@@ -762,11 +785,23 @@ export class Phone {
                     const settled = handedOver;
                     handedOver = 0;
                     unseen += settled;
-                    const step = scroll - lastScroll - settled;
+                    let step = scroll - lastScroll - settled;
                     lastScroll = scroll;
+                    if (settled !== 0) handover = { amount: handedUnderFinger ? settled : 0, at: performance.now() };
+                    else if (undoesHandover(step)) {
+                        unseen -= handover.amount;
+                        handover = { amount: 0, at: 0 };
+                        step = 0;
+                    }
                     follow.rendered = Math.max(follow.rendered, follow.unloaded - unloaded());
                     const block = pane.querySelector(`.daily-note-block[data-source-path="${eye.path}"]`);
                     const at = block?.querySelectorAll(eye.kind)[eye.index];
+                    // Its note is no longer drawn. Hidden text measures at the
+                    // window's top, which is no move of the text.
+                    if (at && at.getClientRects().length === 0) {
+                        repick();
+                        return true;
+                    }
                     // Another part is in its place: its note is being drawn
                     // again, and has not reached it yet.
                     const text = at?.textContent === eye.text ? at : null;
