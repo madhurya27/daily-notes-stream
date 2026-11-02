@@ -3841,3 +3841,22 @@ Base filling in on screen still moves what is below it, as it must.
 
 - Holding the note at its old height until its Bases fill in — D-200 rejected
   holds for these notes, because the text inside them still moves.
+
+## D-204 — The anchor waits for a finger to lift before setting the scroll (2026-11-01)
+
+**Decision:** when the wait for stillness ends with a finger on the pane, the
+shift stays. `fingerUp` starts the wait again if anything is still owed.
+
+**Why:** iOS drops a scroll set after a finger lands, and the shift was cleared
+anyway, so what was on screen jumped by all that was owed. Filmed on an iPad in
+portrait, in 1 of 8 runs of four hard flicks with heights forgotten: 10,111 px
+in a frame, then a blank screen for about 500 ms and the note above. With the
+wait forced around a touch, all 5 writes 49-391 ms after `touchstart` were lost,
+and all 8 from 440 ms to 3 ms before it were kept.
+
+**Rejected:**
+
+- Cancelling the wait in `fingerDown` — anything that grows under the finger
+  starts it again.
+- Keeping the shift when the write is seen to be undone — the jump would already
+  be on screen.

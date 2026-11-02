@@ -1,6 +1,24 @@
 import { test, expect, type Phone } from "./phone";
 import { longNote } from "../long-note";
 
+/** Farther than a short drag and what glides on after it can move the text. */
+const MOVED_WITH_FINGER = 1000;
+
+const owedNow = (phone: Phone) =>
+    phone.run(
+        () =>
+            (
+                window.app.workspace.getLeavesOfType("daily-notes-stream-view")[0]!.view.stream.window
+                    .anchor as unknown as { owed: number }
+            ).owed
+    );
+
+/** What a test holds back or reads on the stream's anchor. */
+type HeldAnchor = {
+    owed: number;
+    settleOnceStill: (() => void) & { cancel: () => void; run: () => void };
+};
+
 // The notes above a jump's target were never drawn. Each one is drawn when a
 // flick up reaches it, while iOS controls the scroll (ADR 0013). Those right
 // above it keep their heights: the jump draws every short one near it at once,
@@ -319,6 +337,64 @@ test("the jump list opens with the keyboard down, and a tap on the query raises 
     await phone.raiseKeyboard();
     await phone.escape(".prompt input.prompt-input");
     await expect.poll(() => phone.has(".prompt")).toBe(false);
+});
+
+// iOS drops a scroll set after a finger lands, and the stream jumped by all it
+// owed, 10,111 px in a filmed flick, onto a blank note (D-204). The stream's
+// wait for stillness is held back until the finger lands, which is otherwise
+// about 1 in 8 runs of four hard flicks.
+test("a finger landing as the stream's wait ends moves the text only with the finger", async ({ phone }) => {
+    await phone.estimateShortAbove("2026-09-12");
+    try {
+        await phone.openStream();
+        await phone.jumpTo("2026-09-12");
+        await phone.run(() => {
+            const anchor = window.app.workspace.getLeavesOfType("daily-notes-stream-view")[0]!.view.stream.window
+                .anchor as unknown as HeldAnchor;
+            (window as unknown as { heldWait: HeldAnchor["settleOnceStill"] }).heldWait = anchor.settleOnceStill;
+            anchor.settleOnceStill = Object.assign(() => {}, { cancel: () => {}, run: () => {} });
+        });
+        await phone.flick("down", 1);
+        const owed = await owedNow(phone);
+        expect(Math.abs(owed), "the flick left the stream owing").toBeGreaterThan(MOVED_WITH_FINGER);
+
+        await phone.run(() => {
+            const anchor = window.app.workspace.getLeavesOfType("daily-notes-stream-view")[0]!.view.stream.window
+                .anchor as unknown as HeldAnchor;
+            const wait = (window as unknown as { heldWait: HeldAnchor["settleOnceStill"] }).heldWait;
+            // Not at the touch: a scroll set by then was kept. All set from 49
+            // ms after it were lost.
+            document.addEventListener(
+                "touchstart",
+                () => {
+                    anchor.settleOnceStill = wait;
+                    setTimeout(() => {
+                        wait();
+                        wait.run();
+                    }, 100);
+                },
+                { once: true, passive: true }
+            );
+            const pane = document.querySelector(".daily-notes-stream-container")!.parentElement!;
+            const { left, top, width, height } = pane.getBoundingClientRect();
+            const text = document.elementFromPoint(left + width / 2, top + height / 2)!;
+            const tops: number[] = [];
+            (window as unknown as { fingerTops: number[] }).fingerTops = tops;
+            const frame = () => {
+                if (!text.isConnected) return;
+                tops.push(Math.round(text.getBoundingClientRect().top));
+                requestAnimationFrame(frame);
+            };
+            requestAnimationFrame(frame);
+        });
+        await phone.flick("down", 1, { share: 0.2, ms: 400 });
+
+        const tops = await phone.run(() => (window as unknown as { fingerTops: number[] }).fingerTops);
+        expect(Math.max(...tops) - Math.min(...tops), `tops: ${tops.join(", ")}`).toBeLessThan(MOVED_WITH_FINGER);
+        expect(await owedNow(phone), "owed once still").toBe(0);
+    } finally {
+        await phone.restoreHeights();
+    }
 });
 
 // A long note is drawn from its end, then laid out from its start. Read after

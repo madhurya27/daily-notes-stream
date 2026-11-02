@@ -1065,6 +1065,21 @@ describe("ScrollAnchor", () => {
             expect(shift(content)).toBe(0);
         });
 
+        it("ends a reflow that waited for a finger once the scroll is still after it lifts", () => {
+            const { content, blocks, resize, turn } = watch([[400, 400, 400], 400], 500);
+
+            turn();
+            observer().resized(blocks[0]!);
+            anchor.fingerDown();
+            vi.advanceTimersByTime(SCROLL_IDLE_MS);
+            anchor.fingerUp();
+            vi.advanceTimersByTime(SCROLL_IDLE_MS);
+            resize(blocks[0]!.children[1]!, 1000);
+            observer().resized(blocks[0]!);
+
+            expect(shift(content)).toBe(0);
+        });
+
         it("holds the block below text crossing the pane's top, not a span inside that text", () => {
             const { pane, content, blocks, resize, add, turn } = watch([[400, 400, 400], 400], 0);
             const text = blocks[0]!.children[1] as HTMLElement;
@@ -1819,6 +1834,59 @@ describe("ScrollAnchor", () => {
         anchor.onScroll();
         expect(pane.scrollTop).toBe(900);
         expect(shift(content)).toBe(0);
+    });
+
+    // iOS drops a scroll set after a finger lands, and the stream would jump by
+    // all it owed (D-204).
+    it("waits for a finger to lift before moving a shift into the scroll", () => {
+        const { pane, content, blocks, resize } = watch([400, 400, 400], 900);
+        resize(blocks[0]!, 1300);
+        observer().resized(blocks[0]!);
+
+        anchor.fingerDown();
+        vi.advanceTimersByTime(SCROLL_IDLE_MS);
+
+        expect(pane.scrollTop).toBe(900);
+        expect(shift(content)).toBe(-900);
+    });
+
+    it("moves a shift into the scroll once still after a finger lifts", () => {
+        const { pane, content, blocks, resize } = watch([400, 400, 400], 900);
+        resize(blocks[0]!, 1300);
+        observer().resized(blocks[0]!);
+        anchor.fingerDown();
+        vi.advanceTimersByTime(SCROLL_IDLE_MS);
+
+        anchor.fingerUp();
+        vi.advanceTimersByTime(SCROLL_IDLE_MS - 1);
+        expect(shift(content)).toBe(-900);
+        vi.advanceTimersByTime(1);
+
+        expect(pane.scrollTop).toBe(1800);
+        expect(shift(content)).toBe(0);
+    });
+
+    it("waits for a second finger too", () => {
+        const { pane, content, blocks, resize } = watch([400, 400, 400], 900);
+        resize(blocks[0]!, 1300);
+        observer().resized(blocks[0]!);
+        anchor.fingerDown();
+        anchor.fingerUp();
+        anchor.fingerDown();
+        vi.advanceTimersByTime(SCROLL_IDLE_MS);
+
+        expect(pane.scrollTop).toBe(900);
+        expect(shift(content)).toBe(-900);
+    });
+
+    it("starts no wait when a finger lifts with nothing owed", () => {
+        watch([400, 400, 400], 900);
+        anchor.fingerDown();
+        const pending = vi.getTimerCount();
+
+        anchor.fingerUp();
+
+        expect(vi.getTimerCount()).toBe(pending);
     });
 
     // The finger dragged the stream back into view. What follows may be a

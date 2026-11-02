@@ -134,7 +134,7 @@ export class ScrollAnchor {
     private readonly speed = new ScrollSpeed();
     /** Carries on a glide stopped before its scroll runs out (D-192). */
     private carry: GlideCarry | null = null;
-    private readonly settleOnceStill = this.timers.debounce(() => this.settle(), SCROLL_IDLE_MS, true);
+    private readonly settleOnceStill = this.timers.debounce(() => this.settleUnlessTouching(), SCROLL_IDLE_MS, true);
     /**
      * Every note is loaded, so nothing more will come below the stream's end to
      * fill space a shift leaves empty there.
@@ -310,6 +310,7 @@ export class ScrollAnchor {
     fingerUp(): void {
         this.touching = false;
         if (this.scrollRoot && this.scrollRoot.scrollTop >= 0) this.bouncing = false;
+        if (this.owed !== 0 || this.reflowing) this.settleOnceStill();
     }
 
     /**
@@ -729,6 +730,14 @@ export class ScrollAnchor {
         let next = el.nextElementSibling;
         while (next && next.getBoundingClientRect().height === 0) next = next.nextElementSibling;
         return next;
+    }
+
+    /**
+     * iOS drops a scroll set under a finger, and the shift would be gone with
+     * nothing in its place (D-204). `fingerUp` starts the wait again.
+     */
+    private settleUnlessTouching(): void {
+        if (!this.touching) this.settle();
     }
 
     /**

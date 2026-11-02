@@ -40,8 +40,14 @@ there is a screen recording of them (D-099).
       text up, and the anchor holds the text, which moves the tail and the next
       note down: 128 px in 1 of 8 hard flicks. With its tail on screen, the note
       could hold its tail instead.
-- [ ] `followReader` reported up to 4,728 px in hard flicks before D-203, which
-      frame data can't confirm: check with a screen recording.
+- [ ] `followReader` cannot see a jump of the whole stream: it counts the move
+      as scrolling. It also reads `top: 0` once from text whose note is no
+      longer drawn, which reported 7,967 px for one read (D-204).
+- [ ] Find out why `ios/jump.spec.ts:403` ("a long note landing with its tail on
+      screen") failed 6 of 12 runs alone in landscape on an iPad, with or
+      without D-204. The text it follows moved over 100,000 px as the note drew,
+      so it may have picked a container, not a line of text. Log:
+      `.dev/logs/hf-land-nofix.log`.
 - [ ] A PDF inside a line of text still holds up the queue (D-202).
 - [ ] Order a long note's slices as notes are ordered (D-201): what is on screen
       and near it first, then what the scroll is heading for, and what it has
