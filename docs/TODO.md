@@ -27,16 +27,6 @@ there is a screen recording of them (D-099).
       on an iPad in portrait (D-205). Check with a screen recording whether a
       reader sees it. If so, keep the fraction only when a Base changes between
       cards and a table.
-- [ ] Find out why `scroll-to-top.spec.ts:143` (mobile) timed out once in a full
-      `test:e2e` run: a scroll up by the wheel did not reach the top in 60 s. A
-      reader could be stuck the same way. It then passed 5 of 5 alone and the
-      next 4 full runs. Log: `.dev/logs/st-full-failure.log`.
-- [ ] Find out why `ios/stream.spec.ts:119` ("a flick up glides on as math,
-      Bases, a wide table and code render ahead") failed once in about 18
-      portrait runs on an iPad: flick 3 did not draw its note during the glide.
-      The glide itself had no faults, so a reader may see nothing, but it can
-      fail a run. It has since passed 56 group runs, with no cause found. Log:
-      `.dev/logs/g108-group-3.log`.
 - [ ] As a long note draws from its end, a Base below the pane's top pushes the
       text up, and the anchor holds the text, which moves the tail and the next
       note down: 128 px in 1 of 8 hard flicks. With its tail on screen, the note
