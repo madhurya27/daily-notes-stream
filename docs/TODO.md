@@ -22,20 +22,21 @@ there is a screen recording of them (D-099).
       is, and draw the middle last. Once on an iPad in portrait, after a tap on
       the title, the long note's strip below the newest note stayed blank for
       about 320 ms, then showed the wrong part of the note for about 340 ms.
-- [ ] Find out why `ios/jump.spec.ts:108` ("a glide owing the notes above")
-      failed in 1 of 6 runs of the portrait tests on an iPad, and 0 of 60 alone.
-      Text moved 19-30 px for a few reads, with no trace yet. Before the
-      follower counted every Base above its text, it reported up to 180 px; the
-      5 failures traced were a Base shrinking above text, not the anchor moving.
+- [ ] A Base filling in across the pane's top moves all that is on screen by its
+      fraction of the growth, a frame before its box grows: 30-49 px in a glide
+      on an iPad in portrait (D-205). Check with a screen recording whether a
+      reader sees it. If so, keep the fraction only when a Base changes between
+      cards and a table.
 - [ ] Find out why `scroll-to-top.spec.ts:143` (mobile) timed out once in a full
       `test:e2e` run: a scroll up by the wheel did not reach the top in 60 s. A
       reader could be stuck the same way. It then passed 5 of 5 alone and the
-      next full run. Log: `.dev/logs/st-full-failure.log`.
+      next 4 full runs. Log: `.dev/logs/st-full-failure.log`.
 - [ ] Find out why `ios/stream.spec.ts:119` ("a flick up glides on as math,
       Bases, a wide table and code render ahead") failed once in about 18
       portrait runs on an iPad: flick 3 did not draw its note during the glide.
       The glide itself had no faults, so a reader may see nothing, but it can
-      fail a run. Log: `.dev/logs/g108-group-3.log`.
+      fail a run. It has since passed 56 group runs, with no cause found. Log:
+      `.dev/logs/g108-group-3.log`.
 - [ ] As a long note draws from its end, a Base below the pane's top pushes the
       text up, and the anchor holds the text, which moves the tail and the next
       note down: 128 px in 1 of 8 hard flicks. With its tail on screen, the note
@@ -43,11 +44,6 @@ there is a screen recording of them (D-099).
 - [ ] `followReader` cannot see a jump of the whole stream: it counts the move
       as scrolling. It also reads `top: 0` once from text whose note is no
       longer drawn, which reported 7,967 px for one read (D-204).
-- [ ] Find out why `ios/jump.spec.ts:403` ("a long note landing with its tail on
-      screen") failed 6 of 12 runs alone in landscape on an iPad, with or
-      without D-204. The text it follows moved over 100,000 px as the note drew,
-      so it may have picked a container, not a line of text. Log:
-      `.dev/logs/hf-land-nofix.log`.
 - [ ] A PDF inside a line of text still holds up the queue (D-202).
 - [ ] Order a long note's slices as notes are ordered (D-201): what is on screen
       and near it first, then what the scroll is heading for, and what it has

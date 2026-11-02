@@ -663,33 +663,35 @@ export class Phone {
                         from: scrolled(),
                         /** How far Bases on screen above it pushed it. */
                         pushed: 0,
-                        bases: new Map<Element, { bottom: number; height: number; scrolled: number }>(),
                     };
                 };
-                /** The Bases above `top` whose ends are on screen. */
-                const basesAbove = (top: number) =>
-                    [...pane.querySelectorAll(".daily-note-base")].filter((el) => {
-                        const { bottom } = el.getBoundingClientRect();
-                        return bottom > box.top && bottom <= top;
-                    });
                 /**
-                 * Adds to `pushed` how far each Base above the text moved apart
-                 * from the scroll since the last read, as far as it grew. A
-                 * jump moves the Base too, but does not grow it, and neither
-                 * does a Base further up.
+                 * How far the anchor shifted the stream to keep the pane's top
+                 * the same fraction of the way down a Base (D-205), since the
+                 * last read.
+                 */
+                let keptInBase = 0;
+                /**
+                 * Each Base as last read, on screen or not: a glide can bring
+                 * one on screen in the read that it grows.
+                 */
+                const lastRead = new Map<Element, { bottom: number; height: number; scrolled: number }>();
+                /**
+                 * Adds to `pushed` how far each Base above the text, with its
+                 * end on screen, moved apart from the scroll since the last
+                 * read, as far as it grew. A jump moves the Base too, but does
+                 * not grow it, and neither does a Base further up.
                  */
                 const pushedBy = (current: NonNullable<typeof eye>, top: number) => {
-                    const was = current.bases;
-                    current.bases = new Map();
-                    for (const el of basesAbove(top)) {
+                    for (const el of pane.querySelectorAll(".daily-note-base")) {
                         const { bottom, height } = el.getBoundingClientRect();
-                        const before = was.get(el);
-                        if (before) {
-                            const moved = bottom - before.bottom + (scrolled() - before.scrolled);
+                        const before = lastRead.get(el);
+                        if (before && bottom > box.top && bottom <= top) {
+                            const moved = bottom - before.bottom + (scrolled() - before.scrolled) + keptInBase;
                             const grew = height - before.height;
                             current.pushed += Math.min(Math.max(moved, Math.min(grew, 0)), Math.max(grew, 0));
                         }
-                        current.bases.set(el, { bottom, height, scrolled: scrolled() });
+                        lastRead.set(el, { bottom, height, scrolled: scrolled() });
                     }
                 };
                 // What the anchor moved from its shift into the scroll. Heard,
@@ -714,9 +716,19 @@ export class Phone {
                     handedOver += anchor.owed as number;
                     stopGlide.call(this, scrollTop);
                 };
+                // What it reports beyond how far the Base's top moved.
+                const movedSince = anchor.movedSince as (point: { el: Element; top: number }, moved: number) => number;
+                if (!movedSince) throw new Error("ScrollAnchor has no movedSince to follow.");
+                anchor.movedSince = function (this: unknown, point: { el: Element; top: number }, moved: number) {
+                    const owed = movedSince.call(this, point, moved);
+                    const plain = point.el.getBoundingClientRect().top - box.top + moved - point.top;
+                    keptInBase += owed - plain;
+                    return owed;
+                };
                 const stopHearingAnchor = () => {
                     delete anchor.settle;
                     delete anchor.stopGlide;
+                    delete anchor.movedSince;
                 };
                 let eye = pick();
                 if (!eye) throw new Error(`No text at or below the pane's ${at}.`);
@@ -773,6 +785,8 @@ export class Phone {
                     if (Math.abs(step) > 1 && written(step, moved)) unseen += step + moved;
                     else if (Math.abs(step) > 1) glide = step;
                     pushedBy(eye, top);
+                    eye.pushed -= keptInBase;
+                    keptInBase = 0;
                     follow.drifts.push(Math.round(top - eye.start - eye.pushed - (eye.from - scrolled())));
                     // Where the text is on screen, as a reader who is not
                     // scrolling sees it.

@@ -165,7 +165,8 @@ test("the reader's follower reports no drift when a size change above cancels th
     });
 
     const { drifts } = await phone.stopFollowing();
-    expect(shifts).toEqual(["-60px", ""]);
+    expect(parseFloat(shifts[0]!)).toBeCloseTo(-60);
+    expect(shifts[1]).toBe("");
     expect(Math.max(...drifts.map(Math.abs)), `drifts: ${drifts.join(", ")}`).toBeLessThan(5);
 });
 
@@ -195,6 +196,114 @@ test("the reader's follower counts a change in any Base on screen above its text
 
     const { drifts, moves } = await phone.stopFollowing();
     expect(moves.at(-1), "the text moved with the Base").toBe(-60);
+    expect(Math.max(...drifts.map(Math.abs)), `drifts: ${drifts.join(", ")}`).toBeLessThan(5);
+});
+
+// A glide can bring a Base on screen in the same read that it grows, as Bases
+// draws its rows. It was above the pane at the read before, and it still moves
+// what is below it.
+test("the reader's follower counts a Base that grows as it comes on screen as no drift", async ({ phone }) => {
+    await phone.openStream();
+    await phone.flick("up");
+    await phone.flick("up");
+    const placed = await phone.runAsync(async () => {
+        const stream = document.querySelector<HTMLElement>(".daily-notes-stream-container")!;
+        const pane = stream.parentElement!;
+        const paneTop = pane.getBoundingClientRect().top;
+        const block = [...stream.querySelectorAll<HTMLElement>(".daily-note-block.is-pinned")].find(
+            (note) => note.getBoundingClientRect().height > 800
+        )!;
+        pane.scrollTop += block.getBoundingClientRect().top - paneTop + 500;
+        for (let frames = 0; frames < 30; frames++) await new Promise(requestAnimationFrame);
+        const last = [...block.querySelectorAll(".daily-note-content > *")]
+            .filter((el) => el.getBoundingClientRect().bottom < paneTop - 110)
+            .at(-1)!;
+        const base = document.createElement("div");
+        base.className = "daily-note-base";
+        base.style.height = "100px";
+        last.after(base);
+        const pinned = parseFloat(block.style.getPropertyValue("--daily-note-pinned-height"));
+        block.style.setProperty("--daily-note-pinned-height", `${pinned + 100}px`);
+        const { anchor } = window.app.workspace.getLeavesOfType("daily-notes-stream-view")[0]!.view.stream.window;
+        anchor.resized();
+        for (let frames = 0; frames < 30; frames++) await new Promise(requestAnimationFrame);
+        (window as unknown as { offScreenBase: HTMLElement }).offScreenBase = base;
+        return base.getBoundingClientRect().bottom < paneTop;
+    });
+    expect(placed, "the Base starts above the pane").toBe(true);
+    await phone.followReader();
+
+    const bottom = await phone.runAsync(async () => {
+        const base = (window as unknown as { offScreenBase: HTMLElement }).offScreenBase;
+        const block = base.closest<HTMLElement>(".daily-note-block")!;
+        const pane = block.closest(".daily-notes-stream-container")!.parentElement!;
+        const paneTop = pane.getBoundingClientRect().top;
+        const { anchor } = window.app.workspace.getLeavesOfType("daily-notes-stream-view")[0]!.view.stream.window;
+        // iOS moves the scroll with no event, and a report reads the place.
+        pane.scrollTop -= paneTop - base.getBoundingClientRect().bottom + 40;
+        anchor.resized();
+        // Now the place is in the Base, so its growth moves what is below it.
+        base.style.height = "160px";
+        const pinned = parseFloat(block.style.getPropertyValue("--daily-note-pinned-height"));
+        block.style.setProperty("--daily-note-pinned-height", `${pinned + 60}px`);
+        anchor.resized();
+        for (let frames = 0; frames < 5; frames++) await new Promise(requestAnimationFrame);
+        return base.getBoundingClientRect().bottom - paneTop;
+    });
+
+    const { drifts } = await phone.stopFollowing();
+    expect(bottom, "the Base came on screen").toBeGreaterThan(0);
+    expect(Math.max(...drifts.map(Math.abs)), `drifts: ${drifts.join(", ")}`).toBeLessThan(5);
+});
+
+// The anchor keeps the pane's top the same fraction of the way down a Base
+// (D-056). So what a Base draws growing, a frame before its box does, shifts
+// the whole stream.
+test("the reader's follower counts the anchor keeping its fraction of a Base as no drift", async ({ phone }) => {
+    await phone.openStream();
+    await phone.flick("up");
+    await phone.flick("up");
+    const crossed = await phone.runAsync(async () => {
+        const stream = document.querySelector<HTMLElement>(".daily-notes-stream-container")!;
+        const pane = stream.parentElement!;
+        const paneTop = pane.getBoundingClientRect().top;
+        const block = [...stream.querySelectorAll<HTMLElement>(".daily-note-block.is-pinned")].find(
+            (note) => note.getBoundingClientRect().height > 800
+        )!;
+        pane.scrollTop += block.getBoundingClientRect().top - paneTop + 500;
+        for (let frames = 0; frames < 30; frames++) await new Promise(requestAnimationFrame);
+        const first = [...block.querySelectorAll(".daily-note-content > *")].find(
+            (el) => el.getBoundingClientRect().bottom > paneTop
+        )!;
+        const slot = document.createElement("div");
+        slot.className = "daily-note-base";
+        slot.style.height = "200px";
+        const drawn = slot.appendChild(document.createElement("div"));
+        drawn.style.height = "200px";
+        first.before(slot);
+        const pinned = parseFloat(block.style.getPropertyValue("--daily-note-pinned-height"));
+        block.style.setProperty("--daily-note-pinned-height", `${pinned + 200}px`);
+        const { anchor } = window.app.workspace.getLeavesOfType("daily-notes-stream-view")[0]!.view.stream.window;
+        anchor.resized();
+        for (let frames = 0; frames < 60; frames++) await new Promise(requestAnimationFrame);
+        await new Promise((settled) => setTimeout(settled, 500));
+        pane.scrollTop += slot.getBoundingClientRect().top - paneTop + 100;
+        for (let frames = 0; frames < 30; frames++) await new Promise(requestAnimationFrame);
+        (window as unknown as { drawnBase: HTMLElement }).drawnBase = drawn;
+        const { top, bottom } = slot.getBoundingClientRect();
+        return top < paneTop && bottom > paneTop;
+    });
+    expect(crossed, "the Base crosses the pane's top").toBe(true);
+    await phone.followReader();
+
+    await phone.runAsync(async () => {
+        const drawn = (window as unknown as { drawnBase: HTMLElement }).drawnBase;
+        drawn.style.height = "300px";
+        for (let frames = 0; frames < 5; frames++) await new Promise(requestAnimationFrame);
+    });
+
+    const { drifts, moves } = await phone.stopFollowing();
+    expect(Math.min(...moves), "the anchor shifted the stream").toBeLessThan(-5);
     expect(Math.max(...drifts.map(Math.abs)), `drifts: ${drifts.join(", ")}`).toBeLessThan(5);
 });
 

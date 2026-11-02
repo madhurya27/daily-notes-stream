@@ -412,7 +412,7 @@ test("a long note landing with its tail on screen leaves its text and the next n
             const long = document.querySelector<HTMLElement>(`.daily-note-block[data-source-path="${path}"]`)!;
             const next = long.nextElementSibling!;
             const pane = long.closest(".daily-notes-stream-container")!.parentElement!;
-            const { top, left, width, height } = pane.getBoundingClientRect();
+            const { top, height } = pane.getBoundingClientRect();
             let framesDrawn = 0;
             const drawnBefore = !long.classList.contains("is-unloaded");
             pane.scrollTop += long.getBoundingClientRect().bottom - top - height * 0.7;
@@ -425,10 +425,12 @@ test("a long note landing with its tail on screen leaves its text and the next n
                 await new Promise(requestAnimationFrame);
                 tops.push(Math.round(next.getBoundingClientRect().top - top));
                 if (!long.classList.contains("is-unloaded")) framesLanded++;
-                // The text at the pane's top, from the frame it is first drawn.
-                text ??= document
-                    .elementsFromPoint(left + width / 2, top + 1)
-                    .find((el) => el.closest(".daily-note-content") && long.contains(el));
+                // The block at the pane's top, from the frame it is first
+                // drawn. Not the point there: between two blocks, that is the
+                // note's content, whose top moves as the note grows up.
+                text ??= [...long.querySelectorAll(".daily-note-content > :not(.daily-note-far-run)")].find(
+                    (el) => el.getBoundingClientRect().bottom > top
+                );
                 if (text) textTops.push(Math.round(text.getBoundingClientRect().top - top));
                 if (text && framesLanded === 0) framesDrawn++;
             }

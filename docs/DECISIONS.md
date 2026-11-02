@@ -3860,3 +3860,26 @@ and all 8 from 440 ms to 3 ms before it were kept.
   starts it again.
 - Keeping the shift when the write is seen to be undone — the jump would already
   be on screen.
+
+## D-205 — The iOS follower allows for a Base's own moves (2026-11-02)
+
+**Decision:** `followReader` remembers every Base, on screen or not, and hears
+`ScrollAnchor.movedSince`. A Base that grows as it comes on screen, and the
+anchor keeping its fraction of a Base (D-056), are not drift. The stream's code
+does not change.
+
+**Why:** `ios/jump.spec.ts:126` failed 8 of 34 runs of the portrait tests on an
+iPad, and 0 of 12 after this. Traces showed two causes:
+
+- A Base above the pane at one read grew and came on screen by the next, 60 px.
+- A Base's drawn height grows a frame before its box. With the pane's top a
+  fraction `f` down the Base, the anchor shifts the stream by `f` of the growth:
+  30 px at 0.5.
+
+Moves this short in a glide wait for a screen recording (D-099).
+
+**Rejected:**
+
+- Keeping the fraction only for a change between cards and a table — it changes
+  how the stream scrolls, with no sign yet that a reader sees this.
+- Raising the test's limit of 5 px — it would hide real jumps.
