@@ -22,13 +22,26 @@ there is a screen recording of them (D-099).
       is, and draw the middle last. Once on an iPad in portrait, after a tap on
       the title, the long note's strip below the newest note stayed blank for
       about 320 ms, then showed the wrong part of the note for about 340 ms.
-- [ ] A hard flick through notes about 9,000 px tall, each with three Bases,
-      moved what is on screen on an iPad in portrait. A note's tail and the note
-      below moved 284 px beyond the scroll in 2 of 12 runs, when the shift took
-      on more than the note grew (2,458 px for 2,173), and 180 px in 2 of 12.
-      Moves of about 4,900 px are a note growing upward, with its tail still, so
-      a reader does not see them. `followReader` also reported up to 4,728 px,
-      which frame data can't confirm: check with a screen recording.
+- [ ] Find out why `ios/jump.spec.ts:108` ("a glide owing the notes above")
+      failed in 1 of 6 runs of the portrait tests on an iPad, and 0 of 60 alone.
+      Text moved 19-30 px for a few reads, with no trace yet. Before the
+      follower counted every Base above its text, it reported up to 180 px; the
+      5 failures traced were a Base shrinking above text, not the anchor moving.
+- [ ] Find out why `scroll-to-top.spec.ts:143` (mobile) timed out once in a full
+      `test:e2e` run: a scroll up by the wheel did not reach the top in 60 s. A
+      reader could be stuck the same way. It then passed 5 of 5 alone and the
+      next full run. Log: `.dev/logs/st-full-failure.log`.
+- [ ] Find out why `ios/stream.spec.ts:119` ("a flick up glides on as math,
+      Bases, a wide table and code render ahead") failed once in about 18
+      portrait runs on an iPad: flick 3 did not draw its note during the glide.
+      The glide itself had no faults, so a reader may see nothing, but it can
+      fail a run. Log: `.dev/logs/g108-group-3.log`.
+- [ ] As a long note draws from its end, a Base below the pane's top pushes the
+      text up, and the anchor holds the text, which moves the tail and the next
+      note down: 128 px in 1 of 8 hard flicks. With its tail on screen, the note
+      could hold its tail instead.
+- [ ] `followReader` reported up to 4,728 px in hard flicks before D-203, which
+      frame data can't confirm: check with a screen recording.
 - [ ] A PDF inside a line of text still holds up the queue (D-202).
 - [ ] Order a long note's slices as notes are ordered (D-201): what is on screen
       and near it first, then what the scroll is heading for, and what it has

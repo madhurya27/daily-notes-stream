@@ -601,9 +601,9 @@ export class Phone {
      * without events, and reading only once a frame mixed that step and the
      * stream's reaction into one.
      *
-     * A Base on screen above the text that grows may push it down, by as much
-     * as the Base grew: Bases draws a table's rows as it comes on screen. That
-     * is no drift.
+     * A Base on screen above the text that changes size moves it, by as much
+     * as the Base changed: Bases draws a table's rows as it comes on screen.
+     * That is no drift.
      */
     async followReader({ at = "middle" }: { at?: "middle" | "top" } = {}): Promise<void> {
         await this.run(
@@ -663,34 +663,34 @@ export class Phone {
                         from: scrolled(),
                         /** How far Bases on screen above it pushed it. */
                         pushed: 0,
-                        base: null as { el: Element; bottom: number; height: number; scrolled: number } | null,
+                        bases: new Map<Element, { bottom: number; height: number; scrolled: number }>(),
                     };
                 };
-                /** The Base nearest above `top` whose end is on screen. */
-                const baseAbove = (top: number) =>
-                    [...pane.querySelectorAll(".daily-note-base")]
-                        .filter((el) => {
-                            const { bottom } = el.getBoundingClientRect();
-                            return bottom > box.top && bottom <= top;
-                        })
-                        .at(-1);
+                /** The Bases above `top` whose ends are on screen. */
+                const basesAbove = (top: number) =>
+                    [...pane.querySelectorAll(".daily-note-base")].filter((el) => {
+                        const { bottom } = el.getBoundingClientRect();
+                        return bottom > box.top && bottom <= top;
+                    });
                 /**
-                 * Adds to `pushed` how far the Base above the text moved apart
+                 * Adds to `pushed` how far each Base above the text moved apart
                  * from the scroll since the last read, as far as it grew. A
-                 * jump moves the Base too, but does not grow it.
+                 * jump moves the Base too, but does not grow it, and neither
+                 * does a Base further up.
                  */
                 const pushedBy = (current: NonNullable<typeof eye>, top: number) => {
-                    const el = baseAbove(top);
-                    const was = current.base;
-                    current.base = null;
-                    if (!el) return;
-                    const { bottom, height } = el.getBoundingClientRect();
-                    if (was?.el === el) {
-                        const moved = bottom - was.bottom + (scrolled() - was.scrolled);
-                        const grew = height - was.height;
-                        current.pushed += Math.min(Math.max(moved, Math.min(grew, 0)), Math.max(grew, 0));
+                    const was = current.bases;
+                    current.bases = new Map();
+                    for (const el of basesAbove(top)) {
+                        const { bottom, height } = el.getBoundingClientRect();
+                        const before = was.get(el);
+                        if (before) {
+                            const moved = bottom - before.bottom + (scrolled() - before.scrolled);
+                            const grew = height - before.height;
+                            current.pushed += Math.min(Math.max(moved, Math.min(grew, 0)), Math.max(grew, 0));
+                        }
+                        current.bases.set(el, { bottom, height, scrolled: scrolled() });
                     }
-                    current.base = { el, bottom, height, scrolled: scrolled() };
                 };
                 // What the anchor moved from its shift into the scroll. Heard,
                 // not read from the shift: a note above can grow before the

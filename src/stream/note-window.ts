@@ -647,6 +647,12 @@ export class NoteWindowManager {
             // Read the place again over what it rendered: nothing scrolled or
             // changed size while it rendered.
             if (rendered && block.hasClass(DRAWING_FROM_END)) this.anchor.readPlace(block);
+            // close() empties the container while renders run, outside the
+            // queue, so after the await the block may no longer have a parent.
+            const stillInStream = block.isConnected && this.windows.has(block);
+            // Before its layout changes below: the anchor must read what
+            // follows the note where the reader sees it (D-203).
+            if (rendered && stillInStream) this.settleHeight(block, window);
             // Whether it was drawn or given up, it is laid out from its start
             // again in this task.
             block.removeClass(DRAWING_FROM_END);
@@ -654,15 +660,12 @@ export class NoteWindowManager {
                 this.runs.forgetSpacers(block);
                 return;
             }
-            // close() empties the container while renders run, outside the
-            // queue, so after the await the block may no longer have a parent.
-            if (!block.isConnected || !this.windows.has(block)) {
+            if (!stillInStream) {
                 this.renderer.discard(rendered.component);
                 block.empty();
                 this.runs.forgetSpacers(block);
                 return;
             }
-            this.settleHeight(block, window);
             this.filled(block, window, rendered);
         } finally {
             this.changes++;

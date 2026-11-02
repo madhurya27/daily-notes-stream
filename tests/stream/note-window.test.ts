@@ -631,6 +631,41 @@ describe("NoteWindowManager holds a rendered note until it settles", () => {
         expect(heldHeight(block)).toBe("640px");
     });
 
+    describe("holds nothing on a note", () => {
+        function measuredNote() {
+            const heights = new NoteHeights();
+            heights.keep(LAYOUT, FILE.path, 812);
+            const renderer = makeRenderer();
+            const { manager } = makeManager(renderer, () => 640, makeScrollRoot(800), heights);
+            const block = manager.add(FILE);
+            document.body.appendChild(block);
+            return { renderer, block };
+        }
+
+        it("whose draw was given up", async () => {
+            const { renderer, block } = measuredNote();
+            renderer.renderInto.mockResolvedValueOnce(null);
+
+            fire(observers.render, block, true);
+            await settle();
+
+            expect(heldHeight(block)).toBe("");
+        });
+
+        it("taken out of the stream as it drew", async () => {
+            const { renderer, block } = measuredNote();
+            renderer.renderInto.mockImplementationOnce(async () => {
+                block.remove();
+                return { component: new Component(), footer: Promise.resolve() };
+            });
+
+            fire(observers.render, block, true);
+            await settle();
+
+            expect(heldHeight(block)).toBe("");
+        });
+    });
+
     // Holding a guessed height would leave a gap after a short note until it
     // settles.
     it("holds nothing on a note never measured", async () => {
@@ -1676,6 +1711,24 @@ describe("NoteWindowManager render", () => {
             const { block } = placed(-9000, 300);
             const drawing: boolean[] = [];
             readPlace.mockImplementation(() => void drawing.push(block.hasClass("is-drawing-from-end")));
+
+            fire(observers.render, block, true);
+            await settle();
+
+            expect(drawing).toEqual([true]);
+        });
+
+        // Laid out from its start, its text moves up by what the note's height
+        // is short of its old one. Read after that, the anchor would hold that
+        // text, and move what follows the note.
+        it("has the anchor keep what follows its tail before it lands", async () => {
+            const moved = vi.spyOn(ScrollAnchor.prototype, "readerMovedPane").mockReturnValue(true);
+            onTestFinished(() => moved.mockRestore());
+            const kept = vi.spyOn(ScrollAnchor.prototype, "keepWhatFollows");
+            onTestFinished(() => kept.mockRestore());
+            const { block } = placed(-9000, 300);
+            const drawing: boolean[] = [];
+            kept.mockImplementation(() => void drawing.push(block.hasClass("is-drawing-from-end")));
 
             fire(observers.render, block, true);
             await settle();

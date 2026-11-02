@@ -3820,3 +3820,24 @@ page's shape leaves 3 px. An A4 page will still grow by about 84 px.
   its result, so a note would show half finished.
 - Drawing each embed after the note's text — PDFs are nearly all of the wait.
   Three Bases take 23 ms to render.
+
+## D-203 — The anchor keeps a tail on screen before its note changes layout (2026-11-01)
+
+**Decision:** `settleHeight` runs before a note drawn from its end is laid out
+from its start. So the anchor reads what follows the note (`keepWhatFollows`)
+before the note's text moves.
+
+**Why:** the text moves up by what the note's height is short of its old one.
+Read after that, the anchor held that text, and what follows moved. Then the
+anchor held what follows there, so the text moved by the same amount as the note
+shrank. All of what was on screen ended up moved. In four-stroke flicks up the
+stream, through notes of about 9,500 px with three Bases, a PDF and Mermaid, on
+an iPad in portrait, the tail and the next note moved 180-357 px in 4 of 8 runs.
+Now 1 of 8 moved more than 100 px, by 128 px, with the text held. The text and
+the tail are in one element, so they stay still together as the note lands. A
+Base filling in on screen still moves what is below it, as it must.
+
+**Rejected:**
+
+- Holding the note at its old height until its Bases fill in — D-200 rejected
+  holds for these notes, because the text inside them still moves.

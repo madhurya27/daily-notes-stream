@@ -169,6 +169,35 @@ test("the reader's follower reports no drift when a size change above cancels th
     expect(Math.max(...drifts.map(Math.abs)), `drifts: ${drifts.join(", ")}`).toBeLessThan(5);
 });
 
+// Text under two Bases moves when either changes size, and a Base has to move
+// what is below it. The Base further up moves the nearer one without changing
+// its size.
+test("the reader's follower counts a change in any Base on screen above its text as no drift", async ({ phone }) => {
+    await phone.openStream();
+    await phone.run(() => {
+        const content = document.querySelector(".daily-note-block:not(.is-unloaded) .daily-note-content")!;
+        const base = (height: number) => {
+            const el = document.createElement("div");
+            el.className = "daily-note-base";
+            el.style.height = `${height}px`;
+            return el;
+        };
+        const further = base(100);
+        content.prepend(further, base(60));
+        (window as unknown as { furtherBase: HTMLElement }).furtherBase = further;
+    });
+    await phone.followReader();
+
+    await phone.runAsync(async () => {
+        (window as unknown as { furtherBase: HTMLElement }).furtherBase.style.height = "40px";
+        for (let frames = 0; frames < 5; frames++) await new Promise(requestAnimationFrame);
+    });
+
+    const { drifts, moves } = await phone.stopFollowing();
+    expect(moves.at(-1), "the text moved with the Base").toBe(-60);
+    expect(Math.max(...drifts.map(Math.abs)), `drifts: ${drifts.join(", ")}`).toBeLessThan(5);
+});
+
 // Otherwise a test would pass on only the part of a glide the reader saw.
 test("the reader's follower fails when it loses its text", async ({ phone }) => {
     await phone.openStream();

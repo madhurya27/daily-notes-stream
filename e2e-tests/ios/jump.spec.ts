@@ -321,6 +321,55 @@ test("the jump list opens with the keyboard down, and a tap on the query raises 
     await expect.poll(() => phone.has(".prompt")).toBe(false);
 });
 
+// A long note is drawn from its end, then laid out from its start. Read after
+// that, the anchor held its text, then the next note where that left it, so all
+// of what was on screen moved: 120-297 px in hard flicks (D-203).
+test("a long note landing with its tail on screen leaves its text and the next note still", async ({ phone }) => {
+    const path = "Journal/2026-09-13.md";
+    const original = await phone.writeNote(path, longNote(6000));
+    try {
+        await phone.forgetHeights();
+        await phone.openStream();
+        await phone.jumpTo("2026-09-06");
+
+        const seen = await phone.runAsync(async (path: string) => {
+            const long = document.querySelector<HTMLElement>(`.daily-note-block[data-source-path="${path}"]`)!;
+            const next = long.nextElementSibling!;
+            const pane = long.closest(".daily-notes-stream-container")!.parentElement!;
+            const { top, left, width, height } = pane.getBoundingClientRect();
+            let framesDrawn = 0;
+            const drawnBefore = !long.classList.contains("is-unloaded");
+            pane.scrollTop += long.getBoundingClientRect().bottom - top - height * 0.7;
+            const tops: number[] = [];
+            const textTops: number[] = [];
+            let text: Element | undefined;
+            let framesLanded = 0;
+            const start = performance.now();
+            while (performance.now() - start < 20_000 && framesLanded < 90) {
+                await new Promise(requestAnimationFrame);
+                tops.push(Math.round(next.getBoundingClientRect().top - top));
+                if (!long.classList.contains("is-unloaded")) framesLanded++;
+                // The text at the pane's top, from the frame it is first drawn.
+                text ??= document
+                    .elementsFromPoint(left + width / 2, top + 1)
+                    .find((el) => el.closest(".daily-note-content") && long.contains(el));
+                if (text) textTops.push(Math.round(text.getBoundingClientRect().top - top));
+                if (text && framesLanded === 0) framesDrawn++;
+            }
+            return { drawnBefore, framesDrawn, framesLanded, tops, textTops };
+        }, path);
+
+        expect(seen.drawnBefore, "the long note waits to be drawn").toBe(false);
+        expect(seen.framesDrawn, "the text was on screen before the note landed").toBeGreaterThan(0);
+        const textMoved = Math.max(...seen.textTops) - Math.min(...seen.textTops);
+        expect(textMoved, `text tops: ${seen.textTops.join(", ")}`).toBeLessThan(5);
+        expect(Math.max(...seen.tops) - Math.min(...seen.tops), `tops: ${seen.tops.join(", ")}`).toBeLessThan(5);
+        expect(seen.framesLanded, "the long note landed").toBe(90);
+    } finally {
+        await phone.restoreNote(path, original);
+    }
+});
+
 // A jump goes to its note's start (ADR 0022). When it was drawn from its end,
 // as a note above the pane is, the newest note ended up 130–286 px below its
 // title in 4 out of 5 runs.
