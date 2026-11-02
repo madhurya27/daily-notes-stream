@@ -277,7 +277,7 @@ export function testVault({ days }) {
         "",
         "## Diagram",
         "",
-        "Obsidian asks once before drawing Mermaid; Allow draws it.",
+        "A diagram fits itself to the width of the note.",
         "",
         "```mermaid",
         "flowchart LR",

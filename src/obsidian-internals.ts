@@ -46,9 +46,9 @@ export function onVaultConfigChange(app: App, handler: () => void): EventRef {
 type WorkspaceInternal = { on(name: "post-processor-change", callback: () => unknown): EventRef };
 
 /**
- * Fires when what renders Markdown changes: Mermaid's "Allow", or a plugin
- * adding or removing a post-processor. Obsidian's own views re-render when it
- * fires.
+ * Fires when what renders Markdown changes: Mermaid's "Allow" before Obsidian
+ * 1.15, or a plugin adding or removing a post-processor. Obsidian's own views
+ * re-render when it fires.
  */
 export function onPostProcessorChange(app: App, handler: () => void): EventRef {
     return (app.workspace as unknown as WorkspaceInternal).on("post-processor-change", handler);

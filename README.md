@@ -117,7 +117,7 @@ On a phone or tablet, nothing inside a note scrolls on its own, so one swipe mov
 | Kanban Base | Cards, each column a group |
 | Equation | Smaller, to fit the width |
 | Code block | Long lines wrap |
-| Diagram | Smaller, to fit the width (on desktop too) |
+| Diagram | Smaller, to fit the width (on desktop too). Once you zoom in, a swipe on it moves the diagram, as in Obsidian's own views. Reset the zoom to scroll past it |
 | Embedded note | Shown in full, not in a box of its own that scrolls |
 | YouTube video | Its preview image; tap it to watch on YouTube |
 | Embedded web page | Shown as it is; tap it to open the page in your browser |

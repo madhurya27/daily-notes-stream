@@ -3883,3 +3883,26 @@ Moves this short in a glide wait for a screen recording (D-099).
 - Keeping the fraction only for a change between cards and a table — it changes
   how the stream scrolls, with no sign yet that a reader sees this.
 - Raising the test's limit of 5 px — it would hide real jumps.
+
+## D-206 — A zoomed diagram keeps Obsidian's touches (2026-11-02)
+
+**Decision:** the stream leaves Pele's zoom as it is on mobile. A swipe on a
+diagram scrolls the stream until the reader zooms it. Then one finger moves the
+diagram, until the reader resets the zoom.
+
+**Why:** Obsidian's reading and edit views do the same, measured on an iPad.
+Zoom is a choice the reader makes, and reset gives the swipe back. Pele moves a
+diagram by its `viewBox`, so there is no scroll container for ADR 0008 to stop.
+
+**Rejected:**
+
+- Hiding one finger's moves from Pele, with `pointer-events: none` on the SVG —
+  it worked, but relies on Pele's internals, and left a swipe that starts on a
+  link stuck.
+- Turning off zoom in the stream — a diagram that cannot stack stays too small
+  to read on a phone.
+- A tap that opens the note — it takes the reader out of the stream, to the top
+  of the note.
+
+**Known limits, both Pele's:** after a pan, the first tap on reset is ignored.
+On a diagram taller than the screen, the zoom toolbar can be off screen.

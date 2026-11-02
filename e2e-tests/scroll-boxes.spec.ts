@@ -128,9 +128,6 @@ async function showWord(scope: Locator): Promise<Locator> {
 async function seedZoo(page: Page): Promise<void> {
     await page.evaluate(
         async ({ bases, note, zoo }) => {
-            // What Mermaid's "Allow" saves. Without it, Obsidian draws no
-            // diagram.
-            window.app.saveLocalStorage("mermaid-vault-trust", true);
             for (const [path, body] of Object.entries(bases)) await window.app.vault.create(path, body);
             await window.app.vault.create(note, zoo);
         },
