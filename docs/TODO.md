@@ -11,9 +11,6 @@ there is a screen recording of them (D-099).
 - [ ] Remove the outline Obsidian draws around a property under the pointer: it
       suggests the property can be edited, which the read-only stream doesn't
       allow. Check desktop and the phone layout.
-- [ ] `Transport destroyed`, from Obsidian's PDF viewer, failed a device test
-      once in `search.spec.ts:196`. It may come from closing a view while a PDF
-      loads; closing one during a draw did not log it in 2 tries.
 - [ ] Scrolling up to a note while a long note below it still draws from its end
       leaves that note's top, now on screen, to be drawn last (ADR 0022).
       Measure the blank when flicking up through a 10,000-line note and with a
