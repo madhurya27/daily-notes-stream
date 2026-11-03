@@ -17,6 +17,9 @@ import { PLUGIN_ID, installBuild, TEST_VAULT } from "./vaults.mjs";
 const NOTES = "Notes";
 const body = (...lines) => lines.join("\n") + "\n";
 
+const WIDE_SVG =
+    '<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="60" viewBox="0 0 2400 60"><rect width="2400" height="60" fill="#0891b2" /></svg>';
+
 /**
  * The daily notes template setting: a path without `.md`, as Obsidian saves it.
  */
@@ -284,6 +287,12 @@ export function testVault({ days }) {
         "  A[Alpha step] --> B[Beta step] --> C[Gamma step] --> D[Delta step] --> E[Epsilon step] --> F[Zeta step]",
         "```",
         "",
+        "SVGs wider than any screen, drawn in the note and embedded as a file:",
+        "",
+        WIDE_SVG,
+        "",
+        "![[wide-image.svg]]",
+        "",
         "## Wide table",
         "",
         "| Column one | Column two | Column three | Column four | Column five | Column six | Column seven |",
@@ -347,6 +356,8 @@ export function testVault({ days }) {
         "",
         "Nothing to report."
     );
+
+    vault[`${NOTES}/wide-image.svg`] = body(WIDE_SVG);
 
     vault[`${NOTES}/test-image.svg`] = body(
         '<svg xmlns="http://www.w3.org/2000/svg" width="240" height="80" viewBox="0 0 240 80">',

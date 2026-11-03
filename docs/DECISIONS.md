@@ -4039,3 +4039,18 @@ are estimates meant to cover about 90% of readers, not measurements of reading.
 - 20x — slower than any real laptop: each draw outlasts a note's time on screen,
   so no draw order can help.
 - Checking at 30,000 px/s — no drawing keeps up with a free-spinning wheel.
+
+## D-213 — Every SVG in a note shrinks to fit it, except Obsidian's icons (2026-11-03)
+
+**Decision:** `max-width: 100%` and `height: auto` apply to every `svg` in a
+note's content that is not `.svg-icon`, not only to Mermaid's.
+
+**Why:** an `<svg width="2400">` written into a note made the pane 2,640 px wide
+on an iPad, and the page scrolled sideways. An SVG file embedded as an image
+already fitted.
+
+**Rejected:**
+
+- Listing each source of SVG — every plugin that draws one would need its own
+  rule.
+- Clipping instead — it hides the drawing's right side.

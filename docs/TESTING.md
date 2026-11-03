@@ -36,7 +36,8 @@ over one batch), and a path to create the vault somewhere else.
   cover. Bases that are wide, narrow, too wide only because of their values,
   resized by hand, with a named view, as a kanban and inline (the Bases are in
   `Bases/`). Also embedded notes, a PDF, a video in an `iframe`, display math,
-  Mermaid and a wide table.
+  Mermaid, two SVGs wider than any screen (one written into the note, one
+  embedded) and a wide table.
 - **2026-08-29**, the newest filler note: linked mentions of every kind, from a
   nested list item, a paragraph, a wide table and a property. `[[Agenda]]` in
   `Projects/Plan.md` must open `Projects/Agenda.md`, not `Notes/Agenda.md`.

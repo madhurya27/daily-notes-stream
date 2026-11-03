@@ -110,6 +110,7 @@ const EMBEDS = {
             .map(([path, base]) => [path, A_MONTH + base])
     ),
     "Attachments/Manual.pdf": TEST["Attachments/Manual.pdf"]!,
+    "Attachments/wide-image.svg": TEST["Notes/wide-image.svg"]!,
     "Reading list.md": TEST["Reading list.md"]!,
 };
 /**

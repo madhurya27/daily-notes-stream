@@ -114,6 +114,14 @@ test("nothing in the note of every embed scrolls sideways, reaches past its text
         expect(await overflow(phone), `section ${section}`).toEqual([]);
         expect(await toolbarCut(phone), `section ${section}'s Base toolbars`).toEqual([]);
     }
+    // Both wide SVGs were drawn, so the sections above checked them.
+    const svgs = await phone.run((note: string) => {
+        const block = document.querySelector(note)!;
+        return [block.querySelector('svg[width="2400"]'), block.querySelector('img[src*="wide-image.svg"]')].map(
+            (el) => !!el && el.getBoundingClientRect().width > 0
+        );
+    }, NOTE);
+    expect(svgs, "the inline SVG and the embedded one").toEqual([true, true]);
 });
 
 // On an iPad, the note is the readable line length in either orientation, which

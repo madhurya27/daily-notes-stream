@@ -86,6 +86,9 @@ const ZOO = [
     "  A[Alpha step] --> B[Beta step] --> C[Gamma step] --> D[Delta step] --> E[Epsilon step] --> F[Zeta step]",
     "```",
     "",
+    // Written into the note, wider than any screen.
+    '<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="60"><rect width="2400" height="60" fill="teal" /></svg>',
+    "",
     "> [!note] A callout",
     "> With a line of text.",
     "",

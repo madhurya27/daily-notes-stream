@@ -642,8 +642,9 @@ body:not(.is-mobile) :is(.daily-note-content, .daily-note-mention-excerpt) :is(t
     overflow: clip;
 }
 
-/* A diagram shrinks to fit the note instead of making it wider. */
-:is(.daily-note-content, .daily-note-mention-excerpt) .mermaid svg {
+/* A diagram or a drawing written into a note shrinks to fit the note instead
+   of making it wider. Obsidian's icons keep their size (D-213). */
+:is(.daily-note-content, .daily-note-mention-excerpt) svg:not(.svg-icon) {
     max-width: 100%;
     height: auto;
 }
