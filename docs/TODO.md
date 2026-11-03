@@ -24,11 +24,6 @@ there is a screen recording of them (D-099).
       the note could hold its tail instead. On 2026-11-02, 32 runs of two
       four-stroke flicks on an iPad in portrait never moved it 30 px, so wait
       until it shows again.
-- [ ] `ios/harness.spec.ts:312` fails where the flick happens to land, about 1
-      run in 3 on an iPad in landscape. Over a Base (`-300`), the test hides the
-      Base, but the follower reads the text below it: hide the follower's own
-      text. Over a task list (`-117`), the follower does read the hidden list,
-      and the drift is not explained yet.
 - [ ] `ios/stream.spec.ts:215`, a flick over a web page in a frame, fails every
       run: a frame given a vault file's `capacitor://` address stays on
       `about:blank`, with no `load` event and no CSP report, even added to the

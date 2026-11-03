@@ -753,6 +753,9 @@ export class Phone {
                     delete anchor.stopGlide;
                     delete anchor.movedSince;
                 };
+                /** The part as it is now, which may not be the one picked. */
+                const partOf = ({ path, kind, index }: NonNullable<typeof eye>) =>
+                    pane.querySelector(`.daily-note-block[data-source-path="${path}"]`)?.querySelectorAll(kind)[index];
                 let eye = pick();
                 if (!eye) throw new Error(`No text at or below the pane's ${at}.`);
                 const unloaded = () => pane.querySelectorAll(".daily-note-block.is-unloaded").length;
@@ -762,6 +765,7 @@ export class Phone {
                     unloaded: unloaded(),
                     rendered: 0,
                     on: true,
+                    text: () => partOf(eye!),
                     heard: new AbortController(),
                     stopHearingAnchor,
                     /** How many reads it made before it lost its text. */
@@ -795,7 +799,7 @@ export class Phone {
                     }
                     follow.rendered = Math.max(follow.rendered, follow.unloaded - unloaded());
                     const block = pane.querySelector(`.daily-note-block[data-source-path="${eye.path}"]`);
-                    const at = block?.querySelectorAll(eye.kind)[eye.index];
+                    const at = partOf(eye);
                     // Its note is no longer drawn. Hidden text measures at the
                     // window's top, which is no move of the text.
                     if (at && at.getClientRects().length === 0) {

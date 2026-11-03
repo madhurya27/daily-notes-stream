@@ -308,18 +308,21 @@ test("the reader's follower counts the anchor keeping its fraction of a Base as 
 });
 
 // A note that is no longer drawn keeps its text in the page, hidden, and hidden
-// text measures at the window's top. That is no move of the text.
+// text measures at the window's top. That is no move of the text. A spacer
+// keeps its room, as a hidden run's does: when a note shrinks, the note below
+// really moves, a frame later, as the note re-pins.
 test("the reader's follower moves on from text that is hidden, reporting no drift", async ({ phone }) => {
     await phone.openStream();
     await phone.flick("up");
     await phone.followReader();
 
     await phone.runAsync(async () => {
-        const pane = document.querySelector(".daily-notes-stream-container")!.parentElement!;
-        const { top, height } = pane.getBoundingClientRect();
-        const text = [...pane.querySelectorAll<HTMLElement>(".daily-note-content > *")].find(
-            (el) => el.getBoundingClientRect().bottom > top + height / 2
-        )!;
+        const text = (window as unknown as { streamReader: { text: () => HTMLElement } }).streamReader.text();
+        const spacer = document.createElement("div");
+        spacer.className = "daily-note-far-run";
+        spacer.style.height = `${text.getBoundingClientRect().height}px`;
+        spacer.style.margin = getComputedStyle(text).margin;
+        text.before(spacer);
         text.style.display = "none";
         for (let frames = 0; frames < 3; frames++) await new Promise(requestAnimationFrame);
     });
