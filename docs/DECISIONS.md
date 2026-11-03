@@ -4009,3 +4009,33 @@ not found.
 **Rejected:**
 
 - A turn between Bases, as between slices — see above.
+
+## D-212 — scroll-cost checks what most readers meet (2026-11-03)
+
+**Decision:** `scroll-cost` fails only with the CPU slowed 4x and the wheel at
+up to 4,000 px/s, if the p90 time a note on screen stays blank reaches 100 ms.
+It also runs 6x, 8,000 px/s and 30,000 px/s, and only reports them. The numbers
+are estimates meant to cover about 90% of readers, not measurements of reading.
+
+**Why:**
+
+- 4x slows an M5 below every supported iPhone (D-131); 6x is about a low-end
+  laptop.
+- Recorded on a Mac on 2026-11-03, as fast as the hand would go: a trackpad held
+  7,000–11,000 px/s, and a free-spinning mouse wheel 17,000–30,000 px/s. These
+  are limits. A reader who cares what the notes say scrolls slower: 4,000 px/s
+  moves an 800 px pane five times a second.
+- About 100 ms is the usual estimate of when a delay is noticed. A note blank
+  that long is what a reader sees; the old check, under 1% of the screen blank
+  on average, came with no reason, and could pass a note blank for 300 ms.
+- On `main`, with plain notes and with embeds, the checked runs had no note
+  blank. With embeds at 6x and 8,000 px/s, 2–10% of the screen was blank; at
+  30,000 px/s, 85–88%.
+
+**Rejected:**
+
+- Replaying the recorded trackpad — a constant speed is close enough to a
+  free-spinning wheel, and a recording ties the test to one Mac's settings.
+- 20x — slower than any real laptop: each draw outlasts a note's time on screen,
+  so no draw order can help.
+- Checking at 30,000 px/s — no drawing keeps up with a free-spinning wheel.
