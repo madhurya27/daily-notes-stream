@@ -49,7 +49,8 @@ reader.
 - At phone speed, less than 10% of a 10,000-line note is laid out in any frame
   while it is drawn, against 98% when it is only hidden once drawing finishes.
 - The iPhone measurements are in the merge commit.
-- A note reached from above, or by a jump, is drawn from its top as before.
+- A note reached from above, by a jump, or by a scroll to the top (D-208) is
+  drawn from its top as before.
 - A save that draws a long note all at once again still draws it from its top.
 
 ## Rejected alternatives

@@ -206,6 +206,70 @@ for (const { name, notes, measured, details } of CASES)
         }
     });
 
+// A tap on the title lands on the note's start. Drawn from its end, as the
+// glide met it, the note's start was drawn last: filmed on an iPad, the screen
+// under the title stayed blank for 1.2-1.35 s (D-208). Each case's long note is
+// first met above the pane, where it would be drawn from its end.
+for (const { name, notes, from, details } of [
+    {
+        name: "a tap on the title draws a long note below the newest from its start",
+        notes: [
+            [0, 30],
+            [1, 10000],
+            [3, 1000],
+        ],
+        from: 3,
+        details: { tag: "@portrait" },
+    },
+    {
+        name: "a tap on the title from inside a long note draws the long note above it from its start",
+        notes: [
+            [1, 10000],
+            [2, 10000],
+            [3, 30],
+        ],
+        from: 2,
+        details: {},
+    },
+] as const)
+    test(name, details, async ({ phone }) => {
+        test.setTimeout(300_000);
+        const written = await writeNotes(phone, notes);
+        try {
+            await phone.forgetHeights();
+            await phone.openStream();
+            const target = await phone.run(
+                (at: number) => document.querySelectorAll<HTMLElement>(".daily-note-block")[at]!.dataset.sourcePath!,
+                from
+            );
+            await phone.placeAt(`.daily-note-block[data-source-path="${target}"]`, 0);
+            await phone.rest();
+            await phone.run(() => {
+                const w = window as unknown as { drewFromEnd: number; watchingDraws: boolean };
+                w.drewFromEnd = 0;
+                w.watchingDraws = true;
+                const frame = () => {
+                    if (document.querySelector(".is-drawing-from-end")) w.drewFromEnd++;
+                    if (w.watchingDraws) requestAnimationFrame(frame);
+                };
+                requestAnimationFrame(frame);
+            });
+
+            await phone.tap(`${HEADER} .view-header-title`);
+            await phone.rest();
+
+            const drewFromEnd = await phone.run(() => {
+                const w = window as unknown as { drewFromEnd: number; watchingDraws: boolean };
+                w.watchingDraws = false;
+                return w.drewFromEnd;
+            });
+            expect(await phone.scrollTop()).toBe(0);
+            expect(drewFromEnd, "frames with a note drawing from its end").toBe(0);
+        } finally {
+            await restoreNotes(phone, written);
+        }
+    });
+
 // Scrolling up from inside it draws it from its end (ADR 0022), and it finishes
 // with the scroll at the top. When the place was kept by the text drawn there,
 // it ended up 156 px below its title in 3 out of 4 runs.

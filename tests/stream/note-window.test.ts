@@ -1650,6 +1650,92 @@ describe("NoteWindowManager render", () => {
             expect(renderer.renderInto.mock.calls[1]![3]).toBe("from-end");
         });
 
+        describe("on the way to the top", () => {
+            /**
+             * A tap on the title with the reader far below `placed`'s note,
+             * which then comes into range above the pane.
+             */
+            function headedForTop() {
+                const { manager, renderer, block } = placed(-9000, 300);
+                const pane = manager["scrollRoot"]!;
+                pane.scrollTo = vi.fn();
+                pane.scrollTop = 5000;
+                manager.onScroll();
+                manager.scrollToTop();
+                return { manager, renderer, block, pane };
+            }
+
+            // The note's top is what the reader lands on. From its end, the
+            // screen stayed blank for 1.2-1.35 s, filmed on an iPad.
+            it("draws a note from its start", async () => {
+                const { renderer, block } = headedForTop();
+                fire(observers.render, block, true);
+                await settle();
+                expect(orderOf(renderer)).toBe("from-start");
+            });
+
+            it("draws a note from its end again once a finger takes over", async () => {
+                const { manager, renderer, block } = headedForTop();
+                manager.onFingerDown();
+                fire(observers.render, block, true);
+                await settle();
+                expect(orderOf(renderer)).toBe("from-end");
+            });
+
+            it("draws a note from its end again after arriving", async () => {
+                const { manager, renderer, block, pane } = headedForTop();
+                pane.scrollTop = 0;
+                manager.onScroll();
+                fire(observers.render, block, true);
+                await settle();
+                expect(orderOf(renderer)).toBe("from-end");
+            });
+
+            it("draws a note from its end again once the scroll turns back down", async () => {
+                const { manager, renderer, block, pane } = headedForTop();
+                pane.scrollTop = 4000;
+                manager.onScroll();
+                pane.scrollTop = 4500;
+                manager.onScroll();
+                fire(observers.render, block, true);
+                await settle();
+                expect(orderOf(renderer)).toBe("from-end");
+            });
+
+            it("draws a note from its end again in a pane attached since", async () => {
+                const { manager, renderer, block, pane } = headedForTop();
+                manager.attach(pane, document.createElement("div"), () => false);
+                fire(observers.render, block, true);
+                await settle();
+                expect(orderOf(renderer)).toBe("from-end");
+            });
+
+            it("still draws from its start after a scroll event that moved nothing", async () => {
+                const root = makeScrollRoot(800);
+                root.getBoundingClientRect = () => ({ top: 0, bottom: 800 }) as DOMRect;
+                root.scrollTo = vi.fn();
+                root.scrollTop = 5000;
+                const { manager, renderer } = makeManager(makeRenderer(), () => 500, root);
+                const block = manager.add(FILE);
+                block.getBoundingClientRect = () => ({ top: -9000, bottom: 300 }) as DOMRect;
+                document.body.appendChild(block);
+                manager.scrollToTop();
+                manager.onScroll();
+                fire(observers.render, block, true);
+                await settle();
+                expect(orderOf(renderer)).toBe("from-start");
+            });
+
+            it("still draws from its start as the scroll goes on up", async () => {
+                const { manager, renderer, block, pane } = headedForTop();
+                pane.scrollTop = 4000;
+                manager.onScroll();
+                fire(observers.render, block, true);
+                await settle();
+                expect(orderOf(renderer)).toBe("from-start");
+            });
+        });
+
         it("draws a note the reader comes down into from its start", async () => {
             const { renderer, block } = placed(500, 9800);
             fire(observers.render, block, true);

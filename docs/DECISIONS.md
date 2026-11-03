@@ -3876,7 +3876,11 @@ iPad, and 0 of 12 after this. Traces showed two causes:
   fraction `f` down the Base, the anchor shifts the stream by `f` of the growth:
   30 px at 0.5.
 
-Moves this short in a glide wait for a screen recording (D-099).
+Filmed in its scene, 16 runs on an iPad in portrait, these moves came twice, 25
+and 33 px, with the glide moving 130-170 pt a frame. The film shows no step in
+the glide at the first. The second falls in a stall that moves more. A Base only
+fills in at the pane's top when a fast glide outruns the drawing, so a reader
+does not see this (D-099).
 
 **Rejected:**
 
@@ -3926,3 +3930,20 @@ the window's top, which reported 7,967 px for one read in a filmed flick.
   matched it, failing `harness.spec.ts:205` and `jump.spec.ts:126`.
 - Reading the scroll a frame later to count a handover — every read until then
   would mix the handover with the scroll's steps.
+
+## D-208 — A scroll to the top draws each note from its start (2026-11-02)
+
+**Decision:** from a tap on the title until the scroll arrives, or a finger or a
+scroll down takes over, `NoteWindowManager` draws a note from its start,
+wherever it is met. This narrows ADR 0022.
+
+**Why:** the glide met a long note above the pane and drew it from its end, but
+it lands on the note's start. Filmed on an iPad in portrait, what was under the
+title stayed blank for 1.16-1.36 s. Now 0.33-0.52 s, most of it the glide.
+
+**Rejected:**
+
+- Choosing each run by where the reader is, with the middle drawn last — nothing
+  else reaches a note's top while it draws. Eight strokes over a 10,000-line
+  note moved at most 61,000 px of its 218,000 px, and drawing ended first. A tap
+  while it draws produces no click (`docs/TODO.md`).

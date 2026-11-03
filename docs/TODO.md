@@ -11,23 +11,31 @@ there is a screen recording of them (D-099).
 - [ ] Remove the outline Obsidian draws around a property under the pointer: it
       suggests the property can be edited, which the read-only stream doesn't
       allow. Check desktop and the phone layout.
-- [ ] Scrolling up to a note while a long note below it still draws from its end
-      leaves that note's top, now on screen, to be drawn last (ADR 0022).
-      Measure the blank when flicking up through a 10,000-line note and with a
-      tap on the title from inside it, including two long notes next to each
-      other. If a reader would see it, choose the next run by where the reader
-      is, and draw the middle last. Once on an iPad in portrait, after a tap on
-      the title, the long note's strip below the newest note stayed blank for
-      about 320 ms, then showed the wrong part of the note for about 340 ms.
-- [ ] A Base filling in across the pane's top moves all that is on screen by its
-      fraction of the growth, a frame before its box grows: 30-49 px in a glide
-      on an iPad in portrait (D-205). Check with a screen recording whether a
-      reader sees it. If so, keep the fraction only when a Base changes between
-      cards and a table.
+- [ ] A tap while a note draws on screen does nothing, if what it draws holds
+      links or checkboxes: the page gets `touchstart`, `touchend` and a second
+      `mousemove`, but no `mousedown` or `click`. iOS seems to treat the tap as
+      a hover that revealed something to tap. On an iPad, adding links or
+      checkboxes on a timer lost 8 of 8 taps, and plain text lost 0 of 4. Real
+      drawing lost 8 of 8, and the same render off screen 0 of 4. Handle the
+      title's tap without `click`, then check links and fold arrows.
 - [ ] As a long note draws from its end, a Base below the pane's top pushes the
       text up, and the anchor holds the text, which moves the tail and the next
-      note down: 128 px in 1 of 8 hard flicks. With its tail on screen, the note
-      could hold its tail instead.
+      note down: 128 px in 1 of 8 hard flicks (D-203). With its tail on screen,
+      the note could hold its tail instead. On 2026-11-02, 32 runs of two
+      four-stroke flicks on an iPad in portrait never moved it 30 px, so wait
+      until it shows again.
+- [ ] `ios/harness.spec.ts:312` fails where the flick happens to land, about 1
+      run in 3 on an iPad in landscape. Over a Base (`-300`), the test hides the
+      Base, but the follower reads the text below it: hide the follower's own
+      text. Over a task list (`-117`), the follower does read the hidden list,
+      and the drift is not explained yet.
+- [ ] `ios/stream.spec.ts:215`, a flick over a web page in a frame, fails every
+      run: a frame given a vault file's `capacitor://` address stays on
+      `about:blank`, with no `load` event and no CSP report, even added to the
+      page without the plugin. The file fetches with a 200, and `https:`,
+      `srcdoc` and the app's own address load. It passed until 2026-11-02, when
+      Obsidian 1.15 came to the iPad, which is the likely cause. Give the test a
+      page that loads.
 - [ ] A PDF inside a line of text still holds up the queue (D-202).
 - [ ] Order a long note's slices as notes are ordered (D-201): what is on screen
       and near it first, then what the scroll is heading for, and what it has

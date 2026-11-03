@@ -122,6 +122,12 @@ export class NoteWindowManager {
     private lastScrollTop = 0;
     private lastDirection: ScrollDirection = 0;
     /**
+     * The pane is scrolling to its top, so a note drawn on the way is read from
+     * its start. Ends on arrival, or when a finger or a scroll down takes over.
+     */
+    // Stryker disable next-line BooleanLiteral: attach resets it before any note asks for its order.
+    private headedForTop = false;
+    /**
      * The layout that heights are read and saved for. It is read once and kept
      * until the current task ends.
      */
@@ -206,6 +212,7 @@ export class NoteWindowManager {
         this.scrollRoot = scrollRoot;
         this.lastScrollTop = scrollRoot.scrollTop;
         this.lastDirection = 0;
+        this.headedForTop = false;
         this.stream = stream;
         this.observeMargins(scrollRoot);
         this.screenObserver = new IntersectionObserver(
@@ -355,6 +362,7 @@ export class NoteWindowManager {
         const { scrollTop } = this.scrollRoot;
         this.lastDirection = (Math.sign(scrollTop - this.lastScrollTop) || this.lastDirection) as ScrollDirection;
         this.lastScrollTop = scrollTop;
+        if (scrollTop <= 0 || this.lastDirection > 0) this.headedForTop = false;
     }
 
     /**
@@ -386,6 +394,7 @@ export class NoteWindowManager {
     }
 
     onFingerDown(): void {
+        this.headedForTop = false;
         this.anchor.fingerDown();
     }
 
@@ -395,6 +404,7 @@ export class NoteWindowManager {
 
     /** Scrolls the pane smoothly to its top, the newest note. */
     scrollToTop(): void {
+        this.headedForTop = true;
         this.anchor.headForTop();
         this.scrollRoot?.scrollTo({ top: 0, behavior: "smooth" });
     }
@@ -718,9 +728,11 @@ export class NoteWindowManager {
 
     /**
      * Render from the end when the reader scrolls up into the note, that is,
-     * when its middle is above the pane's middle.
+     * when its middle is above the pane's middle. A scroll to the top lands on
+     * the note's start, not its end.
      */
     private orderFor(block: HTMLElement): DrawOrder {
+        if (this.headedForTop) return "from-start";
         // Only reached while attached: detach drops every waiting render.
         const root = this.scrollRoot!.getBoundingClientRect();
         const note = block.getBoundingClientRect();
