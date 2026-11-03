@@ -3,7 +3,7 @@ import { DRAWING_FROM_END, type DrawOrder, type NoteRenderer, type RenderedNote 
 import type { NoteHeights } from "./note-heights";
 import { SCROLL_IDLE_MS, ScrollAnchor } from "./scroll-anchor";
 import { StillClock } from "./still-clock";
-import { nextToDraw, type ScrollDirection } from "./draw-order";
+import { goesBefore, isOnScreen, nextToDraw, type ScrollDirection } from "./draw-order";
 import { HeightHold, SETTLE_MS } from "./height-hold";
 import { Reservations, type Reserving } from "./reservations";
 import { FarRunWatch } from "./far-run-watch";
@@ -43,9 +43,6 @@ const FAR = "is-far";
  * work with.
  */
 const MIN_VIEWPORT_PX = 400;
-
-const isAbove = (block: HTMLElement, other: HTMLElement): boolean =>
-    (block.compareDocumentPosition(other) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0;
 
 interface NoteWindow extends Reserving {
     /**
@@ -98,9 +95,6 @@ export class NoteWindowManager {
     private renderObserver: IntersectionObserver | null = null;
     private hideObserver: IntersectionObserver | null = null;
     private unloadObserver: IntersectionObserver | null = null;
-    private screenObserver: IntersectionObserver | null = null;
-    /** The blocks inside the pane now, not just near it. */
-    private readonly onScreen = new Set<HTMLElement>();
     /**
      * For each pinned block: how far below its top its content ended when it
      * was pinned.
@@ -215,15 +209,6 @@ export class NoteWindowManager {
         this.headedForTop = false;
         this.stream = stream;
         this.observeMargins(scrollRoot);
-        this.screenObserver = new IntersectionObserver(
-            (entries) => {
-                for (const { target, isIntersecting } of entries) {
-                    if (isIntersecting) this.onScreen.add(target as HTMLElement);
-                    else this.onScreen.delete(target as HTMLElement);
-                }
-            },
-            { root: scrollRoot }
-        );
         // The anchor needs these reports too. A pinned note hides changes
         // inside it from anything watching the note's size. Told only after the
         // re-pin, the anchor would read the note already grown.
@@ -545,7 +530,6 @@ export class NoteWindowManager {
         // Stryker disable next-line CallExpression: only frees memory; a block
         // removed from the stream never finishes re-rendering.
         this.beyond.delete(block);
-        this.onScreen.delete(block);
         this.stopSettling(window);
         this.discard(block, window);
         this.windows.delete(block);
@@ -609,24 +593,25 @@ export class NoteWindowManager {
     /**
      * Each note waiting has a turn in the queue, so whichever note a turn
      * draws, every note has been drawn once the queue is empty. Read from the
-     * layout: `onScreen` reports a frame late, and a glide moves far in one.
+     * layout: an IntersectionObserver reports a frame late, and a glide moves
+     * far in one.
      */
     private async renderNext(): Promise<void> {
         const waiting = [...this.waiting.keys()];
         if (waiting.length === 0) return;
         // Before it is attached, there is no reader to draw for.
         if (!this.scrollRoot) return this.renderWaiting(waiting[0]!);
-        const direction = this.clock.isStill() ? 0 : this.lastDirection;
-        await this.renderWaiting(nextToDraw(waiting, this.scrollRoot.getBoundingClientRect(), direction));
+        await this.renderWaiting(nextToDraw(waiting, this.scrollRoot.getBoundingClientRect(), this.heading()));
     }
 
-    /**
-     * Renders `block` if it is still waiting. A note on screen may have been
-     * rendered before its turn.
-     */
+    /** Which way the reader is scrolling. Once the pane is still, neither. */
+    private heading(): ScrollDirection {
+        return this.clock.isStill() ? 0 : this.lastDirection;
+    }
+
+    /** Renders `block`, one of the notes waiting. */
     private async renderWaiting(block: HTMLElement): Promise<void> {
-        const window = this.waiting.get(block);
-        if (!window) return;
+        const window = this.waiting.get(block)!;
         this.waiting.delete(block);
         try {
             // It scrolled past before its turn came. Rendering it would hold up
@@ -691,8 +676,8 @@ export class NoteWindowManager {
      * below it would jump away and back, and keeping its end still would move
      * its start off screen. Outside a glide, every note is held: a scroll the
      * stream set was measured against its full height (D-200). Read from the
-     * layout: `onScreen` reports a frame late, and a glide can bring a note on
-     * screen in that frame.
+     * layout: an IntersectionObserver reports a frame late, and a glide can
+     * bring a note on screen in that frame.
      */
     private settleHeight(block: HTMLElement, window: NoteWindow): void {
         if (!this.anchor.readerMovedPane()) {
@@ -740,15 +725,26 @@ export class NoteWindowManager {
     }
 
     /**
-     * Renders the notes on screen that go before `drawing`: any of them if it
-     * is off screen, and those above it if it is on screen. One below it may be
-     * long, and `drawing` would wait for all of it. Still inside the queue's
-     * task, so no other change runs meanwhile (ADR 0004).
+     * Renders, in the order the reader needs them, the waiting notes they need
+     * before `drawing` (ADR 0020). Off screen, `drawing` waits only for notes
+     * on screen or short ones: a long one would hold it until its end, even
+     * once `drawing` is needed more. Still inside the queue's task, so no other
+     * change runs meanwhile (ADR 0004). Read from the layout, as `renderNext`
+     * reads it.
      */
     private async renderWaitingBefore(drawing: HTMLElement): Promise<void> {
-        for (const block of [...this.waiting.keys()]) {
-            if (!this.onScreen.has(block)) continue;
-            if (!this.onScreen.has(drawing) || isAbove(block, drawing)) await this.renderWaiting(block);
+        // Before it is attached, there is no reader to draw for.
+        while (this.scrollRoot) {
+            const pane = this.scrollRoot.getBoundingClientRect();
+            const direction = this.heading();
+            const anyMay = isOnScreen(drawing, pane);
+            const mayGoFirst = [...this.waiting]
+                .filter(([block, { file }]) => anyMay || isOnScreen(block, pane) || !this.renderer.isLong(file))
+                .map(([block]) => block);
+            if (mayGoFirst.length === 0) return;
+            const next = nextToDraw(mayGoFirst, pane, direction);
+            if (!goesBefore(next, drawing, pane, direction)) return;
+            await this.renderWaiting(next);
         }
     }
 
@@ -1065,7 +1061,6 @@ export class NoteWindowManager {
     }
 
     private observe(block: HTMLElement): void {
-        this.screenObserver?.observe(block);
         this.renderObserver?.observe(block);
         this.hideObserver?.observe(block);
         this.unloadObserver?.observe(block);
@@ -1073,7 +1068,6 @@ export class NoteWindowManager {
     }
 
     private unobserve(block: HTMLElement): void {
-        this.screenObserver?.unobserve(block);
         this.renderObserver?.unobserve(block);
         this.hideObserver?.unobserve(block);
         this.unloadObserver?.unobserve(block);
@@ -1081,20 +1075,16 @@ export class NoteWindowManager {
     }
 
     private detachObservers(): void {
-        this.screenObserver?.disconnect();
         this.renderObserver?.disconnect();
         this.hideObserver?.disconnect();
         this.unloadObserver?.disconnect();
         this.anchor.detach();
         this.resizes?.disconnect();
-        this.screenObserver = null;
         this.renderObserver = null;
         this.hideObserver = null;
         this.unloadObserver = null;
         // Stryker disable next-line CallExpression: a disconnected observer watches nothing.
         this.runs.observeWith(null, null);
         this.resizes = null;
-        // Stryker disable next-line CallExpression: the next observer's first report sets every block's entry again.
-        this.onScreen.clear();
     }
 }

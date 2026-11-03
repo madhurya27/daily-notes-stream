@@ -19,12 +19,13 @@ rendered, is rendered one section at a time, as before (ADR 0019). Between runs,
 once 25 ms have been used, the renderer gives the thread back through a timer,
 so everything already waiting runs first. If the note leaves the screen in the
 meantime, it stops at its next slice and stays empty. If it is removed from the
-document, it stops drawing. Between its slices, a note off the screen lets any
-note waiting on the screen draw, and a note on the screen lets those waiting on
-the screen above it draw. Then it carries on where it stopped. The block stays
-clipped at its reserved or pinned height until the note is drawn, so nothing
-moves in the meantime. A note whose sections cannot stand on their own
-(ADR 0019) is still rendered in one call.
+document, it stops drawing. Between its slices, a note lets each waiting note
+the reader needs first draw, in the order D-201 ranks them: on the screen, only
+those on the screen above it. Off the screen, a long note goes first only if it
+is on the screen. Then it carries on where it stopped. The block stays clipped
+at its reserved or pinned height until the note is drawn, so nothing moves in
+the meantime. A note whose sections cannot stand on their own (ADR 0019) is
+still rendered in one call.
 
 ## Consequences
 
@@ -41,6 +42,13 @@ moves in the meantime. A note whose sections cannot stand on their own
 - In a tall pane, a short newest note leaves the top of the long note below it
   on the screen. On an iPad in portrait, the newest note waited about 660 ms
   behind 7 of its slices, and now waits for at most one.
+- A glide can pass a long note that is still drawing. The notes it is heading
+  for then draw between the long note's slices. On an iPad, in flicks down past
+  a 10,000-line note with 25 embeds, a note stayed blank for 100 ms or more in 6
+  of 18 flicks, against 13 when only notes on the screen went first. The longest
+  blank fell from 408 to 227 ms in portrait, and was 296 against 260 ms in
+  landscape. A slice that holds an embed still takes up to about 520 ms, and a
+  note that comes on the screen waits for it.
 - Which note starts next is decided separately (D-201). This record covers only
   which notes may go ahead of a long note between its slices.
 - Below 6,000 characters, rendering all at once blocks the thread no longer than
@@ -75,6 +83,11 @@ moves in the meantime. A note whose sections cannot stand on their own
 - **A note on the screen giving way to any other on the screen** — the other
   could be a long note just showing at the bottom, and this one would wait for
   all of it, with perhaps one slice drawn.
+- **Only notes on the screen going first between slices** — a note the scroll
+  was about to reach waited behind a long note it had passed.
+- **A long note off the screen giving way to another off the screen** — the
+  first could not carry on until the second ended, even once the reader needed
+  it more.
 - **Never unloading the newest note** — it fixes only a tap on the title, not a
   short note reached above a long one anywhere else. A long newest note would
   stay in memory, with its embeds running.

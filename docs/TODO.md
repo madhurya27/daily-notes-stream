@@ -18,10 +18,9 @@ there is a screen recording of them (D-099).
       four-stroke flicks on an iPad in portrait never moved it 30 px, so wait
       until it shows again.
 - [ ] A PDF inside a line of text still holds up the queue (D-202).
-- [ ] Order a long note's slices as notes are ordered (D-201): what is on screen
-      and near it first, then what the scroll is heading for, and what it has
-      passed last. Between slices, only notes on screen go first now, so a long
-      note off screen still holds up one about to come on screen.
+- [ ] Find what makes a slice of a long note with embeds take up to 520 ms on an
+      iPad (ADR 0020). If its render waits without using the CPU, as a PDF's did
+      (D-202), the note need not wait for it.
 - [ ] Try adding the e2e tests to CI on Linux.
 - [ ] Once the directory's scorecard lint understands moment's types, go back to
       Obsidian's `moment` and delete `src/notes/moment.ts` (D-152).

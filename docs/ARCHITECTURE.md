@@ -67,11 +67,11 @@ So when a view's own handler runs, the shared indexes are already up to date.
    (`far-runs.ts`, [ADR 0021](adr/0021-hide-far-runs-of-long-notes.md)), and
    `far-run-watch.ts` watches them. Hidden notes and hidden parts show again
    when they come back near the screen. Waiting notes draw in the order the
-   reader needs them (`draw-order.ts`, D-201), and a PDF loads after its note is
-   drawn (`pdf-embeds.ts`, D-202). Each rendered note owns a child `Component`,
-   which is thrown away when the note is unloaded. When the reader scrolls up
-   into a long note, it is drawn from its end
-   ([ADR 0022](adr/0022-draw-long-notes-from-the-end-met.md)).
+   reader needs them (`draw-order.ts`, D-201), between a long note's slices too
+   (ADR 0020), and a PDF loads after its note is drawn (`pdf-embeds.ts`, D-202).
+   Each rendered note owns a child `Component`, which is thrown away when the
+   note is unloaded. When the reader scrolls up into a long note, it is drawn
+   from its end ([ADR 0022](adr/0022-draw-long-notes-from-the-end-met.md)).
 4. **Change.** Vault and metadata events become `NoteStream` mutations: insert a
    note, remove one, re-render one, or check again whether a note is hidden.
    Saves to the same path are debounced. An open search searches again once the

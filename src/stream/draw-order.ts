@@ -15,15 +15,33 @@ export function nextToDraw(waiting: HTMLElement[], pane: Span, direction: Scroll
         ...standing(block.getBoundingClientRect(), pane, direction),
     }));
     // `sort` keeps equals in their order.
-    ranked.sort((a, b) => a.group - b.group || a.within - b.within);
+    ranked.sort(byNeed);
     return ranked[0]!.block;
 }
 
+/** Whether the reader needs `block` before `other`, as `nextToDraw` ranks. */
+export function goesBefore(block: HTMLElement, other: HTMLElement, pane: Span, direction: ScrollDirection): boolean {
+    const a = standing(block.getBoundingClientRect(), pane, direction);
+    const b = standing(other.getBoundingClientRect(), pane, direction);
+    return byNeed(a, b) < 0;
+}
+
+type Standing = { group: number; within: number };
+
+const byNeed = (a: Standing, b: Standing) => a.group - b.group || a.within - b.within;
+
+/** Whether `block` is inside the pane, not just touching its edge. */
+export function isOnScreen(block: HTMLElement, pane: Span): boolean {
+    return overlaps(block.getBoundingClientRect(), pane);
+}
+
+const overlaps = ({ top, bottom }: Span, pane: Span) => bottom > pane.top && top < pane.bottom;
+
 /** Which group a note is in, and where it stands in that group. */
-function standing({ top, bottom }: Span, pane: Span, direction: ScrollDirection): { group: number; within: number } {
-    if (bottom > pane.top && top < pane.bottom) return { group: 0, within: top };
-    const below = top >= pane.bottom;
-    const distance = below ? top - pane.bottom : pane.top - bottom;
+function standing(note: Span, pane: Span, direction: ScrollDirection): Standing {
+    if (overlaps(note, pane)) return { group: 0, within: note.top };
+    const below = note.top >= pane.bottom;
+    const distance = below ? note.top - pane.bottom : pane.top - note.bottom;
     const behind = direction === (below ? -1 : 1);
     return { group: behind ? 2 : 1, within: distance };
 }

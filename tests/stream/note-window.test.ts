@@ -28,7 +28,6 @@ interface Observers {
     render: IntersectionObserverCallback;
     hide: IntersectionObserverCallback;
     unload: IntersectionObserverCallback;
-    screen: IntersectionObserverCallback;
     observe: ReturnType<typeof vi.fn>;
     unobserve: ReturnType<typeof vi.fn>;
     disconnect: ReturnType<typeof vi.fn>;
@@ -43,7 +42,6 @@ function stubObservers(): void {
         render: () => {},
         hide: () => {},
         unload: () => {},
-        screen: () => {},
         observe: vi.fn(),
         unobserve: vi.fn(),
         disconnect: vi.fn(),
@@ -53,14 +51,11 @@ function stubObservers(): void {
         "IntersectionObserver",
         // A regular function, so it can be called with `new`.
         vi.fn(function (cb: IntersectionObserverCallback, init?: IntersectionObserverInit) {
-            if (init?.rootMargin === undefined) observers.screen = cb;
-            else {
-                callbacks.push(cb);
-                observers.margins.push(init.rootMargin);
-                observers.render = callbacks[0]!;
-                observers.hide = callbacks[1] ?? callbacks[0]!;
-                observers.unload = callbacks[2] ?? callbacks[0]!;
-            }
+            callbacks.push(cb);
+            observers.margins.push(init!.rootMargin!);
+            observers.render = callbacks[0]!;
+            observers.hide = callbacks[1] ?? callbacks[0]!;
+            observers.unload = callbacks[2] ?? callbacks[0]!;
             return {
                 observe: observers.observe,
                 unobserve: observers.unobserve,
@@ -155,6 +150,8 @@ function makeRenderer(
          * A note rendered all at once has no runs.
          */
         runsOf: vi.fn((_component: Component): Element[][] => []),
+        /** Every note is short unless a test says otherwise. */
+        isLong: vi.fn((_file: TFile) => false),
         farRuns: new FarRuns(boxFromData),
         discarded,
     };
@@ -289,11 +286,11 @@ describe("NoteWindowManager.add", () => {
         expect(renderer.renderInto).not.toHaveBeenCalled();
     });
 
-    it("observes the block with all four observers", () => {
+    it("observes the block with all three observers", () => {
         const { manager } = makeManager();
         const block = manager.add(FILE);
         expect(observers.observe).toHaveBeenCalledWith(block);
-        expect(observers.observe).toHaveBeenCalledTimes(4);
+        expect(observers.observe).toHaveBeenCalledTimes(3);
     });
 });
 
@@ -1461,12 +1458,6 @@ describe("NoteWindowManager margins", () => {
         manager.onResize();
 
         expect(observers.observe.mock.calls.filter(([el]) => el === block)).toHaveLength(3);
-    });
-
-    it("watches what is on screen in the pane itself", () => {
-        const { scrollRoot } = makeManager();
-
-        expect(IntersectionObserver).toHaveBeenCalledWith(expect.any(Function), { root: scrollRoot });
     });
 
     it("leaves the observers alone when a resize did not change the height", () => {
@@ -2848,8 +2839,9 @@ describe("NoteWindowManager under a fast scroll", () => {
     });
 });
 
-describe("NoteWindowManager draws the notes on screen first", () => {
+describe("NoteWindowManager draws, between a long note's slices, the notes the reader needs first", () => {
     const SLICES = 3;
+    const PANE_HEIGHT = 800;
     /** Every slice drawn, in order, named by its note's path. */
     let drawn: string[];
 
@@ -2872,130 +2864,177 @@ describe("NoteWindowManager draws the notes on screen first", () => {
             block.createDiv({ cls: "daily-note-content" });
             return { component: new Component(), footer: Promise.resolve() };
         });
-        return renderer;
+        return Object.assign(renderer, { isLong: vi.fn((file: TFile) => longPaths.includes(file.path)) });
     }
 
-    const LONG = new TFile("Notes/2025-01-01.md");
-    const SHORT = new TFile("Notes/2025-01-02.md");
+    /** `block` is laid out `top` px below the pane's top from now on. */
+    const moveTo = (block: HTMLElement, top: number) =>
+        (block.getBoundingClientRect = () => ({ top, bottom: top + 100, height: 100 }) as DOMRect);
 
-    function setUp() {
+    /**
+     * A note at each of `tops` px from the pane's top. Those named in `long`
+     * draw in slices.
+     */
+    function setUp(tops: Record<string, number>, long: string[]) {
         drawn = [];
-        const renderer = makeLongNoteRenderer(LONG.path);
-        const { manager } = makeManager(renderer);
-        const long = manager.add(LONG);
-        const short = manager.add(SHORT);
-        document.body.append(long, short);
+        const root = makeScrollRoot(PANE_HEIGHT);
+        root.getBoundingClientRect = () => ({ top: 0, bottom: PANE_HEIGHT, height: PANE_HEIGHT }) as DOMRect;
+        const renderer = makeLongNoteRenderer(...long);
+        const { manager } = makeManager(renderer, undefined, root);
         onTestFinished(() => manager.detach());
-        return { renderer, long, short };
+        const blocks = Object.fromEntries(
+            Object.entries(tops).map(([name, top]) => {
+                const block = manager.add(new TFile(name));
+                moveTo(block, top);
+                document.body.append(block);
+                return [name, block];
+            })
+        );
+        const scrollDown = () => {
+            for (const scrollTop of [1000, 1100]) {
+                root.scrollTop = scrollTop;
+                manager.onScroll();
+            }
+        };
+        return { renderer, blocks, scrollDown };
     }
 
-    const drawAll = () => vi.advanceTimersByTimeAsync(100);
+    /** `first` starts drawing, then `rest` come into range in that order. */
+    async function draw(blocks: Record<string, HTMLElement>, first: string, ...rest: string[]) {
+        fire(observers.render, blocks[first]!, true);
+        await vi.advanceTimersByTimeAsync(5); // into its first slice
+        for (const name of rest) fire(observers.render, blocks[name]!, true);
+        await vi.advanceTimersByTimeAsync(200);
+    }
 
     // Scrolling to the top past a long note left it within the drawing
     // distance, and the newest note waited about 0.3 s on an iPhone for it to
     // finish drawing.
-    it("draws a note that came on screen between a nearby long note's slices, then the rest of it", async () => {
-        const { renderer, long, short } = setUp();
-        fire(observers.render, long, true);
-        await vi.advanceTimersByTimeAsync(5); // into its first slice
-        fire(observers.render, short, true);
-        fire(observers.screen, short, true);
-        await drawAll();
+    it("draws a note on screen between an off-screen long note's slices, then the rest of it", async () => {
+        const { renderer, blocks } = setUp({ long: 1000, short: 200 }, ["long"]);
+        await draw(blocks, "long", "short");
 
-        expect(drawn).toEqual([LONG.path, SHORT.path, LONG.path, LONG.path]);
+        expect(drawn).toEqual(["long", "short", "long", "long"]);
         expect(renderer.renderInto).toHaveBeenCalledTimes(2);
-        expect(isRendered(long)).toBe(true);
-        expect(isRendered(short)).toBe(true);
+        expect(isRendered(blocks.long!)).toBe(true);
+        expect(isRendered(blocks.short!)).toBe(true);
     });
 
     // In a tall pane, a short newest note leaves the top of a long note on
     // screen below it. The top stayed blank for 0.7 s on an iPad in portrait.
     it("draws a note on screen above a long note on screen between its slices", async () => {
-        const { long, short } = setUp();
-        document.body.append(short, long);
-        fire(observers.render, long, true);
-        fire(observers.screen, long, true);
-        await vi.advanceTimersByTimeAsync(5);
-        fire(observers.render, short, true);
-        fire(observers.screen, short, true);
-        await drawAll();
+        const { blocks } = setUp({ long: 300, short: 100 }, ["long"]);
+        await draw(blocks, "long", "short");
 
-        expect(drawn).toEqual([LONG.path, SHORT.path, LONG.path, LONG.path]);
+        expect(drawn).toEqual(["long", "short", "long", "long"]);
     });
 
     // The note below could be long too, and the one on screen would wait for
     // all of it, with only one slice drawn.
     it("keeps drawing a long note on screen ahead of a note on screen below it", async () => {
-        const { long, short } = setUp();
-        fire(observers.render, long, true);
-        fire(observers.screen, long, true);
-        await vi.advanceTimersByTimeAsync(5);
-        fire(observers.render, short, true);
-        fire(observers.screen, short, true);
-        await drawAll();
+        const { blocks } = setUp({ long: 100, short: 500 }, ["long"]);
+        await draw(blocks, "long", "short");
 
-        expect(drawn).toEqual([LONG.path, LONG.path, LONG.path, SHORT.path]);
+        expect(drawn).toEqual(["long", "long", "long", "short"]);
     });
 
-    it("waits its turn for a note only near the screen", async () => {
-        const { long, short } = setUp();
-        fire(observers.render, long, true);
-        await vi.advanceTimersByTimeAsync(5);
-        fire(observers.render, short, true);
-        await drawAll();
+    // A glide that passed a long note left it drawing behind the reader, while
+    // the short notes it was heading for waited: up to 408 ms blank on an iPad
+    // with embeds in the long note.
+    it("draws a note the scroll is heading for between the slices of a long note it has passed", async () => {
+        const { blocks, scrollDown } = setUp({ long: -500, short: 1000 }, ["long"]);
+        scrollDown();
+        await draw(blocks, "long", "short");
 
-        expect(drawn).toEqual([LONG.path, LONG.path, LONG.path, SHORT.path]);
+        expect(drawn).toEqual(["long", "short", "long", "long"]);
+    });
+
+    it("draws a note nearer than the long note on its side of the pane first", async () => {
+        const { blocks } = setUp({ long: 2000, short: 900 }, ["long"]);
+        await draw(blocks, "long", "short");
+
+        expect(drawn).toEqual(["long", "short", "long", "long"]);
+    });
+
+    it("waits its turn for a note further off than the long note", async () => {
+        const { blocks } = setUp({ long: 900, short: 2000 }, ["long"]);
+        await draw(blocks, "long", "short");
+
+        expect(drawn).toEqual(["long", "long", "long", "short"]);
+    });
+
+    it("waits its turn for a note the scroll has passed", async () => {
+        const { blocks, scrollDown } = setUp({ long: 1000, short: -300 }, ["long"]);
+        scrollDown();
+        await draw(blocks, "long", "short");
+
+        expect(drawn).toEqual(["long", "long", "long", "short"]);
     });
 
     it("waits its turn for a note that left the screen before the next slice", async () => {
-        const { long, short } = setUp();
-        fire(observers.render, long, true);
+        const { blocks } = setUp({ long: 1000, short: 200 }, ["long"]);
+        fire(observers.render, blocks.long!, true);
         await vi.advanceTimersByTimeAsync(5);
-        fire(observers.render, short, true);
-        fire(observers.screen, short, true);
-        fire(observers.screen, short, false);
-        await drawAll();
+        fire(observers.render, blocks.short!, true);
+        moveTo(blocks.short!, 2000);
+        await vi.advanceTimersByTimeAsync(200);
 
-        expect(drawn).toEqual([LONG.path, LONG.path, LONG.path, SHORT.path]);
+        expect(drawn).toEqual(["long", "long", "long", "short"]);
+    });
+
+    // A long note drawn inside another's slices holds the outer one until it
+    // ends, even once the outer one is needed more.
+    it("does not draw a long note off screen between the slices of another off screen", async () => {
+        const { blocks, scrollDown } = setUp({ passed: -500, ahead: 1000 }, ["passed", "ahead"]);
+        scrollDown();
+        await draw(blocks, "passed", "ahead");
+
+        expect(drawn).toEqual(["passed", "passed", "passed", "ahead", "ahead", "ahead"]);
+    });
+
+    it("draws a long note on screen between the slices of a long note off screen", async () => {
+        const { blocks } = setUp({ offScreen: 1000, onScreen: 200 }, ["offScreen", "onScreen"]);
+        await draw(blocks, "offScreen", "onScreen");
+
+        expect(drawn).toEqual(["offScreen", "onScreen", "onScreen", "onScreen", "offScreen", "offScreen"]);
+    });
+
+    it("draws the notes that go first in the order the reader needs them", async () => {
+        const { blocks } = setUp({ long: 1500, lower: 500, upper: 100 }, ["long"]);
+        await draw(blocks, "long", "lower", "upper");
+
+        expect(drawn).toEqual(["long", "upper", "lower", "long", "long"]);
     });
 
     // Between its own slices, the long note on screen drew the one above it, so
     // the note off screen no longer finds that one waiting.
     it("draws once a note on screen that another went ahead of it to draw", async () => {
-        drawn = [];
-        const THIRD = new TFile("Notes/2025-01-03.md");
-        const renderer = makeLongNoteRenderer(LONG.path, SHORT.path);
-        const { manager } = makeManager(renderer);
-        onTestFinished(() => manager.detach());
-        const [offScreen, onScreenLong, above] = [LONG, SHORT, THIRD].map((file) => manager.add(file));
-        document.body.append(offScreen!, above!, onScreenLong!);
-        fire(observers.render, offScreen!, true);
-        await vi.advanceTimersByTimeAsync(5);
-        for (const block of [onScreenLong!, above!]) {
-            fire(observers.render, block, true);
-            fire(observers.screen, block, true);
-        }
-        await drawAll();
+        const { blocks } = setUp({ offScreen: 1000, above: 100, onScreenLong: 300 }, ["offScreen", "onScreenLong"]);
+        await draw(blocks, "offScreen", "onScreenLong", "above");
 
-        expect(drawn.filter((path) => path === THIRD.path)).toHaveLength(1);
-        expect(isRendered(above!)).toBe(true);
+        expect(drawn.filter((name) => name === "above")).toHaveLength(1);
+        expect(isRendered(blocks.above!)).toBe(true);
     });
 
-    it("forgets the notes on screen once removed", async () => {
-        const { manager } = makeManager(makeLongNoteRenderer(LONG.path));
+    // Before it is attached, there is no reader to draw for.
+    it("draws no other note between a long note's slices before it is attached", async () => {
         drawn = [];
-        const long = manager.add(LONG);
-        const short = manager.add(SHORT);
-        document.body.append(long, short);
-        fire(observers.render, long, true);
+        const manager = new NoteWindowManager(
+            makeLongNoteRenderer("long") as never,
+            makeQueue(),
+            new ViewTimers(),
+            new NoteHeights(),
+            () => LAYOUT,
+            () => 500
+        );
+        const [long, short] = ["long", "short"].map((name) => manager.add(new TFile(name)));
+        document.body.append(long!, short!);
+        manager.render(long!);
         await vi.advanceTimersByTimeAsync(5);
-        fire(observers.render, short, true);
-        fire(observers.screen, short, true);
-        manager.remove(short);
-        await drawAll();
+        manager.render(short!);
+        await vi.advanceTimersByTimeAsync(200);
 
-        expect(drawn).toEqual([LONG.path, LONG.path, LONG.path, SHORT.path]);
-        manager.detach();
+        expect(drawn).toEqual(["long", "long", "long", "short"]);
     });
 });
 
@@ -3487,7 +3526,7 @@ describe("NoteWindowManager teardown", () => {
         expect(renderer.discard).not.toHaveBeenCalled();
     });
 
-    it("detach disconnects all four observers and frees every rendered note", async () => {
+    it("detach disconnects all three observers and frees every rendered note", async () => {
         const renderer = makeRenderer();
         const { manager } = makeManager(renderer);
         const first = manager.add(FILE);
@@ -3499,7 +3538,7 @@ describe("NoteWindowManager teardown", () => {
 
         manager.detach();
 
-        expect(observers.disconnect).toHaveBeenCalledTimes(4);
+        expect(observers.disconnect).toHaveBeenCalledTimes(3);
         expect(renderer.discard).toHaveBeenCalledTimes(2);
     });
 
@@ -3678,7 +3717,7 @@ describe("NoteWindowManager teardown", () => {
     it("re-attaching replaces the observers rather than stacking them", () => {
         const { manager } = makeManager();
         manager.attach(document.createElement("div"), document.createElement("div"), moreBelow);
-        expect(observers.disconnect).toHaveBeenCalledTimes(4);
+        expect(observers.disconnect).toHaveBeenCalledTimes(3);
         expect(observers.margins).toHaveLength(6);
     });
 });

@@ -333,6 +333,15 @@ export class NoteRenderer {
     }
 
     /**
+     * Whether `file` is long enough to be cut into chunks (ADR 0020), told from
+     * its size before it is read. Bytes are never fewer than characters, so no
+     * note called short is cut.
+     */
+    isLong(file: TFile): boolean {
+        return file.stat.size >= SLICED_FROM_CHARS;
+    }
+
+    /**
      * Fills an empty block. The note is rendered into a child component, not
      * the view. What MarkdownRenderer registers lasts until that child is
      * thrown away; otherwise it would outlast the DOM it belongs to. The footer

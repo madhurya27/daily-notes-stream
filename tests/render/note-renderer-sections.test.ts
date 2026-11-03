@@ -250,6 +250,15 @@ describe("NoteRenderer, a note by section", () => {
         expect(renderer.runsOf(component)).not.toEqual([]);
     });
 
+    // Told before it is read, from the file's size in bytes.
+    it("calls a note of 6,000 bytes or more long", () => {
+        const sized = (size: number) =>
+            Object.assign(new TFile("Notes/sized.md"), { stat: { ctime: 0, mtime: 0, size } });
+
+        expect(renderer.isLong(sized(5999))).toBe(false);
+        expect(renderer.isLong(sized(6000))).toBe(true);
+    });
+
     it("renders a long note whole a chunk at a time, every section in order", async () => {
         const render = renderParagraphs();
         await open(days(400));
