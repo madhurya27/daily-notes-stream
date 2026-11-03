@@ -264,6 +264,44 @@ describe("DailyNotesStreamView — header title", () => {
     });
 });
 
+// iOS drops a tap's click while a note draws on screen (D-209).
+describe("DailyNotesStreamView — lost clicks", () => {
+    beforeEach(() => {
+        vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+        vi.useRealTimers();
+        Platform.isIosApp = false;
+        document.body.replaceChildren();
+    });
+
+    /**
+     * Taps an element in the view's header, and says whether it got a click.
+     */
+    async function tapHeader(): Promise<boolean> {
+        const { view } = makeStubbedView();
+        await view.onOpen();
+        document.body.appendChild(view.containerEl);
+        const header = view.containerEl.appendChild(document.createElement("div"));
+        const clicked = vi.fn();
+        header.addEventListener("click", clicked);
+        for (const type of ["pointerdown", "pointerup"])
+            header.dispatchEvent(new PointerEvent(type, { pointerType: "touch", pointerId: 1, bubbles: true }));
+        vi.advanceTimersByTime(300);
+        return clicked.mock.calls.length > 0;
+    }
+
+    it("sends a lost click anywhere in the view, its header included, on iOS", async () => {
+        Platform.isIosApp = true;
+        expect(await tapHeader()).toBe(true);
+    });
+
+    it("leaves other platforms' clicks to them", async () => {
+        expect(await tapHeader()).toBe(false);
+    });
+});
+
 describe("DailyNotesStreamView — onOpen", () => {
     // Its first batch must already leave out hidden notes (ADR 0011).
     it("opens the stream only once the service has listed its notes", async () => {

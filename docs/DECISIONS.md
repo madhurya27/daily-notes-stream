@@ -3946,4 +3946,24 @@ title stayed blank for 1.16-1.36 s. Now 0.33-0.52 s, most of it the glide.
 - Choosing each run by where the reader is, with the middle drawn last — nothing
   else reaches a note's top while it draws. Eight strokes over a 10,000-line
   note moved at most 61,000 px of its 218,000 px, and drawing ended first. A tap
-  while it draws produces no click (`docs/TODO.md`).
+  while it draws produces no click (D-209).
+
+## D-209 — On iOS, a tap that gets no click is sent one (2026-11-02)
+
+**Decision:** on iOS, `sendLostClicks` watches each finger's tap in the view,
+its header included. A tap under 400 ms that moved at most 10 px, and got no
+click within 300 ms, is sent one on what the finger touched. A click from the
+platform after it is dropped.
+
+**Why:** while iOS handles a tap, a link or checkbox drawn on the page makes it
+take the tap for a hover, and send no click. A note drawing on screen does that,
+so the title, links and fold arrows did nothing: 4 of 4 taps on an iPad. The
+platform's click comes 72 ms after the lift. A tap that stops a glide sends no
+event at all, so it opens nothing.
+
+**Rejected:**
+
+- Acting on the lift for the title alone — links, fold arrows and Obsidian's own
+  controls lose their taps too.
+- Acting on every lift and dropping the platform's click — that click also
+  focuses an input and opens a date picker, which a sent click does not.

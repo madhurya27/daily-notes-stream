@@ -1482,6 +1482,39 @@ export class Phone {
     }
 
     /**
+     * A tap on `point` while a note on screen draws `html` again and again, at
+     * the same size, so it never moves the text. iOS then takes the tap for a
+     * hover that revealed something to tap, and sends no click (D-209).
+     */
+    async tapWhileDrawing(point: Point, html: string): Promise<void> {
+        await this.run(
+            (s: string, html: string) => {
+                const pane = document.querySelector(s)!.parentElement!;
+                const middle = pane.getBoundingClientRect().top + pane.clientHeight / 2;
+                const content = [
+                    ...pane.querySelectorAll(".daily-note-block:not(.is-unloaded) .daily-note-content"),
+                ].find((el) => el.getBoundingClientRect().bottom > middle)!;
+                const drawn = document.createElement("p");
+                drawn.id = "drawn-while-tapped";
+                drawn.innerHTML = html;
+                content.appendChild(drawn);
+                const timer = window.setInterval(() => (drawn.innerHTML = html), 10);
+                (window as unknown as { drawing: number }).drawing = timer;
+            },
+            STREAM,
+            html
+        );
+        try {
+            await this.tapAt(point);
+        } finally {
+            await this.run(() => {
+                clearInterval((window as unknown as { drawing: number }).drawing);
+                document.getElementById("drawn-while-tapped")?.remove();
+            });
+        }
+    }
+
+    /**
      * A finger held for a second on the middle of the first `selector` it could
      * reach, found as `tap` finds it.
      */

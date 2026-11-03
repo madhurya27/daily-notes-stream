@@ -209,6 +209,8 @@ Checks:
   is in the selection color. A long-press selects text in a note. **[ios]**
 - The arrows on headings, list items and the properties row can be tapped
   without zooming, and a tap on a heading's _text_ still selects it. **[ios]**
+- While a note draws on screen, a tap on the title, a link or a fold arrow still
+  works (D-209). **[ios]**
 - Flick hard down a 10,000-line note and back. The screen never goes blank.
   **[ios]** checks that the space kept for a hidden part of the note never
   reaches the screen. Only a screen recording (`scripts/capture-iphone.swift`)

@@ -19,6 +19,7 @@ import {
     onVaultConfigChange,
 } from "../obsidian-internals";
 import { isStreamPlace } from "../stream/scroll-position";
+import { sendLostClicks } from "./lost-clicks";
 
 export const VIEW_TYPE_DAILY_NOTES_STREAM = "daily-notes-stream-view";
 // A stack of cards (D-041).
@@ -180,6 +181,8 @@ export class DailyNotesStreamView extends ItemView implements HoverParent {
         const title = getViewTitle(this);
         if (!Platform.isMobile) this.addAction("arrow-up-to-line", "Scroll to top", () => this.scrollToTop());
         else if (title) this.registerDomEvent(title, "click", () => this.scrollToTop());
+        // The header too: a tap on its title is lost as well.
+        if (Platform.isIosApp) sendLostClicks(this, this.containerEl, this.timers);
 
         this.registerDomEvent(this.contentEl, "scroll", () => this.stream.onScroll());
         this.registerDomEvent(this.contentEl, "pointerdown", (evt) => this.stream.onTouch(evt.target));

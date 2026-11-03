@@ -11,13 +11,6 @@ there is a screen recording of them (D-099).
 - [ ] Remove the outline Obsidian draws around a property under the pointer: it
       suggests the property can be edited, which the read-only stream doesn't
       allow. Check desktop and the phone layout.
-- [ ] A tap while a note draws on screen does nothing, if what it draws holds
-      links or checkboxes: the page gets `touchstart`, `touchend` and a second
-      `mousemove`, but no `mousedown` or `click`. iOS seems to treat the tap as
-      a hover that revealed something to tap. On an iPad, adding links or
-      checkboxes on a timer lost 8 of 8 taps, and plain text lost 0 of 4. Real
-      drawing lost 8 of 8, and the same render off screen 0 of 4. Handle the
-      title's tap without `click`, then check links and fold arrows.
 - [ ] As a long note draws from its end, a Base below the pane's top pushes the
       text up, and the anchor holds the text, which moves the tail and the next
       note down: 128 px in 1 of 8 hard flicks (D-203). With its tail on screen,

@@ -169,6 +169,11 @@ marks matches with CSS highlights, and `text-beside-blocks.ts` wraps loose text
 in elements so that WebKit shows the highlights. The search bar opens with the
 vault's hotkey for "Search current file" (`hotkey.ts`).
 
+## Taps on iOS
+
+iOS drops a tap's click when a note drawing on screen adds links or checkboxes
+during the tap. `lost-clicks.ts` sends the click itself (D-209).
+
 ## Persistence
 
 | What                  | Where                              | Why there                    |
