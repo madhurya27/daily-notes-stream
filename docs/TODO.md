@@ -18,9 +18,6 @@ there is a screen recording of them (D-099).
       four-stroke flicks on an iPad in portrait never moved it 30 px, so wait
       until it shows again.
 - [ ] A PDF inside a line of text still holds up the queue (D-202).
-- [ ] Find what makes a slice of a long note with embeds take up to 520 ms on an
-      iPad (ADR 0020). If its render waits without using the CPU, as a PDF's did
-      (D-202), the note need not wait for it.
 - [ ] Try adding the e2e tests to CI on Linux.
 - [ ] Once the directory's scorecard lint understands moment's types, go back to
       Obsidian's `moment` and delete `src/notes/moment.ts` (D-152).
@@ -52,7 +49,8 @@ Measured and accepted. Opened again if a reader notices.
       slow iPhone.
     - The pause is Obsidian's Bases code, after our rendering. Only holding back
       each Base until the glide stops would fix it, at the cost of an empty box
-      and a new state in the scroll anchor (ADR 0013).
+      and a new state in the scroll anchor (ADR 0013). Giving the thread back
+      between Bases made it worse (D-211).
 
 ## Features
 

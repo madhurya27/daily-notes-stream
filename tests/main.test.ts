@@ -6,7 +6,14 @@ import { DEFAULT_SETTINGS } from "../src/settings";
 import { COLLAPSE_STATE_KEY, CollapsibleStateStore } from "../src/render/collapse-store";
 import { BaseMeasurements } from "../src/render/bases/base-measurements";
 import { LAYOUT_MEMORY_KEY, LayoutMemory } from "../src/stream/layout-memory";
-import { Notice, TFile, WorkspaceLeaf, type PluginManifest, type WorkspaceLeaf as Leaf } from "./mocks/obsidian";
+import {
+    Notice,
+    TFile,
+    WorkspaceLeaf,
+    type MarkdownPostProcessorContext,
+    type PluginManifest,
+    type WorkspaceLeaf as Leaf,
+} from "./mocks/obsidian";
 import { asApp, makeService } from "./stream-view-fixture";
 import { __mockSettings, __mockMarkdownFiles, __setMockNotes, __setMockSettings } from "./mocks/daily-notes";
 
@@ -181,6 +188,44 @@ describe("DailyNotesStreamPlugin — onload", () => {
         resolved();
 
         expect(invalidate).toHaveBeenCalledOnce();
+    });
+});
+
+describe("DailyNotesStreamPlugin — math", () => {
+    afterEach(() => {
+        delete (window as unknown as { MathJax?: unknown }).MathJax;
+    });
+
+    /**
+     * Runs every post-processor onload() registered, lowest sort order first,
+     * on `html` inside `parent`, as Obsidian does, and returns the section.
+     */
+    async function process(parentClass: string, html: string): Promise<HTMLElement> {
+        const sheet = document.createElement("div");
+        (window as unknown as { MathJax?: unknown }).MathJax = { chtmlStylesheet: () => sheet, tex2chtml: () => null };
+        const { plugin } = await loadPlugin();
+        const parent = document.body.createDiv({ cls: parentClass });
+        const section = parent.createDiv();
+        section.innerHTML = html;
+        for (const processor of plugin.postProcessors) void processor(section, {} as MarkdownPostProcessorContext);
+        parent.remove();
+        sheet.remove();
+        return section;
+    }
+
+    it("draws math in a stream note before Obsidian's own step, which runs at 0", async () => {
+        const { plugin } = await loadPlugin();
+        expect(plugin.postProcessors.map((processor) => processor.sortOrder! < 0)).toEqual([true]);
+
+        const section = await process("daily-note-content", '<span class="math">x</span>');
+
+        expect(section.querySelector(".math")!.classList.contains("is-loaded")).toBe(true);
+    });
+
+    it("leaves math in Obsidian's own views alone", async () => {
+        const section = await process("markdown-preview-view", '<span class="math">x</span>');
+
+        expect(section.querySelector(".math")!.classList.contains("is-loaded")).toBe(false);
     });
 });
 

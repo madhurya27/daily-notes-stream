@@ -2,6 +2,8 @@ import { Keymap, Notice, PaneType, Plugin, WorkspaceLeaf } from "obsidian";
 import { DailyNotesStreamView, STREAM_ICON, VIEW_TYPE_DAILY_NOTES_STREAM } from "./ui/stream-view";
 import { DEFAULT_SETTINGS, DailyNotesStreamSettings, DailyNotesStreamSettingTab } from "./settings";
 import { CollapsibleStateStore, isOldCollapseKey } from "./render/collapse-store";
+import { drawMathAtOnce } from "./render/math-at-once";
+import { NOTE_CONTENT_CLASS } from "./render/note-renderer";
 import { DailyNoteService } from "./notes/daily-note-service";
 import { ParsedDates } from "./notes/parsed-dates";
 import { LayoutMemory } from "./stream/layout-memory";
@@ -62,6 +64,12 @@ export default class DailyNotesStreamPlugin extends Plugin {
                     this,
                     new DailyNoteService(markdownFiles, dailyNoteSettings, parsedDates, filter)
                 )
+        );
+
+        // Before Obsidian's own math step, which runs at 0 (D-210).
+        this.registerMarkdownPostProcessor(
+            drawMathAtOnce((el) => el.closest(`.${NOTE_CONTENT_CLASS}`) !== null),
+            -1
         );
 
         this.registerHoverLinkSource(VIEW_TYPE_DAILY_NOTES_STREAM, {

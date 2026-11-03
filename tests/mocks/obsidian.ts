@@ -14,6 +14,7 @@ import type {
     Command,
     EventRef,
     FileStats,
+    MarkdownPostProcessor,
     HoverLinkSource,
     KeymapContext,
     PluginManifest,
@@ -35,6 +36,8 @@ export type {
     HoverLinkSource,
     HoverParent,
     HoverPopover,
+    MarkdownPostProcessor,
+    MarkdownPostProcessorContext,
     Modifier,
     PaneType,
     PluginManifest,
@@ -309,6 +312,27 @@ export const MarkdownRenderer = {
         Promise.resolve(),
 };
 
+/**
+ * The math functions below. Tests set which TeX `fails`, and read how often
+ * `finishRenderMath` was called.
+ */
+export const mathJax = { fails: null as string | null, finishes: 0 };
+
+/** Like Obsidian's: throws on math MathJax can't read. */
+export function renderMath(source: string, display: boolean): HTMLElement {
+    if (source === mathJax.fails) throw new Error(`TeX error in ${source}`);
+    const el = document.createElement("mjx-container");
+    el.dataset.source = source;
+    el.dataset.display = String(display);
+    return el;
+}
+
+/** Never settles: Obsidian's settles 100 ms after the last math is drawn. */
+export function finishRenderMath(): Promise<void> {
+    mathJax.finishes++;
+    return new Promise(() => {});
+}
+
 export const setIcon = (el: HTMLElement, iconName: string) => {
     // Record the icon so tests can check it. The real setIcon adds an SVG.
     el.dataset.icon = iconName;
@@ -428,6 +452,7 @@ export class Plugin extends Component {
     commands: Command[] = [];
     settingTabs: PluginSettingTab[] = [];
     hoverLinkSources: Record<string, HoverLinkSource> = {};
+    postProcessors: MarkdownPostProcessor[] = [];
     data: unknown = null;
 
     constructor(app: App, manifest: PluginManifest) {
@@ -458,6 +483,11 @@ export class Plugin extends Component {
     }
     addSettingTab(tab: PluginSettingTab) {
         this.settingTabs.push(tab);
+    }
+    registerMarkdownPostProcessor(postProcessor: MarkdownPostProcessor, sortOrder?: number) {
+        postProcessor.sortOrder = sortOrder;
+        this.postProcessors.push(postProcessor);
+        return postProcessor;
     }
 }
 

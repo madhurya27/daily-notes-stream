@@ -1,7 +1,9 @@
 import { describe, it, expect, vi } from "vitest";
 import type { App, ItemView } from "obsidian";
 import {
+    applyMathStylesheet,
     getDailyNoteSettings,
+    isMathJaxLoaded,
     getPropertyIcon,
     getReadableLineLength,
     getSearchHotkeys,
@@ -358,5 +360,68 @@ describe("getDailyNoteSettings", () => {
             }) as unknown as App;
         expect(getDailyNoteSettings(internals(undefined))).toEqual({});
         expect(getDailyNoteSettings(internals({}))).toEqual({});
+    });
+});
+
+describe("applyMathStylesheet", () => {
+    /** A window whose MathJax hands back `sheet` as its stylesheet. */
+    const withMathJax = (sheet: HTMLElement | undefined) =>
+        Object.assign(Object.create(window) as Window, {
+            document,
+            MathJax: sheet ? { chtmlStylesheet: () => sheet } : undefined,
+        });
+
+    it("puts MathJax's stylesheet in the page when it is not there yet", () => {
+        const sheet = document.createElement("div");
+
+        applyMathStylesheet(withMathJax(sheet));
+
+        expect(sheet.parentElement).toBe(document.head);
+        sheet.remove();
+    });
+
+    it("leaves a stylesheet already in the page where it is", () => {
+        const holder = document.body.appendChild(document.createElement("div"));
+        const sheet = holder.appendChild(document.createElement("div"));
+
+        applyMathStylesheet(withMathJax(sheet));
+
+        expect(sheet.parentElement).toBe(holder);
+        holder.remove();
+    });
+
+    it("does nothing before MathJax has loaded", () => {
+        expect(() => applyMathStylesheet(withMathJax(undefined))).not.toThrow();
+    });
+
+    it("reads the page's own window by default", () => {
+        const sheet = document.createElement("div");
+        (window as unknown as { MathJax?: unknown }).MathJax = { chtmlStylesheet: () => sheet };
+
+        applyMathStylesheet();
+
+        expect(sheet.isConnected).toBe(true);
+        sheet.remove();
+        delete (window as unknown as { MathJax?: unknown }).MathJax;
+    });
+});
+
+describe("isMathJaxLoaded", () => {
+    const windowWith = (mathJax: unknown) => Object.assign(Object.create(window) as Window, { MathJax: mathJax });
+
+    it("is true once MathJax can draw", () => {
+        expect(isMathJaxLoaded(windowWith({ tex2chtml: () => null }))).toBe(true);
+    });
+
+    it("is false while MathJax is still starting", () => {
+        expect(isMathJaxLoaded(windowWith({}))).toBe(false);
+    });
+
+    it("is false before MathJax is loaded at all", () => {
+        expect(isMathJaxLoaded(windowWith(undefined))).toBe(false);
+    });
+
+    it("reads the page's own window by default", () => {
+        expect(isMathJaxLoaded()).toBe(false);
     });
 });

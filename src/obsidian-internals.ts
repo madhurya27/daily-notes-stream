@@ -210,3 +210,27 @@ export function removeLocalStorageKeys(
     for (const key of keys) storage.removeItem(key);
     return keys.length;
 }
+
+/** MathJax's own API, on the global Obsidian loads it into. */
+type MathJaxGlobal = { chtmlStylesheet(): HTMLElement; tex2chtml?: unknown };
+
+const mathJaxOf = (win: Window) => (win as unknown as { MathJax?: MathJaxGlobal }).MathJax;
+
+/**
+ * Whether Obsidian has loaded MathJax, so `renderMath` can draw. Obsidian's
+ * own flag for this is not public.
+ */
+export function isMathJaxLoaded(win: Window = window): boolean {
+    return typeof mathJaxOf(win)?.tex2chtml === "function";
+}
+
+/**
+ * Adds to MathJax's stylesheet the characters drawn since the last time, and
+ * puts it in the page if it is not there yet, as Obsidian's
+ * `finishRenderMath` does 100 ms after the last math is drawn. Until then, a
+ * character drawn for the first time has no size (D-210).
+ */
+export function applyMathStylesheet(win: Window = window): void {
+    const sheet = mathJaxOf(win)?.chtmlStylesheet();
+    if (sheet && !sheet.isConnected) win.document.head.appendChild(sheet);
+}

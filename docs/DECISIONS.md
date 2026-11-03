@@ -3967,3 +3967,45 @@ event at all, so it opens nothing.
   controls lose their taps too.
 - Acting on every lift and dropping the platform's click — that click also
   focuses an input and opens a date picker, which a sent click does not.
+
+## D-210 — A note does not wait for MathJax's stylesheet (2026-11-03)
+
+**Decision:** a post-processor (`math-at-once.ts`) draws the math in the
+stream's notes before Obsidian's own math step, which then finds none left. It
+draws each `.math` element with `renderMath`, adds the new characters to
+MathJax's stylesheet at once (`MathJax.chtmlStylesheet()`), and calls
+`finishRenderMath` without waiting for it. Until MathJax has loaded, it leaves
+the math to Obsidian.
+
+**Why:** Obsidian's step waits for `finishRenderMath`, which settles only 100 ms
+after the last math was drawn. Each slice of a long note holding math held the
+queue that long, with the thread idle. On an iPad, slices with an equation took
+113 ms (median), and now 8 ms. In four-stroke flicks down and back through 30
+notes with three equations each, on an iPad in landscape, a note on screen
+stayed blank for up to 184–316 ms, in up to 181 frames a round; now up to 47–53
+ms in the first round, in 3 frames, and not at all after. A character drawn for
+the first time has no size until the stylesheet has it (0x0 on desktop), so the
+stylesheet is updated at once: 0.1 ms, and it changes only for new characters.
+
+**Rejected:**
+
+- Settling a section's render once its math is drawn, as D-202 does for a PDF's
+  box — Obsidian waits for all its post-processors together, so that would also
+  skip the waits for embeds and Mermaid.
+- Leaving the stylesheet to Obsidian's flush — new characters would be measured
+  at no size, and a wide equation would not be fitted.
+
+## D-211 — A note's Bases are drawn without a turn between them (2026-11-03)
+
+**Decision:** a note's Bases are still drawn one after another after its last
+slice, without giving the thread back between them (ADR 0020).
+
+**Why:** tried on an iPad in landscape, with nine Bases at the end of a
+10,000-line note. Without turns, drawing them took 740 ms, with tasks up to 676
+ms. With a turn before each Base, it took 1.7–4.6 s in three runs, and ended
+with one task of about 3 s, as the last Base was drawn. What that task does was
+not found.
+
+**Rejected:**
+
+- A turn between Bases, as between slices — see above.

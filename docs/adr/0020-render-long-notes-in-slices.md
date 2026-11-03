@@ -47,8 +47,10 @@ still rendered in one call.
   a 10,000-line note with 25 embeds, a note stayed blank for 100 ms or more in 6
   of 18 flicks, against 13 when only notes on the screen went first. The longest
   blank fell from 408 to 227 ms in portrait, and was 296 against 260 ms in
-  landscape. A slice that holds an embed still takes up to about 520 ms, and a
-  note that comes on the screen waits for it.
+  landscape. A slice with math waited about 110 ms for MathJax's stylesheet,
+  until D-210. A note's Bases, drawn after its last slice, still take about
+  0.4–0.7 s on an iPad, and a note that comes on the screen waits for them
+  (D-211).
 - Which note starts next is decided separately (D-201). This record covers only
   which notes may go ahead of a long note between its slices.
 - Below 6,000 characters, rendering all at once blocks the thread no longer than
