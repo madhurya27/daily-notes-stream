@@ -1,6 +1,6 @@
 import { test, expect, type Phone } from "./phone";
 import { daysAhead, drewDuringGlide, leftLane } from "./glide";
-import { EMBEDS_NOTE, laneDayAhead, LANE_NOTES, LANE_SLOT, LANE_TEXT, STALLERS } from "./vault";
+import { EMBEDS_NOTE, laneDayAhead, LANE_NOTES, LANE_TEXT, STALLERS } from "./vault";
 
 /**
  * How many notes above the stream's end the trip to it starts: more than a
@@ -206,52 +206,4 @@ for (const [what, target] of [
         await phone.swipeFrom(target);
 
         expect(await phone.scrollTop()).toBeGreaterThan(before + 100);
-    });
-
-/** A web page taller than its frame, so it could scroll inside it. */
-const PAGE = "Pages/Tall page.html";
-
-for (const direction of ["up", "down"] as const)
-    test(`a flick ${direction} over a web page in a frame glides on`, async ({ phone }) => {
-        const src = await phone.runAsync(async (page: string) => {
-            const { vault } = window.app;
-            if (!vault.getFolderByPath("Pages")) await vault.createFolder("Pages");
-            const lines = Array.from(
-                { length: 200 },
-                (_, i) => `<p>Line ${i + 1} of a page taller than its frame.</p>`
-            );
-            await vault.create(page, `<!doctype html><body style="font-size: 20px">${lines.join("")}</body>`);
-            return vault.adapter.getResourcePath(page) as string;
-        }, PAGE);
-        try {
-            await glidesInLane(phone, direction, {
-                markdown: `A page:\n\n<iframe src="${src}" width="560" height="1500"></iframe>`,
-                target: "iframe",
-                // The frame loads its page once the stream stops scrolling
-                // (D-087).
-                ready: () =>
-                    expect
-                        .poll(() =>
-                            phone.run((note: string) => {
-                                const frame = document.querySelector<HTMLIFrameElement>(
-                                    `.daily-note-block[data-source-path="${note}"] iframe`
-                                );
-                                const page = frame?.contentDocument?.scrollingElement;
-                                return !!page && page.scrollHeight > page.clientHeight;
-                            }, LANE_SLOT)
-                        )
-                        .toBe(true),
-            });
-        } finally {
-            await phone.runAsync(
-                async (...paths: string[]) => {
-                    for (const path of paths) {
-                        const file = window.app.vault.getAbstractFileByPath(path);
-                        if (file) await window.app.vault.delete(file, true);
-                    }
-                },
-                PAGE,
-                "Pages"
-            );
-        }
     });

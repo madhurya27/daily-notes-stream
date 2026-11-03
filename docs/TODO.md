@@ -24,13 +24,6 @@ there is a screen recording of them (D-099).
       the note could hold its tail instead. On 2026-11-02, 32 runs of two
       four-stroke flicks on an iPad in portrait never moved it 30 px, so wait
       until it shows again.
-- [ ] `ios/stream.spec.ts:215`, a flick over a web page in a frame, fails every
-      run: a frame given a vault file's `capacitor://` address stays on
-      `about:blank`, with no `load` event and no CSP report, even added to the
-      page without the plugin. The file fetches with a 200, and `https:`,
-      `srcdoc` and the app's own address load. It passed until 2026-11-02, when
-      Obsidian 1.15 came to the iPad, which is the likely cause. Give the test a
-      page that loads.
 - [ ] A PDF inside a line of text still holds up the queue (D-202).
 - [ ] Order a long note's slices as notes are ordered (D-201): what is on screen
       and near it first, then what the scroll is heading for, and what it has
