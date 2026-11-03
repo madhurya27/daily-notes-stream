@@ -365,6 +365,10 @@ async function launch(): Promise<WindowRecord> {
  * window is hidden.
  */
 async function startUp(page: Page): Promise<void> {
+    const failures: string[] = [];
+    page.on("console", (message) => {
+        if (message.text().startsWith(`Plugin failure: ${PLUGIN_ID}`)) failures.push(message.text());
+    });
     // The window is 300x200. Lay out the page at a normal size so scrolling
     // works.
     if (!SHOW_WINDOW) {
@@ -383,14 +387,18 @@ async function startUp(page: Page): Promise<void> {
         hasText: "Trust author and enable plugins",
     });
     await trustButton.waitFor({ state: "visible", timeout: 15_000 }).catch(() => {});
+    // The button loads the plugin after the click returns. Enabling it here as
+    // well loaded it twice, and the second copy failed, so settings the tests
+    // changed never reached the stream.
     if (await trustButton.count()) await trustButton.click();
-
-    await page.evaluate(async (pluginId) => {
-        const plugins = window.app.plugins;
-        // Restricted mode blocks community plugins, so the test turns it off.
-        if (!plugins.enabled) await plugins.setEnable(true);
-        if (!plugins.plugins[pluginId]) await plugins.enablePlugin(pluginId);
-    }, PLUGIN_ID);
+    else
+        await page.evaluate(async (pluginId) => {
+            const plugins = window.app.plugins;
+            // Restricted mode blocks community plugins, so the test turns it
+            // off.
+            if (!plugins.enabled) await plugins.setEnable(true);
+            if (!plugins.plugins[pluginId]) await plugins.enablePlugin(pluginId);
+        }, PLUGIN_ID);
     await page.waitForFunction((pluginId) => Boolean(window.app.plugins.plugins[pluginId]), PLUGIN_ID, {
         timeout: 30_000,
     });
@@ -399,6 +407,7 @@ async function startUp(page: Page): Promise<void> {
     // renders.
     await page.evaluate(() => window.app.setting?.close?.());
     await expect(page.locator(".modal-container")).toHaveCount(0);
+    expect(failures, "the plugin loads once, without an error").toEqual([]);
 }
 
 /** The app as tests see it. */
