@@ -4054,3 +4054,19 @@ already fitted.
 - Listing each source of SVG — every plugin that draws one would need its own
   rule.
 - Clipping instead — it hides the drawing's right side.
+
+## D-214 — The release tag is made after the merge, not by pnpm (2026-11-04)
+
+**Decision:** `pnpm version` runs with `--no-git-tag-version`. The annotated tag
+(D-039) is made on `main` after the squash merge.
+
+**Why:** a squash merge makes a new commit, so a tag made on the branch points
+at a commit `main` never has. pnpm 11 also ignores `.npmrc` and names the tag
+`v1.2.5`.
+
+**Rejected:**
+
+- `tagVersionPrefix: ""` in `pnpm-workspace.yaml` — it fixes the name, not the
+  commit.
+- `--no-ff` merges for releases — they keep the branch's commit, but a release
+  is one change and lands like any other (global rule: squash).

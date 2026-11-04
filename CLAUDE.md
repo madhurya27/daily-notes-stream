@@ -43,12 +43,13 @@ pnpm run build && pnpm run seed   # fill .dev/demo-vault/ again with a realistic
 
 ## Releases
 
-Raise the version with `pnpm version`, merge, then push the tag. The workflow
-then drafts the release with its files. pnpm names the tag `v1.0.0` and ignores
-`.npmrc`, but the workflow needs `1.0.0`, so change the tag before you push it.
-Since `1.0.0`, write each release's notes from
-`git log --first-parent <last tag>..`: in plain words, say what a reader will
-notice. Then publish the release (D-115).
+On a branch, raise the version with
+`pnpm version <patch|minor|major> --no-git-tag-version` and commit it as
+`chore: release <version>`. After the squash merge, tag `main` with
+`git tag -a <version> -m <version>` and push the tag (D-214). The workflow then
+drafts the release with its files. Since `1.0.0`, write each release's notes
+from `git log --first-parent <last tag>..`: in plain words, say what a reader
+will notice. Then publish the release (D-115).
 
 To clear warnings in the directory's scorecard, the user first runs **Review
 branch → Run preview scan** on the branch or tag, in the plugin's listing. After
