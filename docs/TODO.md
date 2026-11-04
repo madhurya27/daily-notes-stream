@@ -18,6 +18,10 @@ there is a screen recording of them (D-099).
       four-stroke flicks on an iPad in portrait never moved it 30 px, so wait
       until it shows again.
 - [ ] A PDF inside a line of text still holds up the queue (D-202).
+- [ ] Update to ESLint 10 once `eslint-plugin-obsidianmd` supports it: it asks
+      for `@eslint/js ^9`. That also clears Dependabot alert #106, in the
+      `minimatch` 3 that ESLint 9 uses, dismissed until then. Then TypeScript 7,
+      once `typescript-eslint` allows it.
 - [ ] Try adding the e2e tests to CI on Linux.
 - [ ] Once the directory's scorecard lint understands moment's types, go back to
       Obsidian's `moment` and delete `src/notes/moment.ts` (D-152).
