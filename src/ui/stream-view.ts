@@ -176,10 +176,11 @@ export class DailyNotesStreamView extends ItemView implements HoverParent {
 
         this.addAction("calendar-1", "Jump to date", () => this.promptJumpToDate());
         this.addAction("text-search", "Search", () => this.searchBar.open());
-        // In iOS apps, a tap on the title bar scrolls to the top. On desktop,
-        // the title is only a label.
+        // In iOS apps, a tap on the title bar scrolls to the top. A phone's
+        // header has no room for the button. Elsewhere the title is a label:
+        // on an iPad it sits under the tabs (D-215).
         const title = getViewTitle(this);
-        if (!Platform.isMobile) this.addAction("arrow-up-to-line", "Scroll to top", () => this.scrollToTop());
+        if (!Platform.isPhone) this.addAction("arrow-up-to-line", "Scroll to top", () => this.scrollToTop());
         else if (title) this.registerDomEvent(title, "click", () => this.scrollToTop());
         // The header too: a tap on its title is lost as well.
         if (Platform.isIosApp) sendLostClicks(this, this.containerEl, this.timers);

@@ -60,7 +60,7 @@ Templates made with the core Templates plugin or with Templater both work. A pla
 | To | Do |
 | --- | --- |
 | Load older notes | Scroll down |
-| Go back to the newest | Click the arrow icon at the top, or run `Daily Notes Stream: Scroll to top`. On mobile, tap the title at the top |
+| Go back to the newest | Click the arrow icon at the top, or run `Daily Notes Stream: Scroll to top`. On a phone, tap the title at the top |
 | Go to a date | Click the calendar icon at the top, or run `Daily Notes Stream: Jump to date` |
 
 The jump list opens on your 62 newest notes, about two months. Type to search the rest: a year, such as `2025`, lists every day of it that has a note. You can type a date in your daily-note format or as `YYYY-MM-DD`. If that day has no note, you go to the closest earlier day that does. The calendar button in the list opens your device's date picker.

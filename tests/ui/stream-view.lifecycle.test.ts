@@ -203,11 +203,12 @@ describe("DailyNotesStreamView — header title", () => {
 
     afterEach(() => {
         Platform.isMobile = false;
+        Platform.isPhone = false;
     });
 
     // In iOS apps, a tap on the title bar scrolls to the top.
-    it("scrolls the stream to its top on a tap of the title, on mobile", async () => {
-        Platform.isMobile = true;
+    it("scrolls the stream to its top on a tap of the title, on a phone", async () => {
+        Object.assign(Platform, { isMobile: true, isPhone: true });
         const { view, titleEl } = await withTitle();
 
         titleEl.click();
@@ -241,12 +242,24 @@ describe("DailyNotesStreamView — header title", () => {
         expect(view["stream"]["window"].scrollToTop).toHaveBeenCalledOnce();
     });
 
-    // There, the title does it.
-    it("has no scroll to top button on mobile", async () => {
-        Platform.isMobile = true;
+    // There, the title does it, and the header has no room.
+    it("has no scroll to top button on a phone", async () => {
+        Object.assign(Platform, { isMobile: true, isPhone: true });
         const { view } = await withTitle();
 
         expect(view.actions.map((a) => a.title)).not.toContain("Scroll to top");
+    });
+
+    // An iPad's header has room for it, and its title sits under the tabs,
+    // where a tap reads as a tap on a label (D-215).
+    it("has the button, and leaves the title alone, on a tablet", async () => {
+        Platform.isMobile = true;
+        const { view, titleEl } = await withTitle();
+
+        titleEl.click();
+        expect(view["stream"]["window"].scrollToTop).not.toHaveBeenCalled();
+        view.actions.find((a) => a.title === "Scroll to top")!.callback(new MouseEvent("click"));
+        expect(view["stream"]["window"].scrollToTop).toHaveBeenCalledOnce();
     });
 
     it("leaves the title alone on desktop", async () => {
@@ -258,7 +271,7 @@ describe("DailyNotesStreamView — header title", () => {
     });
 
     it("opens without a title to tap", async () => {
-        Platform.isMobile = true;
+        Object.assign(Platform, { isMobile: true, isPhone: true });
         const { view } = makeStubbedView();
         await expect(view.onOpen()).resolves.toBeUndefined();
     });

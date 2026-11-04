@@ -1,19 +1,41 @@
-import { test, expect, type Phone } from "./phone";
+import { drivesIPad } from "./device";
+import { test, expect, TO_TOP, type Phone } from "./phone";
 
 const HEADER = '.workspace-leaf-content[data-type="daily-notes-stream-view"] .view-header';
 /** An old note. Every note between it and the top was never drawn. */
 const OLD = "2026-09-10";
 
-test("a tap on the title glides to the newest note and holds it at the very top", async ({ phone }) => {
+test(`a tap on ${TO_TOP.name} glides to the newest note and holds it at the very top`, async ({ phone }) => {
     await phone.openStream();
     const top = await phone.newestOffset();
     await phone.jumpTo(OLD);
 
-    await phone.tap(`${HEADER} .view-header-title`);
+    await phone.tap(TO_TOP.selector);
     await phone.rest();
 
     expect(await phone.scrollTop()).toBe(0);
     expect(await phone.newestOffset()).toBe(top);
+});
+
+// An iPad's title sits under the tabs, where a tap to scroll would surprise;
+// its header has room for the button instead. A phone's has not (D-215).
+test("a tap on the title leaves the scroll alone, on an iPad", async ({ phone }) => {
+    test.skip(!drivesIPad(process.env), "on a phone, the title scrolls to the top");
+    await phone.openStream();
+    await phone.jumpTo(OLD);
+    const before = await phone.scrollTop();
+
+    await phone.tap(`${HEADER} .view-header-title`);
+    await phone.rest();
+
+    expect(await phone.scrollTop()).toBe(before);
+});
+
+test("a phone has no Scroll to top button", async ({ phone }) => {
+    test.skip(drivesIPad(process.env), "an iPad has the button");
+    await phone.openStream();
+
+    expect(await phone.has(`${HEADER} .view-action[aria-label="Scroll to top"]`)).toBe(false);
 });
 
 /** Each action, and the input that shows it opened. */
@@ -94,7 +116,7 @@ const CASES = [
         // its end for a second after it had gone by, while the top of the
         // stream stayed blank. On an iPhone: 750–1,170 ms, and none once it
         // gives up.
-        name: "a tap on the title over long notes draws the newest at once",
+        name: `a tap on ${TO_TOP.name} over long notes draws the newest at once`,
         notes: [
             [0, 5000],
             [2, 10000],
@@ -110,7 +132,7 @@ const CASES = [
         // is rendered before it. In a tall pane, the long note is on screen
         // below the newest, which waited 0.7 s until a note gave way to one
         // above it.
-        name: "a tap on the title draws a short newest note before a long one near it",
+        name: `a tap on ${TO_TOP.name} draws a short newest note before a long one near it`,
         notes: [
             [0, 30],
             [1, 10000],
@@ -190,7 +212,7 @@ for (const { name, notes, measured, details } of CASES)
                 requestAnimationFrame(watch);
             }, written[0]!.path);
 
-            await phone.tap(`${HEADER} .view-header-title`);
+            await phone.tap(TO_TOP.selector);
             // The driver returns undefined as null.
             await expect
                 .poll(() => phone.run(() => (window as unknown as { drawnAtTop?: number }).drawnAtTop ?? 0))
@@ -206,13 +228,13 @@ for (const { name, notes, measured, details } of CASES)
         }
     });
 
-// A tap on the title lands on the note's start. Drawn from its end, as the
+// A tap to the top lands on the note's start. Drawn from its end, as the
 // glide met it, the note's start was drawn last: filmed on an iPad, the screen
 // under the title stayed blank for 1.2-1.35 s (D-208). Each case's long note is
 // first met above the pane, where it would be drawn from its end.
 for (const { name, notes, from, details } of [
     {
-        name: "a tap on the title draws a long note below the newest from its start",
+        name: `a tap on ${TO_TOP.name} draws a long note below the newest from its start`,
         notes: [
             [0, 30],
             [1, 10000],
@@ -222,7 +244,7 @@ for (const { name, notes, from, details } of [
         details: { tag: "@portrait" },
     },
     {
-        name: "a tap on the title from inside a long note draws the long note above it from its start",
+        name: `a tap on ${TO_TOP.name} from inside a long note draws the long note above it from its start`,
         notes: [
             [1, 10000],
             [2, 10000],
@@ -255,7 +277,7 @@ for (const { name, notes, from, details } of [
                 requestAnimationFrame(frame);
             });
 
-            await phone.tap(`${HEADER} .view-header-title`);
+            await phone.tap(TO_TOP.selector);
             await phone.rest();
 
             const drewFromEnd = await phone.run(() => {
@@ -273,14 +295,14 @@ for (const { name, notes, from, details } of [
 // Scrolling up from inside it draws it from its end (ADR 0022), and it finishes
 // with the scroll at the top. When the place was kept by the text drawn there,
 // it ended up 156 px below its title in 3 out of 4 runs.
-test("a tap on the title from inside a long newest note glides to its title", async ({ phone }) => {
+test(`a tap on ${TO_TOP.name} from inside a long newest note glides to its title`, async ({ phone }) => {
     await phone.openStream();
     const top = await phone.newestOffset();
     const written = await writeNotes(phone, [[0, 10000]]);
     try {
         await phone.flick("up", 3);
 
-        await phone.tap(`${HEADER} .view-header-title`);
+        await phone.tap(TO_TOP.selector);
         await phone.rest();
 
         expect(await phone.scrollTop()).toBe(0);

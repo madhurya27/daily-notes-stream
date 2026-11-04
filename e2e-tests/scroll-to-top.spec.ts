@@ -190,8 +190,8 @@ test("the Scroll to top button glides back to the newest note, on desktop", asyn
     expect(await newestOffset(container)).toBeGreaterThanOrEqual(0);
 });
 
-test("there is no Scroll to top button on mobile", async ({ obsidian, mobileLayout }) => {
-    test.skip(!mobileLayout, "a mobile rule");
+test("there is no Scroll to top button in the phone layout", async ({ obsidian, mobileLayout }) => {
+    test.skip(!mobileLayout, "a phone rule");
     await openStream(obsidian.page);
 
     await expect(obsidian.page.locator('.view-action[aria-label="Scroll to top"]')).toHaveCount(0);

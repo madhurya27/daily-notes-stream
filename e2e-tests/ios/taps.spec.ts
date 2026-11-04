@@ -1,4 +1,4 @@
-import { test, expect, type Phone } from "./phone";
+import { test, expect, TO_TOP, type Phone } from "./phone";
 import { NESTED_LIST_NOTE } from "./vault";
 
 // While iOS handles a tap, something tappable appearing on the page, as a note
@@ -8,7 +8,6 @@ import { NESTED_LIST_NOTE } from "./vault";
 const LINK = '<a class="internal-link" href="Elsewhere">a link</a>';
 const CHECKBOX = '<input type="checkbox" class="task-list-item-checkbox">';
 
-const TITLE = '.workspace-leaf-content[data-type="daily-notes-stream-view"] .view-header-title';
 /** An old note. Every note between it and the top was never drawn. */
 const OLD = "2026-09-10";
 
@@ -16,11 +15,11 @@ for (const [what, html] of [
     ["links", LINK],
     ["checkboxes", CHECKBOX],
 ] as const)
-    test(`a tap on the title glides to the top while a note on screen draws ${what}`, async ({ phone }) => {
+    test(`a tap on ${TO_TOP.name} glides to the top while a note on screen draws ${what}`, async ({ phone }) => {
         await phone.openStream();
         await phone.jumpTo(OLD);
 
-        await phone.tapWhileDrawing(await phone.pointOf(TITLE), html);
+        await phone.tapWhileDrawing(await phone.pointOf(TO_TOP.selector), html);
         await phone.rest();
 
         expect(await phone.scrollTop()).toBe(0);

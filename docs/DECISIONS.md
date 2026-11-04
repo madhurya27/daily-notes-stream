@@ -2666,6 +2666,8 @@ tap on the title, and gets no button.
   already does.
 - A floating button over the notes — covers text, and no other view has one.
 
+Changed by D-215: the iPad gets the button, and its title is a label.
+
 ## D-148 — CI runs the checks that need no Obsidian, on Linux (2026-10-17)
 
 **Decision:** `.github/workflows/ci.yml` runs formatting, lint, the e2e type
@@ -4070,3 +4072,18 @@ at a commit `main` never has. pnpm 11 also ignores `.npmrc` and names the tag
   commit.
 - `--no-ff` merges for releases — they keep the branch's commit, but a release
   is one change and lands like any other (global rule: squash).
+
+## D-215 — On an iPad, the button scrolls to the top, not the title (2026-11-04)
+
+**Decision:** changes D-147. Obsidian gives an iPad the phone layout, but its
+header has room, so it gets the Scroll to top button, as on desktop. Only a
+phone keeps the tap on the title (`Platform.isPhone`).
+
+**Why:** an iPad's title sits under the tab bar, not at the screen's top edge,
+so it reads as a label, and a tap that scrolls would surprise.
+
+**Rejected:**
+
+- The button and the title together — two ways that look different, and the
+  title one is a surprise.
+- The title only, as on the iPhone — nothing on screen offers it.

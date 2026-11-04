@@ -58,6 +58,16 @@ type Seen = { path: string; kind: string; index: number; text: string; top: numb
  * A point in the web view, in CSS pixels, and the viewport width they are
  * measured against.
  */
+const VIEW_HEADER = '.workspace-leaf-content[data-type="daily-notes-stream-view"] .view-header';
+
+/**
+ * What a reader taps to scroll to the top: the title on an iPhone, the button
+ * on an iPad (D-215). `name` goes in a test's name.
+ */
+export const TO_TOP = drivesIPad(process.env)
+    ? { name: "Scroll to top", selector: `${VIEW_HEADER} .view-action[aria-label="Scroll to top"]` }
+    : { name: "the title", selector: `${VIEW_HEADER} .view-header-title` };
+
 export type Point = { x: number; y: number; viewport: number };
 /**
  * A touch the tests sent: from where to where, in the screen's points, and when

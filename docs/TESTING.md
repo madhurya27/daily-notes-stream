@@ -198,9 +198,10 @@ Checks:
   as the notes above are rendered, and the scrolling is not cut short. **[ios]**
 - A Base that fills in just above the top of the screen leaves the text below it
   still. **[e2e]** with scroll anchoring off; **[ios]**.
-- Jump to an old date, then tap "Daily Notes Stream" in the header. The stream
-  scrolls to the newest note and stays at the very top. Tapping the search or
-  jump button does not scroll. **[e2e]** **[ios]**
+- Jump to an old date, then tap "Daily Notes Stream" in the header on an iPhone,
+  or the arrow button on an iPad. The stream scrolls to the newest note and
+  stays at the very top. Tapping the search or jump button does not scroll, nor
+  does the title on an iPad. **[e2e]** **[ios]**
 - Tap a note's title, then Back. The stream comes back at the same place and
   does not move after that. Try it with a Base at the top of the screen, and
   near the end of the 10th or 20th note (the last note of a batch). **[e2e]**

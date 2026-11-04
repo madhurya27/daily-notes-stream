@@ -5,9 +5,6 @@
 Most important first. Problems on iOS that last only a frame or two wait until
 there is a screen recording of them (D-099).
 
-- [ ] On the iPad, which Obsidian gives the phone layout, show the scroll-to-top
-      button, as on desktop: the header has room. Decide whether a tap on the
-      title still scrolls to the top (this changes D-147).
 - [ ] Remove the outline Obsidian draws around a property under the pointer: it
       suggests the property can be edited, which the read-only stream doesn't
       allow. Check desktop and the phone layout.
