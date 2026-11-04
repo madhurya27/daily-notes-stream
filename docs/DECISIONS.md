@@ -2537,8 +2537,8 @@ the JSON report marks `static` may be wrong: one in `note-window.ts` failed its
 test when applied by hand.
 
 **Why:** 100% line coverage says what ran, not what was checked. The first run
-left 657 of 5,477 mutants alive (87.9%). A full run takes about 13 minutes on 8
-workers, and keeps the fans at full speed.
+left 657 of 5,477 mutants alive (87.9%). A full run takes about 29 minutes on
+the 3 workers that 30% of a 10-core Mac gives.
 
 **Rejected:**
 

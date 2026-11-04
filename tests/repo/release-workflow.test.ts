@@ -105,6 +105,17 @@ describe("release workflow", () => {
         expect(Number(setupNode?.with?.["node-version"])).toBeGreaterThanOrEqual(floor!);
     });
 
+    it("runs the Node that @types/node describes", () => {
+        // Tests type-check against @types/node, so its major must be the Node
+        // that runs them.
+        const pkg = JSON.parse(readFileSync(resolve(repoRoot, "package.json"), "utf8")) as {
+            devDependencies: Record<string, string>;
+        };
+        const typesMajor = /(\d+)\./.exec(pkg.devDependencies["@types/node"]!)?.[1];
+        const setupNode = steps().find((step) => step.uses?.startsWith("actions/setup-node@"));
+        expect(String(setupNode?.with?.["node-version"])).toBe(typesMajor);
+    });
+
     it("pins every action to a full commit SHA", () => {
         const used = steps()
             .map((step) => step.uses)

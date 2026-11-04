@@ -366,10 +366,10 @@ describe("getDailyNoteSettings", () => {
 describe("applyMathStylesheet", () => {
     /** A window whose MathJax hands back `sheet` as its stylesheet. */
     const withMathJax = (sheet: HTMLElement | undefined) =>
-        Object.assign(Object.create(window) as Window, {
+        ({
             document,
             MathJax: sheet ? { chtmlStylesheet: () => sheet } : undefined,
-        });
+        }) as unknown as Window;
 
     it("puts MathJax's stylesheet in the page when it is not there yet", () => {
         const sheet = document.createElement("div");

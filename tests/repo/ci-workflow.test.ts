@@ -52,6 +52,17 @@ describe("CI workflow", () => {
         expect(checkout?.with?.["persist-credentials"]).toBe(false);
     });
 
+    it("runs the Node that @types/node describes", () => {
+        // Tests type-check against @types/node, so its major must be the Node
+        // that runs them.
+        const pkg = JSON.parse(readFileSync(resolve(__dirname, "../..", "package.json"), "utf8")) as {
+            devDependencies: Record<string, string>;
+        };
+        const typesMajor = /(\d+)\./.exec(pkg.devDependencies["@types/node"]!)?.[1];
+        const setupNode = steps().find((step) => step.uses?.startsWith("actions/setup-node@"));
+        expect(String(setupNode?.with?.["node-version"])).toBe(typesMajor);
+    });
+
     it("pins every action to a full commit SHA", () => {
         const used = steps().flatMap((step) => (step.uses ? [step.uses] : []));
         expect(used.length).toBeGreaterThan(0);
