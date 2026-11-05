@@ -26,7 +26,7 @@ pnpm exec playwright install webkit   # once, for e2e-tests/webkit.spec.ts
 pnpm run test:ios       # build, then run e2e-tests/ios/ on a plugged-in, unlocked iPhone (ADR 0016); setup is in docs/TESTING.md
 pnpm run test:ipados    # the same on a plugged-in iPad, keyboard attached or not (D-169, D-174), in landscape, then the @portrait tests upright (D-193)
 IOS_SEED_DAYS=1825 pnpm run test:ios   # the same on five years of notes (D-158); each test takes as long as on 21 days
-pnpm run test:ios:explore   # random real swipes on the device on USB (IOS_DEVICE=iPad for the iPad); not in test:ios (D-216)
+pnpm run test:ios:explore   # random real swipes and taps on Scroll to top, on the device on USB (IOS_DEVICE=iPad for the iPad); not in test:ios (D-216)
 EXPLORE_SEED=<seed> pnpm run test:ios:explore   # the same gestures again; a failure prints its seed. EXPLORE_GESTURES sets how many (40)
 xcrun devicectl list devices   # which device is connected? Don't use system_profiler: it misses it
 GLIDE_SWEEP=1 pnpm run test:ipados stream.spec.ts -g sweep --max-failures=0

@@ -8,7 +8,7 @@ pnpm run test:e2e                    # every e2e test twice, as desktop and as m
 pnpm run test:e2e --project=mobile   # only one of the two
 pnpm run test:e2e webkit.spec.ts     # the phone layout in iOS's browser engine (ADR 0009)
 pnpm run test:ios                    # Obsidian on a plugged-in iPhone or iPad (ADR 0016)
-pnpm run test:ios:explore            # random real swipes, to find what the tests miss (D-216)
+pnpm run test:ios:explore            # random real swipes and taps on Scroll to top, to find what the tests miss (D-216)
 pnpm run demo --test                 # the test vault, described below; --help lists every option
 ```
 

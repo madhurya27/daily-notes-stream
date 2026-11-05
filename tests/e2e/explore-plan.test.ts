@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { explorePlan, seedFrom, GESTURE_LIMITS } from "../../e2e-tests/ios/explore-plan";
+import { explorePlan, seedFrom, GESTURE_LIMITS, type Gesture, type Swipe } from "../../e2e-tests/ios/explore-plan";
+
+const swipesOf = (gestures: Gesture[]) => gestures.filter((g): g is Swipe => g.kind === "swipe");
 
 describe("explorePlan", () => {
     it("is the same for the same seed, so a failure's gestures can be run again", () => {
@@ -17,7 +19,7 @@ describe("explorePlan", () => {
     it("keeps every gesture within a thumb's reach", () => {
         const { strokes, share, ms } = GESTURE_LIMITS;
         for (let seed = 0; seed < 50; seed++)
-            for (const g of explorePlan(seed, 40).gestures) {
+            for (const g of swipesOf(explorePlan(seed, 40).gestures)) {
                 expect(Number.isInteger(g.strokes)).toBe(true);
                 expect(g.strokes).toBeGreaterThanOrEqual(strokes.min);
                 expect(g.strokes).toBeLessThanOrEqual(strokes.max);
@@ -30,7 +32,7 @@ describe("explorePlan", () => {
 
     it("reaches both ends of every range, both directions and both starts", () => {
         const plans = Array.from({ length: 50 }, (_, seed) => explorePlan(seed, 40));
-        const gestures = plans.flatMap((p) => p.gestures);
+        const gestures = swipesOf(plans.flatMap((p) => p.gestures));
         const { strokes, share, ms } = GESTURE_LIMITS;
         expect(new Set(gestures.map((g) => g.direction))).toEqual(new Set(["up", "down"]));
         expect(new Set(gestures.map((g) => g.strokes))).toEqual(
@@ -57,6 +59,20 @@ describe("explorePlan", () => {
         expect(Math.min(...starts)).toBeGreaterThanOrEqual(0);
         expect(Math.max(...starts)).toBeLessThan(1);
         expect(Math.max(...starts) - Math.min(...starts)).toBeGreaterThan(0.8);
+    });
+});
+
+describe("explorePlan's taps on Scroll to top", () => {
+    const gestures = Array.from({ length: 50 }, (_, seed) => explorePlan(seed, 40).gestures).flat();
+    const taps = gestures.filter((g) => g.kind === "to top");
+
+    it("come about once in 10 gestures, from wherever the swipes left the stream", () => {
+        expect(taps.length / gestures.length).toBeGreaterThan(0.05);
+        expect(taps.length / gestures.length).toBeLessThan(0.15);
+    });
+
+    it("are only a tap", () => {
+        for (const tap of taps) expect(tap).toEqual({ kind: "to top" });
     });
 });
 

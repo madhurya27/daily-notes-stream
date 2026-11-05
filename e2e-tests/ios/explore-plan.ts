@@ -3,7 +3,13 @@
  * last still glides, `share` of the screen tall and taking `ms`. `up` moves
  * down the stream, as in `Phone.flick`.
  */
-export type Gesture = { direction: "up" | "down"; strokes: number; share: number; ms: number };
+export type Swipe = { kind: "swipe"; direction: "up" | "down"; strokes: number; share: number; ms: number };
+
+/** A swipe, or a tap on Scroll to top from wherever the swipes left it. */
+export type Gesture = Swipe | { kind: "to top" };
+
+/** How often a gesture is a tap on Scroll to top. */
+const TO_TOP_SHARE = 0.1;
 
 /**
  * What one explore run does, all of it from its seed: where it starts, as a
@@ -26,8 +32,10 @@ export function explorePlan(seed: number, count: number): ExplorePlan {
     const start = next();
     const forgetHeights = next() < 0.5;
     const gestures = Array.from({ length: count }, (): Gesture => {
+        if (next() < TO_TOP_SHARE) return { kind: "to top" };
         const { strokes } = GESTURE_LIMITS;
         return {
+            kind: "swipe",
             direction: next() < 0.5 ? "up" : "down",
             strokes: strokes.min + Math.floor(next() * (strokes.max - strokes.min + 1)),
             share: round(between(GESTURE_LIMITS.share), 2),
