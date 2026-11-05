@@ -377,7 +377,13 @@ test("a finger landing as the stream's wait ends moves the text only with the fi
             );
             const pane = document.querySelector(".daily-notes-stream-container")!.parentElement!;
             const { left, top, width, height } = pane.getBoundingClientRect();
-            const text = document.elementFromPoint(left + width / 2, top + height / 2)!;
+            // The pane's middle may fall in a gap between notes. The hit there
+            // is the stream, which moves with every shift.
+            const RENDERED = ".daily-note-block:not(.is-unloaded)";
+            let text: Element | null = null;
+            for (let y = top + height / 2; y < top + height && !text?.closest(RENDERED); y += 4)
+                text = document.elementFromPoint(left + width / 2, y);
+            if (!text?.closest(RENDERED)) throw new Error("no rendered note below the pane's middle");
             const tops: number[] = [];
             (window as unknown as { fingerTops: number[] }).fingerTops = tops;
             const frame = () => {
