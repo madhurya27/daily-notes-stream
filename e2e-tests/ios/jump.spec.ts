@@ -147,6 +147,19 @@ test("a glide owing the notes above hands over what it owes, the text never jump
     }
 });
 
+/**
+ * Scrolls up `px` with no touch, 50 px a frame. Every run stops in the same
+ * place with the same notes drawn, which a flick's glide does not.
+ */
+const scrollUpBy = (phone: Phone, px: number) =>
+    phone.runAsync(async (distance: number) => {
+        const pane = document.querySelector(".daily-notes-stream-container")!.parentElement!;
+        for (let moved = 0; moved < distance; moved += 50) {
+            pane.scrollTop -= 50;
+            await new Promise(requestAnimationFrame);
+        }
+    }, px);
+
 /** Scrolls until `date`'s note is drawn, so the notes above have heights. */
 const scrollDownWithNoFinger = (phone: Phone, date: string) =>
     phone.runAsync(async (path: string) => {
@@ -354,9 +367,12 @@ test("a finger landing as the stream's wait ends moves the text only with the fi
             (window as unknown as { heldWait: HeldAnchor["settleOnceStill"] }).heldWait = anchor.settleOnceStill;
             anchor.settleOnceStill = Object.assign(() => {}, { cancel: () => {}, run: () => {} });
         });
-        await phone.flick("down", 1);
+        // Far enough to draw notes above the pane's top: the jump drew those
+        // just above it at their own heights.
+        await scrollUpBy(phone, 5500);
+        await phone.rest();
         const owed = await owedNow(phone);
-        expect(Math.abs(owed), "the flick left the stream owing").toBeGreaterThan(MOVED_WITH_FINGER);
+        expect(Math.abs(owed), "the scroll left the stream owing").toBeGreaterThan(MOVED_WITH_FINGER);
 
         await phone.run(() => {
             const anchor = window.app.workspace.getLeavesOfType("daily-notes-stream-view")[0]!.view.stream.window
@@ -376,14 +392,12 @@ test("a finger landing as the stream's wait ends moves the text only with the fi
                 { once: true, passive: true }
             );
             const pane = document.querySelector(".daily-notes-stream-container")!.parentElement!;
-            const { left, top, width, height } = pane.getBoundingClientRect();
-            // The pane's middle may fall in a gap between notes. The hit there
-            // is the stream, which moves with every shift.
-            const RENDERED = ".daily-note-block:not(.is-unloaded)";
-            let text: Element | null = null;
-            for (let y = top + height / 2; y < top + height && !text?.closest(RENDERED); y += 4)
-                text = document.elementFromPoint(left + width / 2, y);
-            if (!text?.closest(RENDERED)) throw new Error("no rendered note below the pane's middle");
+            const { top, height } = pane.getBoundingClientRect();
+            // The first note below the pane's middle. What is at the middle may
+            // be the stream, between notes, which moves with every shift.
+            const text = [...pane.querySelectorAll(".daily-note-block:not(.is-unloaded)")].find(
+                (block) => block.getBoundingClientRect().top >= top + height / 2
+            )!;
             const tops: number[] = [];
             (window as unknown as { fingerTops: number[] }).fingerTops = tops;
             const frame = () => {
