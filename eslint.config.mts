@@ -25,6 +25,7 @@ const commentWidthOnly = [
     "e2e-tests/**/*.ts",
     "playwright.config.ts",
     "playwright.ios.config.ts",
+    "playwright.ios-explore.config.ts",
     "vitest.config.ts",
     "esbuild.config.mjs",
     "stryker.config.mjs",

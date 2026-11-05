@@ -29,6 +29,7 @@
         "test:e2e": "pnpm run build && pnpm run typecheck:e2e && playwright test",
         "test:ios": "pnpm run build && pnpm run typecheck:e2e && playwright test -c playwright.ios.config.ts",
         "test:ipados": "IOS_DEVICE=iPad pnpm run test:ios",
+        "test:ios:explore": "pnpm run build && pnpm run typecheck:e2e && playwright test -c playwright.ios-explore.config.ts",
         "capture:screenshots": "pnpm run build && CAPTURE_SCREENSHOTS=1 E2E_SHOW_WINDOW=1 playwright test screenshots.spec.ts",
         "capture:listing": "pnpm run build && CAPTURE_LISTING=1 E2E_SHOW_WINDOW=1 playwright test listing.spec.ts && node scripts/listing-cards.mjs",
         "capture:recording": "pnpm run build && CAPTURE_RECORDING=1 E2E_SHOW_WINDOW=1 playwright test recording.spec.ts --project=desktop",

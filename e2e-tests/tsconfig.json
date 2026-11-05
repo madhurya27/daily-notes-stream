@@ -10,5 +10,10 @@
         "allowJs": true,
         "noEmit": true
     },
-    "include": ["**/*.ts", "../playwright.config.ts", "../playwright.ios.config.ts"]
+    "include": [
+        "**/*.ts",
+        "../playwright.config.ts",
+        "../playwright.ios.config.ts",
+        "../playwright.ios-explore.config.ts"
+    ]
 }

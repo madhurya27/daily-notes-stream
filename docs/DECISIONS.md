@@ -4087,3 +4087,24 @@ so it reads as a label, and a tap that scrolls would surprise.
 - The button and the title together — two ways that look different, and the
   title one is a surprise.
 - The title only, as on the iPhone — nothing on screen offers it.
+
+## D-216 — Regular tests set up the screen by script; random swipes run apart (2026-11-05)
+
+**Decision:** an iOS test sets up its screen by script, the same in every run,
+and touches for real only for what it tests. Random real swipes run on their
+own, with `test:ios:explore` (`e2e-tests/ios/explore/`). A seed repeats a run's
+gestures. A failure attaches the last frames and anchor calls; a regular test
+that sets up that screen then fails every time.
+
+**Why:** a flick's glide ends somewhere else each run. The finger-landing test
+in `ios/jump.spec.ts` failed about 1 run in 10 because of where its setup flick
+ended, not because of the stream. With a fixed scroll it owed 1,694 px in every
+run, and it failed 3 of 3 runs with the D-204 bug back. Real swipes still find
+what nobody thought to set up, as the filmed flicks of D-204 did.
+
+**Rejected:**
+
+- Real flicks for setup — a failure cannot be made again on purpose.
+- Scripted gestures only — they skip iOS's own glide, its bounce and its
+  handover, which is where the stream's iOS bugs have been.
+- Random swipes in `test:ios` — a run's result would depend on its seed.

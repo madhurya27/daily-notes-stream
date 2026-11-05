@@ -12,6 +12,8 @@ const runStamp = new Date().toISOString().slice(0, 19).replace(/:/g, "-");
  */
 export default defineConfig<DeviceOptions>({
     testDir: "e2e-tests/ios",
+    // Random swipes run on their own, with test:ios:explore (D-216).
+    testIgnore: "explore/**",
     globalSetup: "./e2e-tests/ios/global-setup.ts",
     workers: 1,
     // A run stops at its first failure. --max-failures=0 keeps going, for a
