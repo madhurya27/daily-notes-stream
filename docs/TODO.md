@@ -110,6 +110,9 @@ complexity. Most important first.
       to the top and bottom. No other plugin can add keys inside our view.
 - [ ] Jump by month or by a relative date: the prompt accepts `2025-03`,
       `last week` or `a year ago`, and goes to the nearest older note (D-015).
+- [ ] Scroll date indicator: while the stream scrolls fast, show the date of the
+      note being read beside the scroll bar, as photo apps do. Mostly for a
+      phone, where Calendar is a closed drawer and can't show where you are.
 - [ ] Month and year dividers: a heading inside the header of a month's newest
       note, not a block of its own, because the window manager and
       `StreamBlocks` treat every block as a note.
