@@ -147,18 +147,134 @@ test("a glide owing the notes above hands over what it owes, the text never jump
     }
 });
 
+/** What the finger tests make the stream owe, more than a finger moves it. */
+const OWED = 2000;
+
 /**
- * Scrolls up `px` with no touch, 50 px a frame. Every run stops in the same
- * place with the same notes drawn, which a flick's glide does not.
+ * Grows an empty note above the pane by `px`: `path`'s, or the nearest. Then
+ * waits until still. The anchor owes exactly that, in every run: what a scroll
+ * owes depends on which notes the jump drew, and that differs between runs
+ * (D-216).
  */
-const scrollUpBy = (phone: Phone, px: number) =>
-    phone.runAsync(async (distance: number) => {
-        const pane = document.querySelector(".daily-notes-stream-container")!.parentElement!;
-        for (let moved = 0; moved < distance; moved += 50) {
-            pane.scrollTop -= 50;
+async function growEmptyNoteAbove(phone: Phone, px: number, path?: string): Promise<void> {
+    const grown = await phone.run(
+        (by: number, p: string | null) => {
+            const pane = document.querySelector(".daily-notes-stream-container")!.parentElement!;
+            const paneTop = pane.getBoundingClientRect().top;
+            const empty = [...pane.querySelectorAll<HTMLElement>(".daily-note-block.is-unloaded")]
+                .filter((block) => block.getBoundingClientRect().bottom <= paneTop)
+                .filter((block) => p === null || block.dataset.sourcePath === p)
+                .at(-1);
+            if (!empty) return false;
+            const height = parseFloat(empty.style.getPropertyValue("--daily-note-placeholder-height"));
+            empty.style.setProperty("--daily-note-placeholder-height", `${height + by}px`);
+            return true;
+        },
+        px,
+        path ?? null
+    );
+    expect(grown, `an empty note above the pane: ${path ?? "any"}`).toBe(true);
+    await phone.rest();
+}
+
+/**
+ * Scrolls up until the note below `path` is drawn, then sets the scroll so
+ * `path`, still empty, ends `beyond` px past where notes start to render, 1.5
+ * screens above the pane (`RENDER_VIEWPORTS`). A finger then draws it as it
+ * drags, the same note at the same place in every run, whatever the jump drew.
+ */
+async function placeFirstEmptyAbove(phone: Phone, path: string, beyond: number): Promise<void> {
+    await phone.runAsync(async (p: string) => {
+        const block = document.querySelector<HTMLElement>(`.daily-note-block[data-source-path="${p}"]`)!;
+        const pane = block.closest(".daily-notes-stream-container")!.parentElement!;
+        const below = block.nextElementSibling!;
+        for (let frame = 0; frame < 1000 && below.classList.contains("is-unloaded"); frame++) {
+            pane.scrollTop -= 10;
             await new Promise(requestAnimationFrame);
         }
-    }, px);
+    }, path);
+    await phone.rest();
+    await phone.run(
+        (p: string, b: number) => {
+            const block = document.querySelector<HTMLElement>(`.daily-note-block[data-source-path="${p}"]`)!;
+            const pane = block.closest(".daily-notes-stream-container")!.parentElement!;
+            const edge = pane.getBoundingClientRect().top - 1.5 * pane.clientHeight;
+            pane.scrollTop += block.getBoundingClientRect().bottom - (edge - b);
+        },
+        path,
+        beyond
+    );
+    await phone.rest();
+    const at = await phone.run((p: string) => {
+        const block = document.querySelector<HTMLElement>(`.daily-note-block[data-source-path="${p}"]`)!;
+        const pane = block.closest(".daily-notes-stream-container")!.parentElement!;
+        const edge = pane.getBoundingClientRect().top - 1.5 * pane.clientHeight;
+        return {
+            empty: block.classList.contains("is-unloaded"),
+            past: Math.round(edge - block.getBoundingClientRect().bottom),
+        };
+    }, path);
+    expect(at.empty, `${path} is empty`).toBe(true);
+    // Rounded to whole pixels on the way.
+    expect(Math.abs(at.past - beyond), `${path} ${at.past} px past the render edge`).toBeLessThanOrEqual(1);
+}
+
+/** Holds back the stream's wait for stillness, so what it owes stays owed. */
+const holdWait = (phone: Phone) =>
+    phone.run(() => {
+        const anchor = window.app.workspace.getLeavesOfType("daily-notes-stream-view")[0]!.view.stream.window
+            .anchor as unknown as HeldAnchor;
+        (window as unknown as { heldWait: HeldAnchor["settleOnceStill"] }).heldWait = anchor.settleOnceStill;
+        anchor.settleOnceStill = Object.assign(() => {}, { cancel: () => {}, run: () => {} });
+    });
+
+/**
+ * Gives the stream its wait back when the next finger lands, and ends the wait
+ * 100 ms later. Not at the touch: a scroll set by then was kept. All set from
+ * 49 ms after it were lost (D-204).
+ */
+const endWaitAfterTouch = (phone: Phone) =>
+    phone.run(() => {
+        const anchor = window.app.workspace.getLeavesOfType("daily-notes-stream-view")[0]!.view.stream.window
+            .anchor as unknown as HeldAnchor;
+        const wait = (window as unknown as { heldWait: HeldAnchor["settleOnceStill"] }).heldWait;
+        document.addEventListener(
+            "touchstart",
+            () => {
+                anchor.settleOnceStill = wait;
+                setTimeout(() => {
+                    wait();
+                    wait.run();
+                }, 100);
+            },
+            { once: true, passive: true }
+        );
+    });
+
+/**
+ * A slow drag down the screen, and the top of the first note below the pane's
+ * middle on each frame from before it to the end of its glide. What is at the
+ * middle may be the stream, between notes, which moves with every shift.
+ */
+async function topsUnderDrag(phone: Phone): Promise<number[]> {
+    await phone.run(() => {
+        const pane = document.querySelector(".daily-notes-stream-container")!.parentElement!;
+        const { top, height } = pane.getBoundingClientRect();
+        const text = [...pane.querySelectorAll(".daily-note-block:not(.is-unloaded)")].find(
+            (block) => block.getBoundingClientRect().top >= top + height / 2
+        )!;
+        const tops: number[] = [];
+        (window as unknown as { fingerTops: number[] }).fingerTops = tops;
+        const frame = () => {
+            if (!text.isConnected) return;
+            tops.push(Math.round(text.getBoundingClientRect().top));
+            requestAnimationFrame(frame);
+        };
+        requestAnimationFrame(frame);
+    });
+    await phone.flick("down", 1, { share: 0.2, ms: 400 });
+    return phone.run(() => (window as unknown as { fingerTops: number[] }).fingerTops);
+}
 
 /** Scrolls until `date`'s note is drawn, so the notes above have heights. */
 const scrollDownWithNoFinger = (phone: Phone, date: string) =>
@@ -357,59 +473,46 @@ test("the jump list opens with the keyboard down, and a tap on the query raises 
 // wait for stillness is held back until the finger lands, which is otherwise
 // about 1 in 8 runs of four hard flicks.
 test("a finger landing as the stream's wait ends moves the text only with the finger", async ({ phone }) => {
+    await phone.openStream();
+    await phone.jumpTo("2026-09-12");
+    await holdWait(phone);
+    await growEmptyNoteAbove(phone, OWED);
+    expect(await owedNow(phone), "the stream owes what grew").toBe(OWED);
+    await endWaitAfterTouch(phone);
+
+    const tops = await topsUnderDrag(phone);
+
+    expect(Math.max(...tops) - Math.min(...tops), `tops: ${tops.join(", ")}`).toBeLessThan(MOVED_WITH_FINGER);
+    expect(await owedNow(phone), "owed once still").toBe(0);
+});
+
+// The same, with a note above drawn as the finger drags: it grows from its
+// estimate while the stream owes. It is the same note, at the same place, in
+// every run (D-216).
+test("a finger landing as the stream's wait ends, drawing a note above, moves the text only with the finger", async ({
+    phone,
+}) => {
+    const drawnByDrag = "Journal/2026-09-24.md";
     await phone.estimateShortAbove("2026-09-12");
     try {
         await phone.openStream();
         await phone.jumpTo("2026-09-12");
-        await phone.run(() => {
-            const anchor = window.app.workspace.getLeavesOfType("daily-notes-stream-view")[0]!.view.stream.window
-                .anchor as unknown as HeldAnchor;
-            (window as unknown as { heldWait: HeldAnchor["settleOnceStill"] }).heldWait = anchor.settleOnceStill;
-            anchor.settleOnceStill = Object.assign(() => {}, { cancel: () => {}, run: () => {} });
-        });
-        // Far enough to draw notes above the pane's top: the jump drew those
-        // just above it at their own heights.
-        await scrollUpBy(phone, 5500);
-        await phone.rest();
-        const owed = await owedNow(phone);
-        expect(Math.abs(owed), "the scroll left the stream owing").toBeGreaterThan(MOVED_WITH_FINGER);
+        await placeFirstEmptyAbove(phone, drawnByDrag, 50);
+        await holdWait(phone);
+        await growEmptyNoteAbove(phone, OWED, "Journal/2026-09-26.md");
+        expect(await owedNow(phone), "the stream owes what grew").toBe(OWED);
+        await endWaitAfterTouch(phone);
 
-        await phone.run(() => {
-            const anchor = window.app.workspace.getLeavesOfType("daily-notes-stream-view")[0]!.view.stream.window
-                .anchor as unknown as HeldAnchor;
-            const wait = (window as unknown as { heldWait: HeldAnchor["settleOnceStill"] }).heldWait;
-            // Not at the touch: a scroll set by then was kept. All set from 49
-            // ms after it were lost.
-            document.addEventListener(
-                "touchstart",
-                () => {
-                    anchor.settleOnceStill = wait;
-                    setTimeout(() => {
-                        wait();
-                        wait.run();
-                    }, 100);
-                },
-                { once: true, passive: true }
-            );
-            const pane = document.querySelector(".daily-notes-stream-container")!.parentElement!;
-            const { top, height } = pane.getBoundingClientRect();
-            // The first note below the pane's middle. What is at the middle may
-            // be the stream, between notes, which moves with every shift.
-            const text = [...pane.querySelectorAll(".daily-note-block:not(.is-unloaded)")].find(
-                (block) => block.getBoundingClientRect().top >= top + height / 2
-            )!;
-            const tops: number[] = [];
-            (window as unknown as { fingerTops: number[] }).fingerTops = tops;
-            const frame = () => {
-                if (!text.isConnected) return;
-                tops.push(Math.round(text.getBoundingClientRect().top));
-                requestAnimationFrame(frame);
-            };
-            requestAnimationFrame(frame);
-        });
-        await phone.flick("down", 1, { share: 0.2, ms: 400 });
+        const tops = await topsUnderDrag(phone);
 
-        const tops = await phone.run(() => (window as unknown as { fingerTops: number[] }).fingerTops);
+        const drawn = await phone.run(
+            (p: string) =>
+                !document
+                    .querySelector(`.daily-note-block[data-source-path="${p}"]`)!
+                    .classList.contains("is-unloaded"),
+            drawnByDrag
+        );
+        expect(drawn, "the drag drew the note above").toBe(true);
         expect(Math.max(...tops) - Math.min(...tops), `tops: ${tops.join(", ")}`).toBeLessThan(MOVED_WITH_FINGER);
         expect(await owedNow(phone), "owed once still").toBe(0);
     } finally {
@@ -421,46 +524,23 @@ test("a finger landing as the stream's wait ends moves the text only with the fi
 // iOS undoes the write, which looks like a scroll back by all that was handed
 // over, and the follower must not take it for one.
 test("the reader's follower reports the jump when iOS drops a scroll set under a finger", async ({ phone }) => {
-    await phone.estimateShortAbove("2026-09-12");
-    try {
-        await phone.openStream();
-        await phone.jumpTo("2026-09-12");
-        await phone.run(() => {
-            const anchor = window.app.workspace.getLeavesOfType("daily-notes-stream-view")[0]!.view.stream.window
-                .anchor as unknown as HeldAnchor;
-            (window as unknown as { heldWait: HeldAnchor["settleOnceStill"] }).heldWait = anchor.settleOnceStill;
-            anchor.settleOnceStill = Object.assign(() => {}, { cancel: () => {}, run: () => {} });
-        });
-        // A flick may meet only notes of the height estimated for them.
-        for (let flicks = 0; flicks < 4 && Math.abs(await owedNow(phone)) <= MOVED_WITH_FINGER; flicks++)
-            await phone.flick("down", 1);
-        expect(Math.abs(await owedNow(phone)), "the flicks left the stream owing").toBeGreaterThan(MOVED_WITH_FINGER);
-        await phone.followReader();
+    await phone.openStream();
+    await phone.jumpTo("2026-09-12");
+    await holdWait(phone);
+    await growEmptyNoteAbove(phone, OWED);
+    expect(await owedNow(phone), "the stream owes what grew").toBe(OWED);
+    await phone.followReader();
+    await phone.run(() => {
+        const anchor = window.app.workspace.getLeavesOfType("daily-notes-stream-view")[0]!.view.stream.window
+            .anchor as unknown as { settle: () => void; settleUnlessTouching: () => void };
+        anchor.settleUnlessTouching = () => anchor.settle();
+    });
+    await endWaitAfterTouch(phone);
 
-        await phone.run(() => {
-            const anchor = window.app.workspace.getLeavesOfType("daily-notes-stream-view")[0]!.view.stream.window
-                .anchor as unknown as HeldAnchor & { settle: () => void; settleUnlessTouching: () => void };
-            const wait = (window as unknown as { heldWait: HeldAnchor["settleOnceStill"] }).heldWait;
-            anchor.settleUnlessTouching = () => anchor.settle();
-            document.addEventListener(
-                "touchstart",
-                () => {
-                    anchor.settleOnceStill = wait;
-                    setTimeout(() => {
-                        wait();
-                        wait.run();
-                    }, 100);
-                },
-                { once: true, passive: true }
-            );
-        });
-        await phone.flick("down", 1, { share: 0.2, ms: 400 });
+    await phone.flick("down", 1, { share: 0.2, ms: 400 });
 
-        const { drifts } = await phone.stopFollowing();
-        expect(Math.max(...drifts.map(Math.abs)), `drifts: ${drifts.join(", ")}`).toBeGreaterThan(MOVED_WITH_FINGER);
-    } finally {
-        await phone.restoreHeights();
-    }
+    const { drifts } = await phone.stopFollowing();
+    expect(Math.max(...drifts.map(Math.abs)), `drifts: ${drifts.join(", ")}`).toBeGreaterThan(MOVED_WITH_FINGER);
 });
 
 // A long note is drawn from its end, then laid out from its start. Read after

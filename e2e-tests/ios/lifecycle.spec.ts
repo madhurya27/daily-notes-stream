@@ -25,7 +25,7 @@ test("back from the Home Screen, the stream is where it was, and a flick still g
 test("after a quit and a jump to an old date, flicks up stop on the newest note, and it stays", async ({ phone }) => {
     await phone.openStream();
     const top = await phone.newestOffset();
-    await phone.flick("up", 3);
+    await phone.scrollBy(6000);
     await phone.relaunch();
     // As on a first open, or after a change of width: every note above has an
     // estimated height.

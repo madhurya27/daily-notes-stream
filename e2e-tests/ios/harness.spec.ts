@@ -94,7 +94,7 @@ for (const at of ["middle", "top"] as const)
         phone,
     }) => {
         await phone.openStream();
-        await phone.flick("up");
+        await phone.scrollBy(3000);
         await phone.followReader({ at });
         await phone.run(() => {
             const pane = document.querySelector(".daily-notes-stream-container")!.parentElement!;
@@ -131,8 +131,7 @@ test("the reader's follower reports no drift when a size change above cancels th
     phone,
 }) => {
     await phone.openStream();
-    await phone.flick("up");
-    await phone.flick("up");
+    await phone.scrollBy(6000);
     await phone.followReader();
 
     const shifts = await phone.runAsync(async () => {
@@ -204,8 +203,7 @@ test("the reader's follower counts a change in any Base on screen above its text
 // what is below it.
 test("the reader's follower counts a Base that grows as it comes on screen as no drift", async ({ phone }) => {
     await phone.openStream();
-    await phone.flick("up");
-    await phone.flick("up");
+    await phone.scrollBy(6000);
     const placed = await phone.runAsync(async () => {
         const stream = document.querySelector<HTMLElement>(".daily-notes-stream-container")!;
         const pane = stream.parentElement!;
@@ -261,8 +259,7 @@ test("the reader's follower counts a Base that grows as it comes on screen as no
 // the whole stream.
 test("the reader's follower counts the anchor keeping its fraction of a Base as no drift", async ({ phone }) => {
     await phone.openStream();
-    await phone.flick("up");
-    await phone.flick("up");
+    await phone.scrollBy(6000);
     const crossed = await phone.runAsync(async () => {
         const stream = document.querySelector<HTMLElement>(".daily-notes-stream-container")!;
         const pane = stream.parentElement!;
@@ -313,7 +310,7 @@ test("the reader's follower counts the anchor keeping its fraction of a Base as 
 // really moves, a frame later, as the note re-pins.
 test("the reader's follower moves on from text that is hidden, reporting no drift", async ({ phone }) => {
     await phone.openStream();
-    await phone.flick("up");
+    await phone.scrollBy(3000);
     await phone.followReader();
 
     await phone.runAsync(async () => {
@@ -396,7 +393,7 @@ test("a glide records a box that could scroll for a moment", async ({ phone }) =
 // The stream must not set the scroll position while a glide moves (ADR 0013).
 test("a glide records a write to the scroll position before it ended", async ({ phone }) => {
     await phone.openStream();
-    await phone.flick("up");
+    await phone.scrollBy(3000);
     await phone.run(() => {
         const pane = document.querySelector(".daily-notes-stream-container")!.parentElement!;
         let heard = 0;
@@ -418,7 +415,7 @@ test("a glide records a write to the scroll position before it ended", async ({ 
 // The stream's own writes wait until the scroll is still (SCROLL_IDLE_MS).
 test("a glide's faults leave out a write once the scroll is still", async ({ phone }) => {
     await phone.openStream();
-    await phone.flick("up");
+    await phone.scrollBy(3000);
     await phone.run(() => {
         const pane = document.querySelector(".daily-notes-stream-container")!.parentElement!;
         let moved = 0;
@@ -455,7 +452,7 @@ test("a glide's faults leave out a write once the scroll is still", async ({ pho
 // frame, as the stream's stop does, ends it in the same way.
 test("a glide cut short mid-stream is told from one that slows to its end", async ({ phone }) => {
     await phone.openStream();
-    await phone.flick("up");
+    await phone.scrollBy(3000);
     await phone.run(() => {
         const pane = document.querySelector(".daily-notes-stream-container")!.parentElement!;
         let heard = 0;

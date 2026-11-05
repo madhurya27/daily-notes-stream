@@ -1030,6 +1030,28 @@ export class Phone {
     }
 
     /**
+     * Scrolls `px` by script, down the stream when positive, 50 px a frame,
+     * then waits until still. Every run stops in the same place with the same
+     * notes drawn, which a flick's glide does not, so a test sets up with this
+     * and touches only for what it tests (D-216).
+     */
+    async scrollBy(px: number): Promise<void> {
+        await this.runAsync(
+            async (s: string, distance: number) => {
+                const pane = document.querySelector(s)!.parentElement!;
+                const step = Math.sign(distance) * 50;
+                for (let moved = 0; Math.abs(moved) < Math.abs(distance); moved += step) {
+                    pane.scrollTop += step;
+                    await new Promise(requestAnimationFrame);
+                }
+            },
+            STREAM,
+            px
+        );
+        await this.rest();
+    }
+
+    /**
      * Quick thumb strokes, `up` to move down the stream, each one caught while
      * the last is still scrolling, as a reader's are. Returns once the last
      * scroll stops. Each stroke is `share` of the screen tall and takes `ms`;

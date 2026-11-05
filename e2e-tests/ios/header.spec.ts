@@ -300,7 +300,7 @@ test(`a tap on ${TO_TOP.name} from inside a long newest note glides to its title
     const top = await phone.newestOffset();
     const written = await writeNotes(phone, [[0, 10000]]);
     try {
-        await phone.flick("up", 3);
+        await phone.scrollBy(5000);
 
         await phone.tap(TO_TOP.selector);
         await phone.rest();
