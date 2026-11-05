@@ -2437,6 +2437,33 @@ describe("ScrollAnchor", () => {
         expect(shift(content)).toBe(-300);
     });
 
+    // iOS eases a scroll past the stream's end back onto it. Read as the
+    // browser pulling the scroll back, each step was held, and the text stood
+    // still for 400 ms, then jumped 40 px on an iPad.
+    it("lets the text follow a bounce past the stream's end back onto it, every note loaded", () => {
+        const { pane, blocks } = watchToEnd([400, 400, 400, 400, 400], 1380);
+        const steps = [1420, 1450, 1430, 1410, 1400];
+        const tops = steps.map((scrollTop) => {
+            pane.scrollTop = scrollTop;
+            anchor.onScroll();
+            return readerTop(blocks);
+        });
+
+        expect(tops).toEqual(steps.map((scrollTop) => 800 - scrollTop));
+    });
+
+    // Resting on the end is not past it: the stream shrinking there pulls the
+    // scroll back.
+    it("counts a scroll pulled back from resting on the stream's end as no scroll of the reader's", () => {
+        const { pane, blocks, resize } = watch([400, 400, 400, 400, 400], 1400);
+
+        resize(blocks[4]!, 300);
+        pane.scrollTop = 1300;
+        observer().resized(blocks[4]!);
+
+        expect(readerTop(blocks)).toBe(-600);
+    });
+
     // Shifted down, the stream's end is further away.
     it("leaves a glide down to the hand-over when notes above shrank, every note loaded", () => {
         const { pane, content, blocks, resize } = watchToEnd([400, 400, 400, 400, 400], 900);
@@ -2771,6 +2798,22 @@ describe("ScrollAnchor", () => {
         expect(pane.scrollTop).toBe(900);
         vi.advanceTimersByTime(SCROLL_IDLE_MS);
         expect(pane.scrollTop).toBe(1800);
+    });
+
+    it("forgets a bounce past the end on detach", () => {
+        const { pane, content, blocks, resize } = watch([400, 400, 400, 400, 400], 1500);
+        anchor.detach();
+
+        pane.scrollTop = 1400;
+        anchor.attach(pane, content, moreBelow);
+        const again = FakeResizeObserver.instances[1]!;
+        for (const block of blocks) anchor.observe(block);
+        again.resized(...blocks);
+        resize(blocks[4]!, 300);
+        pane.scrollTop = 1300;
+        again.resized(blocks[4]!);
+
+        expect(readerTop(blocks)).toBe(-600);
     });
 
     it("reads no place held before it was attached again", () => {

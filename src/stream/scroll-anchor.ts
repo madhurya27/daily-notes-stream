@@ -124,6 +124,12 @@ export class ScrollAnchor {
     // Stryker disable next-line BooleanLiteral: attach calls detach first, which resets it.
     private bouncing = false;
     /**
+     * The last scroll heard was past the end: iOS bounces a scroll that reaches
+     * the end, and eases it back up onto it.
+     */
+    // Stryker disable next-line BooleanLiteral: attach calls detach first, which resets it.
+    private pastEnd = false;
+    /**
      * A finger is on the pane. During a bounce under a finger, the scroll is at
      * the top for one frame, then goes past it again.
      */
@@ -341,6 +347,7 @@ export class ScrollAnchor {
         this.stepFrom = this.scrollRoot.scrollTop;
         if (moved !== 0) this.readerScrolled = true;
         this.hold();
+        this.pastEnd = this.below() < 0;
         // The script is writing the scroll, so iOS is not scrolling it.
         if (this.carry!.carrying) return;
         this.speed.heard(moved);
@@ -459,6 +466,7 @@ export class ScrollAnchor {
         this.pins.clear();
         this.drawnBase = null;
         this.bouncing = false;
+        this.pastEnd = false;
         this.touching = false;
         this.readerScrolled = false;
         // Stryker disable next-line ArrayDeclaration: before the next pick, no element of an old place is in the pane.
@@ -637,11 +645,12 @@ export class ScrollAnchor {
      * Whether the browser pulled the scroll back to the stream's new end since
      * `from`, which is the place's scroll position unless given. This happens
      * when the stream gets shorter by more than there was below the pane, as
-     * below a note that was jumped to. A reader never scrolls up onto the end.
+     * below a note that was jumped to. A reader never scrolls up onto the end,
+     * but iOS eases a bounce past the end back up onto it.
      */
     private clamped(from = this.placeScroll): boolean {
         // Stryker disable next-line EqualityOperator: pulling the scroll back to where it already was moves nothing.
-        return this.scrollRoot!.scrollTop < from && this.below() <= 1;
+        return this.scrollRoot!.scrollTop < from && this.below() <= 1 && !this.pastEnd;
     }
 
     /**

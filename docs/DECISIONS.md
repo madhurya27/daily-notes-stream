@@ -4108,3 +4108,19 @@ what nobody thought to set up, as the filmed flicks of D-204 did.
 - Scripted gestures only — they skip iOS's own glide, its bounce and its
   handover, which is where the stream's iOS bugs have been.
 - Random swipes in `test:ios` — a run's result would depend on its seed.
+
+## D-217 — A scroll easing back from past the end is iOS's bounce, not a clamp (2026-11-05)
+
+**Decision:** while the last scroll heard was past the stream's end,
+`ScrollAnchor.clamped()` is false. iOS's ease-back onto the end, including its
+last step, is the reader's scroll, and the text moves with it.
+
+**Why:** the ease-back goes up and ends on the end, so it read as the browser
+pulling the scroll back. Each step was held as a shift, and the text stood still
+for about 400 ms. Reaching the end, `stopGlide` dropped the shift, and the text
+jumped 41 px on an iPad. Obsidian's reading view eases back smoothly.
+
+**Rejected:**
+
+- A carry at the end, as at the top (D-192) — nothing needs stopping there.
+  iOS's own bounce is right once the anchor leaves it alone.

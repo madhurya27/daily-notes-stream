@@ -207,3 +207,38 @@ for (const [what, target] of [
 
         expect(await phone.scrollTop()).toBeGreaterThan(before + 100);
     });
+
+// iOS eases a flick past the stream's end back onto it. The anchor read the
+// ease-back as the browser pulling the scroll back, and held the text still,
+// then dropped it 40 px onto the end, on an iPad.
+test("a flick into the stream's end leaves the text to iOS's bounce", async ({ phone }) => {
+    await phone.forgetHeights();
+    await phone.openStream();
+    const oldest = await phone.run(() =>
+        window.app.workspace
+            .getLeavesOfType("daily-notes-stream-view")[0]
+            .view.service.dates()
+            .map((date: { format(f: string): string }) => date.format("YYYY-MM-DD"))
+            .at(-1)
+    );
+    await phone.jumpTo(oldest);
+    await phone.run(() => {
+        const pane = document.querySelector(".daily-notes-stream-container")!.parentElement!;
+        pane.scrollTop = pane.scrollHeight;
+    });
+    await phone.rest();
+    await phone.runAsync(async () => {
+        const pane = document.querySelector(".daily-notes-stream-container")!.parentElement!;
+        for (let i = 0; i < 8; i++) {
+            pane.scrollTop -= 50;
+            await new Promise(requestAnimationFrame);
+        }
+    });
+    await phone.rest();
+
+    await phone.followReader();
+    await phone.flick("up", 2, { share: 0.32, ms: 144 });
+    const { drifts } = await phone.stopFollowing();
+
+    expect(Math.max(...drifts.map(Math.abs)), `drifts: ${drifts.join(", ")}`).toBeLessThan(5);
+});
