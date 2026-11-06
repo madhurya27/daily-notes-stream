@@ -10,11 +10,17 @@ import type { ViewTimers } from "./view-timers";
 export class StillClock {
     /** When the pane last moved. */
     private movedAt = -Infinity;
+    /** The scroll position when the pane last moved; null before it has. */
+    private movedTo: number | null = null;
     /** What runs once the pane is still, in the order asked. */
     private readonly due = new Set<() => void>();
     private timer: number | null = null;
 
-    constructor(private readonly timers: ViewTimers) {}
+    /** `scrollTop` reads the pane's scroll position. */
+    constructor(
+        private readonly timers: ViewTimers,
+        private readonly scrollTop: () => number
+    ) {}
 
     /**
      * The pane scrolled or was resized. Only noted: a wait under way checks
@@ -22,6 +28,7 @@ export class StillClock {
      */
     moved(): void {
         this.movedAt = performance.now();
+        this.movedTo = this.scrollTop();
     }
 
     /** Whether the pane has not moved for `SCROLL_IDLE_MS`. */
@@ -48,6 +55,9 @@ export class StillClock {
 
     private run(): void {
         this.timer = null;
+        // A busy page can hold back iOS's scroll events for longer than the
+        // wait, while a glide goes on. Setting the scroll then is undone.
+        if (this.movedTo !== null && this.scrollTop() !== this.movedTo) this.moved();
         if (!this.isStill()) {
             this.waitOut();
             return;

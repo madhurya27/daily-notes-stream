@@ -32,7 +32,7 @@ beforeEach(() => {
     document.body.appendChild(container);
     standIn = () => null;
     wrapper = () => null;
-    clock = new StillClock(new ViewTimers());
+    clock = new StillClock(new ViewTimers(), () => 0);
     frames = new FrameDeferral(
         clock,
         (frame, src) => standIn(frame, src),

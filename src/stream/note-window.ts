@@ -142,7 +142,7 @@ export class NoteWindowManager {
      * When the pane last scrolled or resized. What waits for that to stop
      * waits on it, in this file and in the stream.
      */
-    readonly clock = new StillClock(this.timers);
+    readonly clock = new StillClock(this.timers, () => this.scrollRoot?.scrollTop ?? 0);
     /**
      * Not on the clock: its wait starts when a note leaves. A jump draws its
      * note far away, then scrolls to it, and the pane is still in between.

@@ -35,7 +35,7 @@ beforeEach(() => {
     laidOut.mockReset();
     container = document.createElement("div");
     document.body.appendChild(container);
-    clock = new StillClock(new ViewTimers());
+    clock = new StillClock(new ViewTimers(), () => 0);
     guard = new ScrollBoxGuard(clock, laidOut);
     guard.attach(container);
 });

@@ -4150,3 +4150,23 @@ would be offered anyway.
 - A new tab every time — tabs pile up.
 - Going to the nearest older note for a hidden one, as a jump does — it lands on
   a note that was not asked for.
+
+## D-219 — A wait for a still pane also checks that the scroll stopped moving (2026-11-05)
+
+**Decision:** when `StillClock`'s wait or `ScrollAnchor`'s wait to settle ends,
+each compares the scroll position with the one at the last scroll event. If it
+moved, the pane is still gliding, and the wait starts again.
+
+**Why:** rendering a new batch kept an iPad's page busy, and iOS sent scroll
+events 340-360 ms apart while a glide went on. After 300 ms with no event,
+`reserve` handed the shift to the scroll. iOS undid that write in the next
+frame, which the anchor read as a step up of about 12,000 px, and carried the
+stream back to its top. It failed `stream.spec.ts` on the iPad about once in 5
+to 10 runs.
+
+**Rejected:**
+
+- A longer `SCROLL_IDLE_MS` — every wait gets slower, and a busier page can
+  still hold events back for longer.
+- Ignoring a step that undoes a write the anchor just made — it would hide the
+  undo, but the shift would still be lost.

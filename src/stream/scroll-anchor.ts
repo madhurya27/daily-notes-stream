@@ -99,6 +99,11 @@ export class ScrollAnchor {
      * so that step would measure as zero.
      */
     private stepFrom = 0;
+    /**
+     * `stepFrom`, or where the wait to settle last found the scroll: it moves
+     * no step.
+     */
+    private stillAt = 0;
     /** The pane's width when `place` was read. */
     private placeWidth = 0;
     /**
@@ -160,7 +165,7 @@ export class ScrollAnchor {
         this.scrollRoot = scrollRoot;
         this.stream = stream;
         this.placeWidth = scrollRoot.clientWidth;
-        this.stepFrom = scrollRoot.scrollTop;
+        this.stepFrom = this.stillAt = scrollRoot.scrollTop;
         // styles.css sets overflow-anchor to none, so the browser's own partial
         // anchoring does not correct the scroll a second time.
         scrollRoot.addClass("is-scroll-anchored");
@@ -210,7 +215,7 @@ export class ScrollAnchor {
      * event that follows is not the reader's.
      */
     streamScrolled(): void {
-        if (this.scrollRoot) this.stepFrom = this.scrollRoot.scrollTop;
+        if (this.scrollRoot) this.stepFrom = this.stillAt = this.scrollRoot.scrollTop;
     }
 
     /**
@@ -344,7 +349,7 @@ export class ScrollAnchor {
         // When the browser pulls the scroll back to the stream's end, that is
         // not a step of a scroll.
         const moved = this.clamped(this.stepFrom) ? 0 : this.stepFrom - this.scrollRoot.scrollTop;
-        this.stepFrom = this.scrollRoot.scrollTop;
+        this.stepFrom = this.stillAt = this.scrollRoot.scrollTop;
         if (moved !== 0) this.readerScrolled = true;
         this.hold();
         this.pastEnd = this.below() < 0;
@@ -375,7 +380,7 @@ export class ScrollAnchor {
         window.requestAnimationFrame(() => root.removeClass("is-scroll-frozen"));
         this.settleOnceStill.cancel();
         root.scrollTop = scrollTop;
-        this.stepFrom = root.scrollTop;
+        this.stepFrom = this.stillAt = root.scrollTop;
         this.headedForTop = false;
         this.unshift();
         this.pick();
@@ -452,7 +457,7 @@ export class ScrollAnchor {
         this.unshift();
         this.readerScrolled = false;
         if (!this.scrollRoot) return;
-        this.stepFrom = this.scrollRoot.scrollTop;
+        this.stepFrom = this.stillAt = this.scrollRoot.scrollTop;
         this.pick();
     }
 
@@ -506,7 +511,7 @@ export class ScrollAnchor {
         // When the browser pulls the scroll back, that is not the reader's
         // scrolling, now or once the stream grows again. Nor is it a step of a
         // scroll.
-        if (this.clamped()) this.placeScroll = this.stepFrom = this.scrollRoot!.scrollTop;
+        if (this.clamped()) this.placeScroll = this.stepFrom = this.stillAt = this.scrollRoot!.scrollTop;
         const scrolled = this.scrollRoot!.scrollTop - this.placeScroll;
         const moved = point ? this.movedSince(point, scrolled) : 0;
         if (moved === 0) return false;
@@ -743,10 +748,16 @@ export class ScrollAnchor {
 
     /**
      * iOS drops a scroll set under a finger, and the shift would be gone with
-     * nothing in its place (D-204). `fingerUp` starts the wait again.
+     * nothing in its place (D-204). `fingerUp` starts the wait again. A busy
+     * page can hold back iOS's scroll events for longer than the wait while a
+     * glide goes on, and iOS undoes a scroll set then (D-219).
      */
     private settleUnlessTouching(): void {
-        if (!this.touching) this.settle();
+        const { scrollTop } = this.scrollRoot!;
+        if (scrollTop !== this.stillAt) {
+            this.stillAt = scrollTop;
+            this.settleOnceStill();
+        } else if (!this.touching) this.settle();
     }
 
     /**
@@ -758,7 +769,7 @@ export class ScrollAnchor {
         const root = this.scrollRoot!;
         this.owe();
         if (this.owed !== 0 && !(this.headedForTop && root.scrollTop === 0)) root.scrollTop += this.owed;
-        this.stepFrom = root.scrollTop;
+        this.stepFrom = this.stillAt = root.scrollTop;
         this.headedForTop = false;
         this.unshift();
         this.pick();

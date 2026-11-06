@@ -1542,7 +1542,9 @@ describe("ScrollAnchor", () => {
             observer().resized(blocks[2]!);
             expect(readerTop(blocks)).toBe(300);
 
-            vi.advanceTimersByTime(SCROLL_IDLE_MS);
+            // The clamp moved the scroll with no scroll event, so the wait
+            // runs again.
+            vi.advanceTimersByTime(2 * SCROLL_IDLE_MS);
             expect(pane.scrollTop).toBe(500);
             expect(shift(content)).toBe(0);
         });
@@ -1785,6 +1787,23 @@ describe("ScrollAnchor", () => {
 
         vi.advanceTimersByTime(1);
         expect(pane.scrollTop).toBe(1800);
+    });
+
+    // A busy page can hold back iOS's scroll events for longer than the wait
+    // while a glide goes on, and iOS undoes a scroll set then.
+    it("waits for a scroll to stop before handing it over, scroll events or not", () => {
+        const { pane, blocks, resize } = watch([400, 400, 400], 900);
+        resize(blocks[0]!, 1300);
+        observer().resized(blocks[0]!);
+
+        vi.advanceTimersByTime(SCROLL_IDLE_MS - 1);
+        anchor.onScroll();
+        pane.scrollTop = 1000;
+        vi.advanceTimersByTime(SCROLL_IDLE_MS);
+        expect(pane.scrollTop).toBe(1000);
+
+        vi.advanceTimersByTime(SCROLL_IDLE_MS);
+        expect(pane.scrollTop).toBe(1900);
     });
 
     // A scroll that reaches the top before what it owes bounces there. iOS

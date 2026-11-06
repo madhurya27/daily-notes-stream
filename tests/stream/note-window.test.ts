@@ -887,7 +887,7 @@ describe("NoteWindowManager after the pane's width changes", () => {
         };
         /** Another note was measured, so what the estimates use changed. */
         const learn = () => heights.keep(LAYOUT, "learned.md", 700);
-        return { manager, heights, narrow, learn };
+        return { manager, heights, narrow, learn, root };
     }
 
     afterEach(() => document.body.empty());
@@ -968,6 +968,29 @@ describe("NoteWindowManager after the pane's width changes", () => {
         expect(placeholderHeight(placeholder)).toBe("900px");
 
         await vi.advanceTimersByTimeAsync(1);
+        expect(placeholderHeight(placeholder)).toBe("1100px");
+    });
+
+    // A busy page can hold back iOS's scroll events for longer than the wait
+    // while a glide goes on, and iOS undoes a scroll set then.
+    it("re-reserves only once the scroll stops moving, scroll events or not", async () => {
+        let estimated = 900;
+        const { manager, root } = makeResizable({ estimate: () => estimated });
+        const placeholder = manager.add(new TFile("b.md"));
+        const rendered = manager.add(new TFile("c.md"));
+        for (const block of [placeholder, rendered]) document.body.appendChild(block);
+        await still();
+
+        fire(observers.render, rendered, true);
+        await settle();
+        estimated = 1100;
+        await vi.advanceTimersByTimeAsync(SETTLE_MS - 1);
+        manager.onScroll();
+        Object.defineProperty(root, "scrollTop", { value: 2400, configurable: true });
+        await vi.advanceTimersByTimeAsync(SCROLL_IDLE_MS);
+        expect(placeholderHeight(placeholder)).toBe("900px");
+
+        await vi.advanceTimersByTimeAsync(SCROLL_IDLE_MS);
         expect(placeholderHeight(placeholder)).toBe("1100px");
     });
 

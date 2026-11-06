@@ -7,7 +7,7 @@ let clock: StillClock;
 
 beforeEach(() => {
     vi.useFakeTimers();
-    clock = new StillClock(new ViewTimers());
+    clock = new StillClock(new ViewTimers(), () => 0);
 });
 afterEach(() => {
     vi.useRealTimers();
@@ -159,6 +159,22 @@ describe("StillClock", () => {
         clock.cancel(other);
 
         expect(vi.getTimerCount()).toBe(0);
+    });
+
+    // A busy page can hold back iOS's scroll events for longer than the wait
+    // while a glide goes on.
+    it("waits again when the scroll moved with no move heard", async () => {
+        let scrollTop = 100;
+        clock = new StillClock(new ViewTimers(), () => scrollTop);
+        const task = vi.fn();
+        clock.moved();
+        clock.whenStill(task);
+
+        scrollTop = 500;
+        await vi.advanceTimersByTimeAsync(SCROLL_IDLE_MS);
+        expect(task).not.toHaveBeenCalled();
+        await vi.advanceTimersByTimeAsync(SCROLL_IDLE_MS);
+        expect(task).toHaveBeenCalledOnce();
     });
 
     it("leaves no timer once nothing waits", async () => {
