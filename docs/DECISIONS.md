@@ -4124,3 +4124,29 @@ jumped 41 px on an iPad. Obsidian's reading view eases back smoothly.
 
 - A carry at the end, as at the top (D-192) — nothing needs stopping there.
   iOS's own bounce is right once the anchor leaves it alone.
+
+## D-218 — Show in stream replaces the note's tab, and is offered for every daily note (2026-11-05)
+
+**Decision:** the **Show in stream** command and file menu item open the stream
+in the current tab, at the note, as **Open stream** does. Ctrl/Cmd-click on the
+menu item opens a new tab. Both are offered for every daily note, but not in the
+menu of a title in the stream. Once chosen, the note is read
+(`DailyNoteService.belongs`). If the stream hides it, a notice names **Hide
+empty notes**, and the reader stays on the note.
+
+**Why:** Back then returns from the stream to the note, as from any page.
+Whether a note is empty is only known once it is read, and the palette asks
+whether to offer a command without waiting. A new note no stream has read yet
+would be offered anyway.
+
+**Rejected:**
+
+- Offering it only for notes the stream shows — wrong for notes not yet read,
+  and a missing command does not say why.
+- Opening the stream, then saying the note is not there — the reader loses the
+  note's tab for nothing.
+- Switching to a stream already open in another tab — the note's tab stays open
+  behind, and the stream jumps away from where it was read.
+- A new tab every time — tabs pile up.
+- Going to the nearest older note for a hidden one, as a jump does — it lands on
+  a note that was not asked for.

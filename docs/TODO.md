@@ -82,9 +82,6 @@ complexity. Most important first.
       does (D-082), so the notes above load as for any jump. With no note for
       today, open at the nearest older one (D-015). With no future notes, open
       at the top, as now.
-- [ ] Show in stream: a command, and an item in a daily note's file menu, that
-      open the stream at that note, as a jump does (D-082). Now, the only way
-      back to the stream from a note is Back.
 - [ ] Go to a day chosen in the
       [Calendar](https://github.com/liamcain/obsidian-calendar-plugin) plugin.
       With the stream open, a click on a day scrolls the stream there, as a jump

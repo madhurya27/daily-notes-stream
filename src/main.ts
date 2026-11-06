@@ -1,9 +1,9 @@
-import { Keymap, Notice, PaneType, Plugin, WorkspaceLeaf } from "obsidian";
+import { Keymap, Notice, PaneType, Plugin, TFile, WorkspaceLeaf } from "obsidian";
 import { DailyNotesStreamView, STREAM_ICON, VIEW_TYPE_DAILY_NOTES_STREAM } from "./ui/stream-view";
 import { DEFAULT_SETTINGS, DailyNotesStreamSettings, DailyNotesStreamSettingTab } from "./settings";
 import { CollapsibleStateStore, isOldCollapseKey } from "./render/collapse-store";
 import { drawMathAtOnce } from "./render/math-at-once";
-import { NOTE_CONTENT_CLASS } from "./render/note-renderer";
+import { NOTE_CONTENT_CLASS, TITLE_MENU_SOURCE } from "./render/note-renderer";
 import { DailyNoteService } from "./notes/daily-note-service";
 import { ParsedDates } from "./notes/parsed-dates";
 import { LayoutMemory } from "./stream/layout-memory";
@@ -32,6 +32,10 @@ function logActivationFailure(activation: Promise<unknown>): void {
     activation.catch((error) => console.error("DailyNotesStream: Failed to activate view", error));
 }
 
+/** The only filter is Hide empty notes (ADR 0011). */
+const HIDDEN_NOTE =
+    "This note is hidden from the stream because it's empty. To show it, turn off \"Hide empty notes\" in Daily Notes Stream's settings.";
+
 export default class DailyNotesStreamPlugin extends Plugin {
     settings!: DailyNotesStreamSettings;
     collapseStore!: CollapsibleStateStore;
@@ -39,6 +43,11 @@ export default class DailyNotesStreamPlugin extends Plugin {
     backlinks!: BacklinkIndex;
     emptyNotes!: EmptyNotes;
     linkChanges!: LinkChanges;
+    /**
+     * Never built: it only answers which notes are daily notes, and which the
+     * stream hides, with no view open.
+     */
+    private streamNotes!: DailyNoteService;
 
     async onload() {
         if (buildLabel()) new Notice(`Daily Notes Stream: ${buildLabel()}`);
@@ -56,6 +65,7 @@ export default class DailyNotesStreamPlugin extends Plugin {
         const markdownFiles = () => this.app.vault.getMarkdownFiles();
         const dailyNoteSettings = () => getDailyNoteSettings(this.app);
         const filter = hideEmptyNotes(this.emptyNotes, this.backlinks, () => this.settings);
+        this.streamNotes = new DailyNoteService(markdownFiles, dailyNoteSettings, parsedDates, filter);
         this.registerView(
             VIEW_TYPE_DAILY_NOTES_STREAM,
             (leaf) =>
@@ -94,6 +104,34 @@ export default class DailyNotesStreamPlugin extends Plugin {
             icon: "calendar-1",
             callback: () => logActivationFailure(this.promptJumpToDate()),
         });
+
+        // For every daily note: whether one is hidden is only known once it is
+        // read (D-218).
+        this.addCommand({
+            id: "show-in-stream",
+            name: "Show in stream",
+            icon: STREAM_ICON,
+            checkCallback: (checking) => {
+                const file = this.app.workspace.getActiveFile();
+                if (!file || !this.streamNotes.isDailyNote(file)) return false;
+                if (!checking) logActivationFailure(this.showInStream(file));
+                return true;
+            },
+        });
+        this.registerEvent(
+            this.app.workspace.on("file-menu", (menu, file, source) => {
+                // A note's title in the stream is already in it.
+                if (source === TITLE_MENU_SOURCE) return;
+                if (!(file instanceof TFile) || !this.streamNotes.isDailyNote(file)) return;
+                menu.addItem((item) =>
+                    item
+                        .setTitle("Show in stream")
+                        .setIcon(STREAM_ICON)
+                        .setSection("open")
+                        .onClick((evt) => logActivationFailure(this.showInStream(file, Keymap.isModEvent(evt))))
+                );
+            })
+        );
 
         this.addCommand({
             id: "scroll-to-top",
@@ -232,6 +270,19 @@ export default class DailyNotesStreamPlugin extends Plugin {
     private async promptJumpToDate() {
         const leaf = await this.activateView();
         if (leaf.view instanceof DailyNotesStreamView) leaf.view.promptJumpToDate();
+    }
+
+    /**
+     * Opens the stream as `activateView` does, at `file`. A note the stream
+     * hides gets a notice instead, and the reader stays on it.
+     */
+    private async showInStream(file: TFile, pane: PaneType | boolean = false) {
+        if (!(await this.streamNotes.belongs(file))) {
+            new Notice(HIDDEN_NOTE);
+            return;
+        }
+        const leaf = await this.activateView(pane);
+        if (leaf.view instanceof DailyNotesStreamView) await leaf.view.showNote(file);
     }
 
     /**

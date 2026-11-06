@@ -62,6 +62,7 @@ Templates made with the core Templates plugin or with Templater both work. A pla
 | Load older notes | Scroll down |
 | Go back to the newest | Click the arrow icon at the top, or run `Daily Notes Stream: Scroll to top`. On a phone, tap the title at the top |
 | Go to a date | Click the calendar icon at the top, or run `Daily Notes Stream: Jump to date` |
+| Go from a note back to the stream | Run `Daily Notes Stream: Show in stream` with the note open, or right-click the note in the file explorer and select **Show in stream**. The stream opens in the note's tab, at that note. To open it in a new tab, Ctrl/Cmd-click **Show in stream**. If the note is an [empty note](#empty-notes) the stream hides, a message says so and you stay on the note |
 
 The jump list opens on your 62 newest notes, about two months. Type to search the rest: a year, such as `2025`, lists every day of it that has a note. You can type a date in your daily-note format or as `YYYY-MM-DD`. If that day has no note, you go to the closest earlier day that does. The calendar button in the list opens your device's date picker.
 

@@ -204,6 +204,9 @@ function groupByStarts(sections: RenderedSection[], starts: WeakSet<RenderedSect
     return runs;
 }
 
+/** The source a note title's file menu names, for other handlers. */
+export const TITLE_MENU_SOURCE = "daily-notes-stream";
+
 /**
  * The element a note's Markdown is rendered into, below its title and
  * properties.
@@ -803,7 +806,7 @@ export class NoteRenderer {
     private noteAt(target: HTMLElement): NoteTarget | null {
         const title = target.closest<HTMLElement>(".daily-note-title");
         const file = title ? this.titles.get(title) : undefined;
-        if (file) return { file, menuSource: "daily-notes-stream", open: (pane) => this.openNote(file, pane) };
+        if (file) return { file, menuSource: TITLE_MENU_SOURCE, open: (pane) => this.openNote(file, pane) };
 
         const link = this.linkAt(target);
         if (!link) return null;

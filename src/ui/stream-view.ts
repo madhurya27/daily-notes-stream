@@ -1,4 +1,13 @@
-import { ItemView, Platform, Scope, WorkspaceLeaf, type Hotkey, type HoverParent, type HoverPopover } from "obsidian";
+import {
+    ItemView,
+    Platform,
+    Scope,
+    WorkspaceLeaf,
+    type Hotkey,
+    type HoverParent,
+    type HoverPopover,
+    type TFile,
+} from "obsidian";
 import type DailyNotesStreamPlugin from "../main";
 import { JumpToDateModal } from "./jump-to-date-modal";
 import { NoteRenderer } from "../render/note-renderer";
@@ -245,6 +254,11 @@ export class DailyNotesStreamView extends ItemView implements HoverParent {
     /** Asks for a date, then jumps to it. */
     promptJumpToDate(): void {
         new JumpToDateModal(this.app, this.service, (target) => void this.stream.jumpToDate(target)).open();
+    }
+
+    /** Scrolls to `file`, as a jump does. */
+    showNote(file: TFile): Promise<void> {
+        return this.stream.show(file);
     }
 
     scrollToTop(): void {

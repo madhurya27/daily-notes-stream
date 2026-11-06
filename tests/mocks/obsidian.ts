@@ -364,8 +364,8 @@ export class MenuItem {
         this.handler = handler;
         return this;
     }
-    click() {
-        this.handler?.(new MouseEvent("click"));
+    click(evt: MouseEvent = new MouseEvent("click")) {
+        this.handler?.(evt);
     }
 }
 

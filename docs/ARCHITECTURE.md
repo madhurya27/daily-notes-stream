@@ -161,7 +161,8 @@ Jumps, search steps and Back (`getEphemeralState`) go through
 the stream stops rendering, and `keepInPlace` keeps a centered match in place
 while Bases fill in. A jump or search step first draws its whole note, with its
 Bases filled in (D-082). A jump starts in `jump-to-date-modal.ts`, which lists
-the dates of the vault's notes in the vault's own date format.
+the dates of the vault's notes in the vault's own date format. Show in stream
+starts in `main.ts`, from a note (D-218).
 
 ## Search
 

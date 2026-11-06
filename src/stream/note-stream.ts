@@ -49,6 +49,7 @@ const ALL_HIDDEN =
     'Every daily note is hidden: each holds only its template. Turn off "Hide empty notes" to show them.';
 
 const NO_NOTE_FOR_DATE = "No daily note on or before that date.";
+const NOT_IN_STREAM = "This note isn't in the stream.";
 
 /**
  * The stream's contents: which notes are loaded, and their blocks. Every change
@@ -353,10 +354,19 @@ export class NoteStream {
      * Scrolls to the newest note dated on or before `target`, loading batches
      * until it is in the stream.
      */
-    async jumpToDate(target: Moment): Promise<void> {
-        const index = this.service.indexForDate(target);
+    jumpToDate(target: Moment): Promise<void> {
+        return this.revealOrTell(this.service.indexForDate(target), NO_NOTE_FOR_DATE);
+    }
+
+    /** Scrolls to `file` as a jump does, loading batches until it is in. */
+    show(file: TFile): Promise<void> {
+        return this.revealOrTell(this.service.indexOf(file.path), NOT_IN_STREAM);
+    }
+
+    /** Scrolls to the note at `index`, or shows `notice` if there is none. */
+    private async revealOrTell(index: number, notice: string): Promise<void> {
         const block = index === -1 ? null : await this.revealIndex(index);
-        if (!block) new Notice(NO_NOTE_FOR_DATE);
+        if (!block) new Notice(notice);
     }
 
     /**

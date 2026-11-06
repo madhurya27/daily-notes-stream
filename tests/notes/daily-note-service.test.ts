@@ -829,6 +829,15 @@ describe("DailyNoteService: hidden notes", () => {
         expect(rechecked).toEqual(["Notes/2025-01-02.md", "Notes/2025-01-01.md"]);
     });
 
+    it("tells at once whether a file is a daily note, hidden or not, before any list is built", () => {
+        const { filter } = filterHiding(["Notes/2025-01-02.md"]);
+        const svc = new DailyNoteService(__mockMarkdownFiles, __mockSettings, new ParsedDates(), filter);
+
+        expect(svc.isDailyNote(new TFile("Notes/2025-01-01.md"))).toBe(true);
+        expect(svc.isDailyNote(new TFile("Notes/2025-01-02.md"))).toBe(true);
+        expect(svc.isDailyNote(new TFile("Notes/Ideas.md"))).toBe(false);
+    });
+
     it("with no filter, finds every daily note belongs", async () => {
         const svc = new DailyNoteService(__mockMarkdownFiles, __mockSettings);
         await svc.initialize();

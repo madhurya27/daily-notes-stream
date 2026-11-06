@@ -133,6 +133,11 @@ that `pnpm run test:ios` covers.
 
 ### Jump to date
 
+- From a daily note, **Show in stream** in the command palette or the file
+  explorer's menu opens the stream in that tab, at the note. Back returns to the
+  note. On an empty note the stream hides, a notice says so and the note stays
+  open. **[e2e]**; **[ios]** for the file explorer's menu on an iPad.
+
 - On a phone, the list of dates opens with the keyboard down. A tap on the
   search field brings the keyboard up. **[e2e]** for the focus; **[ios]**.
 - The calendar button opens iOS's date wheel. The e2e mobile tests run in

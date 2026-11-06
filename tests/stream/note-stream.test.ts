@@ -1416,6 +1416,46 @@ describe("jumping to a date", () => {
     });
 });
 
+describe("showing a note", () => {
+    let notes: TFile[];
+
+    beforeEach(async () => {
+        HTMLElement.prototype.scrollIntoView = vi.fn();
+        notes = makeNotes(25);
+        await listed(...notes);
+    });
+
+    it("loads through the note and scrolls it to the top of the view", async () => {
+        const target = placeholder(notes[14]!.path);
+        target.scrollIntoView = vi.fn();
+        noteWindow.add.mockImplementation((f: TFile) => (f === notes[14] ? target : placeholder(f.path)));
+
+        await stream.show(notes[14]!);
+
+        expect(service.streamLength).toBe(20);
+        expect(target.scrollIntoView).toHaveBeenCalledWith({ block: "start" });
+        expect(Notice.shown).toEqual([]);
+    });
+
+    it("notices and scrolls nowhere when the note is not in the stream", async () => {
+        await stream.show(new TFile("Notes/2025-01-31.md"));
+
+        expect(HTMLElement.prototype.scrollIntoView).not.toHaveBeenCalled();
+        expect(Notice.shown).toEqual(["This note isn't in the stream."]);
+    });
+
+    it("notices when the note was renamed before its block caught up", async () => {
+        await stream.loadMoreNotes();
+        renameInPlace(notes[3]!, "Notes/Renamed.md");
+        vi.spyOn(service, "indexOf").mockReturnValue(3);
+
+        await stream.show(notes[3]!);
+
+        expect(HTMLElement.prototype.scrollIntoView).not.toHaveBeenCalled();
+        expect(Notice.shown).toEqual(["This note isn't in the stream."]);
+    });
+});
+
 describe("what a search moves through", () => {
     let notes: TFile[];
     const observers: { callback: () => void; disconnected: boolean }[] = [];

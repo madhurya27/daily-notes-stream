@@ -180,6 +180,14 @@ export class DailyNoteService {
     }
 
     /**
+     * Whether `file` is a daily note, hidden or not. Needs no list, so the
+     * plugin can ask with no view open.
+     */
+    isDailyNote(file: TFile): boolean {
+        return this.parseDate(file, this.format()) !== null;
+    }
+
+    /**
      * Whether the filter leaves out any daily note. It reads the whole vault,
      * so only use it for an empty stream.
      */

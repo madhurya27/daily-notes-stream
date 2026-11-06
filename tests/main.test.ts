@@ -7,6 +7,7 @@ import { COLLAPSE_STATE_KEY, CollapsibleStateStore } from "../src/render/collaps
 import { BaseMeasurements } from "../src/render/bases/base-measurements";
 import { LAYOUT_MEMORY_KEY, LayoutMemory } from "../src/stream/layout-memory";
 import {
+    Menu,
     Notice,
     TFile,
     WorkspaceLeaf,
@@ -31,6 +32,7 @@ function makeApp() {
             getLeavesOfType: vi.fn().mockReturnValue([]),
             getLeaf: vi.fn(),
             getMostRecentLeaf: vi.fn().mockReturnValue(null),
+            getActiveFile: vi.fn().mockReturnValue(null),
             revealLeaf: vi.fn().mockResolvedValue(undefined),
             onLayoutReady: vi.fn((callback: () => unknown) => void callback()),
         },
@@ -155,11 +157,26 @@ describe("DailyNotesStreamPlugin — onload", () => {
         expect(plugin.ribbonIcons.map(({ icon, title }) => ({ icon, title }))).toEqual([
             { icon: "gallery-vertical-end", title: "Open daily notes stream" },
         ]);
-        expect(plugin.commands.map((c) => c.id)).toEqual(["open-stream", "jump-to-date", "scroll-to-top"]);
+        expect(plugin.commands.map((c) => c.id)).toEqual([
+            "open-stream",
+            "jump-to-date",
+            "show-in-stream",
+            "scroll-to-top",
+        ]);
         // The README tells readers to run these commands by these names.
-        expect(plugin.commands.map((c) => c.name)).toEqual(["Open stream", "Jump to date", "Scroll to top"]);
+        expect(plugin.commands.map((c) => c.name)).toEqual([
+            "Open stream",
+            "Jump to date",
+            "Show in stream",
+            "Scroll to top",
+        ]);
         // The same icons as the ribbon and the view's header buttons.
-        expect(plugin.commands.map((c) => c.icon)).toEqual(["gallery-vertical-end", "calendar-1", "arrow-up-to-line"]);
+        expect(plugin.commands.map((c) => c.icon)).toEqual([
+            "gallery-vertical-end",
+            "calendar-1",
+            "gallery-vertical-end",
+            "arrow-up-to-line",
+        ]);
         expect(plugin.settingTabs).toHaveLength(1);
     });
 
@@ -604,6 +621,146 @@ describe("DailyNotesStreamPlugin — jump-to-date command", () => {
         vi.spyOn(plugin, "activateView").mockRejectedValue(new Error("no leaf"));
 
         trigger(plugin);
+        await flushPromises();
+
+        expect(errorSpy).toHaveBeenCalledWith("DailyNotesStream: Failed to activate view", expect.any(Error));
+    });
+});
+
+describe("DailyNotesStreamPlugin — show in stream", () => {
+    const shown = "Notes/2025-01-02.md";
+
+    /** A leaf holding a stream view, without creating the real one. */
+    function makeViewLeaf() {
+        const view = Object.create(DailyNotesStreamView.prototype) as DailyNotesStreamView;
+        view.showNote = vi.fn().mockResolvedValue(undefined);
+        return { leaf: { view } as unknown as Leaf, view };
+    }
+
+    const command = (p: DailyNotesStreamPlugin) => p.commands.find((c) => c.id === "show-in-stream")!;
+
+    /** The items the plugin adds to the menu of `file`. */
+    function fileMenu(app: ReturnType<typeof makeApp>, file: TFile) {
+        const menu = new Menu();
+        fire(app.workspace, "file-menu", menu, file, "file-explorer-context-menu");
+        return menu.items;
+    }
+
+    beforeEach(() => __setMockNotes(["Notes/2025-01-01.md", shown, "Notes/Ideas.md"]));
+
+    it("is a command named for the README, with the stream's icon", async () => {
+        const { plugin } = await loadPlugin();
+
+        expect(command(plugin).name).toBe("Show in stream");
+        expect(command(plugin).icon).toBe("gallery-vertical-end");
+    });
+
+    // Whether a note is empty is only known once it is read (D-218).
+    it("is offered for the active file when it is a daily note, even one the stream hides", async () => {
+        const { plugin, app } = await loadPlugin({ hideEmptyNotes: true });
+        vi.spyOn(plugin.emptyNotes, "isEmpty").mockImplementation((file) => file.path === "Notes/2025-01-01.md");
+        const offered = (path: string | null) => {
+            app.workspace.getActiveFile.mockReturnValue(path === null ? null : new TFile(path));
+            return command(plugin).checkCallback!(true);
+        };
+
+        expect(offered(shown)).toBe(true);
+        expect(offered("Notes/2025-01-01.md")).toBe(true);
+        expect(offered("Notes/Ideas.md")).toBe(false);
+        expect(offered(null)).toBe(false);
+    });
+
+    it("says why, and stays on the note, when the stream hides it", async () => {
+        const { plugin, app } = await loadPlugin({ hideEmptyNotes: true });
+        const activate = vi.spyOn(plugin, "activateView").mockResolvedValue(leafWithoutStream);
+        app.vault.cachedRead.mockResolvedValue("");
+        app.workspace.getActiveFile.mockReturnValue(new TFile(shown));
+
+        command(plugin).checkCallback!(false);
+        await flushPromises();
+
+        expect(activate).not.toHaveBeenCalled();
+        expect(Notice.shown).toEqual([
+            "This note is hidden from the stream because it's empty. To show it, turn off \"Hide empty notes\" in Daily Notes Stream's settings.",
+        ]);
+    });
+
+    it("opens nothing while the palette only asks whether it is offered", async () => {
+        const { plugin, app } = await loadPlugin();
+        const activate = vi.spyOn(plugin, "activateView").mockResolvedValue(leafWithoutStream);
+        app.workspace.getActiveFile.mockReturnValue(new TFile(shown));
+
+        command(plugin).checkCallback!(true);
+
+        expect(activate).not.toHaveBeenCalled();
+    });
+
+    it("opens the stream in the current tab, at the active file", async () => {
+        const { plugin, app } = await loadPlugin();
+        const { leaf, view } = makeViewLeaf();
+        const activate = vi.spyOn(plugin, "activateView").mockResolvedValue(leaf);
+        const file = new TFile(shown);
+        app.workspace.getActiveFile.mockReturnValue(file);
+
+        command(plugin).checkCallback!(false);
+        await flushPromises();
+
+        expect(activate).toHaveBeenCalledWith(false);
+        expect(view.showNote).toHaveBeenCalledWith(file);
+    });
+
+    it("adds an item to the menu of a daily note, and none to other notes", async () => {
+        const { app } = await loadPlugin();
+
+        expect(fileMenu(app, new TFile(shown)).map((item) => [item.title, item.icon, item.section])).toEqual([
+            ["Show in stream", "gallery-vertical-end", "open"],
+        ]);
+        expect(fileMenu(app, new TFile("Notes/Ideas.md"))).toEqual([]);
+    });
+
+    it("adds nothing to the menu of a note's title in the stream, which already shows it", async () => {
+        const { app } = await loadPlugin();
+        const menu = new Menu();
+
+        fire(app.workspace, "file-menu", menu, new TFile(shown), "daily-notes-stream");
+
+        expect(menu.items).toEqual([]);
+    });
+
+    it("opens the stream at the menu's note, in the pane a Ctrl/Cmd-click asks for", async () => {
+        const { plugin, app } = await loadPlugin();
+        const { leaf, view } = makeViewLeaf();
+        const activate = vi.spyOn(plugin, "activateView").mockResolvedValue(leaf);
+        const file = new TFile(shown);
+        const [item] = fileMenu(app, file);
+
+        item!.click();
+        await flushPromises();
+        expect(activate).toHaveBeenLastCalledWith(false);
+        expect(view.showNote).toHaveBeenCalledWith(file);
+
+        item!.click(new MouseEvent("click", { metaKey: true }));
+        await flushPromises();
+        expect(activate).toHaveBeenLastCalledWith("tab");
+    });
+
+    it("shows nothing when the leaf holds no stream view", async () => {
+        const { plugin, app } = await loadPlugin();
+        vi.spyOn(plugin, "activateView").mockResolvedValue(leafWithoutStream);
+        app.workspace.getActiveFile.mockReturnValue(new TFile(shown));
+
+        command(plugin).checkCallback!(false);
+        await flushPromises();
+
+        expect(errorSpy).not.toHaveBeenCalled();
+    });
+
+    it("logs when activation fails instead of leaving an unhandled rejection", async () => {
+        const { plugin, app } = await loadPlugin();
+        vi.spyOn(plugin, "activateView").mockRejectedValue(new Error("no leaf"));
+        app.workspace.getActiveFile.mockReturnValue(new TFile(shown));
+
+        command(plugin).checkCallback!(false);
         await flushPromises();
 
         expect(errorSpy).toHaveBeenCalledWith("DailyNotesStream: Failed to activate view", expect.any(Error));

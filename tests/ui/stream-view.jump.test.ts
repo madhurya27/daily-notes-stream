@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { moment } from "../mocks/obsidian";
+import { TFile, moment } from "../mocks/obsidian";
 import { JumpToDateModal } from "../../src/ui/jump-to-date-modal";
 import { makeViewSetup } from "../stream-view-fixture";
 
@@ -16,5 +16,16 @@ describe("DailyNotesStreamView — the jump action", () => {
 
         expect(service.indexForDate).toHaveBeenCalledOnce();
         expect(vi.mocked(service.indexForDate).mock.calls[0]![0].format("YYYY-MM-DD")).toBe("2025-01-05");
+    });
+});
+
+describe("DailyNotesStreamView — showing a note", () => {
+    it("looks the note up in this view's own list", async () => {
+        const { view, service } = await makeViewSetup();
+        const file = new TFile("Notes/2025-01-05.md");
+
+        await view.showNote(file);
+
+        expect(service.indexOf).toHaveBeenCalledWith("Notes/2025-01-05.md");
     });
 });
