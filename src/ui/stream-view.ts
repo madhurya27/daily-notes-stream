@@ -1,5 +1,5 @@
 import {
-    ItemView,
+    FileView,
     Platform,
     Scope,
     WorkspaceLeaf,
@@ -29,6 +29,8 @@ import {
 } from "../obsidian-internals";
 import { isStreamPlace } from "../stream/scroll-position";
 import { sendLostClicks } from "./lost-clicks";
+import { ReadingNoteWatch } from "../stream/reading-note-watch";
+import type { Moment } from "../notes/moment";
 
 export const VIEW_TYPE_DAILY_NOTES_STREAM = "daily-notes-stream-view";
 // A stack of cards (D-041).
@@ -40,7 +42,13 @@ export const STREAM_ICON = "gallery-vertical-end";
  */
 const SEARCH_REFRESH_DEBOUNCE_MS = 500;
 
-export class DailyNotesStreamView extends ItemView implements HoverParent {
+/**
+ * A file view only because Calendar highlights a `FileView`'s file. Its `file`
+ * is null except while the Calendar adapter calls Calendar, so Obsidian sees no
+ * open file (ADR 0024, D-029).
+ */
+export class DailyNotesStreamView extends FileView implements HoverParent {
+    allowNoFile = true;
     hoverPopover: HoverPopover | null = null;
     /**
      * Obsidian treats a view that isn't navigable as a sidebar, and keeps the
@@ -53,6 +61,7 @@ export class DailyNotesStreamView extends ItemView implements HoverParent {
     private readonly timers = this.addChild(new ViewTimers());
     private stream: NoteStream;
     private search: StreamSearch;
+    private readonly reading: ReadingNoteWatch;
     private searchBar: SearchBar;
     /**
      * Obsidian's hotkeys for "Search current file", read again whenever the
@@ -93,6 +102,18 @@ export class DailyNotesStreamView extends ItemView implements HoverParent {
         );
         this.stream = new NoteStream(this.service, this.renderer, plugin.layoutMemory, this.timers, () =>
             this.refreshSearch()
+        );
+
+        this.reading = new ReadingNoteWatch(
+            () => this.stream.readingNote(),
+            (note, scrolling) =>
+                plugin.readingNotes.report({
+                    view: this,
+                    note,
+                    date: this.service.parseNoteDate(note.basename),
+                    scrolling,
+                }),
+            this.timers
         );
 
         this.search = new StreamSearch(
@@ -160,8 +181,24 @@ export class DailyNotesStreamView extends ItemView implements HoverParent {
         const { metadataCache, vault } = this.app;
         this.registerEvent(metadataCache.on("changed", (f) => this.stream.onFileModify(f)));
         this.registerEvent(vault.on("create", (f) => this.stream.onFileCreate(f)));
-        this.registerEvent(vault.on("delete", (f) => this.stream.onFileDelete(f)));
-        this.registerEvent(vault.on("rename", (f, old) => this.stream.onFileRename(f, old)));
+        this.registerEvent(
+            vault.on("delete", (f) => {
+                this.stream.onFileDelete(f);
+                this.reading.announceSoon();
+            })
+        );
+        this.registerEvent(
+            vault.on("rename", (f, old) => {
+                this.stream.onFileRename(f, old);
+                this.reading.announceSoon();
+            })
+        );
+        // Calendar showed the tab that was active before.
+        this.registerEvent(
+            this.app.workspace.on("active-leaf-change", (leaf) => {
+                if (leaf === this.leaf) this.reading.announceSoon();
+            })
+        );
         // A Base file has no metadata to wait for.
         this.registerEvent(vault.on("modify", (f) => void this.renderer.onBaseModified(f)));
         this.registerEvent(onPostProcessorChange(this.app, () => void this.refresh()));
@@ -194,7 +231,10 @@ export class DailyNotesStreamView extends ItemView implements HoverParent {
         // The header too: a tap on its title is lost as well.
         if (Platform.isIosApp) sendLostClicks(this, this.containerEl, this.timers);
 
-        this.registerDomEvent(this.contentEl, "scroll", () => this.stream.onScroll());
+        this.registerDomEvent(this.contentEl, "scroll", () => {
+            this.stream.onScroll();
+            this.reading.onScroll();
+        });
         this.registerDomEvent(this.contentEl, "pointerdown", (evt) => this.stream.onTouch(evt.target));
         this.registerDomEvent(this.contentEl, BASE_RESIZED, (evt) => this.stream.window.onBaseResized(evt.target));
         this.registerDomEvent(this.contentEl, "wheel", () => this.stream.onWheel(), { passive: true });
@@ -203,6 +243,16 @@ export class DailyNotesStreamView extends ItemView implements HoverParent {
             this.registerDomEvent(this.contentEl, lift, () => this.stream.window.onFingerUp(), { passive: true });
         this.stream.open(this.contentEl, streamContainerEl);
         this.lifecycle = "open";
+        this.reading.announceSoon();
+    }
+
+    /**
+     * Without its `file`, so Back and the saved layout open the stream again,
+     * not a note.
+     */
+    getState(): Record<string, unknown> {
+        const { file: _file, ...state } = super.getState();
+        return state;
     }
 
     /**
@@ -261,6 +311,14 @@ export class DailyNotesStreamView extends ItemView implements HoverParent {
         return this.stream.show(file);
     }
 
+    /**
+     * Scrolls to the note dated `day`, as a jump does. Returns false if there
+     * is none.
+     */
+    showDay(day: Moment): Promise<boolean> {
+        return this.stream.showDay(day);
+    }
+
     scrollToTop(): void {
         this.stream.window.scrollToTop();
     }
@@ -273,7 +331,8 @@ export class DailyNotesStreamView extends ItemView implements HoverParent {
         if (this.lifecycle === "open") this.stream.window.forgetHeights();
     }
 
-    refresh(): Promise<void> {
-        return this.stream.refresh();
+    async refresh(): Promise<void> {
+        await this.stream.refresh();
+        this.reading.announceSoon();
     }
 }

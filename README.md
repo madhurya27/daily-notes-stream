@@ -15,6 +15,7 @@ It works with the daily notes you already have. There's no new folder, format, o
 - **Always current.** When you create, edit, rename, or delete a note, the stream updates right away.
 - **[Search](#search).** Press Ctrl/Cmd+F to find text across every note.
 - **[Jump to a date](#move-around).** Go straight to any day that has a note.
+- **Calendar.** With the [Calendar](https://github.com/liamcain/obsidian-calendar-plugin) plugin open, the day you're reading is highlighted as you scroll, and the calendar turns to its month. Click a day to scroll the stream to it, instead of opening the note in its place. Ctrl/Cmd-click still opens the note in a new pane.
 - **[Fold sections](#fold-sections).** Collapse any heading or nested list, and the stream remembers it.
 - **Properties.** Each note's properties appear at its top. You can hide or collapse them in [settings](#settings).
 - **[Linked mentions](#linked-mentions).** Each note ends with the notes that link to it. You can hide or collapse them in [settings](#settings).

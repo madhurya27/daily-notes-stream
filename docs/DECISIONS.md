@@ -4170,3 +4170,36 @@ to 10 runs.
   still hold events back for longer.
 - Ignoring a step that undoes a write the anchor just made — it would hide the
   undo, but the shift would still be lost.
+
+## D-220 — The note being read is the one under a line a third down the pane (2026-11-04)
+
+**Decision:** the note being read is the note that crosses a line a third of the
+way down the stream's pane. In the gap between two notes, it is the note below.
+At the stream's top it is the first note, and at its end the last one, even when
+they are too short to reach the line. A stream that fits in the pane is at its
+top. Calendar highlights it (ADR 0024).
+
+**Why:** with the end of one note and the start of the next on screen, the
+reader is reading the next one. A short newest note, such as today's, never
+reaches the line, nor does a short oldest one, so the ends of the stream need
+their own rule. The line only reads where notes are and moves nothing, so it
+does not conflict with the scroll anchor at the pane's top (D-053).
+
+**Rejected:**
+
+- The pane's top, as for Back and search — the last lines of yesterday count as
+  yesterday.
+- The note taking up the most of the pane — flips between two notes of similar
+  height.
+
+## D-221 — The reading-note event stays private (2026-11-04)
+
+**Decision:** the `reading-note` event (ADR 0024) is used only by our Calendar
+adapter, which is written as if it were another plugin.
+
+**Why:** no other plugin listens. Once published, the event's name and arguments
+cannot change, and its first outside user may need something different.
+Publishing it later only means documenting the name and adding `readingNote()`
+to the plugin.
+
+**Rejected:** publishing it now, for other calendar plugins.

@@ -77,6 +77,14 @@ proto.createSpan = function (this: HTMLElement, params?: { cls?: string; text?: 
     return this.createEl("span", params);
 };
 
+/**
+ * Obsidian's: laid out, so neither it nor an ancestor is `display: none`. jsdom
+ * lays nothing out, so a test sets `offsetParent` on what it shows.
+ */
+proto.isShown = function (this: HTMLElement) {
+    return this.offsetParent !== null;
+};
+
 /** Obsidian's check that works across windows. Tests have one window. */
 Node.prototype.instanceOf = function <T>(this: Node, type: new () => T): this is T {
     return this instanceof type;

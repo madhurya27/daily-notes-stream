@@ -6,9 +6,12 @@ import { drawMathAtOnce } from "./render/math-at-once";
 import { NOTE_CONTENT_CLASS, TITLE_MENU_SOURCE } from "./render/note-renderer";
 import { DailyNoteService } from "./notes/daily-note-service";
 import { ParsedDates } from "./notes/parsed-dates";
+import type { Moment } from "./notes/moment";
 import { LayoutMemory } from "./stream/layout-memory";
 import { BacklinkIndex } from "./notes/backlink-index";
 import { EMPTY_NOTES_KEY, EmptyNotes, hideEmptyNotes } from "./notes/empty-notes";
+import { ReadingNotes } from "./stream/reading-notes";
+import { followInCalendar, takeCalendarClicks } from "./integrations/calendar";
 import { LinkChanges } from "./notes/link-changes";
 import { readDateFormat } from "./notes/daily-note-format";
 import { getDailyNoteSettings, removeLocalStorageKeys } from "./obsidian-internals";
@@ -49,6 +52,9 @@ export default class DailyNotesStreamPlugin extends Plugin {
      */
     private streamNotes!: DailyNoteService;
 
+    /** Which note each stream is reading, for the integrations (ADR 0024). */
+    readonly readingNotes = new ReadingNotes();
+
     async onload() {
         if (buildLabel()) new Notice(`Daily Notes Stream: ${buildLabel()}`);
         await this.loadSettings();
@@ -58,6 +64,8 @@ export default class DailyNotesStreamPlugin extends Plugin {
         this.indexBacklinks();
         this.indexEmptyNotes();
         this.followLinkChanges();
+        this.register(followInCalendar(this.app, this.readingNotes));
+        this.register(takeCalendarClicks(this.app, (day) => this.showDayInStream(day)));
 
         // Each view has its own service (.claude/rules/invariants.md). They
         // only share the dates read from file names, and which notes are empty.
@@ -264,6 +272,25 @@ export default class DailyNotesStreamPlugin extends Plugin {
         this.register(() => notes.flush());
         this.registerEvent(vault.on("rename", (file, oldPath) => notes.rename(oldPath, file.path)));
         this.registerEvent(vault.on("delete", (file) => notes.forget(file.path)));
+    }
+
+    /**
+     * Scrolls the stream to the note dated `day`, when the stream is the tab a
+     * note would open in, and makes it the active tab again: a click in
+     * Calendar made Calendar's the active one. A note the stream hides gets a
+     * notice instead. Returns false when there is no stream there, or no note.
+     */
+    private async showDayInStream(day: Moment): Promise<boolean> {
+        const { workspace } = this.app;
+        const leaf = workspace.getMostRecentLeaf();
+        if (!(leaf?.view instanceof DailyNotesStreamView)) return false;
+        if (await leaf.view.showDay(day)) {
+            workspace.setActiveLeaf(leaf, { focus: true });
+            return true;
+        }
+        if (!this.streamNotes.hidesOn(day)) return false;
+        new Notice(HIDDEN_NOTE);
+        return true;
     }
 
     /** A jump only makes sense in the stream, so open it first. */

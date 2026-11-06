@@ -10,6 +10,7 @@ kebab-case, and files are grouped by what they do (D-023).
 
 ```
 main.ts               the plugin: indexes and stores shared by all views, one of each
+├─ integrations/      other plugins, reached only through the plugin's own events
 └─ ui/stream-view     one for each open tab: passes Obsidian's events to the stream
    ├─ notes/          which files are daily notes, in what order, and which are hidden
    ├─ stream/         what is loaded, where blocks are, what is rendered, and scrolling
@@ -36,11 +37,14 @@ One for the plugin, shared by all views:
   are too wide (`layout-table.ts`) and the template's height. Its size is
   limited (D-195).
 - `CollapsibleStateStore` — which sections are collapsed.
+- `ReadingNotes` — the note each view is reading (D-220), reported to
+  `integrations/calendar.ts` (ADR 0024). Private (D-221).
 
 One for each view: `DailyNoteService` (the daily notes, including those in
 nested folders, newest first), `NoteStream` with its window, blocks and state,
-`NoteRenderer`, `CollapsibleManager`, `StreamSearch`, `SearchBar` and
-`ViewTimers` (its timers, which end with it, D-199).
+`NoteRenderer`, `CollapsibleManager`, `StreamSearch`, `SearchBar`,
+`ReadingNoteWatch` (when to report the note being read) and `ViewTimers` (its
+timers, which end with it, D-199).
 
 The plugin adds its `vault` and `metadataCache` listeners before any view opens.
 So when a view's own handler runs, the shared indexes are already up to date.
@@ -195,4 +199,5 @@ next restart. All of a device's vaults and plugins share it (D-195).
 Obsidian APIs that are not officially supported are only used in
 `obsidian-internals.ts`: the daily notes settings (D-127), readable line length,
 the vault config "raw" event, global search's `setQuery`, property icons,
-hotkeys, and a view's title element.
+hotkeys, and a view's title element. Calendar's unpublished view methods and its
+day-click handler are only used in `integrations/calendar.ts` (ADR 0024).

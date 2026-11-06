@@ -1456,6 +1456,44 @@ describe("showing a note", () => {
     });
 });
 
+describe("showing a day", () => {
+    let notes: TFile[];
+
+    beforeEach(async () => {
+        HTMLElement.prototype.scrollIntoView = vi.fn();
+        notes = makeNotes(25);
+        await listed(...notes);
+    });
+
+    it("loads through the day's note, scrolls it to the top, and says it did", async () => {
+        const target = placeholder(notes[14]!.path);
+        target.scrollIntoView = vi.fn();
+        noteWindow.add.mockImplementation((f: TFile) => (f === notes[14] ? target : placeholder(f.path)));
+
+        const shown = await stream.showDay(moment("2025-01-16"));
+
+        expect(shown).toBe(true);
+        expect(target.scrollIntoView).toHaveBeenCalledWith({ block: "start" });
+    });
+
+    // Whoever asked decides what to do instead, so there is no notice.
+    it("says it did not, and scrolls nowhere, for a day with no note", async () => {
+        const shown = await stream.showDay(moment("2024-12-01"));
+
+        expect(shown).toBe(false);
+        expect(HTMLElement.prototype.scrollIntoView).not.toHaveBeenCalled();
+        expect(Notice.shown).toEqual([]);
+    });
+
+    it("says it did not when the note went before its block caught up", async () => {
+        await stream.loadMoreNotes();
+        renameInPlace(notes[3]!, "Notes/Renamed.md");
+        vi.spyOn(service, "indexOnDay").mockReturnValue(3);
+
+        expect(await stream.showDay(moment("2025-01-27"))).toBe(false);
+    });
+});
+
 describe("what a search moves through", () => {
     let notes: TFile[];
     const observers: { callback: () => void; disconnected: boolean }[] = [];
@@ -1664,6 +1702,13 @@ describe("what a search moves through", () => {
             expect(pane.scrollTop).toBe(6000);
         });
 
+        it("is kept through showing a day with no note", async () => {
+            await stream.showDay(moment("1990-01-01", "YYYY-MM-DD", true));
+            resized();
+
+            expect(pane.scrollTop).toBe(6000);
+        });
+
         it("is let go once another is centered", async () => {
             await stream.center(matchAt(390));
             resized();
@@ -1789,6 +1834,23 @@ describe("what a search moves through", () => {
 
     it("names no note in an empty stream", () => {
         expect(stream.firstVisibleNote()).toBeNull();
+    });
+
+    it("names the note under the reading line, below the first note on screen", async () => {
+        await stream.loadMoreNotes();
+        pane.getBoundingClientRect = () => rect(0, 800);
+        // Scrolled to the middle, away from the stream's top and end.
+        Object.defineProperties(pane, { scrollHeight: { value: 20_000 }, clientHeight: { value: 800 } });
+        pane.scrollTop = 5000;
+        stack(-400);
+
+        expect(stream.readingNote()).toBe(notes[1]);
+    });
+
+    it("names no note being read in an empty stream", () => {
+        pane.getBoundingClientRect = () => rect(0, 800);
+
+        expect(stream.readingNote()).toBeNull();
     });
 });
 

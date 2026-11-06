@@ -11,6 +11,7 @@ import { __setMockNotes } from "./mocks/daily-notes";
 import { CollapsibleStateStore } from "../src/render/collapse-store";
 import { BacklinkIndex } from "../src/notes/backlink-index";
 import { LinkChanges } from "../src/notes/link-changes";
+import { ReadingNotes } from "../src/stream/reading-notes";
 import { LayoutMemory } from "../src/stream/layout-memory";
 
 /** A fake `T`, holding only the members a test uses. */
@@ -39,6 +40,7 @@ export function makeService(): DailyNoteService {
         belongs: vi.fn().mockResolvedValue(false),
         hidesAny: vi.fn().mockReturnValue(false),
         indexForDate: vi.fn().mockReturnValue(-1),
+        indexOnDay: vi.fn().mockReturnValue(-1),
         dates: vi.fn().mockReturnValue([]),
         formatDate: vi.fn().mockReturnValue(""),
         parseNoteDate: vi.fn().mockReturnValue(null),
@@ -68,6 +70,7 @@ export function makePlugin(): DailyNotesStreamPlugin {
             () => ({}),
             () => ""
         ),
+        readingNotes: new ReadingNotes(),
     });
 }
 

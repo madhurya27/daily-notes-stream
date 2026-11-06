@@ -59,8 +59,20 @@ export const TEMPLATER: PinnedPlugin = {
     },
 };
 
+/** The release the directory installs: 2.0 has only beta releases. */
+export const CALENDAR: PinnedPlugin = {
+    id: "calendar",
+    name: "Calendar",
+    repo: "liamcain/obsidian-calendar-plugin",
+    version: "1.5.10",
+    sha256: {
+        "main.js": "7fb339e9cf9fdbe5a801fa2b8ab85b366b5b3777fbd193cbc8728bc27711d125",
+        "manifest.json": "f3e9581338648512baa12d5b458490f7fd367918f7bdb6bd86171ce57be7d08b",
+    },
+};
+
 /** Every plugin a test installs, downloaded before the run. */
-export const PINNED_PLUGINS = [DATAVIEW, PERIODIC_NOTES, TEMPLATER];
+export const PINNED_PLUGINS = [DATAVIEW, PERIODIC_NOTES, TEMPLATER, CALENDAR];
 
 const dirOf = (plugin: PinnedPlugin) =>
     resolve(dirname(fileURLToPath(import.meta.url)), "..", ".dev", "e2e-plugins", `${plugin.id}-${plugin.version}`);
@@ -87,16 +99,30 @@ export async function fetchPinned(plugin: PinnedPlugin): Promise<void> {
     }
 }
 
+/** Runs `fn` in Obsidian with `arg`, on desktop or on a device. */
+export type RunInObsidian = <A, R>(fn: (arg: A) => Promise<R>, arg: A) => Promise<R>;
+
 /**
  * Installs and turns on the plugin in the vault, starting from `data` as its
  * saved settings if given. The returned function turns it off and removes it.
  */
-export async function installPinned(page: Page, plugin: PinnedPlugin, data?: object): Promise<() => Promise<void>> {
-    const files = Object.fromEntries(
+export function installPinned(page: Page, plugin: PinnedPlugin, data?: object): Promise<() => Promise<void>> {
+    // The arguments are plain JSON, which Playwright passes through unchanged:
+    // its Unboxed type is the type itself.
+    return installPinnedVia((fn, arg) => page.evaluate(fn as (arg: unknown) => Promise<never>, arg), plugin, data);
+}
+
+/** `installPinned`, through `run`, such as a device's. */
+export async function installPinnedVia(
+    run: RunInObsidian,
+    plugin: PinnedPlugin,
+    data?: object
+): Promise<() => Promise<void>> {
+    const files: Record<string, string> = Object.fromEntries(
         Object.keys(plugin.sha256).map((name) => [name, readFileSync(join(dirOf(plugin), name), "utf8")])
     );
     if (data) files["data.json"] = JSON.stringify(data);
-    await page.evaluate(
+    await run(
         async ({ id, files }) => {
             const { adapter, configDir } = window.app.vault;
             const dir = `${configDir}/plugins/${id}`;
@@ -108,7 +134,7 @@ export async function installPinned(page: Page, plugin: PinnedPlugin, data?: obj
         { id: plugin.id, files }
     );
     return () =>
-        page.evaluate(async (id) => {
+        run(async (id) => {
             await window.app.plugins.disablePlugin(id);
             const { adapter, configDir } = window.app.vault;
             const dir = `${configDir}/plugins/${id}`;

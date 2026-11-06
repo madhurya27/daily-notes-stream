@@ -17,6 +17,7 @@ import { webPageLink } from "../render/web-page-links";
 import {
     keepInPlace,
     readPlace,
+    readingPathAt,
     scrollBlockTo,
     scrollIntoPlace,
     type StreamLayout,
@@ -363,6 +364,15 @@ export class NoteStream {
         return this.revealOrTell(this.service.indexOf(file.path), NOT_IN_STREAM);
     }
 
+    /**
+     * Scrolls to the note dated `day` as a jump does. Returns whether it did:
+     * false, with no notice, if the stream has no note that day.
+     */
+    async showDay(day: Moment): Promise<boolean> {
+        const index = this.service.indexOnDay(day);
+        return index !== -1 && (await this.revealIndex(index)) !== null;
+    }
+
     /** Scrolls to the note at `index`, or shows `notice` if there is none. */
     private async revealOrTell(index: number, notice: string): Promise<void> {
         const block = index === -1 ? null : await this.revealIndex(index);
@@ -456,6 +466,14 @@ export class NoteStream {
     firstVisibleNote(): TFile | null {
         const place = this.place();
         const index = place ? this.service.indexOf(place.path) : -1;
+        return index === -1 ? null : this.service.getBatch(index, 1)[0]!;
+    }
+
+    /** The note being read (D-220), or null in an empty stream. */
+    readingNote(): TFile | null {
+        const path = readingPathAt(this.blocks.el, this.scrollRoot);
+        // Stryker disable next-line ConditionalExpression: no listed note's path is null, so indexOf(null) is -1 too.
+        const index = path === null ? -1 : this.service.indexOf(path);
         return index === -1 ? null : this.service.getBatch(index, 1)[0]!;
     }
 

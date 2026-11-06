@@ -29,3 +29,15 @@ describe("DailyNotesStreamView — showing a note", () => {
         expect(service.indexOf).toHaveBeenCalledWith("Notes/2025-01-05.md");
     });
 });
+
+describe("DailyNotesStreamView — showing a day", () => {
+    it("looks the day up in this view's own list, and says whether it found it", async () => {
+        const { view, service } = await makeViewSetup();
+        vi.mocked(service.indexOnDay).mockReturnValue(-1);
+
+        const shown = await view.showDay(moment("2025-01-05", "YYYY-MM-DD", true));
+
+        expect(shown).toBe(false);
+        expect(vi.mocked(service.indexOnDay).mock.calls[0]![0].format("YYYY-MM-DD")).toBe("2025-01-05");
+    });
+});

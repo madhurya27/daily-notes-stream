@@ -33,6 +33,24 @@ export function readPlace(stream: HTMLElement, scrollEl: HTMLElement): StreamPla
 }
 
 /**
+ * The path of the note being read in `scrollEl` (D-220): the one crossing a
+ * line a third of the way down the pane, or the note below in the gap between
+ * two. At the stream's top, the first note; at its end or past every note, the
+ * last one. In an empty stream, null.
+ */
+export function readingPathAt(stream: HTMLElement, scrollEl: HTMLElement): string | null {
+    const pane = scrollEl.getBoundingClientRect();
+    const atTop = scrollEl.scrollTop <= 0;
+    // A stream that fits in the pane is at its top and its end; the top wins.
+    const atEnd = !atTop && scrollEl.scrollTop + scrollEl.clientHeight >= scrollEl.scrollHeight - 1;
+    const line = atTop ? pane.top : pane.top + (pane.bottom - pane.top) / 3;
+    const block = ((!atEnd && blockAt(stream, line)) || stream.lastElementChild) as HTMLElement | null;
+    // Below the last note is the empty element that loads more notes.
+    const note = block?.dataset.sourcePath === undefined ? block?.previousElementSibling : block;
+    return (note as HTMLElement | null | undefined)?.dataset.sourcePath ?? null;
+}
+
+/**
  * Scrolls `scrollEl` so that `block`'s top is `offset` below the pane's top.
  */
 export function scrollBlockTo(block: HTMLElement, offset: number, scrollEl: HTMLElement): void {

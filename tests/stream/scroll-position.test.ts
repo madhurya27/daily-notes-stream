@@ -3,6 +3,7 @@ import {
     isStreamPlace,
     keepInPlace,
     readPlace,
+    readingPathAt,
     scrollBlockTo,
     scrollIntoPlace,
 } from "../../src/stream/scroll-position";
@@ -51,6 +52,101 @@ describe("readPlace", () => {
     it("is nowhere once the pane is past every note, or in an empty stream", () => {
         expect(readPlace(streamIn(500, ["Notes/a.md", 0, 100]).stream, makeEl({ top: 500, bottom: 800 }))).toBeNull();
         expect(readPlace(streamIn(0).stream, makeEl({ top: 0, bottom: 800 }))).toBeNull();
+    });
+});
+
+describe("readingPathAt", () => {
+    /**
+     * A pane from 0 to 900, so its reading line is at 300, scrolled to
+     * `scrollTop` of 5000, holding blocks at `rects`, and the empty element
+     * that loads more after them.
+     */
+    function streamOf(scrollTop: number, ...rects: [path: string, top: number, bottom: number][]) {
+        const pane = {
+            getBoundingClientRect: () => ({ top: 0, bottom: 900 }) as DOMRect,
+            scrollTop,
+            scrollHeight: 5000,
+            clientHeight: 900,
+        } as HTMLElement;
+        const stream = document.createElement("div");
+        for (const [path, blockTop, bottom] of rects) {
+            const block = stream.createDiv();
+            block.dataset.sourcePath = path;
+            block.getBoundingClientRect = () => ({ top: blockTop, bottom }) as DOMRect;
+        }
+        const last = rects.at(-1)?.[2] ?? 0;
+        stream.createDiv().getBoundingClientRect = () => ({ top: last, bottom: last + 1 }) as DOMRect;
+        return { pane, stream };
+    }
+
+    const MIDDLE = 2000;
+    const END = 5000 - 900;
+
+    it("is the note crossing a line a third of the way down, not the one at the top", () => {
+        const { pane, stream } = streamOf(
+            MIDDLE,
+            ["Notes/a.md", -500, 200],
+            ["Notes/b.md", 264, 600],
+            ["Notes/c.md", 664, 1000]
+        );
+
+        expect(readingPathAt(stream, pane)).toBe("Notes/b.md");
+    });
+
+    it("is the note below when the line is in the gap between two notes", () => {
+        const { pane, stream } = streamOf(MIDDLE, ["Notes/a.md", -500, 280], ["Notes/b.md", 344, 900]);
+
+        expect(readingPathAt(stream, pane)).toBe("Notes/b.md");
+    });
+
+    it("measures the line from the pane's own top and height", () => {
+        const { stream } = streamOf(MIDDLE, ["Notes/a.md", 0, 399], ["Notes/b.md", 399, 401], ["Notes/c.md", 401, 900]);
+        const pane = {
+            getBoundingClientRect: () => ({ top: 300, bottom: 600 }) as DOMRect,
+            scrollTop: MIDDLE,
+            scrollHeight: 5000,
+            clientHeight: 300,
+        } as HTMLElement;
+
+        expect(readingPathAt(stream, pane)).toBe("Notes/b.md");
+    });
+
+    it("is the first note at the top of the stream, however short", () => {
+        const { pane, stream } = streamOf(0, ["Notes/today.md", 0, 120], ["Notes/yesterday.md", 184, 900]);
+
+        expect(readingPathAt(stream, pane)).toBe("Notes/today.md");
+    });
+
+    it("is the first note when the whole stream fits in the pane", () => {
+        const { pane, stream } = streamOf(0, ["Notes/today.md", 0, 120], ["Notes/yesterday.md", 184, 400]);
+        Object.assign(pane, { scrollHeight: 900 });
+
+        expect(readingPathAt(stream, pane)).toBe("Notes/today.md");
+    });
+
+    it("is the last note at the end of the stream, though it never reaches the line", () => {
+        const { pane, stream } = streamOf(END, ["Notes/b.md", -500, 700], ["Notes/oldest.md", 764, 900]);
+
+        expect(readingPathAt(stream, pane)).toBe("Notes/oldest.md");
+    });
+
+    it("counts a scroll that stops a pixel short as the end, as scrolling stops on fractions", () => {
+        const { pane, stream } = streamOf(END - 1, ["Notes/b.md", -500, 700], ["Notes/oldest.md", 764, 900]);
+
+        expect(readingPathAt(stream, pane)).toBe("Notes/oldest.md");
+    });
+
+    it("is the last note when the line is past every note", () => {
+        const { pane, stream } = streamOf(MIDDLE, ["Notes/a.md", -100, 100], ["Notes/b.md", 100, 250]);
+
+        expect(readingPathAt(stream, pane)).toBe("Notes/b.md");
+    });
+
+    it("is nothing in an empty stream, or before the stream has its loader", () => {
+        const { pane, stream } = streamOf(0);
+
+        expect(readingPathAt(stream, pane)).toBeNull();
+        expect(readingPathAt(document.createElement("div"), pane)).toBeNull();
     });
 });
 

@@ -196,6 +196,16 @@ export class DailyNoteService {
     }
 
     /**
+     * Whether the filter leaves out a daily note dated on `day`'s day. Needs no
+     * list, but reads the whole vault.
+     */
+    hidesOn(day: Moment): boolean {
+        return this.datedNotes(this.format()).some(
+            (note) => note.date.isSame(day.valueOf(), "day") && this.filter.isHidden(note.file, note.date)
+        );
+    }
+
+    /**
      * Returns the removed note's index, or -1 if it was not listed. If it was
      * in the loaded part of the stream, it is removed from it.
      */
@@ -215,6 +225,12 @@ export class DailyNoteService {
         // Stryker disable next-line StringLiteral: a jump's target is a date, already at the start of its day.
         const index = this.firstIndexOnOrBefore(target.clone().startOf("day").valueOf());
         return index < this.sorted.length ? index : -1;
+    }
+
+    /** The index of the note dated on `day`'s day, or -1 if it has none. */
+    indexOnDay(day: Moment): number {
+        const index = this.indexForDate(day);
+        return index !== -1 && this.sorted[index]!.date.isSame(day.valueOf(), "day") ? index : -1;
     }
 
     /**

@@ -11,11 +11,13 @@ import {
     Notice,
     TFile,
     WorkspaceLeaf,
+    moment,
+    type FileView,
     type MarkdownPostProcessorContext,
     type PluginManifest,
     type WorkspaceLeaf as Leaf,
 } from "./mocks/obsidian";
-import { asApp, makeService } from "./stream-view-fixture";
+import { asApp, fake, makeService } from "./stream-view-fixture";
 import { __mockSettings, __mockMarkdownFiles, __setMockNotes, __setMockSettings } from "./mocks/daily-notes";
 
 function makeApp() {
@@ -29,11 +31,13 @@ function makeApp() {
         },
         workspace: {
             on: vi.fn().mockReturnValue({}),
+            offref: vi.fn(),
             getLeavesOfType: vi.fn().mockReturnValue([]),
             getLeaf: vi.fn(),
             getMostRecentLeaf: vi.fn().mockReturnValue(null),
             getActiveFile: vi.fn().mockReturnValue(null),
             revealLeaf: vi.fn().mockResolvedValue(undefined),
+            setActiveLeaf: vi.fn(),
             onLayoutReady: vi.fn((callback: () => unknown) => void callback()),
         },
         metadataCache: {
@@ -513,6 +517,126 @@ describe("DailyNotesStreamPlugin — layout memory", () => {
         await expect(plugin.onload()).rejects.toThrow("data.json unreadable");
 
         expect(() => plugin.unload()).not.toThrow();
+    });
+});
+
+describe("DailyNotesStreamPlugin — Calendar", () => {
+    it("shows Calendar each stream's note being read, until the plugin unloads", async () => {
+        const { plugin, app } = await loadPlugin();
+        const calendar = {
+            containerEl: document.createElement("div"),
+            updateActiveFile: vi.fn(),
+            revealActiveNote: vi.fn(),
+        };
+        app.workspace.getLeavesOfType.mockImplementation((type: string) =>
+            type === "calendar" ? [{ view: calendar }] : []
+        );
+        const view = fake<FileView>({ file: null });
+        Object.assign(app.workspace, { getActiveFile: () => view.file });
+        const report = () =>
+            plugin.readingNotes.report({
+                view,
+                note: new TFile("Notes/2026-03-11.md"),
+                date: null,
+                scrolling: false,
+            });
+
+        report();
+        plugin.unload();
+        report();
+
+        expect(calendar.updateActiveFile).toHaveBeenCalledOnce();
+    });
+
+    /** Calendar's view, with its day click as `click`. */
+    function calendarWithClicks(app: ReturnType<typeof makeApp>) {
+        const view = {
+            openOrCreateDailyNote: vi.fn(() => Promise.resolve()),
+            click: null as null | ((date: unknown, inNewSplit: boolean) => Promise<void>),
+            calendar: { $set: vi.fn() },
+        };
+        view.calendar.$set.mockImplementation((props: { onClickDay: typeof view.click }) => {
+            view.click = props.onClickDay;
+        });
+        app.workspace.getLeavesOfType.mockImplementation((type: string) => (type === "calendar" ? [{ view }] : []));
+        fire(app.workspace, "layout-change");
+        return view;
+    }
+
+    it("scrolls the stream in the active tab to the day clicked in Calendar", async () => {
+        const { plugin, app } = await loadPlugin();
+        const calendar = calendarWithClicks(app);
+        const stream = Object.create(DailyNotesStreamView.prototype) as DailyNotesStreamView;
+        stream.showDay = vi.fn().mockResolvedValue(true);
+        app.workspace.getMostRecentLeaf.mockReturnValue({ view: stream });
+        const day = moment("2026-03-11", "YYYY-MM-DD", true);
+
+        await calendar.click!(day, false);
+
+        expect(stream.showDay).toHaveBeenCalledWith(day);
+        expect(calendar.openOrCreateDailyNote).not.toHaveBeenCalled();
+        plugin.unload();
+        expect(calendar.click).toBe(calendar.openOrCreateDailyNote);
+    });
+
+    // A click makes Calendar's tab the active one, and Calendar highlights only
+    // the active tab's file.
+    it("makes the stream the active tab again once it shows the day", async () => {
+        const { app } = await loadPlugin();
+        const calendar = calendarWithClicks(app);
+        const stream = Object.create(DailyNotesStreamView.prototype) as DailyNotesStreamView;
+        const leaf = { view: stream };
+        app.workspace.getMostRecentLeaf.mockReturnValue(leaf);
+        const day = moment("2026-03-11", "YYYY-MM-DD", true);
+
+        stream.showDay = vi.fn().mockResolvedValue(false);
+        await calendar.click!(day, false);
+        expect(app.workspace.setActiveLeaf).not.toHaveBeenCalled();
+
+        stream.showDay = vi.fn().mockResolvedValue(true);
+        await calendar.click!(day, false);
+        expect(app.workspace.setActiveLeaf).toHaveBeenCalledWith(leaf, { focus: true });
+    });
+
+    // As Show in stream does (D-218): opening it would replace the stream.
+    it("says why, and stays in the stream, for a day whose note the stream hides", async () => {
+        __setMockNotes(["Notes/2025-01-01.md", "Notes/2025-01-02.md"]);
+        const { plugin, app } = await loadPlugin({ hideEmptyNotes: true });
+        vi.spyOn(plugin.emptyNotes, "isEmpty").mockImplementation((file) => file.path === "Notes/2025-01-01.md");
+        const calendar = calendarWithClicks(app);
+        const stream = Object.create(DailyNotesStreamView.prototype) as DailyNotesStreamView;
+        stream.showDay = vi.fn().mockResolvedValue(false);
+        app.workspace.getMostRecentLeaf.mockReturnValue({ view: stream });
+        Notice.reset();
+
+        await calendar.click!(moment("2025-01-02", "YYYY-MM-DD", true), false);
+        expect(Notice.shown).toEqual([]);
+        expect(calendar.openOrCreateDailyNote).toHaveBeenCalledOnce();
+
+        await calendar.click!(moment("2025-01-01", "YYYY-MM-DD", true), false);
+        expect(calendar.openOrCreateDailyNote).toHaveBeenCalledOnce();
+        expect(Notice.shown).toEqual([
+            "This note is hidden from the stream because it's empty. To show it, turn off \"Hide empty notes\" in Daily Notes Stream's settings.",
+        ]);
+    });
+
+    it("leaves a click to Calendar when the active tab is not a stream", async () => {
+        const { app } = await loadPlugin();
+        const calendar = calendarWithClicks(app);
+        app.workspace.getMostRecentLeaf.mockReturnValue({ view: {} });
+
+        await calendar.click!(moment("2026-03-11", "YYYY-MM-DD", true), false);
+
+        expect(calendar.openOrCreateDailyNote).toHaveBeenCalledOnce();
+    });
+
+    it("leaves a click to Calendar when no tab is open", async () => {
+        const { app } = await loadPlugin();
+        const calendar = calendarWithClicks(app);
+
+        await calendar.click!(moment("2026-03-11", "YYYY-MM-DD", true), false);
+
+        expect(calendar.openOrCreateDailyNote).toHaveBeenCalledOnce();
     });
 });
 

@@ -144,6 +144,31 @@ that `pnpm run test:ios` covers.
   desktop Chromium, which opens a date picker iOS never would. So they only
   check that a tap on the icon reaches the date input. **[ios]**
 
+### Calendar
+
+With the Calendar plugin installed and its view open:
+
+- On desktop, with Calendar beside the stream, scroll with the trackpad from one
+  month into the next. The highlight moves day by day during the scroll, and
+  Calendar turns the month as the stream reaches it. **[e2e]** for where it
+  ends.
+- Turn Calendar to another month with its arrow, then scroll within the same
+  month in the stream. Calendar stays on the month you chose. Run Calendar's
+  **Reveal active note**: it turns to the month being read. **[e2e]**
+- On the iPhone or iPad, scroll, then open the right drawer. Calendar shows the
+  day being read. A glide is as smooth with Calendar installed as without.
+  **[e2e]** for the day.
+- Restart Obsidian with Calendar's sidebar closed, scroll, then open it.
+  Calendar shows the day being read. **[e2e]** on a device.
+- Click into Calendar, then back into the stream, and scroll. The highlight
+  follows again.
+- Click a day with a note. The stream scrolls to it in its own tab, and Calendar
+  highlights it. **[e2e]** Ctrl/Cmd-click opens the note in a new pane. A day
+  with no note opens as Calendar would. With **Hide empty notes** on, an empty
+  note's day gives a notice, and the stream stays.
+- Open another tab in front of the stream, and click a day. Calendar opens the
+  note there, as without the plugin.
+
 ### Mobile
 
 Do this before a release. `isDesktopOnly: false` promises that the plugin works

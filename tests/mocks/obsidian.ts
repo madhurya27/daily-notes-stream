@@ -176,8 +176,10 @@ export class ItemView extends Component {
     app: App;
     /** View actions, recorded so tests can call what onOpen() set up. */
     actions: { icon: string; title: string; callback: (evt: MouseEvent) => unknown }[] = [];
+    leaf: WorkspaceLeaf;
     constructor(leaf: WorkspaceLeaf) {
         super();
+        this.leaf = leaf;
         this.app = (leaf as unknown as MockLeaf).app;
         this.containerEl = document.createElement("div");
         this.contentEl = this.containerEl.createDiv({ cls: "view-content" });
@@ -190,6 +192,18 @@ export class ItemView extends Component {
     addAction(icon: string, title: string, callback: (evt: MouseEvent) => unknown) {
         this.actions.push({ icon, title, callback });
         return document.createElement("div");
+    }
+}
+
+/**
+ * A view of one file. Obsidian keeps a view's file in its state, so `getState`
+ * includes it.
+ */
+export class FileView extends ItemView {
+    allowNoFile = false;
+    file: TFile | null = null;
+    getState(): Record<string, unknown> {
+        return { file: this.file?.path };
     }
 }
 

@@ -595,6 +595,30 @@ describe("DailyNoteService", () => {
         });
     });
 
+    describe("instance: indexOnDay", () => {
+        /** Three notes, newest first: 2025-01-10, 2025-01-05, 2025-01-01. */
+        async function svcWithGaps(): Promise<DailyNoteService> {
+            __setMockNotes(["Notes/2025-01-01.md", "Notes/2025-01-05.md", "Notes/2025-01-10.md"]);
+            const svc = new DailyNoteService(__mockMarkdownFiles, __mockSettings);
+            await svc.initialize();
+            return svc;
+        }
+
+        it("finds the note dated on the day, at any time of it", async () => {
+            const evening = moment("2025-01-05 21:30", "YYYY-MM-DD HH:mm", true);
+
+            expect((await svcWithGaps()).indexOnDay(evening)).toBe(1);
+        });
+
+        it("returns -1 for a day with no note, not the note before it", async () => {
+            expect((await svcWithGaps()).indexOnDay(moment("2025-01-07", "YYYY-MM-DD", true))).toBe(-1);
+        });
+
+        it("returns -1 for a day before every note", async () => {
+            expect((await svcWithGaps()).indexOnDay(moment("2024-12-31", "YYYY-MM-DD", true))).toBe(-1);
+        });
+    });
+
     describe("instance: indexOf", () => {
         it("finds a note by path", async () => {
             __setMockNotes(["Notes/2025-01-01.md", "Notes/2025-01-02.md"]);
@@ -854,6 +878,15 @@ describe("DailyNoteService: hidden notes", () => {
         hidden.push("Notes/2025-01-02.md");
 
         expect(svc.hidesAny()).toBe(true);
+    });
+
+    it("tells whether it hides a daily note on a given day, at any time of it", async () => {
+        const { filter } = filterHiding(["Notes/2025-01-02.md"]);
+        const svc = new DailyNoteService(__mockMarkdownFiles, __mockSettings, new ParsedDates(), filter);
+
+        expect(svc.hidesOn(moment("2025-01-02 21:30", "YYYY-MM-DD HH:mm", true))).toBe(true);
+        expect(svc.hidesOn(moment("2025-01-03", "YYYY-MM-DD", true))).toBe(false);
+        expect(svc.hidesOn(moment("2025-01-04", "YYYY-MM-DD", true))).toBe(false);
     });
 
     // Nothing runs at midnight: the next change asks (ADR 0011).

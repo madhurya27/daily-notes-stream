@@ -24,6 +24,16 @@ there is a screen recording of them (D-099).
       for `@eslint/js ^9`. That also clears Dependabot alert #106, in the
       `minimatch` 3 that ESLint 9 uses, dismissed until then. Then TypeScript 7,
       once `typescript-eslint` allows it.
+- [ ] Move every call into another plugin, core or community, out of
+      `src/obsidian-internals.ts` into `src/integrations/`, as Calendar is (ADR
+      0024): the daily notes settings from Daily notes and Periodic Notes
+      together (D-127), and tag search through core Search. Obsidian's own
+      internals stay where they are.
+- [ ] Find out when a pinned plugin (`e2e-tests/pinned-plugin.ts`) has a new
+      release: a scheduled CI check that compares each pin with the version in
+      its repo's `manifest.json`, which is what the directory installs. Raise
+      the pin, then run the e2e tests against it. Calendar matters most: its
+      adapter uses methods it does not publish (ADR 0024).
 - [ ] Try adding the e2e tests to CI on Linux.
 - [ ] Once the directory's scorecard lint understands moment's types, go back to
       Obsidian's `moment` and delete `src/notes/moment.ts` (D-152).
@@ -82,14 +92,6 @@ complexity. Most important first.
       does (D-082), so the notes above load as for any jump. With no note for
       today, open at the nearest older one (D-015). With no future notes, open
       at the top, as now.
-- [ ] Go to a day chosen in the
-      [Calendar](https://github.com/liamcain/obsidian-calendar-plugin) plugin.
-      With the stream open, a click on a day scrolls the stream there, as a jump
-      does (D-082), instead of opening a new tab. That shows which days have
-      notes, without a calendar of our own. Calendar opens the file itself, so
-      first check whether the click can be caught (with its API, or the
-      `file-open` event). Desktop only in practice: on a phone, the sidebar is a
-      drawer.
 - [ ] Labels on the title line: the day of the week (`2026-03-14 · Saturday`, or
       "Yesterday"), and the time since the note before ("12 days later"). Decide
       first whether they come from the file name, or from a label the reader
