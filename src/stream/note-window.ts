@@ -243,6 +243,7 @@ export class NoteWindowManager {
 
         this.hideObserver = new IntersectionObserver(
             (entries) => {
+                if (this.isHidden()) return;
                 const left = entries.filter(({ isIntersecting }) => !isIntersecting);
                 for (const { target } of left) {
                     const window = this.windows.get(target as HTMLElement);
@@ -255,6 +256,7 @@ export class NoteWindowManager {
 
         this.unloadObserver = new IntersectionObserver(
             (entries) => {
+                if (this.isHidden()) return;
                 for (const entry of entries) {
                     const block = entry.target as HTMLElement;
                     if (entry.isIntersecting) {
@@ -273,10 +275,20 @@ export class NoteWindowManager {
 
     /** Obsidian reports that a pane was resized or the device was turned. */
     onResize(): void {
+        if (this.isHidden()) return;
         this.clock.moved();
         this.refreshMargins();
         this.expectLayout();
         this.reserveOnceStill();
+    }
+
+    /**
+     * The stream's tab is hidden, so its pane has no size. Every note then
+     * seems out of range, and the layout seems to have changed. Neither is
+     * true of the stream the reader comes back to.
+     */
+    private isHidden(): boolean {
+        return this.scrollRoot?.clientHeight === 0;
     }
 
     /**

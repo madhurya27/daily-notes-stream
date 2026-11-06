@@ -4203,3 +4203,21 @@ Publishing it later only means documenting the name and adding `readingNote()`
 to the plugin.
 
 **Rejected:** publishing it now, for other calendar plugins.
+
+## D-222 — A hidden tab's stream ignores what its observers and resizes report (2026-11-05)
+
+**Decision:** while the pane has no height, `NoteWindowManager` ignores the
+hiding and unloading observers and Obsidian's `onResize`.
+
+**Why:** a hidden tab's pane has no size. Every note then seems out of range, so
+all were unloaded, and the width seems to be 0, so every empty note got a new
+height. Back on the tab, the notes rendered again and the reader's place moved
+by a note. Nothing the reader comes back to has changed, so nothing needs to
+run.
+
+**Rejected:**
+
+- Unloading as before and restoring the place on return — renders every note on
+  screen again for nothing, and the place is only as good as the restore.
+- Asking Obsidian whether the view is shown (`containerEl.isShown()`) — the
+  pane's height is already read, and needs no view.

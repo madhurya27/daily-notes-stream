@@ -252,7 +252,7 @@ describe("NoteWindowManager measurement", () => {
             new NoteHeights(),
             () => LAYOUT
         );
-        manager.attach(document.createElement("div"), document.createElement("div"), moreBelow);
+        manager.attach(makeScrollRoot(800), document.createElement("div"), moreBelow);
         const block = manager.add(FILE);
         block.getBoundingClientRect = () => ({ height: 321 }) as DOMRect;
         document.body.appendChild(block);
@@ -4492,5 +4492,75 @@ describe("NoteWindowManager hides a long note's far runs", () => {
         expect(far()).toEqual([]);
         for (const spacer of watched) expect(observers.unobserve).toHaveBeenCalledWith(spacer);
         for (const p of paragraphs().slice(2)) expect(observers.observe).toHaveBeenCalledWith(p);
+    });
+});
+
+// ---------------------------------------------------------------------------
+// While the stream's tab is hidden
+// ---------------------------------------------------------------------------
+
+/**
+ * A hidden tab's pane has no size. Its observers report every note out of
+ * range, and Obsidian reports a resize.
+ */
+describe("NoteWindowManager while its tab is hidden", () => {
+    const hideTab = (root: HTMLElement) =>
+        Object.defineProperty(root, "clientHeight", { value: 0, configurable: true });
+
+    afterEach(() => document.body.empty());
+
+    it("keeps a rendered note that the observers report out of range", async () => {
+        const { manager, scrollRoot } = makeManager();
+        const block = manager.add(FILE);
+        document.body.appendChild(block);
+        fire(observers.render, block, true);
+        await settle();
+
+        hideTab(scrollRoot);
+        fire(observers.hide, block, false);
+        fire(observers.unload, block, false);
+        await still();
+
+        expect(isRendered(block)).toBe(true);
+        expect(block.hasClass("is-far")).toBe(false);
+    });
+
+    it("keeps an empty note's height when Obsidian reports a resize", async () => {
+        let layout = LAYOUT;
+        const heights = new NoteHeights();
+        heights.keep(LAYOUT, FILE.path, 812);
+        const manager = new NoteWindowManager(
+            makeRenderer() as never,
+            makeQueue(),
+            new ViewTimers(),
+            heights,
+            () => layout,
+            () => 640,
+            () => 300
+        );
+        const root = makeScrollRoot(800);
+        Object.defineProperty(root, "scrollTop", { value: 2000, configurable: true });
+        Object.defineProperty(root, "scrollHeight", { value: 12_800, configurable: true });
+        manager.attach(root, document.createElement("div"), moreBelow);
+        const block = manager.add(FILE);
+        document.body.appendChild(block);
+        await settle();
+
+        hideTab(root);
+        layout = "0:16px";
+        manager.onResize();
+        await still();
+
+        expect(placeholderHeight(block)).toBe("812px");
+    });
+
+    it("keeps its margins when Obsidian reports a resize", () => {
+        const { manager, scrollRoot } = makeManager();
+        const margins = [...observers.margins];
+
+        hideTab(scrollRoot);
+        manager.onResize();
+
+        expect(observers.margins).toEqual(margins);
     });
 });
