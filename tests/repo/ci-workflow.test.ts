@@ -13,7 +13,7 @@ interface Step {
 interface Workflow {
     on: { push?: { branches?: string[] }; pull_request?: unknown };
     permissions?: Record<string, string>;
-    jobs: Record<string, { "runs-on": string; steps: Step[] }>;
+    jobs: Record<string, { "runs-on": string; env?: Record<string, string>; steps: Step[] }>;
 }
 
 const workflow = existsSync(workflowPath) ? (parse(readFileSync(workflowPath, "utf8")) as Workflow) : null;
@@ -26,7 +26,7 @@ describe("CI workflow", () => {
         expect(workflow!.on).toHaveProperty("pull_request");
     });
 
-    it("runs only on Linux, the free runners (D-148)", () => {
+    it("runs only on Linux, the free runners (D-148, D-227)", () => {
         for (const job of Object.values(workflow!.jobs)) expect(job["runs-on"]).toMatch(/^ubuntu-/);
     });
 
@@ -40,6 +40,33 @@ describe("CI workflow", () => {
             "pnpm run build",
         ];
         for (const gate of gates) expect(commands(), gate).toContainEqual(expect.stringContaining(gate));
+    });
+
+    describe("the e2e job (D-227)", () => {
+        const job = () => workflow!.jobs["e2e"]!;
+        const run = () => job().steps.map((step) => step.run ?? "");
+
+        it("runs the e2e tests in a virtual display", () => {
+            expect(run()).toContainEqual(expect.stringMatching(/xvfb-run .*pnpm run test:e2e/));
+        });
+
+        it("starts Obsidian from the download, with its window shown", () => {
+            // Hiding the window uses macOS. Nobody works on a runner's display.
+            expect(job().env?.["E2E_SHOW_WINDOW"]).toBe("1");
+            expect(job().env?.["OBSIDIAN_PATH"]).toBeTruthy();
+        });
+
+        it("checks Obsidian's download against a pinned SHA-256", () => {
+            expect(run()).toContainEqual(expect.stringMatching(/[0-9a-f]{64} .*\|\s*sha256sum -c/));
+        });
+
+        it("lets Obsidian keep its sandbox on", () => {
+            // Ubuntu blocks the user namespaces that Chromium's sandbox needs.
+            expect(run()).toContainEqual(
+                expect.stringContaining("sysctl -w kernel.apparmor_restrict_unprivileged_userns=0")
+            );
+            expect(run().join("\n")).not.toContain("--no-sandbox");
+        });
     });
 
     it("gives the token read access only", () => {

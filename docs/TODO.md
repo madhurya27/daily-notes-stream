@@ -31,7 +31,6 @@ there is a screen recording of them (D-099).
       update them and check that the lockfile has no `minimatch` from 7.0.0 to
       11.0.0. That clears Dependabot alert #107, a slow-down from crafted globs,
       dismissed until then: only dev tools use it, on our own globs.
-- [ ] Try adding the e2e tests to CI on Linux.
 - [ ] Once the directory's scorecard lint understands moment's types, go back to
       Obsidian's `moment` and delete `src/notes/moment.ts` (D-152).
 - [ ] If the stall error (D-164) doesn't explain the next blank stream after

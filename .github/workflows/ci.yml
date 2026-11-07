@@ -1,7 +1,7 @@
 name: CI
 
-# Every gate that needs no Obsidian. e2e drives the macOS app and runs locally
-# (D-148).
+# Every gate, and the e2e tests against Obsidian for Linux (D-227). The iPhone
+# and memory tests run locally.
 on:
     push:
         branches: [main]
@@ -47,3 +47,50 @@ jobs:
 
             - name: Build the plugin
               run: pnpm run build
+
+    e2e:
+        runs-on: ubuntu-latest
+        env:
+            OBSIDIAN_VERSION: 1.15.0
+            OBSIDIAN_PATH: ${{ github.workspace }}/.dev/obsidian/obsidian
+            # Hiding the window uses macOS, and nobody works on this display.
+            E2E_SHOW_WINDOW: "1"
+        steps:
+            - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  persist-credentials: false
+
+            - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+
+            - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+              with:
+                  node-version: 26
+                  cache: pnpm
+
+            - name: Install dependencies
+              run: pnpm install --frozen-lockfile
+
+            - name: Install Obsidian
+              run: |
+                  curl -fsSL -o "$RUNNER_TEMP/obsidian.tar.gz" "https://github.com/obsidianmd/obsidian-releases/releases/download/v$OBSIDIAN_VERSION/obsidian-$OBSIDIAN_VERSION.tar.gz"
+                  echo "75594ae09914ca0191dde13c0697dee653322287a3a806c15519332d9ada14d3  $RUNNER_TEMP/obsidian.tar.gz" | sha256sum -c
+                  mkdir -p "$(dirname "$OBSIDIAN_PATH")"
+                  tar -xzf "$RUNNER_TEMP/obsidian.tar.gz" -C "$(dirname "$OBSIDIAN_PATH")" --strip-components=1
+
+            - name: Install the libraries Electron needs
+              run: pnpm exec playwright install-deps chromium
+
+            # Ubuntu blocks the user namespaces that Chromium's sandbox needs.
+            - name: Let Obsidian keep its sandbox on
+              run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+
+            - name: Run the e2e tests
+              run: xvfb-run -a -s "-screen 0 1920x1080x24" pnpm run test:e2e
+
+            - name: Keep the report and traces of a failed run
+              if: failure()
+              uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+              with:
+                  name: e2e-results
+                  path: test-results/
+                  retention-days: 14
