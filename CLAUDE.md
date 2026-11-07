@@ -51,7 +51,8 @@ On a branch, raise the version with
 `git tag -a <version> -m <version>` and push the tag (D-214). The workflow then
 drafts the release with its files. Since `1.0.0`, write each release's notes
 from `git log --first-parent <last tag>..`: in plain words, say what a reader
-will notice. Then publish the release (D-115).
+will notice. Show me the notes, and publish the release only once I approve them
+(D-115).
 
 To clear warnings in the directory's scorecard, the user first runs **Review
 branch → Run preview scan** on the branch or tag, in the plugin's listing. After
