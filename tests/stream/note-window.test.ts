@@ -2741,6 +2741,74 @@ describe("NoteWindowManager under a fast scroll", () => {
         expect(second.classList.contains("is-unloaded")).toBe(true);
     });
 
+    /** Past the 3,200px hiding distance of an 800px pane, above or below it. */
+    const FAR_ABOVE = { top: -3401, bottom: -3201 };
+
+    /**
+     * Two notes waiting to be drawn in an 800px pane. Once both are queued,
+     * the second is moved to `box`, as if the first had grown.
+     */
+    async function movedBeforeItsTurn(
+        box: { top: number; bottom: number },
+        queueSecond: (manager: NoteWindowManager, block: HTMLElement) => void = (_, block) =>
+            fire(observers.render, block, true)
+    ) {
+        const renderer = makeSlowRenderer();
+        const { manager, scrollRoot } = makeManager(renderer);
+        scrollRoot.getBoundingClientRect = () => ({ top: 0, bottom: 800 }) as DOMRect;
+        const first = manager.add(FILE);
+        const second = manager.add(new TFile("Notes/2025-01-02.md"));
+        document.body.append(first, second);
+        first.getBoundingClientRect = () => ({ top: 0, bottom: 500 }) as DOMRect;
+        second.getBoundingClientRect = () => ({ top: -2000, bottom: -1900 }) as DOMRect;
+
+        fire(observers.render, first, true);
+        queueSecond(manager, second);
+        second.getBoundingClientRect = () => box as DOMRect;
+        observers.observe.mockClear();
+        await settleSlow();
+        return { renderer, second };
+    }
+
+    // The hiding observer reports a frame late, so whether a note was drawn
+    // depended on which came first: its turn or that report.
+    it.each([
+        ["above", FAR_ABOVE],
+        ["below", { top: 4001, bottom: 4201 }],
+    ])("skips a note's turn once it is past the hiding distance %s, before the observer reports it", async (_, box) => {
+        const { renderer, second } = await movedBeforeItsTurn(box);
+
+        expect(renderer.renderInto).toHaveBeenCalledTimes(1);
+        expect(second.classList.contains("is-unloaded")).toBe(true);
+    });
+
+    // An observer counts a box touching its margin as inside it.
+    it.each([
+        ["above", { top: -3400, bottom: -3200 }],
+        ["below", { top: 4000, bottom: 4200 }],
+    ])("draws a note at the hiding distance %s", async (_, box) => {
+        const { renderer } = await movedBeforeItsTurn(box);
+
+        expect(renderer.renderInto).toHaveBeenCalledTimes(2);
+    });
+
+    // The observer reports only changes. If the note came back before the
+    // observer saw it leave, nothing would draw it.
+    it("watches a skipped note again, so the observer reports where it is now", async () => {
+        const { second } = await movedBeforeItsTurn(FAR_ABOVE);
+
+        expect(observers.unobserve).toHaveBeenCalledWith(second);
+        expect(observers.observe).toHaveBeenCalledWith(second);
+    });
+
+    // A jump draws its note before scrolling to it, while it is still far.
+    it("draws a note a jump asked for, however far it is", async () => {
+        const { renderer, second } = await movedBeforeItsTurn(FAR_ABOVE, (manager, block) => manager.render(block));
+
+        expect(renderer.renderInto).toHaveBeenCalledTimes(2);
+        expect(isRendered(second)).toBe(true);
+    });
+
     // The request to unload arrives after renderInto has started, not while it
     // is queued: the Markdown is already being read and cannot be skipped.
     it("unloads a block that left while its markdown was in flight, once the scroll is still", async () => {

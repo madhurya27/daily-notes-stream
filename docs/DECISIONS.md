@@ -4221,3 +4221,22 @@ run.
   screen again for nothing, and the place is only as good as the restore.
 - Asking Obsidian whether the view is shown (`containerEl.isShown()`) — the
   pane's height is already read, and needs no view.
+
+## D-223 — A note's render turn is skipped once it is past the hiding distance (2026-11-06)
+
+**Decision:** when a note the render observer queued gets its turn,
+`NoteWindowManager` measures it. Past the hiding distance, it is skipped and
+watched again, so the observer reports it if it comes back. A note a jump asked
+for is always drawn.
+
+**Why:** the notes drawn first above a jump's target grow and push the others
+past the hiding distance. The hiding observer reports that a frame later. On an
+iPhone, the notes after 09-17 in `ios/jump.spec.ts` were drawn in 3 of 20 runs:
+those whose turn came before that report.
+
+**Rejected:**
+
+- Drawing every note that was queued — draws notes far from the reader, and
+  holds up the queue every vault event uses (ADR 0004).
+- Skipping past the render distance — notes near that edge would be skipped and
+  queued again over and over; the hiding distance is further for that reason.

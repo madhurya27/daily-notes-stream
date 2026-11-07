@@ -152,9 +152,8 @@ const OWED = 2000;
 
 /**
  * Grows an empty note above the pane by `px`: `path`'s, or the nearest. Then
- * waits until still. The anchor owes exactly that, in every run: what a scroll
- * owes depends on which notes the jump drew, and that differs between runs
- * (D-216).
+ * waits until still. The anchor owes exactly that, in every run, whatever the
+ * notes the jump drew measure (D-216).
  */
 async function growEmptyNoteAbove(phone: Phone, px: number, path?: string): Promise<void> {
     const grown = await phone.run(

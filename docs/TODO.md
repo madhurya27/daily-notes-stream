@@ -15,11 +15,6 @@ there is a screen recording of them (D-099).
       four-stroke flicks on an iPad in portrait never moved it 30 px, so wait
       until it shows again.
 - [ ] A PDF inside a line of text still holds up the queue (D-202).
-- [ ] Find out why a jump draws a different set of notes above its target from
-      run to run on an iPhone. After `estimateShortAbove("2026-09-12")` and a
-      jump to that date, 2026-09-18 to 09-21 were drawn in some runs and empty
-      in others, with the same saved heights. The finger tests in
-      `e2e-tests/ios/jump.spec.ts` now avoid it (D-216).
 - [ ] Update to ESLint 10 once `eslint-plugin-obsidianmd` supports it: it asks
       for `@eslint/js ^9`. That also clears Dependabot alert #106, in the
       `minimatch` 3 that ESLint 9 uses, dismissed until then. Then TypeScript 7,

@@ -629,6 +629,10 @@ export class NoteWindowManager {
             // It scrolled past before its turn came. Rendering it would hold up
             // the queue, which every vault event also uses, for nothing.
             if (window.unloadWanted) return;
+            if (window.order === null && this.pastHiding(block)) {
+                this.watchAgain(block);
+                return;
+            }
 
             // Between the slices of a long note, it stops if it has gone out of
             // range, so the note the reader stopped on is drawn next. And
@@ -763,6 +767,31 @@ export class NoteWindowManager {
     // -------------------------------------------------------------------------
     // Internals
     // -------------------------------------------------------------------------
+
+    /**
+     * Whether `block` is past the hiding distance now. Read from the layout:
+     * the hiding observer reports a frame late, and the notes drawn before
+     * `block` in that frame may have moved it there.
+     */
+    private pastHiding(block: HTMLElement): boolean {
+        // Only reached while attached: only an observer queues a note with no
+        // order, and detach drops every waiting render.
+        const pane = this.scrollRoot!.getBoundingClientRect();
+        const { top, bottom } = block.getBoundingClientRect();
+        const margin = this.rootHeight * HIDE_VIEWPORTS;
+        return bottom < pane.top - margin || top > pane.bottom + margin;
+    }
+
+    /**
+     * The render observer reports only changes. Watched again, it reports
+     * where `block` is at the next frame, so a note skipped as too far is
+     * still drawn if it comes back before that frame.
+     */
+    private watchAgain(block: HTMLElement): void {
+        // Only reached while attached, as above.
+        this.renderObserver!.unobserve(block);
+        this.renderObserver!.observe(block);
+    }
 
     /**
      * Further than the hiding distance: a drawn note is taken out of the layout
