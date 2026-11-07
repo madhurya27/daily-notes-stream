@@ -26,6 +26,15 @@ export default {
     ignoreStatic: true,
     // Only what the unit tests import, because the vaults in .dev/ have
     // thousands of files. tests/e2e/ tests the e2e helpers, not src/, and
-    // without e2e-tests/ vitest 5 fails the whole run on their imports.
-    ignorePatterns: ["/.dev", "/docs/plans", "/e2e-tests", "/tests/e2e", "/coverage", "/test-results"],
+    // without e2e-tests/ vitest 5 fails the whole run on their imports. The
+    // pin check's test imports the list of pinned plugins.
+    ignorePatterns: [
+        "/.dev",
+        "/docs/plans",
+        "/e2e-tests/*",
+        "!/e2e-tests/pinned-plugin.ts",
+        "/tests/e2e",
+        "/coverage",
+        "/test-results",
+    ],
 };
