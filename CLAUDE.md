@@ -69,8 +69,8 @@ every test uses: `src/`, `styles.css`, `manifest.json`, the build
 code, run the tests that use it. Any other change needs the other checks, and a
 run of whatever it affects.
 
-CI (`.github/workflows/ci.yml`) runs every check except e2e, on Linux. The e2e
-tests are run on this Mac (D-148).
+CI (`.github/workflows/ci.yml`) runs every check on Linux, e2e included (D-227).
+The iPhone, iPad and memory tests run on this Mac.
 
 ## Tests
 
