@@ -1,0 +1,31 @@
+name: Pinned plugins
+
+# Opens an issue when a plugin the e2e tests pin has another version in the
+# community directory (D-224).
+on:
+    schedule:
+        - cron: "17 6 * * *"
+    workflow_dispatch:
+
+permissions:
+    contents: read
+    issues: write
+
+jobs:
+    check:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  persist-credentials: false
+
+            # The script needs only Node: no dependencies to install.
+            - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+              with:
+                  node-version: 26
+
+            - name: Compare each pin with its repo's manifest
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  GH_REPO: ${{ github.repository }}
+              run: node scripts/pin-check.mjs --open-issues

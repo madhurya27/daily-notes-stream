@@ -4240,3 +4240,26 @@ those whose turn came before that report.
   holds up the queue every vault event uses (ADR 0004).
 - Skipping past the render distance — notes near that edge would be skipped and
   queued again over and over; the hiding distance is further for that reason.
+
+## D-224 — A daily workflow opens an issue when a pinned plugin's version changes (2026-11-06)
+
+**Decision:** `.github/workflows/pinned-plugins.yml` runs
+`scripts/pin-check.mjs` every day. For each plugin in
+`e2e-tests/pinned-plugin.ts`, it reads the version in the manifest on the plugin
+repo's default branch, which is what the community directory installs. If that
+is not the pin, it opens an issue, unless one with the same title exists, open
+or closed.
+
+**Why:** the e2e tests pin each plugin, so a run fails only for a change in this
+repo. Users update the plugin anyway, and a release could break an integration
+without any test noticing. Calendar's adapter calls methods it does not publish
+(ADR 0024).
+
+**Rejected:**
+
+- Comparing with the newest GitHub release — Dataview's newest is 0.5.70, but
+  its manifest, and so the directory, still installs 0.5.68.
+- Failing the workflow instead of opening an issue — it would fail every day
+  until the pin moved, and a skipped release would never stop failing.
+- Running the e2e tests against the new version in CI — they run on the Mac
+  (D-148).

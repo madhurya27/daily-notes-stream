@@ -14,6 +14,8 @@ const offOutsideTheApp = {
     "obsidianmd/hardcoded-config-path": "off",
     "obsidianmd/prefer-window-timers": "off",
     "obsidianmd/prefer-instanceof": "off",
+    // It sends `fetch` to Obsidian's `requestUrl`, which Node does not have.
+    "no-restricted-globals": "off",
 } as const;
 
 /**

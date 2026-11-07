@@ -24,11 +24,6 @@ there is a screen recording of them (D-099).
       0024): the daily notes settings from Daily notes and Periodic Notes
       together (D-127), and tag search through core Search. Obsidian's own
       internals stay where they are.
-- [ ] Find out when a pinned plugin (`e2e-tests/pinned-plugin.ts`) has a new
-      release: a scheduled CI check that compares each pin with the version in
-      its repo's `manifest.json`, which is what the directory installs. Raise
-      the pin, then run the e2e tests against it. Calendar matters most: its
-      adapter uses methods it does not publish (ADR 0024).
 - [ ] Try adding the e2e tests to CI on Linux.
 - [ ] Once the directory's scorecard lint understands moment's types, go back to
       Obsidian's `moment` and delete `src/notes/moment.ts` (D-152).
