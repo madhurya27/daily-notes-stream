@@ -140,13 +140,16 @@ test("redraws the stream on a setting's change, keeping the note being read at t
         }, on);
     const container = await openStream(page);
     const reading = container.locator(`.daily-note-block[data-source-path="Notes/${seededDate(4)}.md"]`);
-    /** How far below the pane's top the note being read starts. */
+    /**
+     * How far from the pane's top the note being read starts. A 1x screen
+     * scrolls in whole pixels, so a note can rest up to half of one away.
+     */
     const offset = () =>
-        reading.evaluate(
-            (el) => el.getBoundingClientRect().top - el.parentElement!.parentElement!.getBoundingClientRect().top
+        reading.evaluate((el) =>
+            Math.abs(el.getBoundingClientRect().top - el.parentElement!.parentElement!.getBoundingClientRect().top)
         );
     await reading.evaluate((el) => el.scrollIntoView({ block: "start", behavior: "instant" }));
-    await expect.poll(offset).toBeCloseTo(0, 0);
+    await expect.poll(offset).toBeLessThanOrEqual(0.5);
     await expect(container.locator(".metadata-container").first()).toBeAttached();
 
     await setShowProperties(false);
@@ -154,7 +157,7 @@ test("redraws the stream on a setting's change, keeping the note being read at t
         // Every note above lost its properties panel, and so its height
         // changed.
         await expect(container.locator(".metadata-container")).toHaveCount(0);
-        await expect.poll(offset).toBeCloseTo(0, 0);
+        await expect.poll(offset).toBeLessThanOrEqual(0.5);
     } finally {
         await setShowProperties(true);
     }

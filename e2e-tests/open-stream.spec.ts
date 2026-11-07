@@ -4,6 +4,12 @@ import { test, expect, openStream } from "./obsidian";
 const STREAM = "daily-notes-stream-view";
 
 /**
+ * Obsidian's Mod key in a click event: Cmd on macOS, Ctrl elsewhere. Obsidian
+ * runs on the same machine as the tests.
+ */
+const MOD = process.platform === "darwin" ? { metaKey: true } : { ctrlKey: true };
+
+/**
  * A note open on its own in the active tab, with nothing left behind by an
  * earlier test.
  */
@@ -48,7 +54,7 @@ test.describe("opening the stream", () => {
 
         await page
             .locator('.side-dock-ribbon-action[aria-label="Open daily notes stream"]')
-            .dispatchEvent("click", { metaKey: true, ctrlKey: false });
+            .dispatchEvent("click", MOD);
 
         await expect.poll(() => openViews(page)).toEqual({ streams: 1, notes: 1 });
     });
@@ -60,7 +66,7 @@ test.describe("opening the stream", () => {
 
         await page
             .locator('.side-dock-ribbon-action[aria-label="Open daily notes stream"]')
-            .dispatchEvent("click", { metaKey: true, altKey: true });
+            .dispatchEvent("click", { ...MOD, altKey: true });
 
         await expect.poll(() => openViews(page)).toEqual({ streams: 1, notes: 1 });
         const besideNote = await page.evaluate(
