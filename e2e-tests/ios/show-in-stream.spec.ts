@@ -22,6 +22,9 @@ test("a long press on a daily note in the file explorer, then Show in stream, op
     }, SHORT_NOTE);
     const entry = `.nav-file-title[data-path="${SHORT_NOTE}"]`;
     await expect.poll(() => phone.has(entry), "the file explorer never showed the note").toBe(true);
+    // Revealed, the note sits at the list's bottom edge, under the explorer's
+    // floating buttons, which would take the press.
+    await phone.run((sel: string) => document.querySelector(sel)!.scrollIntoView({ block: "center" }), entry);
 
     await phone.longPress(entry);
     await expect
