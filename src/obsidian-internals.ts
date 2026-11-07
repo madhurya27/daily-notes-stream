@@ -83,8 +83,9 @@ type CommunityPlugins = {
 
 /**
  * There is no public API for this. The daily notes settings come from Periodic
- * Notes while its daily notes are on, otherwise from the core plugin. If
- * Obsidian removes these internals, nothing is set.
+ * Notes while its daily notes are on, otherwise from the core plugin, even
+ * while it is off, as Calendar reads them (D-225). If Obsidian removes these
+ * internals, nothing is set.
  */
 export function getDailyNoteSettings(app: App): DailyNoteSettings {
     const { internalPlugins, plugins } = app as unknown as {

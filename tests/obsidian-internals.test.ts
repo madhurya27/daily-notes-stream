@@ -327,6 +327,15 @@ describe("getDailyNoteSettings", () => {
         expect(getDailyNoteSettings(appWith(daily))).toEqual(daily);
     });
 
+    it("reads the core options while the core plugin is off, as Calendar does", () => {
+        const app = {
+            internalPlugins: { getPluginById: () => ({ enabled: false, instance: { options: daily } }) },
+            plugins: { getPlugin: () => null },
+        } as unknown as App;
+
+        expect(getDailyNoteSettings(app)).toEqual(daily);
+    });
+
     it("reads Periodic Notes' daily settings when it has them enabled", () => {
         const periodic = {
             settings: { daily: { enabled: true, format: "DD.MM.YYYY", folder: "Days", template: "T" } },

@@ -2273,7 +2273,8 @@ the text is at 88% of its size.
 
 **Decision:** `getDailyNoteSettings(app)` in `src/obsidian-internals.ts` reads
 Periodic Notes' daily notes settings while they are on, otherwise the core
-plugin's, and the code that uses them calls it as a function.
+plugin's, even while it is off (D-225), and the code that uses them calls it as
+a function.
 
 **Why:** `obsidian-daily-notes-interface` was bundled for this one function. It
 reached Obsidian through the global `window.app`, had not been maintained since
@@ -4263,3 +4264,20 @@ without any test noticing. Calendar's adapter calls methods it does not publish
   until the pin moved, and a skipped release would never stop failing.
 - Running the e2e tests against the new version in CI — they run on the Mac
   (D-148).
+
+## D-225 — The core daily notes settings are read even while the plugin is off (2026-11-07)
+
+**Decision:** `getDailyNoteSettings` falls back to core Daily notes' settings
+whether or not that plugin is on. It does not check the plugin's `enabled` flag.
+
+**Why:** Calendar and Periodic Notes read the settings this way, through
+`obsidian-daily-notes-interface`. Users who turn the core plugin off and make
+their notes with Calendar keep their format and folder. If the stream disagreed,
+a click on a Calendar day would not find its note in the stream (ADR 0024).
+
+**Rejected:**
+
+- Default settings while the core plugin is off — they would find another set of
+  notes than Calendar, and a stream that worked would empty.
+- A message asking the user to turn daily notes on — the same mismatch, for a
+  setup that works.
