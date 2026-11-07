@@ -53,8 +53,6 @@ jobs:
         env:
             OBSIDIAN_VERSION: 1.15.0
             OBSIDIAN_PATH: ${{ github.workspace }}/.dev/obsidian/obsidian
-            # Hiding the window uses macOS, and nobody works on this display.
-            E2E_SHOW_WINDOW: "1"
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
               with:

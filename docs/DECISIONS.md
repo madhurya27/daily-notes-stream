@@ -4383,12 +4383,13 @@ is handled first.
 
 **Decision:** changes D-148. A second job in `.github/workflows/ci.yml` runs
 `pnpm run test:e2e` on `ubuntu-latest`, in Xvfb, against Obsidian's Linux build,
-pinned by version and SHA-256. It uses the harness's `E2E_SHOW_WINDOW=1` path,
-which starts the app directly and does not hide its window. The iPhone, iPad and
-memory tests stay local. Off macOS, the tests skip:
+pinned by version and SHA-256. The iPhone, iPad and memory tests stay local. Off
+macOS, the harness starts Obsidian directly and does not hide its window, but
+lays the page out at the tests' size, as on the Mac. It also makes the display
+2x, as a Mac's is, because a 2x screen scrolls in half pixels and the tests'
+measures of where a note rests assume it. Off macOS, the tests skip:
 
-- `harness.spec.ts`'s checks that the window stays hidden, as they already do
-  with the window shown.
+- `harness.spec.ts`'s checks that the window stays hidden.
 - `webkit.spec.ts` — Linux's WebKit is another port, which paints the current
   match differently, so it cannot stand in for iOS (ADR 0009).
 - The checkbox centering tests (D-104) — the nudge is tuned for Apple's system
@@ -4396,12 +4397,15 @@ memory tests stay local. Off macOS, the tests skip:
 
 **Why:** a pull request should not merge with a broken stream, and a check that
 needs this Mac is easy to skip. The repo is public, so runners are free. The
-harness already had a launch path without macOS: in a container here, the suite
-took 3.7 minutes, and every failure was one of the three above, or a test that
-pressed Cmd where Linux's Mod key is Ctrl.
+first runs in a Linux container here also found tests that passed on the Mac by
+timing alone: Escape pressed before a menu listened for it, and a test that went
+on before Obsidian had read the daily notes settings the last one wrote. Both
+now wait.
 
 **Rejected:**
 
+- The harness's `E2E_SHOW_WINDOW=1` mode — it lays the page out at the window's
+  size, not the tests', so desktop tests ran at 960×539.
 - A macOS runner — it would add a second job for the same tests. Linux finds
   what the Mac run would, apart from macOS's own window handling.
 - `--no-sandbox` — the sysctl that lets Chromium's sandbox run keeps the app as

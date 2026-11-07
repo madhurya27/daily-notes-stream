@@ -1,11 +1,11 @@
 import type { Page } from "@playwright/test";
-import { test, expect, openStream, seededDate, writeDailyNotesConfig, DAILY_NOTES_CONFIG } from "./obsidian";
+import { test, expect, openStream, seededDate, setDailyNotesConfig, DAILY_NOTES_CONFIG } from "./obsidian";
 
 const JOURNAL_NOTE = "Journal/2026-06-05.md";
 
 test.describe("Obsidian's daily-notes settings change under a live stream", () => {
     test.afterEach(async ({ obsidian }) => {
-        writeDailyNotesConfig(obsidian.vaultPath, DAILY_NOTES_CONFIG);
+        await setDailyNotesConfig(obsidian.page, obsidian.vaultPath, DAILY_NOTES_CONFIG);
         await obsidian.page.evaluate(async (path) => {
             const file = window.app.vault.getAbstractFileByPath(path);
             if (file) await window.app.vault.delete(file);
@@ -22,7 +22,7 @@ test.describe("Obsidian's daily-notes settings change under a live stream", () =
             await window.app.vault.create(path, "## From the journal folder\n\nMoved here.\n");
         }, JOURNAL_NOTE);
 
-        writeDailyNotesConfig(vaultPath, { folder: "Journal", format: "YYYY-MM-DD" });
+        await setDailyNotesConfig(page, vaultPath, { folder: "Journal", format: "YYYY-MM-DD" });
 
         // The whole stream is replaced, and the old folder's notes are gone.
         await expect(container.locator(".daily-note-title")).toHaveText(["2026-06-05"]);
@@ -35,11 +35,11 @@ test.describe("Obsidian's daily-notes settings change under a live stream", () =
         const container = await openStream(page);
         await expect(container.locator(".daily-note-title").first()).toHaveText("2026-03-14");
 
-        writeDailyNotesConfig(vaultPath, { folder: "Missing", format: "YYYY-MM-DD" });
+        await setDailyNotesConfig(page, vaultPath, { folder: "Missing", format: "YYYY-MM-DD" });
         await expect(container.locator(".daily-notes-empty-state")).toBeVisible();
         await expect(container.locator(".daily-note-block")).toHaveCount(0);
 
-        writeDailyNotesConfig(vaultPath, DAILY_NOTES_CONFIG);
+        await setDailyNotesConfig(page, vaultPath, DAILY_NOTES_CONFIG);
         await expect(container.locator(".daily-note-title").first()).toHaveText("2026-03-14");
         await expect(container.locator(".daily-notes-empty-state")).toHaveCount(0);
     });
@@ -52,7 +52,7 @@ test.describe("Obsidian's daily-notes settings change under a live stream", () =
             await window.app.vault.createFolder("Journal").catch(() => {});
             await window.app.vault.create(path, "## The only note\n");
         }, JOURNAL_NOTE);
-        writeDailyNotesConfig(vaultPath, { folder: "Journal", format: "YYYY-MM-DD" });
+        await setDailyNotesConfig(page, vaultPath, { folder: "Journal", format: "YYYY-MM-DD" });
         await expect(container.locator(".daily-note-title")).toHaveText(["2026-06-05"]);
 
         await page.evaluate(async (path) => {
@@ -140,16 +140,13 @@ test("redraws the stream on a setting's change, keeping the note being read at t
         }, on);
     const container = await openStream(page);
     const reading = container.locator(`.daily-note-block[data-source-path="Notes/${seededDate(4)}.md"]`);
-    /**
-     * How far from the pane's top the note being read starts. A 1x screen
-     * scrolls in whole pixels, so a note can rest up to half of one away.
-     */
+    /** How far below the pane's top the note being read starts. */
     const offset = () =>
-        reading.evaluate((el) =>
-            Math.abs(el.getBoundingClientRect().top - el.parentElement!.parentElement!.getBoundingClientRect().top)
+        reading.evaluate(
+            (el) => el.getBoundingClientRect().top - el.parentElement!.parentElement!.getBoundingClientRect().top
         );
     await reading.evaluate((el) => el.scrollIntoView({ block: "start", behavior: "instant" }));
-    await expect.poll(offset).toBeLessThanOrEqual(0.5);
+    await expect.poll(offset).toBeCloseTo(0, 0);
     await expect(container.locator(".metadata-container").first()).toBeAttached();
 
     await setShowProperties(false);
@@ -157,7 +154,7 @@ test("redraws the stream on a setting's change, keeping the note being read at t
         // Every note above lost its properties panel, and so its height
         // changed.
         await expect(container.locator(".metadata-container")).toHaveCount(0);
-        await expect.poll(offset).toBeLessThanOrEqual(0.5);
+        await expect.poll(offset).toBeCloseTo(0, 0);
     } finally {
         await setShowProperties(true);
     }

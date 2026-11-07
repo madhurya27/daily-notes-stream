@@ -9,7 +9,7 @@ import {
     seededDate,
     SEEDED_DAYS,
     withoutScrollAnchoring,
-    writeDailyNotesConfig,
+    setDailyNotesConfig,
     DAILY_NOTES_CONFIG,
     LAYOUT_VIEWPORT,
 } from "./obsidian";
@@ -381,7 +381,7 @@ test.describe("daily notes stream in real Obsidian", () => {
             await window.app.vault.createFolder("Short").catch(() => {});
             for (const path of notes) await window.app.vault.create(path, "Rest day.\n");
         }, notes);
-        writeDailyNotesConfig(vaultPath, { ...DAILY_NOTES_CONFIG, folder: "Short" });
+        await setDailyNotesConfig(page, vaultPath, { ...DAILY_NOTES_CONFIG, folder: "Short" });
         try {
             const container = await openStream(page);
             const blocks = container.locator(".daily-note-block");
@@ -392,7 +392,7 @@ test.describe("daily notes stream in real Obsidian", () => {
             expect(await container.evaluate((el) => el.parentElement!.scrollTop)).toBe(0);
         } finally {
             await resize(viewport.height);
-            writeDailyNotesConfig(vaultPath, DAILY_NOTES_CONFIG);
+            await setDailyNotesConfig(page, vaultPath, DAILY_NOTES_CONFIG);
             await page.evaluate(async () => {
                 const folder = window.app.vault.getAbstractFileByPath("Short");
                 if (folder) await window.app.vault.delete(folder, true);
