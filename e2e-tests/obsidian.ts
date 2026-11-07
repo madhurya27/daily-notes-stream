@@ -19,6 +19,12 @@ const OBSIDIAN = process.env.OBSIDIAN_PATH ?? "/Applications/Obsidian.app/Conten
 const OBSIDIAN_BUNDLE = process.env.OBSIDIAN_BUNDLE ?? "/Applications/Obsidian.app";
 /** Set this to watch the run. Otherwise none of the window is visible. */
 const SHOW_WINDOW = process.env.E2E_SHOW_WINDOW === "1";
+/**
+ * Whether the run hides its windows, so that they stay out of the way of the
+ * user's work. Hiding uses macOS. Elsewhere, as on CI's virtual display, nobody
+ * works on the screen, so the window shows.
+ */
+export const HIDES_WINDOW = process.platform === "darwin" && !SHOW_WINDOW;
 const VAULT_ID = "e2e0000000000001";
 
 // A window that is out of sight counts as covered, and Chromium throttles
@@ -35,6 +41,11 @@ const NO_THROTTLE = [
  * size part way, so the harness tests read the wrong size (D-183).
  */
 const NO_ANIMATION = ["-NSAutomaticWindowAnimationsEnabled", "NO"];
+/**
+ * A Mac's screen is 2x, and CI's virtual display 1x. A 2x screen scrolls in
+ * half pixels, and the tests' measures of where a note rests assume it.
+ */
+const TWO_X_SCREEN = ["--force-device-scale-factor=2"];
 /**
  * Shrunk to Obsidian's minimum size and placed in a corner, so the flash before
  * the window is hidden is a small square. The page is laid out at VIEWPORT
@@ -306,7 +317,7 @@ async function attach(record: WindowRecord, recordFile: string, isNew: boolean):
         // restores the system setting.
         await page.emulateMedia({ colorScheme: null });
         // Makes sure the window is hidden, instead of trusting the last event.
-        if (isNew && !SHOW_WINDOW) await showCloaked(page);
+        if (isNew && HIDES_WINDOW) await showCloaked(page);
         const connected = browser;
         return {
             app: observe(page, userDataDir, vaultPath),
@@ -334,7 +345,7 @@ async function launch(): Promise<WindowRecord> {
     // Window bounds are saved for each vault. A window fully off screen is
     // refused (and centered at 1024x800 instead). A corner is moved to fit,
     // which is what we want.
-    if (!SHOW_WINDOW) {
+    if (HIDES_WINDOW) {
         // The corner must be on some display, or Obsidian centers a full-size
         // window over the user's work. With an extended desktop, a position
         // past the edge is no longer moved to fit.
@@ -349,7 +360,7 @@ async function launch(): Promise<WindowRecord> {
                 zoom: 0,
             })
         );
-    } else {
+    } else if (SHOW_WINDOW) {
         // Put a watched run on a second display, not over the user's work.
         const secondary = secondaryScreen();
         if (secondary) {
@@ -368,9 +379,14 @@ async function launch(): Promise<WindowRecord> {
     }
 
     const port = await freePort();
-    const args = [`--user-data-dir=${userDataDir}`, `--remote-debugging-port=${port}`, ...NO_THROTTLE, ...NO_ANIMATION];
-    if (SHOW_WINDOW) spawn(OBSIDIAN, args, { stdio: "ignore", detached: true }).unref();
-    else launchHidden(args);
+    const args = [
+        `--user-data-dir=${userDataDir}`,
+        `--remote-debugging-port=${port}`,
+        ...NO_THROTTLE,
+        ...(process.platform === "darwin" ? NO_ANIMATION : TWO_X_SCREEN),
+    ];
+    if (HIDES_WINDOW) launchHidden(args);
+    else spawn(OBSIDIAN, args, { stdio: "ignore", detached: true }).unref();
     return { port, userDataDir, vaultPath };
 }
 
@@ -386,7 +402,7 @@ async function startUp(page: Page): Promise<void> {
     // The window is 300x200. Lay out the page at a normal size so scrolling
     // works.
     if (!SHOW_WINDOW) {
-        await cloakWindow(page);
+        if (HIDES_WINDOW) await cloakWindow(page);
         await layOut(page, VIEWPORT);
     }
     await page.waitForLoadState("domcontentloaded");
@@ -740,7 +756,7 @@ async function matchLayout(page: Page, mobile: boolean): Promise<void> {
     // do).
     await page.waitForFunction(() => window.app?.workspace?.layoutReady === true, null, { timeout: 60_000 });
     // The reload shows the window again, and removed the guard.
-    if (!SHOW_WINDOW) await cloakWindow(page);
+    if (HIDES_WINDOW) await cloakWindow(page);
 }
 
 /**

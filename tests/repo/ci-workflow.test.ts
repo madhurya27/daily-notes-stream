@@ -50,10 +50,10 @@ describe("CI workflow", () => {
             expect(run()).toContainEqual(expect.stringMatching(/xvfb-run .*pnpm run test:e2e/));
         });
 
-        it("starts Obsidian from the download, with its window shown", () => {
-            // Hiding the window uses macOS. Nobody works on a runner's display.
-            expect(job().env?.["E2E_SHOW_WINDOW"]).toBe("1");
+        it("starts Obsidian from the download, as a run on the Mac does", () => {
             expect(job().env?.["OBSIDIAN_PATH"]).toBeTruthy();
+            // Watching lays the page out at the window's size, not the tests'.
+            expect(job().env).not.toHaveProperty("E2E_SHOW_WINDOW");
         });
 
         it("checks Obsidian's download against a pinned SHA-256", () => {
