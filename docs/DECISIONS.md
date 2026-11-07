@@ -4281,3 +4281,20 @@ a click on a Calendar day would not find its note in the stream (ADR 0024).
   notes than Calendar, and a stream that worked would empty.
 - A message asking the user to turn daily notes on — the same mismatch, for a
   setup that works.
+
+## D-226 — Reads of other plugins' settings stay in obsidian-internals.ts (2026-11-07)
+
+**Decision:** the daily notes settings, from core Daily notes and Periodic
+Notes, and tag search through core Search stay in `src/obsidian-internals.ts`.
+`src/integrations/` is for code that changes how another plugin behaves, as
+Calendar's adapter does (ADR 0024).
+
+**Why:** each is a few lines that reach the plugins through Obsidian's private
+API, and that file holds every use of it. Moving them would split that rule for
+no change users can see.
+
+**Rejected:**
+
+- One file per daily notes plugin in `src/integrations/daily-notes/`, with an
+  ordered list of sources — a list for two plugins. Revisit it when a third
+  daily notes plugin is asked for.
