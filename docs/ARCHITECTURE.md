@@ -10,12 +10,15 @@ kebab-case, and files are grouped by what they do (D-023).
 
 ```
 main.ts               the plugin: indexes and stores shared by all views, one of each
-├─ integrations/      other plugins, reached only through the plugin's own events
+├─ integrations/      other plugins; started by main.ts, never called by a view
 └─ ui/stream-view     one for each open tab: passes Obsidian's events to the stream
    ├─ notes/          which files are daily notes, in what order, and which are hidden
    ├─ stream/         what is loaded, where blocks are, what is rendered, and scrolling
    └─ render/         one note's DOM: Markdown, properties, Bases and the footer
 ```
+
+The tree shows who calls whom. `main.ts` also owns the shared parts of `notes/`,
+`stream/` and `render/`, listed under [Ownership](#ownership).
 
 `stream/` knows notes as `TFile`s, and gives a block to `render/` to fill. Bases
 are the one exception to this direction: `render/bases/` uses the same height
@@ -52,11 +55,12 @@ So when a view's own handler runs, the shared indexes are already up to date.
 ## Flow
 
 1. **Open.** The view starts listening for vault changes. Then it waits for
-   `service.initialize()`, which lists the vault's daily notes and leaves out
-   the empty ones ([ADR 0011](adr/0011-hide-template-only-notes.md)). Then it
-   waits for `stream.open()`. Vault events that arrive in the meantime wait in
-   the view's queue until then.
-2. **Load.** An sentinel (`infinite-scroll.ts`) scrolls into view. `NoteStream`
+   `service.initialize()`, which lists the vault's daily notes, named as the
+   daily notes settings say (`daily-note-format.ts`), and leaves out the empty
+   ones ([ADR 0011](adr/0011-hide-template-only-notes.md)). Then it waits for
+   `stream.open()`. Vault events that arrive in the meantime wait in the view's
+   queue until then.
+2. **Load.** A sentinel (`infinite-scroll.ts`) scrolls into view. `NoteStream`
    then adds the next batch of 10 notes as empty blocks. `stream-blocks.ts`
    places them and indexes them by path. The service counts how many notes it
    has loaded: its `streamLength` (D-118).
@@ -85,7 +89,8 @@ So when a view's own handler runs, the shared indexes are already up to date.
 
 Every mutation of the stream, whether a batch, an event, a render, a jump or a
 rebuild, runs through one promise queue, so none interleaves at an `await`
-([ADR 0004](adr/0004-serialize-view-mutations.md)).
+([ADR 0004](adr/0004-serialize-view-mutations.md)). A mutation that runs for 5
+seconds logs an error (`stall-warning.ts`, D-164).
 
 ## Rendering
 
@@ -105,11 +110,11 @@ rebuild, runs through one promise queue, so none interleaves at an `await`
   for each kind of gesture, on the stream's container. The view is the hover
   parent that the Page preview plugin attaches its popups to.
 - Wide content: tables become cards, including Dataview's as they fill in
-  (D-084). Equations shrink. Each Base draws in its own placeholder, as cards
-  when it is too wide (D-033; for a kanban, D-107). `ScrollBoxGuard` tells the
-  renderer about Base layouts. Each of these fits itself again when its note's
-  width changes. One observer for each view reports width changes
-  (`note-widths.ts`).
+  (`wide-tables.ts`, D-084). Equations shrink (`wide-equations.ts`). Each Base
+  draws in its own placeholder, as cards when it is too wide (D-033; for a
+  kanban, D-107). `ScrollBoxGuard` tells the renderer about Base layouts. Each
+  of these fits itself again when its note's width changes. One observer for
+  each view reports width changes (`note-widths.ts`).
 - On mobile, nothing inside a note scrolls. `ScrollBoxGuard` stops any box from
   scrolling ([ADR 0008](adr/0008-nothing-scrolls-on-mobile.md)), and a PDF shows
   only its first page, which opens the PDF when tapped (D-083). Desktop keeps
@@ -118,8 +123,8 @@ rebuild, runs through one promise queue, so none interleaves at an `await`
   flick that starts on one never scrolls (D-113).
 - On mobile, `FrameDeferral` waits until scrolling stops before it loads the
   page in a frame (D-087). It shows a YouTube video's thumbnail instead of the
-  video (D-088), and turns a web page's frame into a preview that links to the
-  page (D-098).
+  video (`video-thumbnails.ts`, D-088), and turns a web page's frame into a
+  preview that links to the page (`web-page-links.ts`, D-098).
 - The linked mentions footer is drawn after the note, and draws itself again on
   the metadata cache's `resolved` event. `notes/linked-mentions.ts` finds the
   list item or section that holds each link.
@@ -183,12 +188,12 @@ during the tap. `lost-clicks.ts` sends the click itself (D-209).
 
 ## Persistence
 
-| What                  | Where                              | Why there                    |
-| --------------------- | ---------------------------------- | ---------------------------- |
-| Settings              | plugin data (`data.json`)          | it syncs with the vault      |
-| Heights, Base widths  | vault localStorage, on each device | differs by device (ADR 0010) |
-| Which notes are empty | vault localStorage, on each device | it is only a cache (D-072)   |
-| Collapsed sections    | vault localStorage                 | `collapse-store.ts`, D-121   |
+| What                  | Where                              | Why there                               |
+| --------------------- | ---------------------------------- | --------------------------------------- |
+| Settings              | plugin data (`data.json`)          | it syncs with the vault (`settings.ts`) |
+| Heights, Base widths  | vault localStorage, on each device | differs by device (ADR 0010)            |
+| Which notes are empty | vault localStorage, on each device | it is only a cache (D-072)              |
+| Collapsed sections    | vault localStorage                 | `collapse-store.ts`, D-121              |
 
 Obsidian's `saveLocalStorage` catches a refused save's error itself. So when
 localStorage is full, saves fail silently, and what they held is lost at the
@@ -198,6 +203,8 @@ next restart. All of a device's vaults and plugins share it (D-195).
 
 Obsidian APIs that are not officially supported are only used in
 `obsidian-internals.ts`: the daily notes settings (D-127), readable line length,
-the vault config "raw" event, global search's `setQuery`, property icons,
-hotkeys, and a view's title element. Calendar's unpublished view methods and its
+the vault config "raw" event, the "post-processor-change" workspace event,
+global search's `openGlobalSearch` and `setQuery`, property icons, hotkeys, a
+view's title element, the vault's `appId` for removing its localStorage keys,
+and MathJax's stylesheet (D-210). Calendar's unpublished view methods and its
 day-click handler are only used in `integrations/calendar.ts` (ADR 0024).
