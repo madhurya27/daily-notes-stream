@@ -23,9 +23,9 @@ export const DATAVIEW: PinnedPlugin = {
     id: "dataview",
     name: "Dataview",
     repo: "blacksmithgu/obsidian-dataview",
-    version: "0.5.70",
+    version: "0.5.68",
     sha256: {
-        "main.js": "6bb1cf7010afad830e73575fca0e2bfbd3279c562e3d9d24f2d2f45161eb7d00",
+        "main.js": "794e9eaede73920bb8d54b0eda4f5de2182d698cc638774500f24f14bcd4da0b",
         "manifest.json": "9235db47112da81b85591c79ecb9ae2574e5e72207056e976472f90616286185",
         "styles.css": "3306dd9032e00f989ba7233a37fd255bc4d3f4340cee661762e952f3f6aa1de9",
     },
@@ -51,10 +51,10 @@ export const TEMPLATER: PinnedPlugin = {
     id: "templater-obsidian",
     name: "Templater",
     repo: "SilentVoid13/Templater",
-    version: "2.25.1",
+    version: "2.26.0",
     sha256: {
-        "main.js": "eb86d9282694ce1f099154c320286fdd89473e60dc2441ee310f3ac331333e94",
-        "manifest.json": "b99280d2c4ab2cd22ad010c12faeedf255bcf385d127d973b89f85deb27d23fd",
+        "main.js": "0acd45cfdb3a7337e2bef511699bc1f819dc64645ad3480df33579d42d2dcbaa",
+        "manifest.json": "91c9fa8510082fffa0b3d022aac4986e3b392295b1126e847ead7ed7289169b8",
         "styles.css": "67a6dd2d1d6dedca1287c334ca884ec4196433f71ca47388a0bd3eac14cf8b5f",
     },
 };
