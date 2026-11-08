@@ -15,7 +15,8 @@ import { spawn, spawnSync } from "child_process";
 import { existsSync, rmSync, statSync, symlinkSync, watch } from "fs";
 import { dirname, join, resolve } from "path";
 import { fileURLToPath } from "url";
-import { isMain, reloadPlugin } from "./reload-plugin.mjs";
+import { isMain } from "./is-main.mjs";
+import { reloadPlugin } from "./reload-plugin.mjs";
 import { PLUGIN_ID, stopObsidian, vaultFrom } from "./vaults.mjs";
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), "..");

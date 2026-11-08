@@ -15,7 +15,7 @@
  */
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "fs";
 import { dirname, join, resolve } from "path";
-import { isMain } from "./reload-plugin.mjs";
+import { isMain } from "./is-main.mjs";
 import { DEMO_VAULT, installBuild, PLUGIN_ID } from "./vaults.mjs";
 
 const JOURNAL = "Journal";

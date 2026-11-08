@@ -11,7 +11,7 @@
 import { existsSync, mkdirSync, rmSync, writeFileSync } from "fs";
 import { dirname, join, resolve } from "path";
 import { pdf } from "./pdf.mjs";
-import { isMain } from "./reload-plugin.mjs";
+import { isMain } from "./is-main.mjs";
 import { PLUGIN_ID, installBuild, TEST_VAULT } from "./vaults.mjs";
 
 const NOTES = "Notes";

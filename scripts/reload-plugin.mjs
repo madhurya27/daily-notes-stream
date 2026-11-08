@@ -8,8 +8,6 @@
  */
 import { chromium } from "@playwright/test";
 import { execSync } from "child_process";
-import { resolve } from "path";
-import { fileURLToPath } from "url";
 import { PLUGIN_ID, USER_DATA_DIR } from "./vaults.mjs";
 
 const VIEW_TYPE = "daily-notes-stream-view";
@@ -68,9 +66,4 @@ export async function reloadPlugin() {
         await browser.close();
     }
     throw new Error(`Obsidian is on port ${port}, but ${PLUGIN_ID} is not installed in the open vault.`);
-}
-
-/** True when this module is the file Node was asked to run, not an import. */
-export function isMain(moduleUrl) {
-    return process.argv[1] !== undefined && resolve(process.argv[1]) === fileURLToPath(moduleUrl);
 }

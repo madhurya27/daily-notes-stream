@@ -8,7 +8,7 @@
  */
 import { createHash } from "crypto";
 import { execFileSync } from "child_process";
-import { isMain } from "./reload-plugin.mjs";
+import { isMain } from "./is-main.mjs";
 
 const ADJECTIVES = [
     "amber",

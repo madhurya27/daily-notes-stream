@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync, existsSync } from "fs";
-import { resolve } from "path";
+import { builtinModules } from "module";
+import { dirname, resolve } from "path";
 import { parse } from "yaml";
 
 const workflowPath = resolve(__dirname, "../..", ".github/workflows/pinned-plugins.yml");
@@ -59,6 +60,12 @@ describe("Pinned plugins workflow", () => {
         expect(nodeOf(workflow!)).toBe(nodeOf(ci));
     });
 
+    // The workflow installs no packages, so the script and every file it
+    // imports may use only Node's own modules.
+    it("runs a script that imports no package", () => {
+        expect(packagesImportedBy(resolve(__dirname, "../..", "scripts/pin-check.mjs"))).toEqual([]);
+    });
+
     it("runs only on Linux, the free runners (D-148)", () => {
         for (const job of Object.values(workflow!.jobs)) expect(job["runs-on"]).toMatch(/^ubuntu-/);
     });
@@ -69,3 +76,17 @@ describe("Pinned plugins workflow", () => {
         for (const uses of used) expect(uses).toMatch(/@[0-9a-f]{40}$/);
     });
 });
+
+/** The packages `file` and the repo files it imports load, types aside. */
+function packagesImportedBy(file: string, seen = new Set<string>()): string[] {
+    if (seen.has(file)) return [];
+    seen.add(file);
+    const source = readFileSync(file, "utf8");
+    const specifiers = [...source.matchAll(/(?:^import (?!type )[^"]*|import\()"([^"]+)"/gm)].flatMap(
+        (match) => match[1] ?? []
+    );
+    return specifiers.flatMap((specifier) => {
+        if (specifier.startsWith(".")) return packagesImportedBy(resolve(dirname(file), specifier), seen);
+        return builtinModules.includes(specifier.replace(/^node:/, "")) ? [] : [specifier];
+    });
+}

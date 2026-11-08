@@ -4,7 +4,7 @@
  * it also opens an issue for each, through `gh`, unless one has its title.
  */
 import { execFileSync } from "child_process";
-import { isMain } from "./reload-plugin.mjs";
+import { isMain } from "./is-main.mjs";
 
 /**
  * The version in the manifest on `repo`'s default branch, which is what the

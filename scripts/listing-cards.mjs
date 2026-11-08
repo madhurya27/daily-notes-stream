@@ -8,7 +8,7 @@
 import { webkit } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "fs";
 import { join, resolve } from "path";
-import { isMain } from "./reload-plugin.mjs";
+import { isMain } from "./is-main.mjs";
 
 /**
  * Each layout's size in CSS pixels. Rendered at twice this size, to give the

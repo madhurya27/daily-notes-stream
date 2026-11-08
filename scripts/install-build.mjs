@@ -6,7 +6,7 @@
  *   node scripts/install-build.mjs <vault>
  */
 import { resolve } from "path";
-import { isMain } from "./reload-plugin.mjs";
+import { isMain } from "./is-main.mjs";
 import { installBuild } from "./vaults.mjs";
 
 /**
