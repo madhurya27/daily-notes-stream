@@ -140,7 +140,9 @@ const dailyNotesConfigPath = (vaultPath: string) => join(vaultPath, ".obsidian",
  * Writes the core Daily notes settings, which the plugin reads, as their
  * settings pane does, and waits until Obsidian has read them. Obsidian reads
  * the file only once its watcher reports it, so the rest of the test, or the
- * next test, could still meet the old settings.
+ * next test, could still meet the old settings. The options must equal the
+ * config: a setting the config leaves out, such as a template, must be gone
+ * too.
  */
 export async function setDailyNotesConfig(page: Page, vaultPath: string, config: Record<string, string>) {
     writeFileSync(dailyNotesConfigPath(vaultPath), JSON.stringify(config));
@@ -148,7 +150,7 @@ export async function setDailyNotesConfig(page: Page, vaultPath: string, config:
         .poll(() =>
             page.evaluate(() => ({ ...window.app.internalPlugins.getPluginById("daily-notes").instance.options }))
         )
-        .toMatchObject(config);
+        .toEqual(config);
 }
 
 function freePort(): Promise<number> {
