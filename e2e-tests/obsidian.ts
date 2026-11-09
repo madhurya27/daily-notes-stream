@@ -309,7 +309,7 @@ async function attach(record: WindowRecord, recordFile: string, isNew: boolean):
         // Set up as soon as Playwright can reach the page. The focus grab
         // before that is the only one left.
         browser = await connectWithRetry(port);
-        const page = browser.contexts()[0]!.pages()[0]!;
+        const page = isNew ? browser.contexts()[0]!.pages()[0]! : await mainWindow(browser);
         if (isNew) await startUp(page);
         // Playwright switches to light mode each time it attaches. null
         // restores the system setting.
@@ -666,6 +666,18 @@ async function connectWithRetry(port: number): Promise<Browser> {
         }
     }
     throw new Error(`Could not attach to Obsidian on port ${port}: ${String(lastError)}`);
+}
+
+/**
+ * The window that runs Obsidian's app. A pop-out window or the settings window
+ * an earlier test opened may still be closing, and may come first in the list.
+ */
+async function mainWindow(browser: Browser): Promise<Page> {
+    for (const page of browser.contexts()[0]!.pages()) {
+        const isMain = await page.evaluate(() => window.app !== undefined).catch(() => false);
+        if (isMain) return page;
+    }
+    throw new Error("Obsidian's main window is not open");
 }
 
 interface TestFixtures {
