@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, onTestFinished, vi, type MockInstance } from "vitest";
-import { Component, TFile } from "obsidian";
+import { Component, Platform, TFile } from "obsidian";
 import { NoteWindowManager, UNMEASURED_PANES } from "../../src/stream/note-window";
 import { SCROLL_IDLE_MS, ScrollAnchor } from "../../src/stream/scroll-anchor";
 import { NoteHeights } from "../../src/stream/note-heights";
@@ -2548,11 +2548,44 @@ describe("NoteWindowManager hides a far note", () => {
         expect(renderer.renderInto).toHaveBeenCalledTimes(1);
     });
 
-    it("empties a hidden note past the unload margin once the scroll is still", async () => {
+    // A long scroll never stops, and hidden notes kept until it did slowed
+    // every style change down (D-228).
+    it("empties a hidden note past the unload margin at once while the pane scrolls", async () => {
+        const { manager, renderer, block } = await rendered();
+
+        manager.onScroll();
+        fire(observers.hide, block, false);
+        fire(observers.unload, block, false);
+
+        expect(isRendered(block)).toBe(false);
+        expect(isHidden(block)).toBe(false);
+        expect(renderer.discard).toHaveBeenCalledTimes(1);
+        expect(placeholderHeight(block)).toBe("640px");
+    });
+
+    // On iOS, unloading mid-glide cuts glides short (D-032, D-228).
+    it("empties a hidden note past the unload margin in the iOS app only once the scroll is still", async () => {
+        Platform.isIosApp = true;
+        onTestFinished(() => void (Platform.isIosApp = false));
+        const { manager, renderer, block } = await rendered();
+
+        manager.onScroll();
+        fire(observers.hide, block, false);
+        fire(observers.unload, block, false);
+        expect(isRendered(block)).toBe(true);
+        await still();
+
+        expect(isRendered(block)).toBe(false);
+        expect(renderer.discard).toHaveBeenCalledTimes(1);
+    });
+
+    // A jump or search step draws its note far away, then scrolls to it.
+    it("empties a hidden note past the unload margin while the pane is still only once it stays still", async () => {
         const { renderer, block } = await rendered();
 
         fire(observers.hide, block, false);
         fire(observers.unload, block, false);
+        expect(isRendered(block)).toBe(true);
         await still();
 
         expect(isRendered(block)).toBe(false);

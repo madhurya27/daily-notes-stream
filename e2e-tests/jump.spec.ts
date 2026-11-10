@@ -325,14 +325,31 @@ test.describe("jump to date", () => {
             await window.app.plugins.enablePlugin("daily-notes-stream");
         });
         const container = await openStream(page);
+        // A note drawn in this session reserves what it measured. One unloaded
+        // before it settles, as the jump does mid-scroll (D-228), keeps no
+        // height, so the store may still hold the earlier one.
+        await container.evaluate((column) => {
+            const drawn = ((window as unknown as { drawn: Set<string> }).drawn = new Set());
+            for (const block of column.querySelectorAll<HTMLElement>(".daily-note-block:not(.is-unloaded)"))
+                drawn.add(block.dataset.sourcePath!);
+            new MutationObserver((records) => {
+                for (const { target } of records) {
+                    const block = target as HTMLElement;
+                    if (!block.classList.contains("is-unloaded")) drawn.add(block.dataset.sourcePath!);
+                }
+            }).observe(column, { subtree: true, attributeFilter: ["class"] });
+        });
 
         await jumpTo(page, seededDate(SEEDED_DAYS - 1));
 
         const { layout, remembered, reserved } = await container.evaluate((column) => {
+            const { drawn } = window as unknown as { drawn: Set<string> };
             const layout = `${column.clientWidth}:${getComputedStyle(column).getPropertyValue("--font-preferred-size").trim()}`;
             const notes: [string, [string, number][]][] =
                 window.app.plugins.plugins["daily-notes-stream"].layoutMemory.notes.toJSON().heights;
-            const unloaded = [...column.querySelectorAll<HTMLElement>(".daily-note-block.is-unloaded")];
+            const unloaded = [...column.querySelectorAll<HTMLElement>(".daily-note-block.is-unloaded")].filter(
+                (el) => !drawn.has(el.dataset.sourcePath!)
+            );
             return {
                 layout,
                 remembered: Object.fromEntries(notes.find(([key]) => key === layout)?.[1] ?? []),
@@ -345,8 +362,7 @@ test.describe("jump to date", () => {
         // On a phone, the text size changed by iOS's setting.
         expect(layout).toMatch(/^\d+:(\d+px|calc\(\d+px \* [\d.]+\))$/);
         expect(reserved.length).toBeGreaterThan(0);
-        // A note unloaded in this session keeps the height it measured, as the
-        // store saves it (D-105).
+        // Kept to 1/64 px (D-105).
         for (const [path, height] of reserved) expect(height, path).toBe(`${remembered[path!]}px`);
     });
 

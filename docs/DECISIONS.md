@@ -550,7 +550,8 @@ other notes).
 ## D-032 — Unloading notes waits for scrolling to stop (2026-09-23)
 
 Superseded in part by [ADR 0023](adr/0023-hide-far-content-as-it-leaves.md):
-hiding no longer waits, but unloading still does.
+hiding no longer waits, but unloading still does. Superseded in part again by
+D-228: outside iOS, a hidden note no longer waits to unload either.
 
 **Decision:** a rendered block that goes past the unloading distance waits until
 scrolling has stopped for `SCROLL_IDLE_MS` (300 ms). If it comes back before
@@ -4298,3 +4299,44 @@ no change users can see.
 - One file per daily notes plugin in `src/integrations/daily-notes/`, with an
   ordered list of sources — a list for two plugins. Revisit it when a third
   daily notes plugin is asked for.
+
+## D-228 — Outside iOS, a hidden note past the unloading distance is unloaded mid-scroll (2026-11-10)
+
+Supersedes in part D-032 and the rule on unloading in
+[ADR 0023](adr/0023-hide-far-content-as-it-leaves.md).
+
+**Decision:** while the pane scrolls, a hidden note (ADR 0023) that goes past
+the unloading distance is unloaded when the observer reports it, except in the
+iOS app. Any other note still waits for scrolling to stop (D-032), as does a
+hidden note while the pane is still: a jump or search step draws its note far
+away, then scrolls to it.
+
+**Why:** a long fast scroll never stops, so every note it drew stayed in the
+page, hidden: 960 notes and 134,000 elements after 25 s through five years of
+notes. Each style change slowed as they piled up, from 0.7 ms to 4.7 ms. A
+hidden note is already out of the layout and keeps its height, so unloading it
+moves nothing. A wheel at 30,000 px/s for 40 s (`scroll-cost.spec.ts`, 1,825
+notes):
+
+| CPU slowed | Screen blank, before → after | A note blank, p90 |
+| ---------- | ---------------------------- | ----------------- |
+| 4x         | 7% → 0%                      | 57 → 21–23 ms     |
+| 6x         | 23–25% → 4–6%                | 80–90 → 49–56 ms  |
+
+The main thread is busy 10.8 s of 30 s of fast scrolling, down from 17.2 s.
+
+On an iPad, D-032 still holds. Over 48 eight-stroke glides through five years of
+notes, in both directions, 19 were cut short against 9 without this change, most
+of them 65–216 ms after a note unloaded. Stalls did not change
+(`.dev/zunload.spec.ts`). Android runs Chromium, as desktop does, but was not
+measured.
+
+**Rejected:**
+
+- Blocks grouped 30 to a container — halves the layout time, but on top of this
+  the busy time fell only 0.8 s and the blank share did not change. The scroll
+  anchor and the scroll position read blocks as the container's children.
+- `content-visibility: hidden` on a hidden note — 34–46% of the screen blank.
+- Fewer layout reads: a flag for a hidden tab instead of `clientHeight`, and the
+  pinned height instead of a measure — the layout moved to the next read, and
+  the busy time fell 2%.

@@ -66,8 +66,9 @@ So when a view's own handler runs, the shared indexes are already up to date.
    has loaded: its `streamLength` (D-118).
 3. **Render.** `NoteWindowManager` (`note-window.ts`) uses three distances from
    the screen, measured in heights of the pane. It renders blocks within 1.5
-   panes, hides blocks further than 4, and, once scrolling stops, unloads blocks
-   further than 12. Every block keeps its height
+   panes, hides blocks further than 4, and unloads blocks further than 12: a
+   hidden one at once while the pane scrolls, except on iOS, any other once
+   scrolling stops (D-228). Every block keeps its height
    ([ADR 0006](adr/0006-unload-off-screen-notes.md),
    [ADR 0023](adr/0023-hide-far-content-as-it-leaves.md)). A hidden note's
    content is taken out of the layout, while its block keeps its pinned height.

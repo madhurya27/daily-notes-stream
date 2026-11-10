@@ -444,8 +444,13 @@ test.describe("daily notes stream in real Obsidian", () => {
         });
 
         // On iOS, unloading a note while scrolling stops the scroll, so nothing
-        // is unloaded until scrolling stops (D-032).
-        test("keeps a note scrolled far above rendered until the scroll stops", async ({ obsidian }) => {
+        // is unloaded until scrolling stops (D-032, D-228). The mobile project
+        // runs as the iOS app.
+        test("keeps a note scrolled far above rendered until the scroll stops, on iOS", async ({
+            obsidian,
+            mobileLayout,
+        }) => {
+            test.skip(!mobileLayout, "outside iOS, a hidden note unloads mid-scroll");
             const { page } = obsidian;
             const container = await openStream(page);
             const top = container.locator(".daily-note-block").first();
@@ -467,6 +472,37 @@ test.describe("daily notes stream in real Obsidian", () => {
             expect(stillRendered).toBe(true);
 
             await expect(top).toHaveClass(/is-unloaded/);
+        });
+
+        // A long scroll never stops, so a hidden note far above is unloaded
+        // while it goes on (D-228).
+        test("unloads a hidden note scrolled far above while the scroll goes on", async ({
+            obsidian,
+            mobileLayout,
+        }) => {
+            test.skip(mobileLayout, "the mobile project runs as the iOS app, which waits for the scroll to stop");
+            const { page } = obsidian;
+            const container = await openStream(page);
+            await expect(container.locator(".daily-note-block").first().locator(".daily-note-content")).toBeVisible();
+
+            // One glide, in small steps about every frame, until the top note
+            // is past the unloading distance, 12 panes. Then the pane keeps
+            // moving a pixel at a time: the observer may report a frame late.
+            const unloadedMidGlide = await container.locator("xpath=..").evaluate(async (el) => {
+                const top = el.querySelector<HTMLElement>(".daily-note-block")!;
+                const target = top.offsetTop + top.offsetHeight + 13 * el.clientHeight;
+                for (let step = 0; step < 200; step++) {
+                    el.scrollBy(
+                        0,
+                        el.scrollTop < target - 1 ? Math.min(200, target - el.scrollTop) : step % 2 ? 1 : -1
+                    );
+                    await new Promise((resolve) => setTimeout(resolve, 16));
+                    if (top.classList.contains("is-unloaded")) return true;
+                }
+                return false;
+            });
+
+            expect(unloadedMidGlide).toBe(true);
         });
 
         test("leaves the scroll position where it was when a note unloads", async ({ obsidian }) => {

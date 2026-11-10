@@ -1,4 +1,4 @@
-import { Component, TFile, type Debouncer } from "obsidian";
+import { Component, Platform, TFile, type Debouncer } from "obsidian";
 import { DRAWING_FROM_END, type DrawOrder, type NoteRenderer, type RenderedNote } from "../render/note-renderer";
 import type { NoteHeights } from "./note-heights";
 import { SCROLL_IDLE_MS, ScrollAnchor } from "./scroll-anchor";
@@ -29,8 +29,8 @@ const RENDER_VIEWPORTS = 1.5;
  */
 const HIDE_VIEWPORTS = 4;
 /**
- * How far away a hidden note stays rendered. Further away, it is unloaded once
- * scrolling stops (ADR 0023).
+ * How far away a hidden note stays rendered. Further away, it is unloaded at
+ * once while the pane scrolls, except in the iOS app (D-228).
  */
 const UNLOAD_VIEWPORTS = 12;
 /**
@@ -835,7 +835,17 @@ export class NoteWindowManager {
         this.leave(block);
     }
 
+    /**
+     * While the pane scrolls, a hidden note is emptied at once: it is out of
+     * the layout already, and keeps its height. Kept until a long scroll
+     * stopped, hidden notes slowed every style change down (D-228). Any other
+     * note waits (D-032), as does any note while the pane is still, where a
+     * jump draws its note far away, then scrolls to it, and any note in the
+     * iOS app, where unloading mid-glide cuts glides short.
+     */
     private leave(block: HTMLElement): void {
+        if (block.hasClass(FAR) && !this.clock.isStill() && !Platform.isIosApp)
+            return this.empty(block, this.windows.get(block)!);
         this.leaving.add(block);
         this.unloadOnceStill();
     }
