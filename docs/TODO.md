@@ -14,9 +14,11 @@ there is a screen recording of them (D-099).
       the note could hold its tail instead. On 2026-11-02, 32 runs of two
       four-stroke flicks on an iPad in portrait never moved it 30 px, so wait
       until it shows again.
-- [ ] Find why 3–4 of 24 iPad glides toward newer notes stop early, at 0.6–1.4
-      px/ms (D-229). The stream sets no scroll and loads no batch then. All were
-      owing a shift, as were 9 of the 20 that slowed. Probe:
+- [ ] Find why about 1 iPad glide in 16 stops dead within 300 ms of the lift, in
+      either direction, with or without D-229. Nothing in the page sets them
+      apart: no scroll set, no batch, no late frame, the same touches.
+      Obsidian's reading view of a long note had 0 in 48
+      (`.dev/zcontrol.spec.ts`), so the stream may play a part. Probe:
       `.dev/zcut.spec.ts`.
 - [ ] A PDF inside a line of text still holds up the queue (D-202).
 - [ ] On or after 2026-11-13, update to ESLint 10 and `eslint-plugin-obsidianmd`
