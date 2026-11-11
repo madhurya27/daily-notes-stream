@@ -51,10 +51,10 @@ export const TEMPLATER: PinnedPlugin = {
     id: "templater-obsidian",
     name: "Templater",
     repo: "SilentVoid13/Templater",
-    version: "2.26.0",
+    version: "2.27.0",
     sha256: {
-        "main.js": "0acd45cfdb3a7337e2bef511699bc1f819dc64645ad3480df33579d42d2dcbaa",
-        "manifest.json": "91c9fa8510082fffa0b3d022aac4986e3b392295b1126e847ead7ed7289169b8",
+        "main.js": "0b4a22e7a3871f929e18656d9f3c7defd8588c9dc5845620b9a16e0adb7c9a2f",
+        "manifest.json": "a9d10df447b9ce60e72df775cea66f246dacaac1f2e508b023585552f08be900",
         "styles.css": "67a6dd2d1d6dedca1287c334ca884ec4196433f71ca47388a0bd3eac14cf8b5f",
     },
 };
