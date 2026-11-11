@@ -4340,3 +4340,21 @@ measured.
 - Fewer layout reads: a flag for a hidden tab instead of `clientHeight`, and the
   pinned height instead of a measure — the layout moved to the next read, and
   the busy time fell 2%.
+
+## D-229 — The next batch loads three panes ahead (2026-11-10)
+
+**Decision:** the sentinel's observer has a margin of three pane heights
+(`300%`), not 200 px, so the next batch loads while the end is still three panes
+away. A share of the pane follows a rotation without reading the layout.
+
+**Why:** an iPad glide toward older notes reached the end of what was loaded
+before the batch came in, and stopped there. Over 24 eight-stroke glides through
+five years of notes (`.dev/zcut.spec.ts`), 7 were cut short, 4 of them 40–170 ms
+after a batch that came within 200 px of the end. With three panes, 0 of 24 were
+cut short, and stalls did not change. Glides toward newer notes still stop
+early, 3–4 in 24, for a reason not yet found.
+
+**Rejected:**
+
+- A larger fixed margin in pixels — it would not follow a rotation or a taller
+  pane. Other shares of the pane were not measured.

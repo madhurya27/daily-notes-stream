@@ -24,7 +24,10 @@ export class InfiniteScrollController {
             },
             {
                 root: scrollRoot,
-                rootMargin: "200px",
+                // Three panes ahead, as a share of the pane so it follows a
+                // rotation. At 200 px, an iPad glide reached the stream's end
+                // before the batch came in, and stopped there (D-229).
+                rootMargin: "300% 0px",
             }
         );
 

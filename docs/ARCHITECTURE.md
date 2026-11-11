@@ -60,10 +60,10 @@ So when a view's own handler runs, the shared indexes are already up to date.
    ones ([ADR 0011](adr/0011-hide-template-only-notes.md)). Then it waits for
    `stream.open()`. Vault events that arrive in the meantime wait in the view's
    queue until then.
-2. **Load.** A sentinel (`infinite-scroll.ts`) scrolls into view. `NoteStream`
-   then adds the next batch of 10 notes as empty blocks. `stream-blocks.ts`
-   places them and indexes them by path. The service counts how many notes it
-   has loaded: its `streamLength` (D-118).
+2. **Load.** A sentinel (`infinite-scroll.ts`) comes within three pane heights
+   of the screen (D-229). `NoteStream` then adds the next batch of 10 notes as
+   empty blocks. `stream-blocks.ts` places them and indexes them by path. The
+   service counts how many notes it has loaded: its `streamLength` (D-118).
 3. **Render.** `NoteWindowManager` (`note-window.ts`) uses three distances from
    the screen, measured in heights of the pane. It renders blocks within 1.5
    panes, hides blocks further than 4, and unloads blocks further than 12: a

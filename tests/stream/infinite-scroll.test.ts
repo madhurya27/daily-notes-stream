@@ -62,13 +62,13 @@ describe("InfiniteScrollController", () => {
         expect(container.lastChild).toBe(ctrl.getSentinel());
     });
 
-    it("attach creates IntersectionObserver with correct root and rootMargin", () => {
+    it("attach observes the sentinel from three panes away, so a fast glide never reaches the stream's end", () => {
         const ctrl = new InfiniteScrollController();
         const scrollRoot = document.createElement("div");
         ctrl.attach(scrollRoot, document.createElement("div"), vi.fn().mockResolvedValue(undefined));
         expect(IntersectionObserver).toHaveBeenCalledWith(expect.any(Function), {
             root: scrollRoot,
-            rootMargin: "200px",
+            rootMargin: "300% 0px",
         });
     });
 
