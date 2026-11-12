@@ -154,7 +154,9 @@ test("redraws the stream on a setting's change, keeping the note being read at t
         // Every note above lost its properties panel, and so its height
         // changed.
         await expect(container.locator(".metadata-container")).toHaveCount(0);
-        await expect.poll(offset).toBeCloseTo(0, 0);
+        // Within a pixel: the scroll to the note, the return to it, and the
+        // anchor's correction for the notes above each land on a half pixel.
+        await expect.poll(async () => Math.abs(await offset())).toBeLessThan(1);
     } finally {
         await setShowProperties(true);
     }
