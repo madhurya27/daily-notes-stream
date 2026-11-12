@@ -52,7 +52,8 @@ On a branch, raise the version with
 drafts the release with its files. Since `1.0.0`, write each release's notes
 from `git log --first-parent <last tag>..`: in plain words, say what a reader
 will notice. Show me the notes, and publish the release only once I approve them
-(D-115).
+(D-115). They follow the rules for users' text in **Documentation**; start a bug
+fix with "Fixed an issue where…".
 
 To clear warnings in the directory's scorecard, the user first runs **Review
 branch → Run preview scan** on the branch or tag, in the plugin's listing. After
@@ -110,3 +111,9 @@ Update the docs in the same branch as the change that makes them out of date:
   a plan is deleted, move what should last into an ADR or a `D-` entry.
 - This file and `.claude/rules/` — commands, rules that must always hold, and
   instructions.
+
+`README.md`, `docs/LISTING.md` and release notes are for people who use the
+plugin and don't code:
+
+- No code terms.
+- Check each claim against the tests or the decision records.
