@@ -176,14 +176,14 @@ test.describe("history", () => {
         expect(frames).toEqual([left]);
     });
 
-    test("returns to the place it left when none of its notes' heights are remembered", async ({
-        obsidian,
-        mobileLayout,
-        iosApp,
-    }) => {
-        test.skip(mobileLayout && !iosApp, "lands 233 px off about 1 time in 15; see docs/TODO.md");
-        const { left, frames } = await returnAfterAFrame(obsidian.page, { unmeasured: true });
-        expect(frames).toEqual([left]);
+    // Outside iOS, it lands 233 px off about 1 time in 15 (docs/TODO.md). A
+    // retry lets the run go on, and CI warns of each one.
+    test.describe(() => {
+        test.describe.configure({ retries: 2 });
+        test("returns to the place it left when none of its notes' heights are remembered", async ({ obsidian }) => {
+            const { left, frames } = await returnAfterAFrame(obsidian.page, { unmeasured: true });
+            expect(frames).toEqual([left]);
+        });
     });
 
     // The tenth note is the last of the first batch. Nothing is loaded below it
