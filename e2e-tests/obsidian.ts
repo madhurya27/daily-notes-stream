@@ -13,6 +13,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync, copyFi
 import { tmpdir } from "os";
 import { dirname, join, resolve } from "path";
 import { fileURLToPath } from "url";
+import { retryLostPromise } from "./lost-promise";
 import { TARGET_PHONE_WORKLOAD_MS, WORKLOAD_NOTE, cpuSlowdown, timeWorkload } from "./phone-speed";
 
 const OBSIDIAN = process.env.OBSIDIAN_PATH ?? "/Applications/Obsidian.app/Contents/MacOS/Obsidian";
@@ -432,8 +433,8 @@ async function startUp(page: Page): Promise<void> {
     });
 
     // An open settings pane keeps the leaf deferred, and a deferred view never
-    // renders.
-    await page.evaluate(() => window.app.setting?.close?.());
+    // renders. Closing it twice does no harm.
+    await retryLostPromise("Closing settings", () => page.evaluate(() => window.app.setting?.close?.()), console.log);
     await expect(page.locator(".modal-container")).toHaveCount(0);
     expect(failures, "the plugin loads once, without an error").toEqual([]);
 }
