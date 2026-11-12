@@ -6,6 +6,8 @@ import { parse } from "yaml";
 const workflowPath = resolve(__dirname, "../..", ".github/workflows/ci.yml");
 
 interface Step {
+    id?: string;
+    if?: string;
     uses?: string;
     run?: string;
     with?: Record<string, unknown>;
@@ -58,6 +60,18 @@ describe("CI workflow", () => {
 
         it("checks Obsidian's download against a pinned SHA-256", () => {
             expect(run()).toContainEqual(expect.stringMatching(/[0-9a-f]{64} .*\|\s*sha256sum -c/));
+        });
+
+        // A test may retry where it fails now and then (docs/TODO.md). Each
+        // retry shows on the pull request, so it is not passed over.
+        it("warns of each test that passed only on a retry", () => {
+            const warn = job().steps.find((step) => step.run?.includes("scripts/flaky-tests.mjs"));
+            expect(warn?.id).toBe("flaky");
+        });
+
+        it("keeps the traces of a run with a failed or flaky test", () => {
+            const keep = job().steps.find((step) => step.uses?.startsWith("actions/upload-artifact@"));
+            expect(keep?.if).toBe("failure() || steps.flaky.outputs.found == 'true'");
         });
 
         it("lets Obsidian keep its sandbox on", () => {

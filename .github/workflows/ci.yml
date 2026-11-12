@@ -85,8 +85,13 @@ jobs:
             - name: Run the e2e tests
               run: xvfb-run -a -s "-screen 0 1920x1080x24" pnpm run test:e2e
 
-            - name: Keep the report and traces of a failed run
-              if: failure()
+            # A test may retry where it fails now and then (docs/TODO.md).
+            - name: Warn of each test that passed only on a retry
+              id: flaky
+              run: node scripts/flaky-tests.mjs
+
+            - name: Keep the report and traces of a failed or flaky run
+              if: failure() || steps.flaky.outputs.found == 'true'
               uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
               with:
                   name: e2e-results

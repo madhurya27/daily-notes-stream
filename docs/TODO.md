@@ -22,16 +22,17 @@ there is a screen recording of them (D-099).
       `.dev/zcut.spec.ts`.
 - [ ] Find why Back sometimes lands off when no heights are remembered, outside
       iOS. `history.spec.ts`'s test of it lands 233 px off about 1 time in 15,
-      only on Linux's mobile project, so it is skipped there. The note above and
-      the note read, both empty at the 2-pane guess (1526 px), are drawn at 1293
-      px before the first frame at the new place, and Chromium does not correct.
-      Chromium skips its correction when its anchor changes height in the same
-      layout as a note above; in the stream, nothing yet shown forces that. Not
-      enough alone, in tests that never failed: wrong guesses at the return,
-      both notes drawn with no frame between, re-estimating right after the
-      return, and a desktop pane tall enough to make the guess wrong (0 in 15 on
-      Linux). Branch `fix/back-place-after-load` reads the place again after
-      loading batches, which a unit test shows can matter, but did not fix it.
+      only on Linux's mobile project, so it retries, and CI warns of each retry.
+      The note above and the note read, both empty at the 2-pane guess (1526
+      px), are drawn at 1293 px before the first frame at the new place, and
+      Chromium does not correct. Chromium skips its correction when its anchor
+      changes height in the same layout as a note above; in the stream, nothing
+      yet shown forces that. Not enough alone, in tests that never failed: wrong
+      guesses at the return, both notes drawn with no frame between,
+      re-estimating right after the return, and a desktop pane tall enough to
+      make the guess wrong (0 in 15 on Linux). Branch
+      `fix/back-place-after-load` reads the place again after loading batches,
+      which a unit test shows can matter, but did not fix it.
 - [ ] A PDF inside a line of text still holds up the queue (D-202).
 - [ ] On or after 2026-11-13, update to ESLint 10 and `eslint-plugin-obsidianmd`
       0.5.1, and remove `@eslint/js`, which nothing imports. 0.5.1 no longer
