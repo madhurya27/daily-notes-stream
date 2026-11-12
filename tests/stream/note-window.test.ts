@@ -204,6 +204,13 @@ function makeManager(
     return { manager, renderer, scrollRoot, stream, heights };
 }
 
+/** A promise a test opens when it chooses, to hold a render in progress. */
+function makeGate() {
+    let open!: () => void;
+    const gate = new Promise<void>((resolve) => (open = resolve));
+    return { gate, open };
+}
+
 /**
  * Lets the chain of render promises finish. Timers are fake, so this only runs
  * what is due.
@@ -863,8 +870,9 @@ describe("NoteWindowManager after the pane's width changes", () => {
         let layout = LAYOUT;
         const heights = new NoteHeights();
         heights.keep(LAYOUT, FILE.path, 812);
+        const renderer = makeRenderer({ render });
         const manager = new NoteWindowManager(
-            makeRenderer({ render }) as never,
+            renderer as never,
             makeQueue(),
             new ViewTimers(),
             heights,
@@ -887,7 +895,7 @@ describe("NoteWindowManager after the pane's width changes", () => {
         };
         /** Another note was measured, so what the estimates use changed. */
         const learn = () => heights.keep(LAYOUT, "learned.md", 700);
-        return { manager, heights, narrow, learn, root };
+        return { manager, heights, narrow, learn, root, renderer };
     }
 
     afterEach(() => document.body.empty());
@@ -902,6 +910,72 @@ describe("NoteWindowManager after the pane's width changes", () => {
         fire(observers.render, block, true);
         await settle();
         expect(heldHeight(block)).toBe("1200px");
+    });
+
+    it("holds a note drawing during the turn at what it measured at the new width", async () => {
+        const { gate, open } = makeGate();
+        const { manager, heights, narrow } = makeResizable({ render: () => gate });
+        heights.keep(NARROW, FILE.path, 1200);
+        const block = manager.add(FILE);
+        document.body.appendChild(block);
+        fire(observers.render, block, true);
+
+        await narrow();
+        open();
+        await settle();
+
+        expect(heldHeight(block)).toBe("1200px");
+    });
+
+    it("holds a note waiting to draw during the turn at what it measured at the new width", async () => {
+        const { gate, open } = makeGate();
+        const { manager, heights, narrow } = makeResizable({ render: () => gate });
+        const waiting = new TFile("b.md");
+        heights.keep(NARROW, waiting.path, 1200);
+        heights.keep(LAYOUT, waiting.path, 700);
+        const first = manager.add(FILE);
+        const second = manager.add(waiting);
+        for (const block of [first, second]) document.body.appendChild(block);
+        fire(observers.render, first, true);
+        fire(observers.render, second, true);
+
+        await narrow();
+        open();
+        await settle();
+
+        expect(heldHeight(second)).toBe("1200px");
+    });
+
+    it("holds nothing at the old width once an update during the turn lands", async () => {
+        const { manager, narrow, renderer } = makeResizable();
+        const block = manager.add(FILE);
+        document.body.appendChild(block);
+        fire(observers.render, block, true);
+        await settle();
+        expect(heldHeight(block)).toBe("812px");
+        renderer.update.mockImplementationOnce(async () => {
+            await narrow();
+            return true;
+        });
+
+        await manager.refresh(block);
+
+        expect(heldHeight(block)).toBe("");
+    });
+
+    it("holds nothing for a note drawing when every height is forgotten", async () => {
+        const { gate, open } = makeGate();
+        const { manager, heights } = makeResizable({ render: () => gate });
+        const block = manager.add(FILE);
+        document.body.appendChild(block);
+        fire(observers.render, block, true);
+
+        heights.retainOnly(new Set());
+        manager.forgetHeights();
+        open();
+        await settle();
+
+        expect(heldHeight(block)).toBe("");
     });
 
     // The text reflows for several frames after the screen turns, and nothing
@@ -1175,6 +1249,21 @@ describe("NoteWindowManager after the pane's width changes", () => {
         expect(placeholderHeight(stored)).toBe("900px");
         expect(placeholderHeight(unloaded)).toBe("900px");
         expect(placeholderHeight(rendered)).toBe("");
+    });
+
+    it("re-estimates a note whose render was dropped before its turn", async () => {
+        const { manager, heights } = makeResizable({ estimate: () => 900 });
+        const block = manager.add(FILE);
+        document.body.appendChild(block);
+        fire(observers.render, block, true);
+        fire(observers.unload, block, false);
+        await settle();
+
+        heights.retainOnly(new Set());
+        manager.forgetHeights();
+        await still();
+
+        expect(placeholderHeight(block)).toBe("900px");
     });
 
     it("tells nobody when what it learned moves no placeholder, and waits for the next lesson", async () => {
@@ -3554,6 +3643,63 @@ describe("NoteWindowManager.refresh", () => {
             expect(isRendered(block)).toBe(false);
         });
 
+        it("stays shown when it comes back into view during an update", async () => {
+            const renderer = makeRenderer();
+            const { manager } = makeManager(renderer);
+            const block = manager.add(FILE);
+            document.body.appendChild(block);
+            fire(observers.render, block, true);
+            await settle();
+            renderer.update.mockImplementationOnce(async () => {
+                fire(observers.hide, block, false);
+                fire(observers.render, block, true);
+                return true;
+            });
+
+            await manager.refresh(block);
+
+            expect(block.hasClass("is-far")).toBe(false);
+        });
+
+        it("re-pins on a resize reported during an update", async () => {
+            let height = 640;
+            const renderer = makeRenderer();
+            const { manager } = makeManager(renderer, () => parseFloat(pinned(block)) || height);
+            const block = manager.add(FILE);
+            document.body.appendChild(block);
+            fire(observers.render, block, true);
+            await settle();
+            let pinnedDuring = "";
+            renderer.update.mockImplementationOnce(async () => {
+                height = 700;
+                block.style.removeProperty("--daily-note-pinned-height");
+                resize(block);
+                pinnedDuring = pinned(block);
+                return true;
+            });
+
+            await manager.refresh(block);
+
+            expect(pinnedDuring).toBe("700px");
+        });
+
+        it("leaves on the next still scroll after an update that threw", async () => {
+            const renderer = makeRenderer();
+            const { manager } = makeManager(renderer);
+            const block = manager.add(FILE);
+            document.body.appendChild(block);
+            fire(observers.render, block, true);
+            await settle();
+            renderer.update.mockRejectedValueOnce(new Error("update failed"));
+
+            await expect(manager.refresh(block)).rejects.toThrow("update failed");
+            fire(observers.unload, block, false);
+            manager.onScroll();
+            await still();
+
+            expect(isRendered(block)).toBe(false);
+        });
+
         it("stays drawn while it updates, and leaves on the next still scroll after", async () => {
             const renderer = makeRenderer();
             const { manager } = makeManager(renderer);
@@ -3577,6 +3723,85 @@ describe("NoteWindowManager.refresh", () => {
             await still();
             expect(isRendered(block)).toBe(false);
         });
+    });
+
+    it("draws nothing for a note removed while its render waited", async () => {
+        const { gate, open } = makeGate();
+        const renderer = makeRenderer({ render: () => gate });
+        const { manager } = makeManager(renderer);
+        const first = manager.add(FILE);
+        const second = manager.add(new TFile("b.md"));
+        for (const block of [first, second]) document.body.appendChild(block);
+        fire(observers.render, first, true);
+        fire(observers.render, second, true);
+        await settle();
+
+        manager.remove(second);
+        second.remove();
+        open();
+        await settle();
+
+        expect(renderer.renderInto).toHaveBeenCalledOnce();
+    });
+
+    it("draws nothing waiting once detached", async () => {
+        const { manager, renderer } = makeManager();
+        const block = manager.add(FILE);
+        document.body.appendChild(block);
+        fire(observers.render, block, true);
+
+        manager.detach();
+        await settle();
+
+        expect(renderer.renderInto).not.toHaveBeenCalled();
+    });
+
+    it("draws nothing again for an update that fails after the view closed", async () => {
+        const { manager, renderer } = makeManager();
+        const block = manager.add(FILE);
+        document.body.appendChild(block);
+        fire(observers.render, block, true);
+        await settle();
+        renderer.update.mockImplementationOnce(async () => {
+            manager.detach();
+            return false;
+        });
+
+        await manager.refresh(block);
+
+        expect(renderer.renderInto).toHaveBeenCalledOnce();
+    });
+
+    it("draws a note once when a jump asks for it while it draws", async () => {
+        const { gate, open } = makeGate();
+        const renderer = makeRenderer({ render: () => gate });
+        const { manager } = makeManager(renderer);
+        const block = manager.add(FILE);
+        document.body.appendChild(block);
+        fire(observers.render, block, true);
+        await settle();
+
+        manager.render(block);
+        open();
+        await settle();
+
+        expect(renderer.renderInto).toHaveBeenCalledOnce();
+        expect(isRendered(block)).toBe(true);
+    });
+
+    it("draws a note again when it comes into view after a redraw that gave up", async () => {
+        const { manager, renderer } = makeManager();
+        const block = manager.add(FILE);
+        document.body.appendChild(block);
+        fire(observers.render, block, true);
+        await settle();
+        renderer.renderInto.mockResolvedValueOnce(null);
+        await manager.refresh(block);
+
+        fire(observers.render, block, true);
+        await settle();
+
+        expect(renderer.renderInto).toHaveBeenCalledTimes(3);
     });
 
     // An empty note is rendered from the current file anyway when it comes

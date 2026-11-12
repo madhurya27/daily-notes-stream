@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach, onTestFinished } from "vitest";
 import { Component } from "obsidian";
 import { ViewTimers } from "../../src/stream/view-timers";
 import { sendLostClicks } from "../../src/ui/lost-clicks";
@@ -75,6 +75,31 @@ describe("sendLostClicks", () => {
 
         expect(clicks).toHaveLength(1);
         expect(late.defaultPrevented).toBe(true);
+    });
+
+    // A throw in a listener would log an error in the console.
+    it("ignores a cancel with no tap", () => {
+        const { root } = setUp();
+        const errors: unknown[] = [];
+        const onError = (evt: ErrorEvent) => errors.push(evt.error);
+        window.addEventListener("error", onError);
+        onTestFinished(() => window.removeEventListener("error", onError));
+
+        pointer(root, "pointercancel");
+
+        expect(errors).toEqual([]);
+    });
+
+    // Another finger's touch, cancelled while the tap waits for its click.
+    it("still sees a tap's own click after a cancel", () => {
+        const { button, clicks } = setUp();
+
+        tap(button);
+        pointer(button, "pointercancel", { id: 2 });
+        button.click();
+        vi.advanceTimersByTime(1000);
+
+        expect(clicks).toHaveLength(1);
     });
 
     // As VoiceOver or a mouse sends it.

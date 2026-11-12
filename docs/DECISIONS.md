@@ -2460,6 +2460,8 @@ again (D-027).
 
 ## D-137 — A note window's flags stay separate, and `FarRuns` belongs to the folding manager (2026-10-14)
 
+Superseded in part by D-230.
+
 **Decision:** `NoteWindow` keeps `component`, `rendering`, `unloadWanted`,
 `is-far` and the `leaving` set as separate fields. `CollapsibleManager` creates
 `FarRuns`, and the renderer and the window reach it through the renderer.
@@ -4357,3 +4359,22 @@ with three panes. Stalls did not change.
 
 - A larger fixed margin in pixels — it would not follow a rotation or a taller
   pane. Other shares of the pane were not measured.
+
+## D-230 — A note window's draw state is one value (2026-11-11)
+
+Supersedes in part D-137.
+
+**Decision:** `NoteWindow`'s `component`, `rendering` and `unloadWanted` become
+one `draw` value: `empty`, `drawing`, `updating` or `drawn`. Only the two busy
+states carry `unloadWanted`. `is-far` and the `leaving` set stay separate, as
+D-137 says.
+
+**Why:** of the three flags' eight combinations, only five could happen, and the
+code relied on that unchecked. Checking `component` before `rendering` hid a
+note that came back into view while it updated in place. As states, a busy note
+is handled first.
+
+**Rejected:**
+
+- One value that also holds `is-far` and `leaving` — it would list every
+  combination, as D-137 says.

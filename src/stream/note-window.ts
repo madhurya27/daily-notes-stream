@@ -44,25 +44,28 @@ const FAR = "is-far";
  */
 const MIN_VIEWPORT_PX = 400;
 
+/**
+ * Where a block's note is in being drawn. `unloadWanted`: the block went out
+ * of range while its render was queued or running. An observer only reports
+ * changes, so this is the only request to unload it until it comes back into
+ * view. Doing it later is what stops a fast scroll from leaving rendered notes
+ * behind.
+ */
+type Draw =
+    | { state: "empty" }
+    /** Queued or running. Stops a second render from starting meanwhile. */
+    | { state: "drawing"; unloadWanted: boolean }
+    /** Drawn, and drawing again only what a save changed (ADR 0019). */
+    | { state: "updating"; component: Component; unloadWanted: boolean }
+    | { state: "drawn"; component: Component };
+
 interface NoteWindow extends Reserving {
-    /**
-     * Not null exactly while the block holds rendered content.
-     */
-    component: Component | null;
-    /** Stops a second render from starting while the first one is waiting. */
-    rendering: boolean;
+    draw: Draw;
     /**
      * Render from the start, where a jump lands. Null renders it in the order
      * the reader reaches it.
      */
     order: DrawOrder | null;
-    /**
-     * The block went out of range while its render was queued or running. An
-     * observer only reports changes, so this is the only request to unload it
-     * until it comes back into view. Doing it later is what stops a fast scroll
-     * from leaving rendered notes behind.
-     */
-    unloadWanted: boolean;
     /**
      * Keeps the rendered note at `height` until it settles. Null once released.
      */
@@ -76,6 +79,31 @@ interface NoteWindow extends Reserving {
      * while the block is empty.
      */
     keepOnceSettled: Debouncer<[], void> | null;
+}
+
+/** The note's rendered content, while the block holds it. */
+function componentOf({ draw }: NoteWindow): Component | null {
+    // Stryker disable next-line ConditionalExpression: another state has no
+    // component, which reads as undefined, and every caller treats it as null.
+    return draw.state === "drawn" || draw.state === "updating" ? draw.component : null;
+}
+
+/**
+ * The draw state while a render is queued or running, when a second one must
+ * not start. Null otherwise.
+ */
+function busyDraw({ draw }: NoteWindow): Extract<Draw, { unloadWanted: boolean }> | null {
+    return draw.state === "drawing" || draw.state === "updating" ? draw : null;
+}
+
+/** Only asked while its render runs. */
+function isUnloadWanted(window: NoteWindow): boolean {
+    return busyDraw(window)!.unloadWanted;
+}
+
+/** A render ended. Content it filled in stays drawn. */
+function endDrawing(window: NoteWindow): void {
+    if (window.draw.state === "drawing") window.draw = { state: "empty" };
 }
 
 /**
@@ -193,8 +221,8 @@ export class NoteWindowManager {
             heights.estimate(layout, path, this.unmeasured())
     ) {
         this.reservations = new Reservations(heights, estimate);
-        // Stryker disable next-line OptionalChaining: only asked about a part shown in one of the stream's blocks.
-        this.runs = new FarRunWatch(renderer, (block) => !!this.windows.get(block)?.component);
+        // Only asked about a part shown in one of the stream's blocks.
+        this.runs = new FarRunWatch(renderer, (block) => !!componentOf(this.windows.get(block)!));
     }
 
     /**
@@ -318,7 +346,7 @@ export class NoteWindowManager {
     forgetHeights(): void {
         const layout = this.layout();
         for (const window of this.windows.values()) {
-            if (window.component) continue;
+            if (componentOf(window)) continue;
             window.height = this.unmeasured();
             this.reservations.expect(window, layout);
         }
@@ -414,10 +442,8 @@ export class NoteWindowManager {
         const block = this.renderer.createBlock(file);
         const window: NoteWindow = {
             file,
-            component: null,
-            rendering: false,
+            draw: { state: "empty" },
             order: null,
-            unloadWanted: false,
             height: this.unmeasured(),
             // Stryker disable next-line BooleanLiteral: reservations.add sets it.
             measured: false,
@@ -477,21 +503,22 @@ export class NoteWindowManager {
         // A hidden note is not drawn again while nobody can see it. It is
         // unloaded, keeping its height, and drawn when it comes back.
         if (block.hasClass(FAR)) this.empty(block, window);
-        if (!window.component) {
-            if (window.rendering) return;
+        const component = componentOf(window);
+        if (!component) {
+            if (busyDraw(window)) return;
             this.reservations.expect(window, this.layout());
             this.reserveOnceStill();
             return;
         }
-        if (await this.updateInPlace(block, window, window.component)) return;
+        if (await this.updateInPlace(block, window, component)) return;
 
         this.measureInto(block, window);
         this.stopSettling(window);
+        // From updating to drawing: there is no component until the render
+        // finishes, so without this state a note coming into view would be
+        // drawn twice. A request to unload made during the update is kept.
         this.discard(block, window);
         block.empty();
-        // There is no component until the render finishes, so without this flag
-        // a note coming into view would be drawn twice.
-        window.rendering = true;
         try {
             const rendered = await this.renderer.renderInto(block, window.file);
             if (!rendered) return;
@@ -504,8 +531,7 @@ export class NoteWindowManager {
             this.filled(block, window, rendered);
         } finally {
             this.changes++;
-            window.rendering = false;
-            window.unloadWanted = false;
+            endDrawing(window);
         }
     }
 
@@ -515,22 +541,26 @@ export class NoteWindowManager {
      * to unload the note made in the meantime waits for the result.
      */
     private async updateInPlace(block: HTMLElement, window: NoteWindow, component: Component): Promise<boolean> {
-        window.rendering = true;
+        window.draw = { state: "updating", component, unloadWanted: false };
         let updated: boolean;
         try {
             updated = await this.renderer.update(block, window.file, component);
-        } finally {
-            window.rendering = false;
+        } catch (error) {
+            window.draw = { state: "drawn", component };
+            throw error;
         }
         // Its note was deleted, or the view closed, meanwhile: what it drew
         // went with it.
         if (!this.windows.has(block)) return true;
+        // Still updating: `refresh` draws the whole note again from here.
         if (!updated) return false;
+        const unloadWanted = isUnloadWanted(window);
+        // Nothing empties a busy block but `remove` and `detach`, above.
+        window.draw = { state: "drawn", component };
         this.changes++;
         this.runs.updated(block);
         window.keepOnceSettled?.();
-        this.landed(block, window, component);
-        window.unloadWanted = false;
+        this.landed(block, component, unloadWanted);
         return true;
     }
 
@@ -538,6 +568,8 @@ export class NoteWindowManager {
         const window = this.windows.get(block);
         if (!window) return;
         this.unobserve(block);
+        // Its render waiting in the queue would draw a note nobody can see.
+        this.waiting.delete(block);
         this.leaving.delete(block);
         // Stryker disable next-line CallExpression: only frees memory; a block
         // removed from the stream never finishes re-rendering.
@@ -582,22 +614,24 @@ export class NoteWindowManager {
     private queue(block: HTMLElement, order: DrawOrder | null): void {
         const window = this.windows.get(block);
         if (!window) return;
-        if (window.component) {
-            block.removeClass(FAR);
-            return;
-        }
-        if (window.rendering) {
-            // It came back into view before its render finished. Unloading it
-            // as asked would leave it blank, and an observer only reports
-            // changes, so no second event would come to fill it.
-            window.unloadWanted = false;
+        const busy = busyDraw(window);
+        if (busy) {
+            // It came back into view before its render or update finished.
+            // Unloading it as asked would leave it blank or hidden, and an
+            // observer only reports changes, so no second event would come to
+            // show it.
+            busy.unloadWanted = false;
             // A jump's render draws from where the jump goes, if it has not
             // started yet.
             if (order) window.order = order;
             return;
         }
+        if (componentOf(window)) {
+            block.removeClass(FAR);
+            return;
+        }
         window.order = order;
-        window.rendering = true;
+        window.draw = { state: "drawing", unloadWanted: false };
         this.waiting.set(block, window);
         this.enqueue(() => this.renderNext());
     }
@@ -628,7 +662,7 @@ export class NoteWindowManager {
         try {
             // It scrolled past before its turn came. Rendering it would hold up
             // the queue, which every vault event also uses, for nothing.
-            if (window.unloadWanted) return;
+            if (isUnloadWanted(window)) return;
             if (window.order === null && this.pastHiding(block)) {
                 this.watchAgain(block);
                 return;
@@ -649,7 +683,7 @@ export class NoteWindowManager {
                             if (block.hasClass(DRAWING_FROM_END))
                                 this.hideFarRunsOf(block, this.renderer.runsOf(note).slice(1));
                             await this.renderWaitingBefore(block);
-                            return !window.unloadWanted;
+                            return !isUnloadWanted(window);
                         },
                         window.order ?? this.orderFor(block)
                     ),
@@ -680,8 +714,7 @@ export class NoteWindowManager {
             this.filled(block, window, rendered);
         } finally {
             this.changes++;
-            window.rendering = false;
-            window.unloadWanted = false;
+            endDrawing(window);
         }
     }
 
@@ -710,21 +743,22 @@ export class NoteWindowManager {
 
     /** `rendered` was drawn into `block`, which shows it from now on. */
     private filled(block: HTMLElement, window: NoteWindow, { component, footer }: RenderedNote): void {
-        window.component = component;
+        const unloadWanted = isUnloadWanted(window);
+        window.draw = { state: "drawn", component };
         block.removeClass("is-unloaded");
         block.style.removeProperty("--daily-note-placeholder-height");
         this.watchSettling(block, window, footer);
-        this.landed(block, window, component);
+        this.landed(block, component, unloadWanted);
     }
 
     /**
      * After drawing: re-pin, watch the note's parts, and take it out of the
      * layout if it went out of range meanwhile.
      */
-    private landed(block: HTMLElement, window: NoteWindow, component: Component): void {
+    private landed(block: HTMLElement, component: Component, unloadWanted: boolean): void {
         this.repin(block);
         this.runs.watch(block, component);
-        if (window.unloadWanted) this.landedFar(block);
+        if (unloadWanted) this.landedFar(block);
     }
 
     /**
@@ -798,11 +832,12 @@ export class NoteWindowManager {
      * now, even while scrolling (ADR 0023).
      */
     private hide(block: HTMLElement, window: NoteWindow): void {
-        if (window.rendering) {
-            window.unloadWanted = true;
+        const busy = busyDraw(window);
+        if (busy) {
+            busy.unloadWanted = true;
             return;
         }
-        if (window.component) this.conceal(block);
+        if (componentOf(window)) this.conceal(block);
     }
 
     /**
@@ -826,11 +861,12 @@ export class NoteWindowManager {
     private unload(block: HTMLElement): void {
         const window = this.windows.get(block);
         if (!window) return;
-        if (window.rendering) {
-            window.unloadWanted = true;
+        const busy = busyDraw(window);
+        if (busy) {
+            busy.unloadWanted = true;
             return;
         }
-        if (!window.component) return;
+        if (!componentOf(window)) return;
 
         this.leave(block);
     }
@@ -854,7 +890,7 @@ export class NoteWindowManager {
         for (const block of this.leaving) {
             const window = this.windows.get(block)!;
             // A refresh in flight waits until scrolling stops again.
-            if (!window.component || window.rendering) continue;
+            if (window.draw.state !== "drawn") continue;
             this.empty(block, window);
         }
     }
@@ -896,7 +932,7 @@ export class NoteWindowManager {
             this.releaseHold(window);
             // Stryker disable next-line ConditionalExpression: a rendered
             // note's height is measured again when it is unloaded.
-            if (!window.component) this.reservations.expect(window, layout);
+            if (!componentOf(window)) this.reservations.expect(window, layout);
         }
     }
 
@@ -915,7 +951,7 @@ export class NoteWindowManager {
             this.reserveAfterReflow();
             return;
         }
-        const unloaded = [...this.windows].filter(([, window]) => !window.component && !window.rendering);
+        const unloaded = [...this.windows].filter(([, window]) => window.draw.state === "empty");
         const plan = this.reservations.plan(
             unloaded,
             this.layout(),
@@ -970,11 +1006,11 @@ export class NoteWindowManager {
     private watchSettling(block: HTMLElement, window: NoteWindow, footer: Promise<void>): void {
         window.watched = Array.from(block.children);
         this.watch(window.watched);
-        const { component } = window;
+        const component = componentOf(window);
         void footer.then(() => {
             // Unloaded or re-rendered while the footer was rendering. That
             // render waits for its own note to stop changing.
-            if (window.component !== component) return;
+            if (componentOf(window) !== component) return;
             window.keepOnceSettled = this.timers.debounce(() => this.keepHeight(block, window), SETTLE_MS, true);
             window.keepOnceSettled();
         });
@@ -1019,7 +1055,7 @@ export class NoteWindowManager {
         for (const block of new Set(targets.map((target) => this.blockOf(target)))) {
             const window = block ? this.windows.get(block) : undefined;
             if (!block || !window) continue;
-            if (window.component && !block.hasClass(FAR)) {
+            if (componentOf(window) && !block.hasClass(FAR)) {
                 heard = true;
                 told = this.repin(block) || told;
             }
@@ -1106,9 +1142,12 @@ export class NoteWindowManager {
 
     private discard(block: HTMLElement, window: NoteWindow): void {
         this.runs.forget(block);
-        if (!window.component) return;
-        this.renderer.discard(window.component);
-        window.component = null;
+        const { draw } = window;
+        if (draw.state !== "drawn" && draw.state !== "updating") return;
+        this.renderer.discard(draw.component);
+        // An update goes on as a render of the whole note.
+        window.draw =
+            draw.state === "updating" ? { state: "drawing", unloadWanted: draw.unloadWanted } : { state: "empty" };
     }
 
     private observe(block: HTMLElement): void {
