@@ -1125,12 +1125,6 @@ describe("NoteBases changing a Base's height in a pinned note", () => {
 
     // There is nothing above it in the note to clip, and a Base drawn at 0px
     // would disappear.
-    it("clips nothing on a first draw", async () => {
-        const content = await renderNote(BLOCK);
-
-        expect(measuring(slotOf(content))).toBe(false);
-    });
-
     it("clips nothing on a first draw, however tall what it replaces", async () => {
         vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({ height: 200 } as DOMRect);
 

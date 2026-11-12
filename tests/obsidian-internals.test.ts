@@ -166,18 +166,18 @@ describe("openTagSearch", () => {
         await expect(openTagSearch(app, "work", "split")).resolves.toBeUndefined();
     });
 
-    it("does nothing when the search plugin is disabled", () => {
+    it("does nothing when the search plugin is disabled", async () => {
         const { app } = makeSearchApp(undefined);
-        expect(() => openTagSearch(app, "work")).not.toThrow();
+        await expect(openTagSearch(app, "work")).resolves.toBeUndefined();
     });
 
-    it("does nothing when the plugin exposes no instance", () => {
+    it("does nothing when the plugin exposes no instance", async () => {
         const { app } = makeSearchApp({});
-        expect(() => openTagSearch(app, "work")).not.toThrow();
+        await expect(openTagSearch(app, "work")).resolves.toBeUndefined();
     });
 
-    it("does nothing when the internal plugin registry is unavailable", () => {
-        expect(() => openTagSearch({} as App, "work")).not.toThrow();
+    it("does nothing when the internal plugin registry is unavailable", async () => {
+        await expect(openTagSearch({} as App, "work")).resolves.toBeUndefined();
     });
 });
 

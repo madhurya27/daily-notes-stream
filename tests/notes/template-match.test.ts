@@ -15,6 +15,7 @@ describe("templatePattern", () => {
     });
 
     it("holds, with no template, for blank text alone", () => {
+        expect(matches("", null)).toBe(true);
         expect(matches(" \n", null)).toBe(true);
         expect(matches("Stryker was here!", null)).toBe(false);
     });
@@ -147,10 +148,5 @@ describe("templatePattern", () => {
 
         expect(matches(changed, TEMPLATE)).toBe(false);
         expect(matches(added, TEMPLATE)).toBe(false);
-    });
-
-    it("with no template set, holds only for blank text", () => {
-        expect(matches("", null)).toBe(true);
-        expect(matches("## Log", null)).toBe(false);
     });
 });

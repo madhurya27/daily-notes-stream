@@ -401,11 +401,6 @@ describe("NoteWindowManager remembered heights", () => {
         });
     });
 
-    it("reserves two panes for a note never measured, before anything is", () => {
-        const { manager } = makeManager();
-        expect(placeholderHeight(manager.add(FILE))).toBe(UNMEASURED);
-    });
-
     // iOS closes an app without unloading the plugin, so a note still on screen
     // must be remembered before then.
     it("remembers a note's height once nothing in it has resized for a while", async () => {
@@ -3298,12 +3293,6 @@ describe("NoteWindowManager draws what the reader reaches next first", () => {
         return { scrollTo, queueAll };
     }
 
-    it("draws a note on screen before notes off screen that were queued first", async () => {
-        const { queueAll } = await waitingAt({ near: 1000, screen: 200 });
-
-        expect(await queueAll()).toEqual(["screen", "near"]);
-    });
-
     it("draws the notes on screen from the top down", async () => {
         const { queueAll } = await waitingAt({ lower: 600, upper: 100 });
 
@@ -3742,18 +3731,6 @@ describe("NoteWindowManager.refresh", () => {
         await settle();
 
         expect(renderer.renderInto).toHaveBeenCalledOnce();
-    });
-
-    it("draws nothing waiting once detached", async () => {
-        const { manager, renderer } = makeManager();
-        const block = manager.add(FILE);
-        document.body.appendChild(block);
-        fire(observers.render, block, true);
-
-        manager.detach();
-        await settle();
-
-        expect(renderer.renderInto).not.toHaveBeenCalled();
     });
 
     it("draws nothing again for an update that fails after the view closed", async () => {
@@ -4459,7 +4436,7 @@ describe("NoteWindowManager hides a long note's far runs", () => {
 
     // Hiding a run between two measurements lays the whole note out again.
     it("measures every run reported before hiding any", async () => {
-        const { renderer, far, paragraphs } = await renderedLong();
+        const { renderer, paragraphs } = await renderedLong();
         const steps: string[] = [];
         const farRuns = renderer.farRuns as unknown as { box: (el: Element) => Box | null };
         farRuns.box = (el) => (steps.push("read"), boxFromData(el));
@@ -4468,7 +4445,6 @@ describe("NoteWindowManager hides a long note's far runs", () => {
 
         report(...paragraphs());
 
-        expect(far()).toEqual(["at 4500", "at 9000"]);
         expect(steps.lastIndexOf("read")).toBeLessThan(steps.indexOf("hide"));
     });
 

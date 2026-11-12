@@ -205,10 +205,15 @@ describe("sendLostClicks", () => {
 
     it("leaves a lift with no finger down", () => {
         const { button, clicks } = setUp();
+        const errors: unknown[] = [];
+        const onError = (evt: ErrorEvent) => errors.push(evt.error);
+        window.addEventListener("error", onError);
+        onTestFinished(() => window.removeEventListener("error", onError));
 
         pointer(button, "pointerup");
         vi.advanceTimersByTime(1000);
 
+        expect(errors).toEqual([]);
         expect(clicks).toHaveLength(0);
     });
 
