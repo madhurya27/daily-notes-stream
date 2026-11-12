@@ -418,9 +418,15 @@ async function startUp(page: Page): Promise<void> {
     await trustButton.waitFor({ state: "visible", timeout: 15_000 }).catch(() => {});
     // The button loads the plugin after the click returns. Enabling it here as
     // well loaded it twice, and the second copy failed, so settings the tests
-    // changed never reached the stream.
-    if (await trustButton.count()) await trustButton.click();
-    else
+    // changed never reached the stream. Once every plugin has loaded, it opens
+    // settings at Community plugins, to be closed below; closed earlier, they
+    // open after and stay open.
+    if (await trustButton.count()) {
+        await trustButton.click();
+        await page.waitForFunction(() => window.app.setting.activeTab?.id === "community-plugins", null, {
+            timeout: 30_000,
+        });
+    } else
         await page.evaluate(async (pluginId) => {
             const plugins = window.app.plugins;
             // Restricted mode blocks community plugins, so the test turns it
