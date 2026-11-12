@@ -505,19 +505,27 @@ test.describe("daily notes stream in real Obsidian", () => {
             expect(unloadedMidGlide).toBe(true);
         });
 
-        test("leaves the scroll position where it was when a note unloads", async ({ obsidian }) => {
+        // The scroll position itself may change: a note above that was never
+        // drawn can still get a better estimate of its height, and the anchor
+        // then moves the scroll position by as much, to the nearest half pixel.
+        test("leaves the note being read where it was when a note unloads", async ({ obsidian }) => {
             const { page } = obsidian;
             const container = await openStream(page);
             const top = container.locator(".daily-note-block").first();
+            const reading = container.locator(".daily-note-block").nth(3);
 
-            await container.locator(".daily-note-block").nth(3).scrollIntoViewIfNeeded();
+            await reading.scrollIntoViewIfNeeded();
             await expect(top).toHaveClass(/is-unloaded/);
 
-            const scroller = container.locator("xpath=..");
-            const before = await scroller.evaluate((el) => el.scrollTop);
+            const offset = () =>
+                reading.evaluate(
+                    (el) =>
+                        el.getBoundingClientRect().top - el.parentElement!.parentElement!.getBoundingClientRect().top
+                );
+            const before = await offset();
             await page.waitForTimeout(500);
 
-            expect(await scroller.evaluate((el) => el.scrollTop)).toBe(before);
+            expect(await offset()).toBeCloseTo(before, 0);
         });
 
         /**
