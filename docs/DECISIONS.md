@@ -4302,6 +4302,38 @@ no change users can see.
   ordered list of sources — a list for two plugins. Revisit it when a third
   daily notes plugin is asked for.
 
+## D-227 — CI runs the e2e tests on Linux (2026-11-07)
+
+**Decision:** changes D-148. A second job in `.github/workflows/ci.yml` runs
+`pnpm run test:e2e` on `ubuntu-latest`, in Xvfb, against Obsidian's Linux build,
+pinned by version and SHA-256. The iPhone, iPad and memory tests stay local. Off
+macOS, the harness starts Obsidian directly and does not hide its window, but
+lays the page out at the tests' size, as on the Mac. It also makes the display
+2x, as a Mac's is, because a 2x screen scrolls in half pixels and the tests'
+measures of where a note rests assume it. Off macOS, the tests skip:
+
+- `harness.spec.ts`'s checks that the window stays hidden.
+- `webkit.spec.ts` — Linux's WebKit is another port, which paints the current
+  match differently, so it cannot stand in for iOS (ADR 0009).
+- The checkbox centering tests (D-104) — the nudge is tuned for Apple's system
+  font, as Obsidian's own are. Linux's default font leaves the box 1–2px off.
+
+**Why:** a pull request should not merge with a broken stream, and a check that
+needs this Mac is easy to skip. The repo is public, so runners are free. The
+first runs in a Linux container here also found tests that passed on the Mac by
+timing alone: Escape pressed before a menu listened for it, and a test that went
+on before Obsidian had read the daily notes settings the last one wrote. Both
+now wait.
+
+**Rejected:**
+
+- The harness's `E2E_SHOW_WINDOW=1` mode — it lays the page out at the window's
+  size, not the tests', so desktop tests ran at 960×539.
+- A macOS runner — it would add a second job for the same tests. Linux finds
+  what the Mac run would, apart from macOS's own window handling.
+- `--no-sandbox` — the sysctl that lets Chromium's sandbox run keeps the app as
+  users run it.
+
 ## D-228 — Outside iOS, a hidden note past the unloading distance is unloaded mid-scroll (2026-11-10)
 
 Supersedes in part D-032 and the rule on unloading in
@@ -4378,35 +4410,3 @@ is handled first.
 
 - One value that also holds `is-far` and `leaving` — it would list every
   combination, as D-137 says.
-
-## D-227 — CI runs the e2e tests on Linux (2026-11-07)
-
-**Decision:** changes D-148. A second job in `.github/workflows/ci.yml` runs
-`pnpm run test:e2e` on `ubuntu-latest`, in Xvfb, against Obsidian's Linux build,
-pinned by version and SHA-256. The iPhone, iPad and memory tests stay local. Off
-macOS, the harness starts Obsidian directly and does not hide its window, but
-lays the page out at the tests' size, as on the Mac. It also makes the display
-2x, as a Mac's is, because a 2x screen scrolls in half pixels and the tests'
-measures of where a note rests assume it. Off macOS, the tests skip:
-
-- `harness.spec.ts`'s checks that the window stays hidden.
-- `webkit.spec.ts` — Linux's WebKit is another port, which paints the current
-  match differently, so it cannot stand in for iOS (ADR 0009).
-- The checkbox centering tests (D-104) — the nudge is tuned for Apple's system
-  font, as Obsidian's own are. Linux's default font leaves the box 1–2px off.
-
-**Why:** a pull request should not merge with a broken stream, and a check that
-needs this Mac is easy to skip. The repo is public, so runners are free. The
-first runs in a Linux container here also found tests that passed on the Mac by
-timing alone: Escape pressed before a menu listened for it, and a test that went
-on before Obsidian had read the daily notes settings the last one wrote. Both
-now wait.
-
-**Rejected:**
-
-- The harness's `E2E_SHOW_WINDOW=1` mode — it lays the page out at the window's
-  size, not the tests', so desktop tests ran at 960×539.
-- A macOS runner — it would add a second job for the same tests. Linux finds
-  what the Mac run would, apart from macOS's own window handling.
-- `--no-sandbox` — the sysctl that lets Chromium's sandbox run keeps the app as
-  users run it.
