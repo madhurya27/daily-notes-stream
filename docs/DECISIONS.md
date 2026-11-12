@@ -4318,6 +4318,10 @@ measures of where a note rests assume it. Off macOS, the tests skip:
 - The checkbox centering tests (D-104) — the nudge is tuned for Apple's system
   font, as Obsidian's own are. Linux's default font leaves the box 1–2px off.
 
+Obsidian emulates the iOS app only on macOS, so on Linux the mobile project
+takes the plugin's other mobile path, the one Android takes. Tests about iOS
+alone check the `iosApp` fixture, not `mobileLayout`.
+
 **Why:** a pull request should not merge with a broken stream, and a check that
 needs this Mac is easy to skip. The repo is public, so runners are free. The
 first runs in a Linux container here also found tests that passed on the Mac by
@@ -4329,8 +4333,10 @@ now wait.
 
 - The harness's `E2E_SHOW_WINDOW=1` mode — it lays the page out at the window's
   size, not the tests', so desktop tests ran at 960×539.
-- A macOS runner — it would add a second job for the same tests. Linux finds
-  what the Mac run would, apart from macOS's own window handling.
+- A macOS runner as well, for the iOS path — it emulates iOS in Chromium, which
+  every e2e run on this Mac already does, and a scrolling change also runs on a
+  real iPhone (ADR 0016). The harness's window hiding was never tried on a
+  runner.
 - `--no-sandbox` — the sysctl that lets Chromium's sandbox run keeps the app as
   users run it.
 
