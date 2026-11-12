@@ -308,6 +308,8 @@ export class NoteStream {
 
     onFileDelete(file: TAbstractFile) {
         if (!(file instanceof TFile)) return;
+        // A save still waiting would list the note again.
+        this.pendingModified.delete(file.path);
         void this.enqueueChange(async () => this.removeNote(file, file.path));
     }
 

@@ -644,6 +644,20 @@ describe("a note modified", () => {
         expect(emptyState()?.textContent).toMatch(/hidden/);
     });
 
+    // Obsidian reports a new note's metadata a moment after creating it, and
+    // the note can be deleted before the save's wait ends.
+    it("does not put back a note deleted before the window elapses", async () => {
+        const [kept, doomed] = [note("2025-01-02"), note("2025-01-01")];
+        await load(kept, doomed);
+
+        stream.onFileModify(doomed);
+        stream.onFileDelete(doomed);
+        await vi.runAllTimersAsync();
+
+        expect(shown()).toEqual([kept.path]);
+        expect(service.indexOf(doomed.path)).toBe(-1);
+    });
+
     it("puts back a note no longer hidden, in its place", async () => {
         const shownAgain = note("2025-01-02");
         hide(shownAgain);
