@@ -33,6 +33,14 @@ there is a screen recording of them (D-099).
       make the guess wrong (0 in 15 on Linux). Branch
       `fix/back-place-after-load` reads the place again after loading batches,
       which a unit test shows can matter, but did not fix it.
+- [ ] Find why Chromium sometimes loses the promise of the e2e startup's
+      `page.evaluate` that closes settings ("Resulting promise was garbage
+      collected"). It failed 2 of about 22 full runs on Linux, each at a run's
+      first startup, so `startUp` runs it again and CI warns of each retry. A
+      reload would give a different error, and `setting.close()` returns
+      nothing. Not reproduced in 1,300 startups in the Linux container: in a
+      loop, in 150 fresh containers, and in 50 containers that install, build
+      and run `bases-cards.spec.ts` first.
 - [ ] A PDF inside a line of text still holds up the queue (D-202).
 - [ ] On or after 2026-11-13, update to ESLint 10 and `eslint-plugin-obsidianmd`
       0.5.1, and remove `@eslint/js`, which nothing imports. 0.5.1 no longer
