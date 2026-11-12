@@ -4265,8 +4265,9 @@ without any test noticing. Calendar's adapter calls methods it does not publish
   its manifest, and so the directory, still installs 0.5.68.
 - Failing the workflow instead of opening an issue — it would fail every day
   until the pin moved, and a skipped release would never stop failing.
-- Running the e2e tests against the new version in CI — they run on the Mac
-  (D-148).
+- Running the e2e tests against the new version on every pull request — one
+  would then fail for another plugin's release, not its own change. Pull
+  requests use the pin (D-227).
 
 ## D-225 — The core daily notes settings are read even while the plugin is off (2026-11-07)
 
