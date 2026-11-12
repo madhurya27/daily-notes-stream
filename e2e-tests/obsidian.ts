@@ -692,6 +692,11 @@ interface WorkerFixtures {
      * phone.
      */
     mobileLayout: boolean;
+    /**
+     * Whether the plugin runs as the iOS app. Obsidian emulates it only on
+     * macOS; elsewhere the mobile project takes the path Android does (D-227).
+     */
+    iosApp: boolean;
 }
 
 /**
@@ -740,6 +745,7 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
         { auto: true },
     ],
     mobileLayout: [false, { scope: "worker", option: true }],
+    iosApp: [async ({ mobileLayout }, use) => use(mobileLayout && process.platform === "darwin"), { scope: "worker" }],
     obsidian: [
         async ({ mobileLayout }, use: (app: ObsidianApp) => Promise<void>, workerInfo) => {
             const { app, leave, discard } = await openWindow(`${workerInfo.parallelIndex}`);

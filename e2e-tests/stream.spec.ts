@@ -447,13 +447,12 @@ test.describe("daily notes stream in real Obsidian", () => {
         });
 
         // On iOS, unloading a note while scrolling stops the scroll, so nothing
-        // is unloaded until scrolling stops (D-032, D-228). The mobile project
-        // runs as the iOS app.
+        // is unloaded until scrolling stops (D-032, D-228).
         test("keeps a note scrolled far above rendered until the scroll stops, on iOS", async ({
             obsidian,
-            mobileLayout,
+            iosApp,
         }) => {
-            test.skip(!mobileLayout, "outside iOS, a hidden note unloads mid-scroll");
+            test.skip(!iosApp, "outside iOS, a hidden note unloads mid-scroll");
             const { page } = obsidian;
             const container = await openStream(page);
             const top = container.locator(".daily-note-block").first();
@@ -479,11 +478,8 @@ test.describe("daily notes stream in real Obsidian", () => {
 
         // A long scroll never stops, so a hidden note far above is unloaded
         // while it goes on (D-228).
-        test("unloads a hidden note scrolled far above while the scroll goes on", async ({
-            obsidian,
-            mobileLayout,
-        }) => {
-            test.skip(mobileLayout, "the mobile project runs as the iOS app, which waits for the scroll to stop");
+        test("unloads a hidden note scrolled far above while the scroll goes on", async ({ obsidian, iosApp }) => {
+            test.skip(iosApp, "iOS waits for the scroll to stop");
             const { page } = obsidian;
             const container = await openStream(page);
             await expect(container.locator(".daily-note-block").first().locator(".daily-note-content")).toBeVisible();
