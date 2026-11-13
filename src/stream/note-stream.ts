@@ -558,16 +558,25 @@ export class NoteStream {
      */
     refresh(): Promise<void> {
         return this.enqueueChange(async () => {
-            // While the stream is shifted, the notes are not where the scroll
-            // position says.
-            this.window.handOver();
-            const place = this.place();
-            const date = place && this.service.dates()[this.service.indexOf(place.path)];
-            if (!(await this.service.refreshIfSettingsChanged())) return this.rerenderAll();
-            await this.reload();
-            // Stryker disable next-line LogicalOperator: a place is read from a listed note, which always has a date.
-            if (place && date) await this.returnNear(place, date);
+            if (!(await this.reloadAtPlace())) await this.rerenderAll();
         });
+    }
+
+    /**
+     * If what the service lists changed, reloads the stream and returns to the
+     * reader's place. Returns whether it reloaded.
+     */
+    private async reloadAtPlace(): Promise<boolean> {
+        // While the stream is shifted, the notes are not where the scroll
+        // position says.
+        this.window.handOver();
+        const place = this.place();
+        const date = place && this.service.dates()[this.service.indexOf(place.path)];
+        if (!(await this.service.refreshIfSettingsChanged())) return false;
+        await this.reload();
+        // Stryker disable next-line LogicalOperator: a place is read from a listed note, which always has a date.
+        if (place && date) await this.returnNear(place, date);
+        return true;
     }
 
     /**
@@ -595,13 +604,15 @@ export class NoteStream {
 
     /**
      * A change to the settings can change which files are daily notes, so the
-     * list and every rendered note may be wrong.
+     * list and every rendered note may be wrong. It can also find a change to
+     * the plugin's own settings before `refresh` does.
      */
     onDailyNoteSettingsChange: Debouncer<[], void> = this.timers.debounce(
         () => {
             void this.enqueueChange(async () => {
-                if (!(await this.service.refreshIfSettingsChanged())) return;
-                await this.reload();
+                // Any write in the config folder comes here. Handing over the
+                // scroll would stop a glide on iOS, so only for a new list.
+                if (this.service.listOutdated()) await this.reloadAtPlace();
             });
         },
         CONFIG_DEBOUNCE_MS,

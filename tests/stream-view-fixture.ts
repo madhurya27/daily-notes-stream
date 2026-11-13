@@ -32,6 +32,7 @@ export function makeService(): DailyNoteService {
         streamedNotes: vi.fn().mockReturnValue([]),
         initialize: vi.fn().mockResolvedValue(undefined),
         refreshIfSettingsChanged: vi.fn().mockResolvedValue(false),
+        listOutdated: vi.fn().mockReturnValue(false),
         catchUpDay: vi.fn().mockReturnValue([]),
         insertSorted: vi.fn().mockReturnValue(null),
         removeSorted: vi.fn().mockReturnValue(-1),

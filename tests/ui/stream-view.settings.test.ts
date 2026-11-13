@@ -39,13 +39,13 @@ describe("DailyNotesStreamView — Obsidian's daily-notes settings changed", () 
         writeConfig(app);
         await settle();
 
-        expect(service.refreshIfSettingsChanged).toHaveBeenCalledOnce();
+        expect(service.listOutdated).toHaveBeenCalledOnce();
     });
 
     it("ignores writes outside the config directory", async () => {
         writeConfig(app, "Notes/2025-01-01.md");
         await settle();
 
-        expect(service.refreshIfSettingsChanged).not.toHaveBeenCalled();
+        expect(service.listOutdated).not.toHaveBeenCalled();
     });
 });

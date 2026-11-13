@@ -511,6 +511,20 @@ describe("DailyNoteService", () => {
             expect(svc.formatDate(moment("2025-01-03", "YYYY-MM-DD", true))).toBe("03-01-2025");
         });
 
+        it("says the list is out of date once the folder changed, until it is rebuilt", async () => {
+            __setMockSettings({ format: "YYYY-MM-DD", folder: "Notes" });
+            __setMockNotes(["Notes/2025-01-01.md"]);
+            const svc = new DailyNoteService(__mockMarkdownFiles, __mockSettings);
+            await svc.initialize();
+            expect(svc.listOutdated()).toBe(false);
+
+            __setMockSettings({ format: "YYYY-MM-DD", folder: "Journal" });
+
+            expect(svc.listOutdated()).toBe(true);
+            await svc.refreshIfSettingsChanged();
+            expect(svc.listOutdated()).toBe(false);
+        });
+
         it("reports true on the first call when initialize() never ran", async () => {
             __setMockSettings({ format: "YYYY-MM-DD", folder: "Notes" });
             __setMockNotes(["Notes/2025-01-01.md"]);
@@ -838,6 +852,16 @@ describe("DailyNoteService: hidden notes", () => {
         expect(await svc.refreshIfSettingsChanged()).toBe(true);
         expect(prepared).toHaveLength(2);
         expect(paths(svc)).toEqual(["Notes/2025-01-02.md", "Notes/2025-01-01.md"]);
+    });
+
+    it("says the list is out of date once the filter's signature changes", async () => {
+        const { filter, resign } = filterHiding([]);
+        const svc = new DailyNoteService(__mockMarkdownFiles, __mockSettings, new ParsedDates(), filter);
+        await svc.initialize();
+
+        resign("b");
+
+        expect(svc.listOutdated()).toBe(true);
     });
 
     it("tells whether a note belongs in the list, preparing the filter for a daily note alone", async () => {

@@ -1030,6 +1030,16 @@ describe("refresh", () => {
         expect(shown()).toEqual(["Notes/2025-01-01.md"]);
     });
 
+    it("builds the reloaded stream once, without rendering it all again", async () => {
+        const newest = note("2025-01-03");
+        await load(newest, note("2025-01-01"));
+        hide(newest);
+
+        await stream.refresh();
+
+        expect(noteWindow.detach).toHaveBeenCalledOnce();
+    });
+
     it("re-arms the sentinel against the rebuilt stream", async () => {
         await listed(note("2025-01-01"));
         await stream.refresh();
@@ -2025,6 +2035,19 @@ describe("the stream's place", () => {
             rebuildsAt(notes[5]!);
 
             await stream.refresh();
+
+            expect(pane.scrollTop).toBe(3150);
+        });
+
+        // Any write in the config folder checks the list again after a second,
+        // and can find the change before the refresh does.
+        it("returns to the note it was at when a config write finds the change first", async () => {
+            vi.useFakeTimers();
+            hide(notes[20]!);
+            rebuildsAt(notes[5]!);
+
+            stream.onDailyNoteSettingsChange();
+            await vi.runAllTimersAsync();
 
             expect(pane.scrollTop).toBe(3150);
         });

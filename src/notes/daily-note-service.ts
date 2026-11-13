@@ -96,10 +96,18 @@ export class DailyNoteService {
      * signature changed. Returns whether it built the list again.
      */
     async refreshIfSettingsChanged(): Promise<boolean> {
+        if (!this.listOutdated()) return false;
         const format = this.readFormat();
-        if (this.signature(format) === this.builtFrom) return false;
         this.rebuilt(await this.buildSorted(format), format);
         return true;
+    }
+
+    /**
+     * Whether the format, the folder or the filter's signature changed since
+     * the list was built, so `refreshIfSettingsChanged` would build it again.
+     */
+    listOutdated(): boolean {
+        return this.signature(this.readFormat()) !== this.builtFrom;
     }
 
     /**
