@@ -33,6 +33,11 @@ there is a screen recording of them (D-099).
       make the guess wrong (0 in 15 on Linux). Branch
       `fix/back-place-after-load` reads the place again after loading batches,
       which a unit test shows can matter, but did not fix it.
+- [ ] Find why `settings.spec.ts`'s "redraws the stream on a setting's change"
+      once found its note 937 px off, on desktop on Linux, after the test
+      scrolled it to the top and before any setting changed. Seen once in 4 full
+      runs in the Linux container. The test retries, and CI warns of each retry.
+      It may be the same as Back's 233 px, which is not shown.
 - [ ] Find why Chromium sometimes loses the promise of the e2e startup's
       `page.evaluate` that closes settings ("Resulting promise was garbage
       collected"). It failed 2 of about 22 full runs on Linux, each at a run's
