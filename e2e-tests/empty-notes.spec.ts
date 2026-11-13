@@ -304,8 +304,14 @@ test.describe("empty daily notes", () => {
             await writeNote(page, tall, `${text}\n![[Embedded]]\n`);
             try {
                 const pane = (await openStream(page)).locator("xpath=..");
-                // Its batch loads when the end comes into view.
-                await pane.evaluate((el) => el.scrollTo({ top: el.scrollHeight, behavior: "instant" }));
+                // Its batch loads when the end comes into view. The tall note
+                // can grow the page first, putting the end out of reach.
+                await expect
+                    .poll(async () => {
+                        await pane.evaluate((el) => el.scrollTo({ top: el.scrollHeight, behavior: "instant" }));
+                        return block(page, reading).count();
+                    })
+                    .toBe(1);
                 await readAt(page, reading);
                 const before = await offsetOf(page, reading);
 
