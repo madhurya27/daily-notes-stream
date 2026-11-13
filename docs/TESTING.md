@@ -61,8 +61,8 @@ come from this vault.
 
 These tests use real touches on Obsidian, on an iPhone or iPad plugged into the
 Mac. They use a vault called `Stream E2E`, stored on the phone, which the tests
-create. A run leaves the phone as it found it: Obsidian opens the vault it had
-open before, then closes, and the phone goes back to the Home Screen.
+create. A run ends with Obsidian closed and the phone on the Home Screen.
+Obsidian next opens `Stream E2E`; switch back to your own vault by hand.
 WebDriverAgent turns off the keyboard's autocorrection and predictive text, and
 the run turns both back on at the end. To leave one of them off, set
 `IOS_KEYBOARD_AUTOCORRECT=off` or `IOS_KEYBOARD_PREDICTION=off` (D-112), on the

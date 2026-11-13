@@ -19,7 +19,7 @@ import {
 export type Glide = { ending: GlideEnding; faults: string[]; changes: GlideChange[] };
 import { keyboardAfterRun } from "./keyboard";
 import { connect, OBSIDIAN, SAFARI } from "./session";
-import { LANE_SLOT, LANE_TEXT, returnToTestersVault, useVault } from "./vault";
+import { LANE_SLOT, LANE_TEXT, useVault } from "./vault";
 
 /** XCUIKeyModifierCommand, for `mobile: keys`. */
 const COMMAND = 1 << 4;
@@ -1929,9 +1929,10 @@ export const test = base.extend<{ quietConsole: void; screenNoted: void }, { pho
                 await use(phone);
             } finally {
                 await driver.setOrientation(found);
-                // Leave the phone as the tester left it: their vault, Obsidian
-                // closed, and the Home Screen showing.
-                await returnToTestersVault(phone);
+                // Obsidian closed and the Home Screen showing. The tests' vault
+                // stays open: switching back to the tester's vault and quitting
+                // Obsidian while it opens makes Obsidian 1.15.1 start at its
+                // vault screen, where the next run cannot open a vault.
                 await driver.execute("mobile: terminateApp", { bundleId: OBSIDIAN });
                 await driver.execute("mobile: pressButton", { name: "home" });
                 await driver.updateSettings(keyboardAfterRun(process.env));
