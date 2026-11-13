@@ -13,6 +13,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync, copyFi
 import { tmpdir } from "os";
 import { dirname, join, resolve } from "path";
 import { fileURLToPath } from "url";
+import { watchForFreeze } from "./freeze-watch";
 import { retryLostPromise } from "./lost-promise";
 import { TARGET_PHONE_WORKLOAD_MS, WORKLOAD_NOTE, cpuSlowdown, timeWorkload } from "./phone-speed";
 
@@ -736,7 +737,9 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
     freshPluginState: [
         async ({ obsidian }, use, testInfo) => {
             await resetPluginState(obsidian.page);
+            const stopWatching = await watchForFreeze(obsidian.page, (text) => console.log(text));
             await use();
+            await stopWatching();
             if (testInfo.status !== testInfo.expectedStatus) testFailed = true;
         },
         { auto: true },
