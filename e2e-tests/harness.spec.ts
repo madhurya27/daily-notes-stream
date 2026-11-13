@@ -131,7 +131,9 @@ test("keeps drawing frames after a test changes the viewport", async ({ obsidian
             })
     );
 
-    expect(framesInASecond).toBeGreaterThan(30);
+    // Far above the two frames a second this is about. A busy 2-CPU Linux
+    // runner draws as few as 30.
+    expect(framesInASecond).toBeGreaterThan(10);
     await page.evaluate(() => window.app.workspace.getLeaf(false).detach());
 });
 
