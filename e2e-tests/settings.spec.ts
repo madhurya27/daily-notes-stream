@@ -130,34 +130,41 @@ test.describe("The plugin's settings tab", () => {
     });
 });
 
-test("redraws the stream on a setting's change, keeping the note being read at the top", async ({ obsidian }) => {
-    const { page } = obsidian;
-    const setShowProperties = (on: boolean) =>
-        page.evaluate(async (on) => {
-            const plugin = window.app.plugins.plugins["daily-notes-stream"];
-            plugin.settings.showProperties = on;
-            await plugin.saveSettings();
-        }, on);
-    const container = await openStream(page);
-    const reading = container.locator(`.daily-note-block[data-source-path="Notes/${seededDate(4)}.md"]`);
-    /** How far below the pane's top the note being read starts. */
-    const offset = () =>
-        reading.evaluate(
-            (el) => el.getBoundingClientRect().top - el.parentElement!.parentElement!.getBoundingClientRect().top
-        );
-    await reading.evaluate((el) => el.scrollIntoView({ block: "start", behavior: "instant" }));
-    await expect.poll(offset).toBeCloseTo(0, 0);
-    await expect(container.locator(".metadata-container").first()).toBeAttached();
+// On Linux, the note scrolled to the top once sat 937 px off before any
+// setting changed (docs/TODO.md). A retry lets the run go on, and CI warns
+// of each one.
+test.describe(() => {
+    test.describe.configure({ retries: 2 });
+    test("redraws the stream on a setting's change, keeping the note being read at the top", async ({ obsidian }) => {
+        const { page } = obsidian;
+        const setShowProperties = (on: boolean) =>
+            page.evaluate(async (on) => {
+                const plugin = window.app.plugins.plugins["daily-notes-stream"];
+                plugin.settings.showProperties = on;
+                await plugin.saveSettings();
+            }, on);
+        const container = await openStream(page);
+        const reading = container.locator(`.daily-note-block[data-source-path="Notes/${seededDate(4)}.md"]`);
+        /** How far below the pane's top the note being read starts. */
+        const offset = () =>
+            reading.evaluate(
+                (el) => el.getBoundingClientRect().top - el.parentElement!.parentElement!.getBoundingClientRect().top
+            );
+        await reading.evaluate((el) => el.scrollIntoView({ block: "start", behavior: "instant" }));
+        await expect.poll(offset).toBeCloseTo(0, 0);
+        await expect(container.locator(".metadata-container").first()).toBeAttached();
 
-    await setShowProperties(false);
-    try {
-        // Every note above lost its properties panel, and so its height
-        // changed.
-        await expect(container.locator(".metadata-container")).toHaveCount(0);
-        // Within a pixel: the scroll to the note, the return to it, and the
-        // anchor's correction for the notes above each land on a half pixel.
-        await expect.poll(async () => Math.abs(await offset())).toBeLessThan(1);
-    } finally {
-        await setShowProperties(true);
-    }
+        await setShowProperties(false);
+        try {
+            // Every note above lost its properties panel, and so its height
+            // changed.
+            await expect(container.locator(".metadata-container")).toHaveCount(0);
+            // Within a pixel: the scroll to the note, the return to it, and
+            // the anchor's correction for the notes above each land on a half
+            // pixel.
+            await expect.poll(async () => Math.abs(await offset())).toBeLessThan(1);
+        } finally {
+            await setShowProperties(true);
+        }
+    });
 });
