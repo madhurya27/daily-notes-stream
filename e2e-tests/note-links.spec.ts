@@ -103,7 +103,12 @@ test.describe("links in a note", () => {
         // A native menu (the macOS default) is never in the DOM, so it cannot
         // be read.
         await page.evaluate(() => window.app.vault.setConfig("nativeMenus", false));
-        await (await firstLink(page, "Reading list")).click({ button: "right" });
+        const link = await firstLink(page, "Reading list");
+        // A phone opens it with a long press. A right-click leaves the pointer
+        // over the sheet, and over "Copy path" it opens a second sheet, whose
+        // background covers the first.
+        if (mobileLayout) await link.dispatchEvent("contextmenu", { button: 2 });
+        else await link.click({ button: "right" });
 
         const menu = page.locator(".menu");
         await expect(menu.getByText("Open in new tab")).toBeVisible();
