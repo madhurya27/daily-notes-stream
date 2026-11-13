@@ -49,6 +49,7 @@ vi.mock("../../src/stream/note-window", () => ({
         detach = vi.fn();
         remove = vi.fn();
         render = vi.fn();
+        isDrawn = vi.fn().mockReturnValue(true);
         onResize = vi.fn();
         forgetHeights = vi.fn();
         onScroll = vi.fn();
@@ -1603,6 +1604,64 @@ describe("what a search moves through", () => {
         await ready;
 
         expect(filledAtRender).toEqual([false, true]);
+    });
+
+    /**
+     * Draws a note when asked, through the stream's queue. The first `stopped`
+     * draws give up partway, as a far note's draw does when the window hides
+     * it meanwhile (ADR 0023). A draw that finishes calls `draw` with the
+     * block.
+     */
+    function drawsAfterStops(stopped: number, draw: (block: HTMLElement) => void = () => {}): () => boolean {
+        let drawn = false;
+        noteWindow.isDrawn.mockImplementation(() => drawn);
+        noteWindow.render.mockImplementation((block: HTMLElement) => {
+            if (drawn) return;
+            void noteWindow.enqueue(async () => {
+                // A draw spans tasks.
+                await new Promise((resolve) => setTimeout(resolve));
+                if (stopped-- > 0) return;
+                draw(block);
+                drawn = true;
+            });
+        });
+        return () => drawn;
+    }
+
+    // A search reads the note's highlights as soon as it arrives.
+    it("draws the note again each time its draw was stopped, before handing it back", async () => {
+        const drawn = drawsAfterStops(2);
+
+        const handed = await stream.ready(notes[3]!).then((block) => ({ block, drawn: drawn() }));
+
+        expect(handed).toEqual({ block: stream.blockOf(notes[3]!), drawn: true });
+    });
+
+    // Drawn again, its Bases load again.
+    it("hands back a note drawn again once its Bases fill in", async () => {
+        vi.useFakeTimers();
+        const base = document.createElement("div");
+        base.addClass("bases-cards-container", "is-loading");
+        drawsAfterStops(1, (block) => block.createDiv({ cls: BASE_SLOT_CLASS }).appendChild(base));
+        let handed = false;
+
+        void stream.ready(notes[3]!).then(() => (handed = true));
+        await vi.advanceTimersByTimeAsync(10 * FRAME_MS);
+        expect(handed).toBe(false);
+
+        base.removeClass("is-loading");
+        await vi.advanceTimersByTimeAsync(FRAME_MS);
+        expect(handed).toBe(true);
+    });
+
+    it("hands back nothing if the note leaves the stream before it is drawn", async () => {
+        drawsAfterStops(Infinity);
+        const block = stream.ready(notes[3]!);
+        await flushPromises();
+
+        stream.onFileDelete(notes[3]!);
+
+        expect(await block).toBeNull();
     });
 
     /**

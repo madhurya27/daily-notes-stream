@@ -1965,6 +1965,39 @@ describe("NoteWindowManager render", () => {
  * note's height only changes where the anchor is told in the same task (ADR
  * 0013).
  */
+describe("NoteWindowManager.isDrawn", () => {
+    it("tells a note once it is drawn, not while it waits or draws", async () => {
+        const { manager } = makeManager(makeRenderer({ render: () => new Promise(() => {}) }));
+        const block = manager.add(FILE);
+        document.body.appendChild(block);
+        expect(manager.isDrawn(block)).toBe(false);
+
+        manager.render(block);
+        await settle();
+
+        expect(manager.isDrawn(block)).toBe(false);
+    });
+
+    it("tells a drawn note until it is unloaded", async () => {
+        const { manager } = makeManager();
+        const block = manager.add(FILE);
+        document.body.appendChild(block);
+
+        manager.render(block);
+        await settle();
+        expect(manager.isDrawn(block)).toBe(true);
+
+        fire(observers.unload, block, false);
+        await still();
+        expect(manager.isDrawn(block)).toBe(false);
+    });
+
+    it("tells no block it does not own", () => {
+        const { manager } = makeManager();
+        expect(manager.isDrawn(document.createElement("div"))).toBe(false);
+    });
+});
+
 describe("NoteWindowManager pins a rendered note", () => {
     const pinned = (block: HTMLElement) => block.style.getPropertyValue("--daily-note-pinned-height");
     let told: MockInstance<() => void>;

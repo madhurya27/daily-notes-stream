@@ -408,14 +408,21 @@ export class NoteStream {
         await this.enqueue(async () => {
             file = await this.loadThrough(index);
         });
-        const block = file ? this.blocks.get(file.path) : null;
+        const path = file?.path;
+        const block = path ? this.blocks.get(path) : null;
         if (!block) return null;
         this.window.render(block);
         await this.layout.drain();
         await basesLoaded(block);
-        // While still far away, it may have been hidden in the meantime (ADR
-        // 0023). The caller needs it shown.
+        // While still far away, it may have been hidden, or its draw stopped,
+        // in the meantime (ADR 0023). The caller needs it shown and drawn.
         this.window.render(block);
+        while (!this.window.isDrawn(block)) {
+            await this.layout.drain();
+            if (this.blocks.get(path!) !== block) return null;
+            await basesLoaded(block);
+            this.window.render(block);
+        }
         return block;
     }
 

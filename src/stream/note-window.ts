@@ -605,6 +605,12 @@ export class NoteWindowManager {
         this.queue(block, "from-start");
     }
 
+    /** Whether `block` holds its drawn note. */
+    isDrawn(block: HTMLElement): boolean {
+        const window = this.windows.get(block);
+        return window !== undefined && componentOf(window) !== null;
+    }
+
     /**
      * Queues a render of `block` in `order`, or in the order the reader reaches
      * it. If it already holds content, shows it if hidden instead. If it is
