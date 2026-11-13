@@ -4417,3 +4417,21 @@ is handled first.
 
 - One value that also holds `is-far` and `leaving` — it would list every
   combination, as D-137 says.
+
+## D-231 — On CI, every e2e test gets one retry, for now (2026-11-13)
+
+**Decision:** `playwright.config.ts` sets `retries: 1` when `CI` is set, so it
+applies on GitHub's runners but not on the Mac. CI warns of each test that
+passed only on its retry, as it does for the tests with their own retries
+(D-227). This is temporary: docs/TODO.md says when to remove it.
+
+**Why:** in 4 runs of one commit on GitHub's runner, 3 failed, each on a
+different test that had passed in every earlier run. Fixing each before turning
+CI on would keep CI off for a long time. A flaky test still shows in each run's
+warnings, so it can be found again.
+
+**Rejected:**
+
+- A retry only on each test seen to fail — a run stops at the next new one.
+- Skipping the flaky tests — a skipped test never shows that it still fails.
+- More retries — a test that fails twice in a row is more likely broken.

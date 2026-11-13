@@ -52,6 +52,15 @@ there is a screen recording of them (D-099).
       closed, and answered nothing, a key press included, for the test's 60 s.
       Not seen in 4 full runs in the Linux container. The harness now logs where
       the page's JavaScript is when a page stops answering for 10 s.
+- [ ] Remove the retry every e2e test gets on CI (D-231) once 10 CI runs in a
+      row warn of no test that passed only on a retry. These failed once each in
+      4 runs of one commit on GitHub's runner, and passed on the rest:
+    - `stream.spec.ts`'s "takes a note a few panes above out of the layout
+      mid-glide", on desktop: the glide never passed the pane's top.
+    - `scroll-boxes.spec.ts`'s "ends a text cell too long for its column", on
+      mobile: the 5th Base's long text cell had not drawn after 60 s.
+    - `search.spec.ts`'s "keeps the match on screen while the Bases fill in", on
+      mobile: the count read "1 / 1 · hidden" for 15 s, not "1 / 1".
 - [ ] A PDF inside a line of text still holds up the queue (D-202).
 - [ ] On or after 2026-11-13, update to ESLint 10 and `eslint-plugin-obsidianmd`
       0.5.1, and remove `@eslint/js`, which nothing imports. 0.5.1 no longer
