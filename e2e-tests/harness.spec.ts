@@ -1,4 +1,5 @@
 import { test, expect, HIDES_WINDOW, LAYOUT_VIEWPORT, openWindow } from "./obsidian";
+import { watchForFreeze } from "./freeze-watch";
 
 test("the test window follows the system color scheme", async ({ obsidian }) => {
     const { page } = obsidian;
@@ -144,5 +145,25 @@ test("a new worker uses the window of the one before", async ({ obsidian }, test
         expect(await app.page.evaluate(() => window.app.workspace.layoutReady)).toBe(true);
     } finally {
         await leave();
+    }
+});
+
+test("names where the page's JavaScript is when the page stops answering", async ({ obsidian }) => {
+    const reports: string[] = [];
+    const stop = await watchForFreeze(obsidian.page, (text) => reports.push(text), { everyMs: 200, withinMs: 1_000 });
+    try {
+        await obsidian.page.evaluate(() => {
+            function spinForThreeSeconds() {
+                const end = Date.now() + 3_000;
+                while (Date.now() < end);
+            }
+            spinForThreeSeconds();
+        });
+
+        await expect.poll(() => reports).toHaveLength(1);
+        expect(reports[0]).toContain("at spinForThreeSeconds");
+        expect(reports[0]).toContain(">>>");
+    } finally {
+        await stop();
     }
 });

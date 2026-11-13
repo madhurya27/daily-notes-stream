@@ -41,6 +41,12 @@ there is a screen recording of them (D-099).
       nothing. Not reproduced in 1,300 startups in the Linux container: in a
       loop, in 150 fresh containers, and in 50 containers that install, build
       and run `bases-cards.spec.ts` first.
+- [ ] Find why a page froze once on Linux CI: `jump.spec.ts`'s "narrows to what
+      is typed", on desktop, right after a Back test on the same worker. It
+      stopped drawing about 130 ms into `openStream`, as the old stream was
+      closed, and answered nothing, a key press included, for the test's 60 s.
+      Not seen in 4 full runs in the Linux container. The harness now logs where
+      the page's JavaScript is when a page stops answering for 10 s.
 - [ ] A PDF inside a line of text still holds up the queue (D-202).
 - [ ] On or after 2026-11-13, update to ESLint 10 and `eslint-plugin-obsidianmd`
       0.5.1, and remove `@eslint/js`, which nothing imports. 0.5.1 no longer
