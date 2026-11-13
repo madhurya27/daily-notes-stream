@@ -56,11 +56,16 @@ there is a screen recording of them (D-099).
       row warn of no test that passed only on a retry. These failed once each in
       4 runs of one commit on GitHub's runner, and passed on the rest:
     - `stream.spec.ts`'s "takes a note a few panes above out of the layout
-      mid-glide", on desktop: the glide never passed the pane's top.
+      mid-glide", on desktop: the 12,143 px note at the top was never hidden
+      during the 1.5 s glide. The glide steps on a 16 ms timer and ends one pane
+      past the hiding distance, but 10 runs each on a CPU slowed 6x and 20x
+      passed.
     - `scroll-boxes.spec.ts`'s "ends a text cell too long for its column", on
-      mobile: the 5th Base's long text cell had not drawn after 60 s.
-    - `search.spec.ts`'s "keeps the match on screen while the Bases fill in", on
-      mobile: the count read "1 / 1 · hidden" for 15 s, not "1 / 1".
+      mobile: the cell drew, then the Kanban Base above filled in and pushed
+      Words.base off screen, and Bases removed its rows before the test measured
+      the cell. 1 in 10 runs fails so on a CPU slowed 6x. Waiting for every Base
+      to fill in first failed 2 in 30 there, in new ways: a Base loading for 60
+      s, and the pane on a later note with the test's note hidden.
 - [ ] A PDF inside a line of text still holds up the queue (D-202).
 - [ ] On or after 2026-11-13, update to ESLint 10 and `eslint-plugin-obsidianmd`
       0.5.1, and remove `@eslint/js`, which nothing imports. 0.5.1 no longer
