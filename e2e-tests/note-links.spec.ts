@@ -113,6 +113,9 @@ test.describe("links in a note", () => {
         const menu = page.locator(".menu");
         await expect(menu.getByText("Open in new tab")).toBeVisible();
         await expect(menu.getByText("Bookmark...")).toBeVisible();
+        // Obsidian shows the menu at once, but listens for Escape only from a
+        // timer it starts then. A timer started after it runs after it.
+        await page.evaluate(() => new Promise((resolve) => setTimeout(resolve, 0)));
 
         // A phone's menu is a sheet over a background, and ignores Escape.
         if (mobileLayout) await page.locator(".suggestion-bg").click({ position: { x: 5, y: 5 } });

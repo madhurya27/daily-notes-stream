@@ -9,7 +9,7 @@ import {
     seededDate,
     today,
     todayNote,
-    writeDailyNotesConfig,
+    setDailyNotesConfig,
     writeNote,
     DAILY_NOTES_CONFIG,
 } from "./obsidian";
@@ -51,21 +51,14 @@ test.describe("empty daily notes", () => {
         await writeNote(page, TEMPLATE_PATH, TEMPLATE);
         await writeNote(page, EMPTY_NOTE, EMPTY_TEXT);
         await writeNote(page, await todayNote(page), EMPTY_TEXT);
-        writeDailyNotesConfig(vaultPath, { ...DAILY_NOTES_CONFIG, template: "Templates/Daily" });
-        await expect
-            .poll(() =>
-                page.evaluate(
-                    () => window.app.internalPlugins.getPluginById("daily-notes").instance.options.template as string
-                )
-            )
-            .toBe("Templates/Daily");
+        await setDailyNotesConfig(page, vaultPath, { ...DAILY_NOTES_CONFIG, template: "Templates/Daily" });
     });
 
     test.afterEach(async ({ obsidian }) => {
         const { page, vaultPath } = obsidian;
         await setHideEmptyNotes(page, false);
         await setShowLinkedMentions(page, true);
-        writeDailyNotesConfig(vaultPath, DAILY_NOTES_CONFIG);
+        await setDailyNotesConfig(page, vaultPath, DAILY_NOTES_CONFIG);
         const paths = [
             TEMPLATE_PATH,
             OTHER_TEMPLATE_PATH,
@@ -214,7 +207,7 @@ test.describe("empty daily notes", () => {
         await writeNote(page, ONLY_EMPTY_NOTE, EMPTY_TEXT);
         const container = await openStream(page);
 
-        writeDailyNotesConfig(vaultPath, {
+        await setDailyNotesConfig(page, vaultPath, {
             folder: "Empty",
             format: DAILY_NOTES_CONFIG.format,
             template: "Templates/Daily",
@@ -230,7 +223,10 @@ test.describe("empty daily notes", () => {
         const shown = await titles(page);
         await expect(shown.nth(1)).toHaveText(seededDate(0));
 
-        writeDailyNotesConfig(vaultPath, { ...DAILY_NOTES_CONFIG, template: OTHER_TEMPLATE_PATH.replace(/\.md$/, "") });
+        await setDailyNotesConfig(page, vaultPath, {
+            ...DAILY_NOTES_CONFIG,
+            template: OTHER_TEMPLATE_PATH.replace(/\.md$/, ""),
+        });
 
         await expect(shown.nth(1)).toHaveText(EMPTY_DAY);
     });

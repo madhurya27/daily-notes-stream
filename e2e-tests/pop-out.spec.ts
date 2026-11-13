@@ -60,7 +60,12 @@ test.describe("the stream in a pop-out window", () => {
         const blocks = popOut.locator(`${STREAM} .daily-note-block`);
 
         await expect(blocks).toHaveCount(10); // BATCH_SIZE
-        await blocks.last().scrollIntoViewIfNeeded();
+        // To the end, not to the last note: on a short pop-out, that note's
+        // middle is too far above the end to load more.
+        await popOut
+            .locator(STREAM)
+            .locator("xpath=..")
+            .evaluate((pane) => pane.scrollTo({ top: pane.scrollHeight, behavior: "instant" }));
         await expect(blocks).toHaveCount(SEEDED_DAYS);
         expect(errors).toEqual([]);
     });

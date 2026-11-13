@@ -1907,8 +1907,8 @@ Before the end, the next batch fills the space, and the hold keeps the place
 ## D-104 — A task's checkbox is centered on its words (2026-10-07)
 
 **Decision:** the box gets the text's font size, `vertical-align: middle`, and
-`top: -0.12em`. Tests keep it within 0.5px of the center at 12–28px in Chromium,
-and within 1px at 16px and 28px on an iPhone.
+`top: -0.12em`. Tests keep it within 0.5px of the center at 12–28px in Chromium
+on macOS, and within 1px at 16px and 28px on an iPhone.
 
 **Why:** Obsidian moves the box by a fixed 0.2em of its own 13.33px font, and
 the box grows with the text. On an iPhone, that left it 1.8px too high at 16px
@@ -2677,7 +2677,7 @@ Changed by D-215: the iPad gets the button, and its title is a label.
 **Decision:** `.github/workflows/ci.yml` runs formatting, lint, the e2e type
 check, the unit tests with coverage, and the build, on `ubuntu-latest`, for
 pushes to `main` and for pull requests. e2e, the iPhone tests and the memory
-tests are run locally.
+tests are run locally. Changed by D-227: e2e runs in CI too, on Linux.
 
 **Why:** Linux runners are free. The e2e tests start the macOS app through
 LaunchServices (`open -g -j`).
@@ -4265,8 +4265,9 @@ without any test noticing. Calendar's adapter calls methods it does not publish
   its manifest, and so the directory, still installs 0.5.68.
 - Failing the workflow instead of opening an issue — it would fail every day
   until the pin moved, and a skipped release would never stop failing.
-- Running the e2e tests against the new version in CI — they run on the Mac
-  (D-148).
+- Running the e2e tests against the new version on every pull request — one
+  would then fail for another plugin's release, not its own change. Pull
+  requests use the pin (D-227).
 
 ## D-225 — The core daily notes settings are read even while the plugin is off (2026-11-07)
 
@@ -4301,6 +4302,44 @@ no change users can see.
 - One file per daily notes plugin in `src/integrations/daily-notes/`, with an
   ordered list of sources — a list for two plugins. Revisit it when a third
   daily notes plugin is asked for.
+
+## D-227 — CI runs the e2e tests on Linux (2026-11-07)
+
+**Decision:** changes D-148. A second job in `.github/workflows/ci.yml` runs
+`pnpm run test:e2e` on `ubuntu-latest`, in Xvfb, against Obsidian's Linux build,
+pinned by version and SHA-256. The iPhone, iPad and memory tests stay local. Off
+macOS, the harness starts Obsidian directly and does not hide its window, but
+lays the page out at the tests' size, as on the Mac. It also makes the display
+2x, as a Mac's is, because a 2x screen scrolls in half pixels and the tests'
+measures of where a note rests assume it. Off macOS, the tests skip:
+
+- `harness.spec.ts`'s checks that the window stays hidden.
+- `webkit.spec.ts` — Linux's WebKit is another port, which paints the current
+  match differently, so it cannot stand in for iOS (ADR 0009).
+- The checkbox centering tests (D-104) — the nudge is tuned for Apple's system
+  font, as Obsidian's own are. Linux's default font leaves the box 1–2px off.
+
+Obsidian emulates the iOS app only on macOS, so on Linux the mobile project
+takes the plugin's other mobile path, the one Android takes. Tests about iOS
+alone check the `iosApp` fixture, not `mobileLayout`.
+
+**Why:** a pull request should not merge with a broken stream, and a check that
+needs this Mac is easy to skip. The repo is public, so runners are free. The
+first runs in a Linux container here also found tests that passed on the Mac by
+timing alone: Escape pressed before a menu listened for it, and a test that went
+on before Obsidian had read the daily notes settings the last one wrote. Both
+now wait.
+
+**Rejected:**
+
+- The harness's `E2E_SHOW_WINDOW=1` mode — it lays the page out at the window's
+  size, not the tests', so desktop tests ran at 960×539.
+- A macOS runner as well, for the iOS path — it emulates iOS in Chromium, which
+  every e2e run on this Mac already does, and a scrolling change also runs on a
+  real iPhone (ADR 0016). The harness's window hiding was never tried on a
+  runner.
+- `--no-sandbox` — the sysctl that lets Chromium's sandbox run keeps the app as
+  users run it.
 
 ## D-228 — Outside iOS, a hidden note past the unloading distance is unloaded mid-scroll (2026-11-10)
 
@@ -4378,3 +4417,21 @@ is handled first.
 
 - One value that also holds `is-far` and `leaving` — it would list every
   combination, as D-137 says.
+
+## D-231 — On CI, every e2e test gets one retry, for now (2026-11-13)
+
+**Decision:** `playwright.config.ts` sets `retries: 1` when `CI` is set, so it
+applies on GitHub's runners but not on the Mac. CI warns of each test that
+passed only on its retry, as it does for the tests with their own retries
+(D-227). This is temporary: docs/TODO.md says when to remove it.
+
+**Why:** in 4 runs of one commit on GitHub's runner, 3 failed, each on a
+different test that had passed in every earlier run. Fixing each before turning
+CI on would keep CI off for a long time. A flaky test still shows in each run's
+warnings, so it can be found again.
+
+**Rejected:**
+
+- A retry only on each test seen to fail — a run stops at the next new one.
+- Skipping the flaky tests — a skipped test never shows that it still fails.
+- More retries — a test that fails twice in a row is more likely broken.

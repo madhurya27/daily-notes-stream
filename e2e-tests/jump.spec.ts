@@ -8,7 +8,7 @@ import {
     SEEDED_DAYS,
     withoutScrollAnchoring,
     restoreScrollAnchoring,
-    writeDailyNotesConfig,
+    setDailyNotesConfig,
     DAILY_NOTES_CONFIG,
 } from "./obsidian";
 
@@ -126,17 +126,17 @@ test.describe("jump to date", () => {
             await openStream(page);
             const offered = async () => (await openSuggester(page)).locator(".suggestion-item");
 
-            writeDailyNotesConfig(vaultPath, { folder: "Formats", format: "DD-MM-YYYY" });
+            await setDailyNotesConfig(page, vaultPath, { folder: "Formats", format: "DD-MM-YYYY" });
             await expect(page.locator(".daily-note-title").first()).toHaveText("14-03-2026");
             await expect(await offered()).toHaveText(["14-03-2026", "13-03-2026"]);
             await page.keyboard.press("Escape");
 
-            writeDailyNotesConfig(vaultPath, { folder: "Formats", format: "MMMM D, YYYY" });
+            await setDailyNotesConfig(page, vaultPath, { folder: "Formats", format: "MMMM D, YYYY" });
             await expect(page.locator(".daily-note-title").first()).toHaveText("March 14, 2026");
             await expect(await offered()).toHaveText(["March 14, 2026", "March 13, 2026"]);
             await page.keyboard.press("Escape");
         } finally {
-            writeDailyNotesConfig(vaultPath, DAILY_NOTES_CONFIG);
+            await setDailyNotesConfig(page, vaultPath, DAILY_NOTES_CONFIG);
             await page.evaluate(async () => {
                 const folder = window.app.vault.getAbstractFileByPath("Formats");
                 if (folder) await window.app.vault.delete(folder, true);

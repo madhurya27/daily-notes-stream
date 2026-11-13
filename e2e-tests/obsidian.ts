@@ -13,12 +13,20 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync, copyFi
 import { tmpdir } from "os";
 import { dirname, join, resolve } from "path";
 import { fileURLToPath } from "url";
+import { watchForFreeze } from "./freeze-watch";
+import { retryLostPromise } from "./lost-promise";
 import { TARGET_PHONE_WORKLOAD_MS, WORKLOAD_NOTE, cpuSlowdown, timeWorkload } from "./phone-speed";
 
 const OBSIDIAN = process.env.OBSIDIAN_PATH ?? "/Applications/Obsidian.app/Contents/MacOS/Obsidian";
 const OBSIDIAN_BUNDLE = process.env.OBSIDIAN_BUNDLE ?? "/Applications/Obsidian.app";
 /** Set this to watch the run. Otherwise none of the window is visible. */
 const SHOW_WINDOW = process.env.E2E_SHOW_WINDOW === "1";
+/**
+ * Whether the run hides its windows, so that they stay out of the way of the
+ * user's work. Hiding uses macOS. Elsewhere, as on CI's virtual display, nobody
+ * works on the screen, so the window shows.
+ */
+export const HIDES_WINDOW = process.platform === "darwin" && !SHOW_WINDOW;
 const VAULT_ID = "e2e0000000000001";
 
 // A window that is out of sight counts as covered, and Chromium throttles
@@ -35,6 +43,11 @@ const NO_THROTTLE = [
  * size part way, so the harness tests read the wrong size (D-183).
  */
 const NO_ANIMATION = ["-NSAutomaticWindowAnimationsEnabled", "NO"];
+/**
+ * A Mac's screen is 2x, and CI's virtual display 1x. A 2x screen scrolls in
+ * half pixels, and the tests' measures of where a note rests assume it.
+ */
+const TWO_X_SCREEN = ["--force-device-scale-factor=2"];
 /**
  * Shrunk to Obsidian's minimum size and placed in a corner, so the flash before
  * the window is hidden is a small square. The page is laid out at VIEWPORT
@@ -122,12 +135,24 @@ export async function setHideEmptyNotes(page: Page, on: boolean) {
     }, on);
 }
 
+/** Where the core Daily notes plugin keeps its settings. */
+const dailyNotesConfigPath = (vaultPath: string) => join(vaultPath, ".obsidian", "daily-notes.json");
+
 /**
  * Writes the core Daily notes settings, which the plugin reads, as their
- * settings pane does.
+ * settings pane does, and waits until Obsidian has read them. Obsidian reads
+ * the file only once its watcher reports it, so the rest of the test, or the
+ * next test, could still meet the old settings. The options must equal the
+ * config: a setting the config leaves out, such as a template, must be gone
+ * too.
  */
-export function writeDailyNotesConfig(vaultPath: string, config: Record<string, string>) {
-    writeFileSync(join(vaultPath, ".obsidian", "daily-notes.json"), JSON.stringify(config));
+export async function setDailyNotesConfig(page: Page, vaultPath: string, config: Record<string, string>) {
+    writeFileSync(dailyNotesConfigPath(vaultPath), JSON.stringify(config));
+    await expect
+        .poll(() =>
+            page.evaluate(() => ({ ...window.app.internalPlugins.getPluginById("daily-notes").instance.options }))
+        )
+        .toEqual(config);
 }
 
 function freePort(): Promise<number> {
@@ -207,7 +232,7 @@ function seedVault(): string {
         ["# Reading list", "", ...books, "", "## Later", "", "- Middlemarch", ""].join("\n")
     );
 
-    writeDailyNotesConfig(vault, DAILY_NOTES_CONFIG);
+    writeFileSync(dailyNotesConfigPath(vault), JSON.stringify(DAILY_NOTES_CONFIG));
     // Follow the system's light or dark setting, not Obsidian's own default.
     writeFileSync(join(config, "appearance.json"), JSON.stringify({ theme: "system" }));
     writeFileSync(join(config, "community-plugins.json"), JSON.stringify([PLUGIN_ID]));
@@ -286,13 +311,13 @@ async function attach(record: WindowRecord, recordFile: string, isNew: boolean):
         // Set up as soon as Playwright can reach the page. The focus grab
         // before that is the only one left.
         browser = await connectWithRetry(port);
-        const page = browser.contexts()[0]!.pages()[0]!;
+        const page = isNew ? browser.contexts()[0]!.pages()[0]! : await mainWindow(browser);
         if (isNew) await startUp(page);
         // Playwright switches to light mode each time it attaches. null
         // restores the system setting.
         await page.emulateMedia({ colorScheme: null });
         // Makes sure the window is hidden, instead of trusting the last event.
-        if (isNew && !SHOW_WINDOW) await showCloaked(page);
+        if (isNew && HIDES_WINDOW) await showCloaked(page);
         const connected = browser;
         return {
             app: observe(page, userDataDir, vaultPath),
@@ -320,7 +345,7 @@ async function launch(): Promise<WindowRecord> {
     // Window bounds are saved for each vault. A window fully off screen is
     // refused (and centered at 1024x800 instead). A corner is moved to fit,
     // which is what we want.
-    if (!SHOW_WINDOW) {
+    if (HIDES_WINDOW) {
         // The corner must be on some display, or Obsidian centers a full-size
         // window over the user's work. With an extended desktop, a position
         // past the edge is no longer moved to fit.
@@ -335,7 +360,7 @@ async function launch(): Promise<WindowRecord> {
                 zoom: 0,
             })
         );
-    } else {
+    } else if (SHOW_WINDOW) {
         // Put a watched run on a second display, not over the user's work.
         const secondary = secondaryScreen();
         if (secondary) {
@@ -354,9 +379,14 @@ async function launch(): Promise<WindowRecord> {
     }
 
     const port = await freePort();
-    const args = [`--user-data-dir=${userDataDir}`, `--remote-debugging-port=${port}`, ...NO_THROTTLE, ...NO_ANIMATION];
-    if (SHOW_WINDOW) spawn(OBSIDIAN, args, { stdio: "ignore", detached: true }).unref();
-    else launchHidden(args);
+    const args = [
+        `--user-data-dir=${userDataDir}`,
+        `--remote-debugging-port=${port}`,
+        ...NO_THROTTLE,
+        ...(process.platform === "darwin" ? NO_ANIMATION : TWO_X_SCREEN),
+    ];
+    if (HIDES_WINDOW) launchHidden(args);
+    else spawn(OBSIDIAN, args, { stdio: "ignore", detached: true }).unref();
     return { port, userDataDir, vaultPath };
 }
 
@@ -372,7 +402,7 @@ async function startUp(page: Page): Promise<void> {
     // The window is 300x200. Lay out the page at a normal size so scrolling
     // works.
     if (!SHOW_WINDOW) {
-        await cloakWindow(page);
+        if (HIDES_WINDOW) await cloakWindow(page);
         await layOut(page, VIEWPORT);
     }
     await page.waitForLoadState("domcontentloaded");
@@ -389,9 +419,15 @@ async function startUp(page: Page): Promise<void> {
     await trustButton.waitFor({ state: "visible", timeout: 15_000 }).catch(() => {});
     // The button loads the plugin after the click returns. Enabling it here as
     // well loaded it twice, and the second copy failed, so settings the tests
-    // changed never reached the stream.
-    if (await trustButton.count()) await trustButton.click();
-    else
+    // changed never reached the stream. Once every plugin has loaded, it opens
+    // settings at Community plugins, to be closed below; closed earlier, they
+    // open after and stay open.
+    if (await trustButton.count()) {
+        await trustButton.click();
+        await page.waitForFunction(() => window.app.setting.activeTab?.id === "community-plugins", null, {
+            timeout: 30_000,
+        });
+    } else
         await page.evaluate(async (pluginId) => {
             const plugins = window.app.plugins;
             // Restricted mode blocks community plugins, so the test turns it
@@ -404,8 +440,8 @@ async function startUp(page: Page): Promise<void> {
     });
 
     // An open settings pane keeps the leaf deferred, and a deferred view never
-    // renders.
-    await page.evaluate(() => window.app.setting?.close?.());
+    // renders. Closing it twice does no harm.
+    await retryLostPromise("Closing settings", () => page.evaluate(() => window.app.setting?.close?.()), console.log);
     await expect(page.locator(".modal-container")).toHaveCount(0);
     expect(failures, "the plugin loads once, without an error").toEqual([]);
 }
@@ -640,6 +676,18 @@ async function connectWithRetry(port: number): Promise<Browser> {
     throw new Error(`Could not attach to Obsidian on port ${port}: ${String(lastError)}`);
 }
 
+/**
+ * The window that runs Obsidian's app. A pop-out window or the settings window
+ * an earlier test opened may still be closing, and may come first in the list.
+ */
+async function mainWindow(browser: Browser): Promise<Page> {
+    for (const page of browser.contexts()[0]!.pages()) {
+        const isMain = await page.evaluate(() => window.app !== undefined).catch(() => false);
+        if (isMain) return page;
+    }
+    throw new Error("Obsidian's main window is not open");
+}
+
 interface TestFixtures {
     freshPluginState: void;
     projectLayout: void;
@@ -652,6 +700,11 @@ interface WorkerFixtures {
      * phone.
      */
     mobileLayout: boolean;
+    /**
+     * Whether the plugin runs as the iOS app. Obsidian emulates it only on
+     * macOS; elsewhere the mobile project takes the path Android does (D-227).
+     */
+    iosApp: boolean;
 }
 
 /**
@@ -684,7 +737,9 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
     freshPluginState: [
         async ({ obsidian }, use, testInfo) => {
             await resetPluginState(obsidian.page);
+            const stopWatching = await watchForFreeze(obsidian.page, (text) => console.log(text));
             await use();
+            await stopWatching();
             if (testInfo.status !== testInfo.expectedStatus) testFailed = true;
         },
         { auto: true },
@@ -700,6 +755,7 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
         { auto: true },
     ],
     mobileLayout: [false, { scope: "worker", option: true }],
+    iosApp: [async ({ mobileLayout }, use) => use(mobileLayout && process.platform === "darwin"), { scope: "worker" }],
     obsidian: [
         async ({ mobileLayout }, use: (app: ObsidianApp) => Promise<void>, workerInfo) => {
             const { app, leave, discard } = await openWindow(`${workerInfo.parallelIndex}`);
@@ -726,7 +782,7 @@ async function matchLayout(page: Page, mobile: boolean): Promise<void> {
     // do).
     await page.waitForFunction(() => window.app?.workspace?.layoutReady === true, null, { timeout: 60_000 });
     // The reload shows the window again, and removed the guard.
-    if (!SHOW_WINDOW) await cloakWindow(page);
+    if (HIDES_WINDOW) await cloakWindow(page);
 }
 
 /**

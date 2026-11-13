@@ -1,5 +1,5 @@
 import { installPinned, TEMPLATER } from "./pinned-plugin";
-import { test, expect, openStream, setHideEmptyNotes, writeDailyNotesConfig, DAILY_NOTES_CONFIG } from "./obsidian";
+import { test, expect, openStream, setHideEmptyNotes, setDailyNotesConfig, DAILY_NOTES_CONFIG } from "./obsidian";
 
 const TEMPLATE_PATH = "Templates/Daily.md";
 /** A journal's daily notes template, filled in only by Templater. */
@@ -42,12 +42,7 @@ test.beforeEach(async ({ obsidian }) => {
         },
         { path: TEMPLATE_PATH, text: TEMPLATE }
     );
-    writeDailyNotesConfig(vaultPath, { ...DAILY_NOTES_CONFIG, template: "Templates/Daily" });
-    await expect
-        .poll(() =>
-            page.evaluate(() => window.app.internalPlugins.getPluginById("daily-notes").instance.options.template)
-        )
-        .toBe("Templates/Daily");
+    await setDailyNotesConfig(page, vaultPath, { ...DAILY_NOTES_CONFIG, template: "Templates/Daily" });
     // The core Daily notes plugin creates the note with its template's text,
     // and Templater then fills it in.
     await page.evaluate(
@@ -64,7 +59,7 @@ test.afterEach(async ({ obsidian }) => {
     await uninstall();
     await setHideEmptyNotes(page, false);
     await page.evaluate(() => window.app.saveLocalStorage("templater-local-settings", null));
-    writeDailyNotesConfig(vaultPath, DAILY_NOTES_CONFIG);
+    await setDailyNotesConfig(page, vaultPath, DAILY_NOTES_CONFIG);
     await page.evaluate(
         async (paths) => {
             for (const path of paths) {

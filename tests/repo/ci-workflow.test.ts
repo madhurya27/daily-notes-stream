@@ -6,6 +6,8 @@ import { parse } from "yaml";
 const workflowPath = resolve(__dirname, "../..", ".github/workflows/ci.yml");
 
 interface Step {
+    id?: string;
+    if?: string;
     uses?: string;
     run?: string;
     with?: Record<string, unknown>;
@@ -13,7 +15,7 @@ interface Step {
 interface Workflow {
     on: { push?: { branches?: string[] }; pull_request?: unknown };
     permissions?: Record<string, string>;
-    jobs: Record<string, { "runs-on": string; steps: Step[] }>;
+    jobs: Record<string, { "runs-on": string; env?: Record<string, string>; steps: Step[] }>;
 }
 
 const workflow = existsSync(workflowPath) ? (parse(readFileSync(workflowPath, "utf8")) as Workflow) : null;
@@ -26,7 +28,7 @@ describe("CI workflow", () => {
         expect(workflow!.on).toHaveProperty("pull_request");
     });
 
-    it("runs only on Linux, the free runners (D-148)", () => {
+    it("runs only on Linux, the free runners (D-148, D-227)", () => {
         for (const job of Object.values(workflow!.jobs)) expect(job["runs-on"]).toMatch(/^ubuntu-/);
     });
 
@@ -40,6 +42,45 @@ describe("CI workflow", () => {
             "pnpm run build",
         ];
         for (const gate of gates) expect(commands(), gate).toContainEqual(expect.stringContaining(gate));
+    });
+
+    describe("the e2e job (D-227)", () => {
+        const job = () => workflow!.jobs["e2e"]!;
+        const run = () => job().steps.map((step) => step.run ?? "");
+
+        it("runs the e2e tests in a virtual display", () => {
+            expect(run()).toContainEqual(expect.stringMatching(/xvfb-run .*pnpm run test:e2e/));
+        });
+
+        it("starts Obsidian from the download, as a run on the Mac does", () => {
+            expect(job().env?.["OBSIDIAN_PATH"]).toBeTruthy();
+            // Watching lays the page out at the window's size, not the tests'.
+            expect(job().env).not.toHaveProperty("E2E_SHOW_WINDOW");
+        });
+
+        it("checks Obsidian's download against a pinned SHA-256", () => {
+            expect(run()).toContainEqual(expect.stringMatching(/[0-9a-f]{64} .*\|\s*sha256sum -c/));
+        });
+
+        // A test may retry where it fails now and then (docs/TODO.md). Each
+        // retry shows on the pull request, so it is not passed over.
+        it("warns of each test that passed only on a retry", () => {
+            const warn = job().steps.find((step) => step.run?.includes("scripts/flaky-tests.mjs"));
+            expect(warn?.id).toBe("flaky");
+        });
+
+        it("keeps the traces of a run with a failed or flaky test", () => {
+            const keep = job().steps.find((step) => step.uses?.startsWith("actions/upload-artifact@"));
+            expect(keep?.if).toBe("failure() || steps.flaky.outputs.found == 'true'");
+        });
+
+        it("lets Obsidian keep its sandbox on", () => {
+            // Ubuntu blocks the user namespaces that Chromium's sandbox needs.
+            expect(run()).toContainEqual(
+                expect.stringContaining("sysctl -w kernel.apparmor_restrict_unprivileged_userns=0")
+            );
+            expect(run().join("\n")).not.toContain("--no-sandbox");
+        });
     });
 
     it("gives the token read access only", () => {

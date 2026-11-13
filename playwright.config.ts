@@ -17,6 +17,9 @@ export default defineConfig<MobileLayoutOptions>({
     // A run stops at its first failure. --max-failures=0 keeps going, for a
     // full report.
     maxFailures: 1,
+    // On CI, a failed test runs once more, and CI warns of each that passed
+    // only then. Temporary (D-231, docs/TODO.md).
+    retries: process.env.CI ? 1 : 0,
     fullyParallel: true,
     timeout: 60_000,
     expect: { timeout: 15_000 },

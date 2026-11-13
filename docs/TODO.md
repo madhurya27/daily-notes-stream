@@ -20,6 +20,52 @@ there is a screen recording of them (D-099).
       Obsidian's reading view of a long note had 0 in 48
       (`.dev/zcontrol.spec.ts`), so the stream may play a part. Probe:
       `.dev/zcut.spec.ts`.
+- [ ] Find why Back sometimes lands off when no heights are remembered, outside
+      iOS. `history.spec.ts`'s test of it lands 233 px off about 1 time in 15,
+      only on Linux's mobile project, so it retries, and CI warns of each retry.
+      The note above and the note read, both empty at the 2-pane guess (1526
+      px), are drawn at 1293 px before the first frame at the new place, and
+      Chromium does not correct. Chromium skips its correction when its anchor
+      changes height in the same layout as a note above; in the stream, nothing
+      yet shown forces that. Not enough alone, in tests that never failed: wrong
+      guesses at the return, both notes drawn with no frame between,
+      re-estimating right after the return, and a desktop pane tall enough to
+      make the guess wrong (0 in 15 on Linux). Branch
+      `fix/back-place-after-load` reads the place again after loading batches,
+      which a unit test shows can matter, but did not fix it.
+- [ ] Find why `settings.spec.ts`'s "redraws the stream on a setting's change"
+      once found its note 937 px off, on desktop on Linux, after the test
+      scrolled it to the top and before any setting changed. Seen once in 4 full
+      runs in the Linux container. The test retries, and CI warns of each retry.
+      It may be the same as Back's 233 px, which is not shown.
+- [ ] Find why Chromium sometimes loses the promise of the e2e startup's
+      `page.evaluate` that closes settings ("Resulting promise was garbage
+      collected"). It failed 2 of about 22 full runs on Linux, each at a run's
+      first startup, so `startUp` runs it again and CI warns of each retry. A
+      reload would give a different error, and `setting.close()` returns
+      nothing. Not reproduced in 1,300 startups in the Linux container: in a
+      loop, in 150 fresh containers, and in 50 containers that install, build
+      and run `bases-cards.spec.ts` first.
+- [ ] Find why a page froze once on Linux CI: `jump.spec.ts`'s "narrows to what
+      is typed", on desktop, right after a Back test on the same worker. It
+      stopped drawing about 130 ms into `openStream`, as the old stream was
+      closed, and answered nothing, a key press included, for the test's 60 s.
+      Not seen in 4 full runs in the Linux container. The harness now logs where
+      the page's JavaScript is when a page stops answering for 10 s.
+- [ ] Remove the retry every e2e test gets on CI (D-231) once 10 CI runs in a
+      row warn of no test that passed only on a retry. These failed once each in
+      4 runs of one commit on GitHub's runner, and passed on the rest:
+    - `stream.spec.ts`'s "takes a note a few panes above out of the layout
+      mid-glide", on desktop: the 12,143 px note at the top was never hidden
+      during the 1.5 s glide. The glide steps on a 16 ms timer and ends one pane
+      past the hiding distance, but 10 runs each on a CPU slowed 6x and 20x
+      passed.
+    - `scroll-boxes.spec.ts`'s "ends a text cell too long for its column", on
+      mobile: the cell drew, then the Kanban Base above filled in and pushed
+      Words.base off screen, and Bases removed its rows before the test measured
+      the cell. 1 in 10 runs fails so on a CPU slowed 6x. Waiting for every Base
+      to fill in first failed 2 in 30 there, in new ways: a Base loading for 60
+      s, and the pane on a later note with the test's note hidden.
 - [ ] A PDF inside a line of text still holds up the queue (D-202).
 - [ ] On or after 2026-11-13, update to ESLint 10 and `eslint-plugin-obsidianmd`
       0.5.1, and remove `@eslint/js`, which nothing imports. 0.5.1 no longer
@@ -31,7 +77,9 @@ there is a screen recording of them (D-099).
       update them and check that the lockfile has no `minimatch` from 7.0.0 to
       11.0.0. That clears Dependabot alert #107, a slow-down from crafted globs,
       dismissed until then: only dev tools use it, on our own globs.
-- [ ] Try adding the e2e tests to CI on Linux.
+- [ ] Make the daily pinned-plugins workflow (D-224) run the e2e tests against
+      the version the directory installs. If they pass, open a pull request that
+      moves the pin; if not, open an issue with the failures.
 - [ ] Once the directory's scorecard lint understands moment's types, go back to
       Obsidian's `moment` and delete `src/notes/moment.ts` (D-152).
 - [ ] If the stall error (D-164) doesn't explain the next blank stream after
