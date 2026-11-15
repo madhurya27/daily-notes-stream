@@ -53,13 +53,27 @@ there is a screen recording of them (D-099).
       Not seen in 4 full runs in the Linux container. The harness now logs where
       the page's JavaScript is when a page stops answering for 10 s.
 - [ ] Remove the retry every e2e test gets on CI (D-233) once 10 CI runs in a
-      row warn of no test that passed only on a retry. These failed once each in
-      4 runs of one commit on GitHub's runner, and passed on the rest:
+      row warn of no test that passed only on a retry. GitHub keeps the count:
+      this lists `main`'s last 10 runs, with how many tests each warned of ("no
+      e2e job" before 2026-11-15).
+
+      ```bash
+      gh run list -w ci.yml -b main -s completed -L 10 --json databaseId,conclusion --jq '.[] | "\(.databaseId) \(.conclusion)"' |
+        while read id result; do
+          job=$(gh run view "$id" --json jobs --jq '.jobs[] | select(.name == "e2e") | .databaseId')
+          flaky=$([ -n "$job" ] && gh api "repos/{owner}/{repo}/check-runs/$job/annotations" --jq '[.[] | select(.title == "Flaky e2e test")] | length' || echo "no e2e job")
+          echo "$id $result flaky: $flaky"
+        done
+      ```
+
+      These failed once each in 4 runs of one commit on GitHub's runner, and
+      passed on the rest:
     - `stream.spec.ts`'s "takes a note a few panes above out of the layout
       mid-glide", on desktop: the 12,143 px note at the top was never hidden
       during the 1.5 s glide. The glide steps on a 16 ms timer and ends one pane
       past the hiding distance, but 10 runs each on a CPU slowed 6x and 20x
       passed.
+
 - [ ] A PDF inside a line of text still holds up the queue (D-202).
 - [ ] On or after 2026-11-13, update to ESLint 10 and `eslint-plugin-obsidianmd`
       0.5.1, and remove `@eslint/js`, which nothing imports. 0.5.1 no longer
