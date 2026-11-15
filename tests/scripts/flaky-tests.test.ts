@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { flakyTests, warningFor } from "../../scripts/flaky-tests.mjs";
+import { failedTests, flakyTests, warningFor } from "../../scripts/flaky-tests.mjs";
 
 /** A spec as Playwright's JSON report writes it, run in each of `results`. */
 function spec(title: string, line: number, results: [project: string, status: string][]) {
@@ -52,6 +52,32 @@ describe("flakyTests", () => {
         };
 
         expect(flakyTests(report)).toEqual([]);
+    });
+});
+
+// A pull request that moves a pin lists these in its issue when the tests fail
+// (D-234).
+describe("failedTests", () => {
+    it("names each test that failed, retry included, and nothing else", () => {
+        const report = {
+            suites: [
+                {
+                    specs: [
+                        spec("failed", 2, [
+                            ["desktop", "unexpected"],
+                            ["mobile", "expected"],
+                        ]),
+                        spec("flaky", 3, [["desktop", "flaky"]]),
+                    ],
+                    suites: [{ specs: [spec("inner", 12, [["mobile", "unexpected"]])], suites: [] }],
+                },
+            ],
+        };
+
+        expect(failedTests(report)).toEqual([
+            "[desktop] history.spec.ts:2 › failed",
+            "[mobile] history.spec.ts:12 › inner",
+        ]);
     });
 });
 

@@ -4,22 +4,43 @@
  * GitHub warning for each. In a workflow, it also sets the step's output
  * `found` to whether there were any, so their traces can be kept.
  */
-import { appendFileSync, readdirSync, readFileSync } from "fs";
+import { appendFileSync, existsSync, readdirSync, readFileSync } from "fs";
 import { join } from "path";
 import { isMain } from "./is-main.mjs";
 
-/** Each flaky test in `report`, as `[project] file:line › title`. */
-export function flakyTests(report) {
+/**
+ * Each test in `report` that ended with `status`, as
+ * `[project] file:line › title`.
+ */
+function testsWithStatus(report, status) {
     const found = [];
     const visit = (suite) => {
         for (const spec of suite.specs ?? [])
             for (const test of spec.tests)
-                if (test.status === "flaky")
+                if (test.status === status)
                     found.push(`[${test.projectName}] ${spec.file}:${spec.line} › ${spec.title}`);
         for (const inner of suite.suites ?? []) visit(inner);
     };
     for (const suite of report.suites) visit(suite);
     return found;
+}
+
+/** Each test in `report` that failed and then passed on a retry. */
+export const flakyTests = (report) => testsWithStatus(report, "flaky");
+
+/** Each test in `report` that failed, on its retry too. */
+export const failedTests = (report) => testsWithStatus(report, "unexpected");
+
+/** The newest Playwright JSON report in `runs`, or null if there is none. */
+export function newestReport(runs = "test-results/runs") {
+    // Named by the time the run started, so the last name is the newest.
+    const newest = existsSync(runs)
+        ? readdirSync(runs)
+              .filter((name) => name.endsWith(".json"))
+              .sort()
+              .at(-1)
+        : undefined;
+    return newest ? JSON.parse(readFileSync(join(runs, newest), "utf8")) : null;
 }
 
 /** The workflow command that shows `test` as a warning. */
@@ -28,13 +49,8 @@ export function warningFor(test) {
 }
 
 function main() {
-    const runs = "test-results/runs";
-    // Named by the time the run started, so the last name is the newest.
-    const newest = readdirSync(runs)
-        .filter((name) => name.endsWith(".json"))
-        .sort()
-        .at(-1);
-    const flaky = newest ? flakyTests(JSON.parse(readFileSync(join(runs, newest), "utf8"))) : [];
+    const report = newestReport();
+    const flaky = report ? flakyTests(report) : [];
     for (const test of flaky) console.log(warningFor(test));
     if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `found=${flaky.length > 0}\n`);
 }

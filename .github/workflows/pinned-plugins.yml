@@ -1,19 +1,24 @@
 name: Pinned plugins
 
-# Opens an issue when a plugin the e2e tests pin has another version in the
-# community directory (D-224).
+# Runs the e2e tests against each plugin the e2e tests pin, at the version the
+# community directory installs. Opens a pull request that moves the pin if they
+# pass, and an issue with the failures if not (D-224, D-234).
 on:
     schedule:
-        - cron: "17 6 * * *"
+        - cron: "17 6 * * 1"
     workflow_dispatch:
 
-permissions:
-    contents: read
-    issues: write
+permissions: {}
 
 jobs:
-    check:
+    find:
         runs-on: ubuntu-latest
+        permissions:
+            contents: read
+            issues: read
+            pull-requests: read
+        outputs:
+            releases: ${{ steps.find.outputs.releases }}
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
               with:
@@ -24,8 +29,89 @@ jobs:
               with:
                   node-version: 26
 
-            - name: Compare each pin with its repo's manifest
+            - name: List the versions with no pull request or issue yet
+              id: find
               env:
                   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
                   GH_REPO: ${{ github.repository }}
-              run: node scripts/pin-check.mjs --open-issues
+              run: node scripts/pin-check.mjs find
+
+    # Runs the plugin's code, so the token may only read.
+    test:
+        needs: find
+        if: needs.find.outputs.releases != '[]'
+        runs-on: ubuntu-latest
+        permissions:
+            contents: read
+        strategy:
+            fail-fast: false
+            matrix:
+                release: ${{ fromJSON(needs.find.outputs.releases) }}
+        env:
+            PLUGIN_ID: ${{ matrix.release.id }}
+            PLUGIN_VERSION: ${{ matrix.release.version }}
+        steps:
+            - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  persist-credentials: false
+
+            - uses: ./.github/actions/e2e-setup
+
+            - name: Move the pin
+              run: node scripts/pin-check.mjs move "$PLUGIN_ID" "$PLUGIN_VERSION"
+
+            - name: Run every e2e test
+              id: e2e
+              continue-on-error: true
+              run: xvfb-run -a -s "-screen 0 1920x1080x24" pnpm run test:e2e --max-failures=0
+
+            - name: Keep the outcome
+              if: always()
+              env:
+                  OUTCOME: ${{ steps.e2e.outcome }}
+              run: mkdir -p test-results && echo "$OUTCOME" > test-results/outcome
+
+            - name: Keep the outcome, the report and the traces
+              if: always()
+              uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+              with:
+                  name: e2e-${{ matrix.release.id }}
+                  path: test-results/
+                  retention-days: 14
+
+    # Runs no plugin. It moves the pin again rather than take the test job's
+    # copy, which the plugin's code could have changed.
+    report:
+        needs: [find, test]
+        if: "!cancelled() && needs.find.outputs.releases != '[]'"
+        runs-on: ubuntu-latest
+        permissions:
+            contents: write
+            pull-requests: write
+            issues: write
+            actions: write
+        strategy:
+            fail-fast: false
+            matrix:
+                release: ${{ fromJSON(needs.find.outputs.releases) }}
+        steps:
+            - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  persist-credentials: false
+
+            - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+              with:
+                  node-version: 26
+
+            - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+              with:
+                  name: e2e-${{ matrix.release.id }}
+                  path: test-results/
+
+            - name: Open a pull request that moves the pin, or an issue with the failures
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  GH_REPO: ${{ github.repository }}
+                  PLUGIN_ID: ${{ matrix.release.id }}
+                  PLUGIN_VERSION: ${{ matrix.release.version }}
+              run: node scripts/pin-check.mjs report "$PLUGIN_ID" "$PLUGIN_VERSION" "$(cat test-results/outcome)"
