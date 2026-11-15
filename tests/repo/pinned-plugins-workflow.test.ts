@@ -13,10 +13,12 @@ const stepRunning = (j: Job, command: string) => stepsOf(j).find((step) => step.
 // The e2e tests pin each plugin they install (e2e-tests/pinned-plugin.ts), so
 // a new release reaches users before the tests see it (D-224, D-234).
 describe("Pinned plugins workflow", () => {
-    it("runs every day, and by hand", () => {
+    // Weekly, so a plugin that releases often opens one pull request a week at
+    // most (D-234).
+    it("runs once a week, and by hand", () => {
         const crons = (workflow.on.schedule ?? []).map(({ cron }) => cron);
         expect(crons).toHaveLength(1);
-        expect(crons[0]).toMatch(/^\d+ \d+ \* \* \*$/);
+        expect(crons[0]).toMatch(/^\d+ \d+ \* \* [0-6]$/);
         expect(workflow.on).toHaveProperty("workflow_dispatch");
     });
 

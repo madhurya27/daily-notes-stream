@@ -4488,16 +4488,17 @@ the most time of anything CI found, and none was explained.
   change would merge before it ran. The fallback if Linux-only failures keep
   costing time.
 
-## D-234 — The daily pin check tests a new version and opens a pull request (2026-11-15)
+## D-234 — The pin check tests a new version weekly and opens a pull request (2026-11-15)
 
-**Decision:** changes D-224. `.github/workflows/pinned-plugins.yml` takes each
-new version with no pull request or issue, open or closed. For each, it moves
-the pin and runs every e2e test on Linux. If they pass, it pushes
-`pin/<id>-<version>`, opens a pull request and starts CI on the branch. If not,
-it opens an issue that lists the failed tests. The tests run in a job that may
-only read. A second job, which runs no plugin, moves the pin again and writes.
-Both workflows set up the e2e tests through `.github/actions/e2e-setup`. The
-device tests stay local, and the pull request asks for them.
+**Decision:** changes D-224. Every Monday,
+`.github/workflows/pinned-plugins.yml` takes each new version with no pull
+request or issue, open or closed. For each, it moves the pin and runs every e2e
+test on Linux. If they pass, it pushes `pin/<id>-<version>`, opens a pull
+request and starts CI on the branch. If not, it opens an issue that lists the
+failed tests. The tests run in a job that may only read. A second job, which
+runs no plugin, moves the pin again and writes. Both workflows set up the e2e
+tests through `.github/actions/e2e-setup`. The device tests stay local, and the
+pull request asks for them.
 
 It needs **Allow GitHub Actions to create and approve pull requests** turned on
 in the repo's Actions settings.
@@ -4505,10 +4506,12 @@ in the repo's Actions settings.
 **Why:** an issue only said that a version changed. Moving the pin and running
 the tests was always the next step, and the workflow can do it before anyone
 looks. A release is someone else's code, so the job that runs it gets no token
-that can write.
+that can write. Templater's manifest changed 35 times in the last year; weekly
+opens one pull request a week at most, for its newest version.
 
 **Rejected:**
 
+- Daily — up to 35 pull requests a year, each with device tests to run.
 - One job that tests and writes — the plugin's code would run beside a token
   that can push.
 - One pull request for all new versions — one failing plugin would hold back the

@@ -1,7 +1,7 @@
 /**
  * Moves the pins of the plugins the e2e tests install
  * (`e2e-tests/pinned-plugin.ts`) to the versions the community directory
- * installs (D-224, D-234). The daily workflow runs it in steps:
+ * installs (D-224, D-234). The weekly workflow runs it in steps:
  *
  * - `find`: the plugins with another version and no pull request or issue for
  *   it yet, as the step output `releases`.
