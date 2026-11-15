@@ -175,6 +175,10 @@
     font-family: var(--font-text);
     font-size: var(--font-preferred-size);
     overflow-wrap: break-word;
+    /* Obsidian puts this above a heading after a paragraph, list, table or
+       code, even one hidden in a folded section. It is the heading's own top
+       margin, so folded headings are evenly spaced. */
+    --heading-spacing: calc(var(--p-spacing) / 2);
 }
 
 /* Normal paragraph spacing inside rendered content. */
@@ -449,13 +453,27 @@
 .daily-note-content :is(h1, h2, h3, h4, h5, h6).is-collapsible {
     margin-left: calc(-1 * var(--size-4-4));
     padding-left: var(--size-4-4);
-    margin-block-start: 0;
-    margin-block-end: calc(var(--p-spacing) * 0.5);
 }
 
-/* A list sits closer: a negative margin combines with the heading's. */
-.daily-note-content :is(h1, h2, h3, h4, h5, h6).is-collapsible + :is(ul, ol) {
-    margin-block-start: calc(var(--p-spacing) * -0.25);
+/* A heading sets the space around it. Under another heading, the half above
+   wins over the quarter below. Not only a foldable one: a long note's headings
+   become foldable once it is drawn, and its text would move then. */
+.daily-note-content > :is(h1, h2, h3, h4, h5, h6) {
+    margin-block-start: calc(var(--p-spacing) / 2);
+    margin-block-end: calc(var(--p-spacing) * 0.25);
+}
+
+/* The note's first heading takes the title's spacing. Its own margin would
+   stay inside the content while the note is drawn from its end, a flex column
+   where no margin collapses, and the text would move when drawing finishes. */
+.daily-note-content > :is(h1, h2, h3, h4, h5, h6):first-child {
+    margin-block-start: 0;
+}
+
+/* Margins that meet collapse to the larger one, so what a heading starts gives
+   up its own top margin. A far run's spacer keeps the margins it measured. */
+.daily-note-content > :is(h1, h2, h3, h4, h5, h6) + :not(h1, h2, h3, h4, h5, h6, .daily-note-far-run) {
+    margin-block-start: 0;
 }
 
 /* Centered on the first line with an offset, so a heading stays one line of

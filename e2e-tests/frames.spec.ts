@@ -84,7 +84,7 @@ test("on mobile a YouTube embed is its thumbnail, a link to the video", async ({
         async (note) => {
             await window.app.vault.create(
                 note,
-                '## Video\n\n<iframe src="https://www.youtube.com/embed/aqz-KE-bpKQ?start=30" width="560" height="315"></iframe>\n'
+                '<iframe src="https://www.youtube.com/embed/aqz-KE-bpKQ?start=30" width="560" height="315"></iframe>\n'
             );
         },
         NOTE

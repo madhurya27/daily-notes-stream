@@ -32,6 +32,11 @@ there is a screen recording of them (D-099).
       11.0.0. That clears Dependabot alert #107, a slow-down from crafted globs,
       dismissed until then: only dev tools use it, on our own globs.
 - [ ] Try adding the e2e tests to CI on Linux.
+- [ ] Find why `show-in-stream.spec.ts`'s "says why, and stays on the note, when
+      the stream hides it" fails on mobile in about 1 full e2e run in 2, on
+      `main` too: the notice never shows within 15 s. It passed 50 of 50 runs
+      alone. Once, "is not in the palette while the stream is the active tab"
+      failed instead: the stream never showed.
 - [ ] Once the directory's scorecard lint understands moment's types, go back to
       Obsidian's `moment` and delete `src/notes/moment.ts` (D-152).
 - [ ] If the stall error (D-164) doesn't explain the next blank stream after

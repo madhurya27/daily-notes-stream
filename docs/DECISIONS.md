@@ -4378,3 +4378,33 @@ is handled first.
 
 - One value that also holds `is-far` and `leaving` — it would list every
   combination, as D-137 says.
+
+## D-231 — A quarter of a paragraph's spacing under a heading (2026-11-15)
+
+**Decision:** whatever a heading starts sits a quarter of a paragraph's spacing
+under it. A heading right under another, or under a folded section, is half of
+it away. Between other blocks, a heading after one included, is a whole
+paragraph's spacing, the block's own bottom margin. The stream sets
+`--heading-spacing`, which Obsidian puts above a heading after a block, even a
+hidden one, to the heading's own top margin. The note's first heading has no top
+margin. A far run's spacer keeps the margins it measured. The rules match every
+heading at the top of a note, foldable or not.
+
+**Why:** the editor has little space under a heading, and the stream only
+tightened lists: a paragraph's own top margin was larger than the heading's
+bottom margin, and margins that meet collapse to the larger one. A long note's
+headings become foldable only once it is drawn, and a note drawn from its end is
+a flex column, where its first heading's margin does not collapse. Either one
+moved the text when drawing finished.
+
+**Rejected:**
+
+- Half a paragraph's spacing above every heading — every block before a heading
+  would need a smaller bottom margin, and a gap between blocks should stay
+  whole.
+- The theme's `--heading-spacing` — two lines or more in Obsidian's default and
+  in Minimal's.
+- Measuring the editor's space above a heading — it relies on the editor's
+  internal class names.
+- A negative top margin on what follows a heading — it needs a rule for each
+  kind of block and one for a heading under a heading.

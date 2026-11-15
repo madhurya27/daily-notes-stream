@@ -671,9 +671,14 @@ test.describe("daily notes stream in real Obsidian", () => {
                     const frame = () => new Promise((resolve) => requestAnimationFrame(resolve));
                     const pane = el.closest(".daily-notes-stream-container")!.parentElement!;
                     const box = pane.getBoundingClientRect();
-                    const reader = document.elementFromPoint(box.left + box.width / 2, box.top + 40)!;
-                    const before = reader.getBoundingClientRect().top;
                     const content = el.querySelector(".daily-note-content")!;
+                    // The text the reader is on, 40px down. A point in a gap
+                    // between blocks would hit the content element, whose top
+                    // the text grown above it does not move.
+                    const reader = Array.from(content.children).find(
+                        (child) => child.getBoundingClientRect().bottom > box.top + 40
+                    )!;
+                    const before = reader.getBoundingClientRect().top;
                     if (content.getBoundingClientRect().top >= box.top)
                         throw new Error("the note's text starts below the pane's top");
                     content.prepend(document.createElement("div"));
@@ -1347,22 +1352,149 @@ test.describe("daily notes stream in real Obsidian", () => {
         expect(chevronBox!.x).toBeGreaterThanOrEqual(paneBox!.x);
     });
 
-    // A list starts right under its heading, a quarter of a paragraph's spacing
-    // below. A paragraph or table keeps its own margin.
-    test("spaces a heading from what follows it", async ({ obsidian }) => {
-        const container = await openStream(obsidian.page);
-        const gaps = await container
-            .locator(".daily-note-block")
-            .first()
-            .evaluate((el) => {
-                const spacing = parseFloat(getComputedStyle(el.querySelector("p")!).marginBlockStart);
-                return Array.from(el.querySelectorAll(".daily-note-content h2.is-collapsible")).map((heading) => {
-                    const next = heading.nextElementSibling!;
-                    const gap = next.getBoundingClientRect().top - heading.getBoundingClientRect().bottom;
-                    return `${next.tagName}: ${gap / spacing}`;
+    // Whatever a heading starts sits right under it, a quarter of a
+    // paragraph's spacing below. A heading right under another is half of it
+    // away. Between other blocks is all of it.
+    test("spaces a heading from what is around it", async ({ obsidian }) => {
+        const { page } = obsidian;
+        const note = "Notes/2026-09-25.md";
+        await page.evaluate(async (path) => {
+            await window.app.vault.create(
+                path,
+                [
+                    "## Paragraph\n\nText.",
+                    "## List\n\n- Item",
+                    "## Table\n\n| A |\n| - |\n| 1 |",
+                    "## Quote\n\n> Quoted.",
+                    "## Code\n\n```\ncode\n```",
+                    "## Outer\n\n### Inner\n\nText.",
+                    "- Item",
+                    "Text.",
+                    "| A |\n| - |\n| 1 |",
+                    "> Quoted.",
+                    "```\ncode\n```",
+                    "Text.",
+                ].join("\n\n") + "\n"
+            );
+        }, note);
+        try {
+            const block = (await openStream(page)).locator(`.daily-note-block[data-source-path="${note}"]`);
+            await expect(block.locator(".daily-note-content h3")).toBeVisible();
+            const gaps = await block.evaluate((el) => {
+                const probe = el.appendChild(document.createElement("div"));
+                probe.style.marginTop = "var(--p-spacing)";
+                const spacing = parseFloat(getComputedStyle(probe).marginTop);
+                probe.remove();
+                const parts = Array.from(el.querySelector(".daily-note-content")!.children);
+                return parts.slice(1).map((part, i) => {
+                    const gap = part.getBoundingClientRect().top - parts[i]!.getBoundingClientRect().bottom;
+                    return `${parts[i]!.tagName} ${Math.round((gap / spacing) * 100) / 100} ${part.tagName}`;
                 });
             });
-        expect(gaps).toEqual(["P: 1", "UL: 0.25", "TABLE: 1", "UL: 0.25"]);
+            expect(gaps).toEqual([
+                "H2 0.25 P",
+                "P 1 H2",
+                "H2 0.25 UL",
+                "UL 1 H2",
+                "H2 0.25 TABLE",
+                "TABLE 1 H2",
+                "H2 0.25 BLOCKQUOTE",
+                "BLOCKQUOTE 1 H2",
+                "H2 0.25 PRE",
+                "PRE 1 H2",
+                "H2 0.5 H3",
+                "H3 0.25 P",
+                "P 1 UL",
+                "UL 1 P",
+                "P 1 TABLE",
+                "TABLE 1 BLOCKQUOTE",
+                "BLOCKQUOTE 1 PRE",
+                "PRE 1 P",
+            ]);
+
+            // A note drawn from its end is laid out as a flex column, where no
+            // margin collapses through its content. The content must be as
+            // tall either way, or what the reader sees moves when drawing
+            // finishes. The first heading's top margin would differ.
+            const heights = await block.evaluate((el: HTMLElement) => {
+                const content = el.querySelector(".daily-note-content")!;
+                const normal = content.getBoundingClientRect().height;
+                el.style.display = "flex";
+                el.style.flexDirection = "column";
+                const flex = content.getBoundingClientRect().height;
+                el.style.display = el.style.flexDirection = "";
+                return [normal, flex];
+            });
+            expect(heights[1]).toBeCloseTo(heights[0]!, 0);
+
+            // A long note's headings only become foldable once it is drawn.
+            // Its text must not move then.
+            const foldable = await block.evaluate((el) => {
+                const content = el.querySelector(".daily-note-content")!;
+                const headings = Array.from(content.querySelectorAll(".is-collapsible"));
+                const before = content.getBoundingClientRect().height;
+                for (const heading of headings) heading.classList.remove("is-collapsible");
+                const after = content.getBoundingClientRect().height;
+                for (const heading of headings) heading.classList.add("is-collapsible");
+                return [before, after];
+            });
+            expect(foldable[1]).toBeCloseTo(foldable[0]!, 0);
+        } finally {
+            await page.evaluate(async (path) => {
+                const file = window.app.vault.getFileByPath(path);
+                if (file) await window.app.vault.delete(file);
+            }, note);
+        }
+    });
+
+    // A folded section's blocks are hidden, but a heading's margin can still
+    // depend on the block before it. Whatever each section ends with, folded
+    // headings are half a paragraph's spacing apart, as a heading under a
+    // heading is.
+    test("spaces folded headings evenly", async ({ obsidian }) => {
+        const { page } = obsidian;
+        const note = "Notes/2026-09-25.md";
+        await page.evaluate(async (path) => {
+            await window.app.vault.create(
+                path,
+                [
+                    "## Quote\n\nText.\n\n> Quoted.",
+                    "## List\n\nText.\n\n- Item",
+                    "## Paragraph\n\nText.",
+                    "## Table\n\n| A |\n| - |\n| 1 |",
+                    "## Code\n\n```\ncode\n```",
+                    "## Last\n\nText.",
+                ].join("\n\n") + "\n"
+            );
+        }, note);
+        try {
+            const block = (await openStream(page)).locator(`.daily-note-block[data-source-path="${note}"]`);
+            const headings = block.locator(".daily-note-content h2");
+            await expect(headings).toHaveCount(6);
+            for (const heading of await headings.all()) await heading.locator(".collapse-indicator").click();
+            await expect(block.locator(".daily-note-content > .is-hidden")).toHaveCount(8);
+
+            const gaps = await block.evaluate((el) => {
+                const probe = el.appendChild(document.createElement("div"));
+                probe.style.marginTop = "var(--p-spacing)";
+                const spacing = parseFloat(getComputedStyle(probe).marginTop);
+                probe.remove();
+                const boxes = Array.from(el.querySelectorAll(".daily-note-content > h2")).map((h) =>
+                    h.getBoundingClientRect()
+                );
+                return boxes.slice(1).map((box, i) => Math.round(((box.top - boxes[i]!.bottom) / spacing) * 100) / 100);
+            });
+            expect(gaps).toEqual([0.5, 0.5, 0.5, 0.5, 0.5]);
+        } finally {
+            // Folding is remembered for the note's path.
+            const block = (await openStream(page)).locator(`.daily-note-block[data-source-path="${note}"]`);
+            const folded = block.locator(".daily-note-content h2.is-collapsed > .collapse-indicator");
+            while ((await folded.count()) > 0) await folded.first().click();
+            await page.evaluate(async (path) => {
+                const file = window.app.vault.getFileByPath(path);
+                if (file) await window.app.vault.delete(file);
+            }, note);
+        }
     });
 
     test("sets the properties heading on the same line as the note's own headings", async ({ obsidian }) => {

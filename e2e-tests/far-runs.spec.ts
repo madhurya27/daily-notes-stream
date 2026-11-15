@@ -46,6 +46,27 @@ test.describe("a long note's far runs", () => {
         expect(Math.abs(after[1]! - before[1]!), "what follows").toBeLessThan(0.5);
     });
 
+    // A run's first element may take its margin from the heading above it.
+    // The spacer must keep that margin, not take the one for what a heading
+    // starts.
+    test("holds the room of a run that starts with a heading under a heading", async ({ obsidian }) => {
+        original = await writeNote(obsidian.page, NEWEST, "## Outer\n\n### Inner\n\nText.\n\n## After\n");
+        const container = await openStream(obsidian.page);
+        const block = container.locator(NOTE);
+        await expect(block.locator(".daily-note-content h3")).toBeVisible();
+
+        const [before, after] = await block.evaluate((el) => {
+            const inner = el.querySelector(".daily-note-content h3")!;
+            const following = el.querySelector(".daily-note-content h2:last-of-type")!;
+            const before = following.getBoundingClientRect().top;
+            const { farRuns } = window.app.workspace.getLeavesOfType("daily-notes-stream-view")[0].view.renderer;
+            farRuns.hide([inner, inner.nextElementSibling!]);
+            return [before, following.getBoundingClientRect().top];
+        });
+
+        expect(Math.abs(after - before)).toBeLessThan(0.5);
+    });
+
     test("shows each run before it reaches the screen, scrolled through fast", async ({ obsidian }) => {
         const container = await openLong(obsidian.page);
 
