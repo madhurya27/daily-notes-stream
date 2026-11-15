@@ -1497,6 +1497,38 @@ test.describe("daily notes stream in real Obsidian", () => {
         }
     });
 
+    // The panel is part of the note's header, so the text starts as far below
+    // it as below the title.
+    for (const first of ["## Heading", "Text."]) {
+        test(`starts the text as far below the properties as below the title: ${first}`, async ({ obsidian }) => {
+            const { page } = obsidian;
+            const note = "Notes/2026-09-25.md";
+            await page.evaluate(async (text) => {
+                const plugin = window.app.plugins.plugins["daily-notes-stream"];
+                plugin.settings.showProperties = true;
+                plugin.settings.propertiesCollapsed = false;
+                await plugin.saveSettings();
+                await window.app.vault.create("Notes/2026-09-25.md", `---\nmood: calm\n---\n\n${text}\n\nMore.\n`);
+            }, first);
+            try {
+                const block = (await openStream(page)).locator(`.daily-note-block[data-source-path="${note}"]`);
+                await expect(block.locator(".metadata-container")).toBeVisible();
+                const [aboveProperties, belowProperties] = await block.evaluate((el) => {
+                    const box = (selector: string) => el.querySelector(selector)!.getBoundingClientRect();
+                    const panel = box(".metadata-container");
+                    const text = box(".daily-note-content > :first-child");
+                    return [panel.top - box(".daily-note-header").bottom, text.top - panel.bottom];
+                });
+                expect(belowProperties).toBeCloseTo(aboveProperties, 0);
+            } finally {
+                await page.evaluate(async (path) => {
+                    const file = window.app.vault.getFileByPath(path);
+                    if (file) await window.app.vault.delete(file);
+                }, note);
+            }
+        });
+    }
+
     test("sets the properties heading on the same line as the note's own headings", async ({ obsidian }) => {
         const { page } = obsidian;
         await page.evaluate(async () => {

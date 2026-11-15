@@ -4408,3 +4408,17 @@ moved the text when drawing finished.
   internal class names.
 - A negative top margin on what follows a heading — it needs a rule for each
   kind of block and one for a heading under a heading.
+
+## D-232 — The text starts as far below the properties as below the title (2026-11-15)
+
+**Decision:** the properties panel's bottom margin is the header's, `--size-4-4`
+(16 px), not Obsidian's `2rem`.
+
+**Why:** the panel is part of the note's header, so turning properties on should
+not push the text further down. Since D-231 the stream is tighter around
+headings than Obsidian, and 32 px stood out above the first heading.
+
+**Rejected:**
+
+- Obsidian's `2rem`, which its reading view and editor both use — twice the gap
+  under the title.

@@ -196,9 +196,12 @@
    for a 28px field. */
 
 /* The panel is part of the note, so it uses the note's text size, which is what
-   Obsidian's own panel gets from the editor around it. */
+   Obsidian's own panel gets from the editor around it. It is part of the
+   note's header too, so the text starts as far below it as below the title,
+   not Obsidian's 2rem (D-232). */
 .daily-notes-stream-container .metadata-container {
     font-size: var(--font-preferred-size);
+    margin-block-end: var(--size-4-4, 1rem);
 }
 
 /* Obsidian styles a key and a value with `input.metadata-property-key-input`
