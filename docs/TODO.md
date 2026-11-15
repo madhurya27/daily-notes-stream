@@ -60,12 +60,6 @@ there is a screen recording of them (D-099).
       during the 1.5 s glide. The glide steps on a 16 ms timer and ends one pane
       past the hiding distance, but 10 runs each on a CPU slowed 6x and 20x
       passed.
-    - `scroll-boxes.spec.ts`'s "ends a text cell too long for its column", on
-      mobile: the cell drew, then the Kanban Base above filled in and pushed
-      Words.base off screen, and Bases removed its rows before the test measured
-      the cell. 1 in 10 runs fails so on a CPU slowed 6x. Waiting for every Base
-      to fill in first failed 2 in 30 there, in new ways: a Base loading for 60
-      s, and the pane on a later note with the test's note hidden.
 - [ ] A PDF inside a line of text still holds up the queue (D-202).
 - [ ] On or after 2026-11-13, update to ESLint 10 and `eslint-plugin-obsidianmd`
       0.5.1, and remove `@eslint/js`, which nothing imports. 0.5.1 no longer
