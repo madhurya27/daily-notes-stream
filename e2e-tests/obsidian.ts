@@ -122,12 +122,26 @@ export async function setHideEmptyNotes(page: Page, on: boolean) {
     }, on);
 }
 
-/**
- * Writes the core Daily notes settings, which the plugin reads, as their
- * settings pane does.
- */
-export function writeDailyNotesConfig(vaultPath: string, config: Record<string, string>) {
+/** Writes the core Daily notes settings, which the plugin reads. */
+function writeDailyNotesConfig(vaultPath: string, config: Record<string, string>) {
     writeFileSync(join(vaultPath, ".obsidian", "daily-notes.json"), JSON.stringify(config));
+}
+
+/**
+ * Sets the core Daily notes settings, as their settings pane does, once
+ * Obsidian has read them. Until then, the next test in the same Obsidian would
+ * see the old ones.
+ */
+export async function setDailyNotesConfig(obsidian: ObsidianApp, config: Record<string, string>) {
+    writeDailyNotesConfig(obsidian.vaultPath, config);
+    await expect
+        .poll(() =>
+            obsidian.page.evaluate((config) => {
+                const { options } = window.app.internalPlugins.getPluginById("daily-notes").instance;
+                return ["folder", "format", "template"].every((key) => (options[key] ?? "") === (config[key] ?? ""));
+            }, config)
+        )
+        .toBe(true);
 }
 
 function freePort(): Promise<number> {

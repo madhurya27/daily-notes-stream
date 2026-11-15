@@ -114,18 +114,21 @@ function scrollBoxes(container: Locator): Promise<string[]> {
 }
 
 /**
- * Scrolls Words.base's text cell in `scope` into view, and returns it once
- * drawn. Bases draws a table's rows only once it is on screen, and the Bases
- * above it push it down as they fill in.
+ * Scrolls Words.base's text cell in `scope` into view, and returns what `read`
+ * finds in it, read while it is drawn. Bases draws a table's rows only while
+ * it is on screen, and the Bases above it push it down as they fill in, so the
+ * cell may be gone again by the next step.
  */
-async function showWord(scope: Locator): Promise<Locator> {
+async function readWord<T>(scope: Locator, read: (cell: Element) => T): Promise<T> {
     const words = scope.locator(".daily-note-base").nth(WORDS_SLOT);
     const text = words.locator(".bases-td .metadata-input-longtext");
+    let result: T | undefined;
     await expect(async () => {
         await words.scrollIntoViewIfNeeded();
         await expect(text).toHaveText(/^hello/, { timeout: 1000 });
+        result = await text.evaluate(read, undefined, { timeout: 1000 });
     }).toPass();
-    return text;
+    return result!;
 }
 
 async function seedZoo(page: Page): Promise<void> {
@@ -281,7 +284,7 @@ test.describe("on mobile, nothing inside the stream scrolls", () => {
         await expect(note.locator(".bases-cards-item").first()).toBeVisible();
         await expect(note.locator(".pdf-embed canvas").first()).toBeVisible();
         await expect(note.locator(".callout-content")).toBeVisible();
-        await showWord(note);
+        await readWord(note, (cell) => cell.textContent);
 
         const seen = await page.evaluate(() =>
             (window as unknown as { scrollBoxesSeen(): string[] }).scrollBoxesSeen()
@@ -294,11 +297,9 @@ test.describe("on mobile, nothing inside the stream scrolls", () => {
     test("ends a text cell too long for its column inside the column", async ({ obsidian }) => {
         const { page } = obsidian;
         await seedZoo(page);
-        const text = await showWord(await openStream(page));
-
-        const { right, column } = await text.evaluate((el) => ({
-            right: el.getBoundingClientRect().right,
-            column: el.closest(".bases-td")!.getBoundingClientRect().right,
+        const { right, column } = await readWord(await openStream(page), (cell) => ({
+            right: cell.getBoundingClientRect().right,
+            column: cell.closest(".bases-td")!.getBoundingClientRect().right,
         }));
         expect(right).toBeLessThanOrEqual(column);
     });
