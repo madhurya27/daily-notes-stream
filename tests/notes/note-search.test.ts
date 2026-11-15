@@ -54,6 +54,17 @@ describe("findNotes", () => {
         expect(await findNotes(notes, reading, "bold move, lean times, old new code here")).toEqual([notes[2]]);
     });
 
+    it("drops an underscore that follows another mark inside a word", async () => {
+        const shown: Record<string, string> = {
+            "Notes/2025-01-03.md": "Simply un**_believ_**able",
+            "Notes/2025-01-02.md": "",
+            "Notes/2025-01-01.md": "",
+        };
+        const reading = (file: TFile) => Promise.resolve(shown[file.path]!);
+
+        expect(await findNotes(notes, reading, "unbelievable")).toEqual([notes[0]]);
+    });
+
     it("does not match a link's hidden target, or join a word with an underscore", async () => {
         const shown: Record<string, string> = {
             "Notes/2025-01-03.md": "Read [[Atlas/Plan|the plan]] twice",

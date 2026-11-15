@@ -27,7 +27,7 @@ export function readPlace(stream: HTMLElement, scrollEl: HTMLElement): StreamPla
     const block = blockAt(stream, paneTop);
     // Below the last note is the empty element that loads more notes; it is not
     // a note.
-    const path = block instanceof HTMLElement ? block.dataset.sourcePath : undefined;
+    const path = block?.instanceOf(HTMLElement) ? block.dataset.sourcePath : undefined;
     if (path === undefined) return null;
     return { path, offset: block!.getBoundingClientRect().top - paneTop };
 }

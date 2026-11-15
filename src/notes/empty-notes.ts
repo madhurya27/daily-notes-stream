@@ -202,7 +202,7 @@ export class EmptyNotes {
 
         this.template = null;
         this.verdicts = new Map();
-        let text: string | null = null;
+        let text: string | null;
         try {
             text = file ? await this.reader.read(file) : null;
         } catch (error) {

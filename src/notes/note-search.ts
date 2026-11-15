@@ -18,7 +18,10 @@ const MARKUP: [RegExp, string][] = [
     [/!?\[\[[^\]|]*\|([^\]]*)\]\]/g, "$1"],
     [/!?\[\[([^\]]*)\]\]/g, "$1"],
     [/!?\[([^\]]*)\]\([^)]*\)/g, "$1"],
-    [/\*+|~~|==|`+|(?<!\w)_+|_+(?!\w)/g, ""],
+    // Underscores after no letter. iOS before 16.4 has no lookbehind, so this
+    // is its own rule, and runs first: in `**_word_**`, the `*` is no letter.
+    [/(^|\W)_+/g, "$1"],
+    [/\*+|~~|==|`+|_+(?!\w)/g, ""],
 ];
 
 /** The note's Markdown as the reading view shows it, near enough to search. */

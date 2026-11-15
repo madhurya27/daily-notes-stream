@@ -120,6 +120,9 @@ globals.createEl = ((tag: keyof HTMLElementTagNameMap, o?: Parameters<typeof pro
 globals.createDiv = (o?: Parameters<typeof proto.createDiv>[0]) => globals.createEl("div", o);
 globals.createSpan = (o?: Parameters<typeof proto.createSpan>[0]) => globals.createEl("span", o);
 
+/** The focused window's document. The tests have one window. */
+window.activeDocument = document;
+
 /** jsdom does not scroll. Obsidian runs on Chromium, which does. */
 proto.scrollIntoView ??= function () {};
 

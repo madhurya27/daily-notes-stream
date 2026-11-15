@@ -95,14 +95,14 @@ export function fallBackToSmallThumbnail(event: Event): void {
 }
 
 function playButton(): SVGElement {
-    const svg = document.createElementNS(SVG, "svg");
+    const svg = activeDocument.createElementNS(SVG, "svg");
     svg.setAttribute("class", "daily-note-video-play");
     svg.setAttribute("viewBox", "0 0 68 48");
     svg.setAttribute("aria-hidden", "true");
-    const button = svg.appendChild(document.createElementNS(SVG, "path"));
+    const button = svg.appendChild(activeDocument.createElementNS(SVG, "path"));
     button.setAttribute("d", PLAY_BUTTON);
     button.setAttribute("fill", "#f00");
-    const triangle = svg.appendChild(document.createElementNS(SVG, "path"));
+    const triangle = svg.appendChild(activeDocument.createElementNS(SVG, "path"));
     triangle.setAttribute("d", "M45 24 27 14v20z");
     triangle.setAttribute("fill", "#fff");
     return svg;

@@ -75,12 +75,8 @@ there is a screen recording of them (D-099).
       passed.
 
 - [ ] A PDF inside a line of text still holds up the queue (D-202).
-- [ ] On or after 2026-11-13, update to ESLint 10 and `eslint-plugin-obsidianmd`
-      0.5.1, and remove `@eslint/js`, which nothing imports. 0.5.1 no longer
-      asks for `@eslint/js ^9`, and pnpm installs it once it is a week old. That
-      also clears Dependabot alert #106, in the `minimatch` 3 that ESLint 9
-      uses, dismissed until then. Then TypeScript 7, once `typescript-eslint`
-      allows it.
+- [ ] Update to TypeScript 7 once `typescript-eslint` allows it. 8.72.2 allows
+      only TypeScript below 6.1.
 - [ ] Once Stryker and `typescript-eslint` accept `minimatch` 11.0.1 or later,
       update them and check that the lockfile has no `minimatch` from 7.0.0 to
       11.0.0. That clears Dependabot alert #107, a slow-down from crafted globs,

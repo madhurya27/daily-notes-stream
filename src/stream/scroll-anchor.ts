@@ -553,9 +553,9 @@ export class ScrollAnchor {
         const pane = this.scrollRoot!.getBoundingClientRect();
         this.placeScroll = this.scrollRoot!.scrollTop;
         this.placeWidth = this.scrollRoot!.clientWidth;
-        const drawn = document
-            .elementsFromPoint(pane.left + pane.width / 2, pane.top + 1)
-            .find((el) => el !== stream && stream.contains(el));
+        const drawn = this.scrollRoot!.ownerDocument.elementsFromPoint(pane.left + pane.width / 2, pane.top + 1).find(
+            (el) => el !== stream && stream.contains(el)
+        );
         const hit = drawn ?? blockAt(stream, pane.top);
         if (!hit) return;
         const crossing = this.belowGap(hit, pane.top);
