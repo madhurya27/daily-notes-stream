@@ -1,4 +1,5 @@
-import { test, expect, LAYOUT_VIEWPORT, openWindow } from "./obsidian";
+import { test, expect, HIDES_WINDOW, LAYOUT_VIEWPORT, openWindow } from "./obsidian";
+import { watchForFreeze } from "./freeze-watch";
 
 test("the test window follows the system color scheme", async ({ obsidian }) => {
     const { page } = obsidian;
@@ -13,7 +14,7 @@ test("the test window follows the system color scheme", async ({ obsidian }) => 
 });
 
 test("the test window draws on screen, but nothing of it shows", async ({ obsidian }) => {
-    test.skip(process.env.E2E_SHOW_WINDOW === "1", "the window is deliberately visible");
+    test.skip(!HIDES_WINDOW, "the window is only hidden on macOS, and not while watched");
 
     // Asked of macOS, because Electron says a window is visible while its app
     // is hidden.
@@ -23,7 +24,7 @@ test("the test window draws on screen, but nothing of it shows", async ({ obsidi
 });
 
 test("shows nothing of a window Obsidian opens beside it", async ({ obsidian, mobileLayout }) => {
-    test.skip(process.env.E2E_SHOW_WINDOW === "1", "the window is deliberately visible");
+    test.skip(!HIDES_WINDOW, "the window is only hidden on macOS, and not while watched");
     test.skip(mobileLayout, "a phone opens its settings in the same window");
     const { page } = obsidian;
 
@@ -39,7 +40,7 @@ test("shows nothing of a window Obsidian opens beside it", async ({ obsidian, mo
 });
 
 test("the test run never leaves Obsidian in front of the user's work", async ({ obsidian }) => {
-    test.skip(process.env.E2E_SHOW_WINDOW === "1", "the window is deliberately visible");
+    test.skip(!HIDES_WINDOW, "the window is only hidden on macOS, and not while watched");
 
     // Obsidian takes the focus for its own window twice while starting, so the
     // test setup hides it and gives the focus back. By the time a test runs,
@@ -48,7 +49,7 @@ test("the test run never leaves Obsidian in front of the user's work", async ({ 
 });
 
 test("shrinks the window to Obsidian's minimum", async ({ obsidian }) => {
-    test.skip(process.env.E2E_SHOW_WINDOW === "1", "the window is deliberately a normal one");
+    test.skip(!HIDES_WINDOW, "the window is only hidden on macOS, and not while watched");
 
     // Window bounds that are on no display at all are refused, and Obsidian
     // uses a centered full-size window instead, which then flashes over the
@@ -144,5 +145,25 @@ test("a new worker uses the window of the one before", async ({ obsidian }, test
         expect(await app.page.evaluate(() => window.app.workspace.layoutReady)).toBe(true);
     } finally {
         await leave();
+    }
+});
+
+test("names where the page's JavaScript is when the page stops answering", async ({ obsidian }) => {
+    const reports: string[] = [];
+    const stop = await watchForFreeze(obsidian.page, (text) => reports.push(text), { everyMs: 200, withinMs: 1_000 });
+    try {
+        await obsidian.page.evaluate(() => {
+            function spinForThreeSeconds() {
+                const end = Date.now() + 3_000;
+                while (Date.now() < end);
+            }
+            spinForThreeSeconds();
+        });
+
+        await expect.poll(() => reports).toHaveLength(1);
+        expect(reports[0]).toContain("at spinForThreeSeconds");
+        expect(reports[0]).toContain(">>>");
+    } finally {
+        await stop();
     }
 });

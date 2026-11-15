@@ -24,6 +24,9 @@ async function paints(page: Page, name: string, index = 0): Promise<boolean> {
 }
 
 test.describe("in iOS's engine", () => {
+    // Playwright's WebKit on Linux is another port, which paints the current
+    // match differently. Only the macOS one stands in for iOS (ADR 0009).
+    test.skip(process.platform !== "darwin", "only macOS's WebKit stands in for iOS");
     test.beforeEach(({ mobileLayout }) => test.skip(!mobileLayout, "a snapshot of the phone layout"));
 
     /** Searches the stream for `query`, which is in every test note once. */
