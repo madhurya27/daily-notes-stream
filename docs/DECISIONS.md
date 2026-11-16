@@ -4519,3 +4519,21 @@ opens one pull request a week at most, for its newest version.
 - A personal access token, so the pull request starts CI itself — a secret to
   renew, for what `gh workflow run` does.
 - Committing the test job's moved pin — the plugin's code could have changed it.
+
+## D-235 — The current search match is filled with the accent color (2026-11-15)
+
+**Decision:** the current match is painted with `--interactive-accent` behind
+`--text-on-accent` text. The other matches keep the color of marked text.
+
+**Why:** it used `--text-selection`. A theme can make that a faint gray, which
+on a black background was hard to find at night. Obsidian's reading view rings
+the current match in the accent color, but `::highlight()` cannot draw a ring.
+
+**Rejected:**
+
+- The selection color with an accent underline — still faint where the theme's
+  selection color is.
+- Marked-text color for the current match, a fainter one for the rest — the
+  other matches would no longer look like Obsidian's.
+- The other matches 1.5 times as strong in dark mode — next to marked text, the
+  difference barely showed.

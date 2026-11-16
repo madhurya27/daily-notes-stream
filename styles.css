@@ -890,8 +890,8 @@ body:not(.is-mobile) :is(.daily-note-content, .daily-note-mention-excerpt) :is(t
 
 /* Search. The bar is Obsidian's own search bar, styled by its stylesheet; only
    closing it is styled here. Matches are colored with the CSS highlight API, in
-   the colors Obsidian's editor search uses. The current match looks like a
-   selection. */
+   the colors Obsidian's editor search uses. The current match is filled with
+   the accent color: a theme's selection color can be too faint to find it. */
 .daily-notes-search.is-closed {
     display: none;
 }
@@ -909,7 +909,8 @@ body:not(.is-mobile) :is(.daily-note-content, .daily-note-mention-excerpt) :is(t
 }
 
 ::highlight(daily-notes-search-current) {
-    background-color: var(--text-selection);
+    background-color: var(--interactive-accent);
+    color: var(--text-on-accent);
 }
 
 /* On a phone, Obsidian pads its search bar to make room for the floating

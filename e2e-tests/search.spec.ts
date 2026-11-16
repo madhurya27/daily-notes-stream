@@ -378,6 +378,36 @@ test.describe("search the stream", () => {
         expect(await scrollTop()).toBe(before);
     });
 
+    // A theme's selection color can be a faint gray on black, too faint to
+    // find the current match by.
+    test("fills the current match with the accent color", async ({ obsidian }) => {
+        const { page } = obsidian;
+        await openStream(page);
+        const bar = await openSearch(page);
+        await bar.locator("input").fill("km");
+        await expect.poll(() => currentMatch(page)).not.toBeNull();
+
+        const colors = await page.evaluate(() => {
+            const [range] = CSS.highlights.get("daily-notes-search-current")! as unknown as Range[];
+            const node = range!.startContainer;
+            const text = node instanceof Element ? node : node.parentElement!;
+            const paint = getComputedStyle(text, "::highlight(daily-notes-search-current)");
+            // Resolve each variable to a color the way the paint above is.
+            const probe = document.body.appendChild(document.createElement("div"));
+            probe.style.color = "var(--text-on-accent)";
+            probe.style.backgroundColor = "var(--interactive-accent)";
+            const expected = getComputedStyle(probe);
+            const result = {
+                paint: { color: paint.color, background: paint.backgroundColor },
+                theme: { color: expected.color, background: expected.backgroundColor },
+            };
+            probe.remove();
+            return result;
+        });
+
+        expect(colors.paint).toEqual(colors.theme);
+    });
+
     // On a phone, the bottom navbar floats over the pane. A match under it is
     // in the pane but not seen, so Enter would move past it.
     test("on a phone, marks no match under the bottom navbar as you type", async ({ obsidian, mobileLayout }) => {
