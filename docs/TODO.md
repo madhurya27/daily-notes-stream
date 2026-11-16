@@ -88,6 +88,8 @@ there is a screen recording of them (D-099).
       and returns to the stream, and a command copies them with the version
       numbers. Not the console: Obsidian's lint does not allow `console.log`,
       even behind a setting.
+- [ ] On the next release's branch, take the README's search screenshots again:
+      the current match is now filled with the accent color (D-235).
 
 ## Known limits
 

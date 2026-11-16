@@ -47,7 +47,9 @@ pnpm run build && pnpm run seed   # fill .dev/demo-vault/ again with a realistic
 
 On a branch, raise the version with
 `pnpm version <patch|minor|major> --no-git-tag-version` and commit it as
-`chore: release <version>`. After the squash merge, tag `main` with
+`chore: release <version>`. On that branch, and never before, take the README
+screenshots that show what the release changes again, so they match what users
+install. After the squash merge, tag `main` with
 `git tag -a <version> -m <version>` and push the tag (D-214). The workflow then
 drafts the release with its files. Since `1.0.0`, write each release's notes
 from `git log --first-parent <last tag>..`: in plain words, say what a reader
