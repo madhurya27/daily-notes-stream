@@ -286,11 +286,15 @@ test.describe("README screenshots", () => {
         await page.locator('.view-action[aria-label="Search"]').click();
         const bar = page.locator(".daily-notes-search");
         await bar.locator("input").fill("Mara");
-        // Typing makes the first match current. Two steps further is a match in
-        // a note the other screenshots don't show.
-        await page.keyboard.press("Enter");
-        await page.keyboard.press("Enter");
-        await expect(bar.locator(".document-search-count")).toHaveText(/^3 \/ \d+$/);
+        // The third note is one the other screenshots don't show. Typing makes
+        // the first match on screen current, but on a phone the navbar covers
+        // the only one, so the count starts at a different step there.
+        const count = bar.locator(".document-search-count");
+        await expect(count).toHaveText(/^(1 \/ \d+|\d+ notes)$/);
+        for (let text = await count.innerText(); !/^3 \//.test(text); text = await count.innerText()) {
+            await page.keyboard.press("Enter");
+            await expect(count).not.toHaveText(text);
+        }
         await settled(page);
         // From the match's date down to the list it is in.
         await page.evaluate(() => {
