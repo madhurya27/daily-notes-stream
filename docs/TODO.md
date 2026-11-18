@@ -1,6 +1,6 @@
 # TODO
 
-## Open
+## Bugs
 
 Most important first. Problems on iOS that last only a frame or two wait until
 there is a screen recording of them (D-099).
@@ -18,16 +18,29 @@ there is a screen recording of them (D-099).
       either direction, with or without D-229. Nothing in the page sets them
       apart: no scroll set, no batch, no late frame, the same touches.
       Obsidian's reading view of a long note had 0 in 48
-      (`.dev/zcontrol.spec.ts`), so the stream may play a part. Probe:
-      `.dev/zcut.spec.ts`.
+      (`.dev/zcontrol.spec.ts`), but it is not a fair control: a single note
+      loads, hides and adds nothing during a glide. Probe: `.dev/zcut.spec.ts`.
+- [ ] A PDF inside a line of text still holds up the queue (D-202).
+- [ ] If the stall error (D-164) doesn't explain the next blank stream after
+      Back, add a debug report to copy: a setting records recent loads, renders
+      and returns to the stream, and a command copies them with the version
+      numbers. Not the console: Obsidian's lint does not allow `console.log`,
+      even behind a setting.
+
+## Flaky tests
+
+Seen only in tests or on CI. Most important first; removing the retry comes
+last, once the others are fixed.
+
 - [ ] Find why Back sometimes lands off when no heights are remembered, outside
-      iOS. `history.spec.ts`'s test of it lands 233 px off about 1 time in 15,
-      only on Linux's mobile project, so it retries, and CI warns of each retry.
-      The note above and the note read, both empty at the 2-pane guess (1526
-      px), are drawn at 1293 px before the first frame at the new place, and
-      Chromium does not correct. Chromium skips its correction when its anchor
-      changes height in the same layout as a note above; in the stream, nothing
-      yet shown forces that. Not enough alone, in tests that never failed: wrong
+      iOS. Seen only in tests so far, but a reader could meet it.
+      `history.spec.ts`'s test of it lands 233 px off about 1 time in 15, only
+      on Linux's mobile project, so it retries, and CI warns of each retry. The
+      note above and the note read, both empty at the 2-pane guess (1526 px),
+      are drawn at 1293 px before the first frame at the new place, and Chromium
+      does not correct. Chromium skips its correction when its anchor changes
+      height in the same layout as a note above; in the stream, nothing yet
+      shown forces that. Not enough alone, in tests that never failed: wrong
       guesses at the return, both notes drawn with no frame between,
       re-estimating right after the return, and a desktop pane tall enough to
       make the guess wrong (0 in 15 on Linux). Branch
@@ -74,7 +87,10 @@ there is a screen recording of them (D-099).
       past the hiding distance, but 10 runs each on a CPU slowed 6x and 20x
       passed.
 
-- [ ] A PDF inside a line of text still holds up the queue (D-202).
+## Waiting on others
+
+Each starts when another project ships what it needs.
+
 - [ ] Update to TypeScript 7 once `typescript-eslint` allows it. 8.72.2 allows
       only TypeScript below 6.1.
 - [ ] Once Stryker and `typescript-eslint` accept `minimatch` 11.0.1 or later,
@@ -83,11 +99,11 @@ there is a screen recording of them (D-099).
       dismissed until then: only dev tools use it, on our own globs.
 - [ ] Once the directory's scorecard lint understands moment's types, go back to
       Obsidian's `moment` and delete `src/notes/moment.ts` (D-152).
-- [ ] If the stall error (D-164) doesn't explain the next blank stream after
-      Back, add a debug report to copy: a setting records recent loads, renders
-      and returns to the stream, and a command copies them with the version
-      numbers. Not the console: Obsidian's lint does not allow `console.log`,
-      even behind a setting.
+
+## Next release
+
+Done on the release's branch.
+
 - [ ] On the next release's branch, take the README's search screenshots again:
       the current match is now filled with the accent color (D-235).
 
