@@ -305,6 +305,15 @@ test.describe("README screenshots", () => {
             line.closest(".daily-note-block")!.setAttribute("data-still-start", "");
         });
         const from = page.locator("[data-still-start] .daily-note-header");
+        // A phone's shot is the screen as it is, but here a step leaves the
+        // date cut in half under the search bar.
+        if (testInfo.project.name === "mobile") {
+            await toTop(page, from);
+            // Off the stream: on a phone, right of the column is its scroll
+            // bar, which stays while the pointer is over it.
+            await page.mouse.move(1, 1);
+            await page.waitForTimeout(1500);
+        }
         await capture(page, "search", testInfo, { from, to: page.locator("[data-still-end]") });
     });
 
