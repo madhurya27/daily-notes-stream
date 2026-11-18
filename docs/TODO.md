@@ -126,6 +126,15 @@ Compared in 2026-09 with Obsidian's core plugins and the community directory.
 Only what works on _the stream_ is ours**, and only where it is worth the extra
 complexity. Most important first.
 
+- [ ] Edit the note being read without scrolling up to its title: a command
+      ("Edit note being read") and a button that stays reachable in a long note.
+      Open the note at the place being read, not at its top. With two notes on
+      screen, the command edits the note being read (D-220), at the line a third
+      down the pane. The button belongs to each note, kept at the note's top
+      while it is on screen (`position: sticky` in its block), so it always
+      edits its own note; it opens at the top of the note's part on screen. Not
+      one button for the pane: in the gap between notes, the reader can't tell
+      which note it edits. Check the sticky button with `test:ios` (ADR 0013).
 - [ ] On this day: the same calendar date in every year. This would be a
       `NoteFilter`, like hiding empty notes.
       [Journal Review](https://github.com/Kageetai/obsidian-plugin-journal-review)
