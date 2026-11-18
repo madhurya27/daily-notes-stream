@@ -101,6 +101,15 @@ function isUnloadWanted(window: NoteWindow): boolean {
     return busyDraw(window)!.unloadWanted;
 }
 
+/**
+ * Each target's last report, in the order they were first reported. A busy
+ * page delivers several frames' reports in one call, and only the last says
+ * where the target is now (D-236).
+ */
+function latestReports(entries: IntersectionObserverEntry[]): IntersectionObserverEntry[] {
+    return [...new Map(entries.map((entry) => [entry.target, entry])).values()];
+}
+
 /** A render ended. Content it filled in stays drawn. */
 function endDrawing(window: NoteWindow): void {
     if (window.draw.state === "drawing") window.draw = { state: "empty" };
@@ -178,6 +187,18 @@ export class NoteWindowManager {
     private readonly unloadOnceStill = this.timers.debounce(() => this.unloadLeaving(), SCROLL_IDLE_MS, true);
     private readonly reserveOnceStill = () => this.clock.whenStill(this.reserveNow);
     private readonly reserveNow = () => this.reserve();
+    /**
+     * A safety net: once the pane is still, shows every hidden note inside the
+     * hiding distance. An observer reports only changes, so a note hidden by a
+     * wrong report would stay blank until scrolled away and back (D-236).
+     * While the tab is hidden, every note measures nothing and seems on
+     * screen.
+     */
+    private readonly showNearHidden = () => {
+        if (this.isHidden()) return;
+        for (const block of this.windows.keys())
+            if (block.hasClass(FAR) && !this.pastHiding(block)) block.removeClass(FAR);
+    };
     /**
      * The anchor keeps the place read before a turn until it is still itself,
      * which the clock does not know. Asking the clock again would ask at once.
@@ -259,7 +280,7 @@ export class NoteWindowManager {
 
         this.renderObserver = new IntersectionObserver(
             (entries) => {
-                for (const entry of entries) {
+                for (const entry of latestReports(entries)) {
                     if (!entry.isIntersecting) continue;
                     const target = entry.target as HTMLElement;
                     if (this.windows.has(target)) this.queue(target, null);
@@ -272,7 +293,7 @@ export class NoteWindowManager {
         this.hideObserver = new IntersectionObserver(
             (entries) => {
                 if (this.isHidden()) return;
-                const left = entries.filter(({ isIntersecting }) => !isIntersecting);
+                const left = latestReports(entries).filter(({ isIntersecting }) => !isIntersecting);
                 for (const { target } of left) {
                     const window = this.windows.get(target as HTMLElement);
                     if (window) this.hide(target as HTMLElement, window);
@@ -285,7 +306,7 @@ export class NoteWindowManager {
         this.unloadObserver = new IntersectionObserver(
             (entries) => {
                 if (this.isHidden()) return;
-                for (const entry of entries) {
+                for (const entry of latestReports(entries)) {
                     const block = entry.target as HTMLElement;
                     if (entry.isIntersecting) {
                         this.leaving.delete(block);
@@ -851,8 +872,9 @@ export class NoteWindowManager {
      * collapse it. Then it is unloaded once scrolling stops instead.
      */
     private conceal(block: HTMLElement): void {
-        if (block.hasClass("is-pinned")) block.addClass(FAR);
-        else this.leave(block);
+        if (!block.hasClass("is-pinned")) return this.leave(block);
+        block.addClass(FAR);
+        this.clock.whenStill(this.showNearHidden);
     }
 
     /**

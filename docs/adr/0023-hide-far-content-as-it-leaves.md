@@ -1,7 +1,9 @@
 # 0023. Content far from the screen leaves the layout as soon as it is far, for notes and runs alike
 
 - **Status:** Accepted. Its rule on unloading is superseded by D-228: outside
-  iOS, a hidden note past the unloading distance is unloaded mid-scroll.
+  iOS, a hidden note past the unloading distance is unloaded mid-scroll. D-236
+  adds that a hidden note inside the hiding distance is shown once the pane is
+  still.
 - **Date:** 2026-10-14
 
 ## Context

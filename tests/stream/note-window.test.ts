@@ -109,6 +109,23 @@ function fire(cb: IntersectionObserverCallback, block: HTMLElement, isIntersecti
 }
 
 /**
+ * Lays `block` out far below the pane. jsdom lays every element out at 0, so
+ * it would seem on screen to anything that reads the layout.
+ */
+function placeFar(block: HTMLElement): void {
+    vi.spyOn(block, "getBoundingClientRect").mockReturnValue({ top: 100_000, bottom: 100_640 } as DOMRect);
+}
+
+/**
+ * Calls one observer's callback once, with a report for each of `states`, in
+ * order. A busy page delivers several frames' reports for a block together.
+ */
+function fireBatch(cb: IntersectionObserverCallback, block: HTMLElement, ...states: boolean[]): void {
+    const entries = states.map((isIntersecting) => ({ target: block, isIntersecting }));
+    cb(entries as unknown as IntersectionObserverEntry[], {} as IntersectionObserver);
+}
+
+/**
  * A fake renderer that records what it rendered and threw away. `footer` stands
  * in for the linked mentions.
  */
@@ -1456,6 +1473,7 @@ describe("NoteWindowManager after the pane's width changes", () => {
         document.body.appendChild(block);
         fire(observers.render, block, true);
         await settle();
+        placeFar(block);
         fire(observers.hide, block, false);
 
         await narrow();
@@ -2717,6 +2735,64 @@ describe("NoteWindowManager hides a far note", () => {
         expect(isHidden(block)).toBe(false);
     });
 
+    // A busy page delivers several frames' reports together. Only the last says
+    // where the note is now, and no later report would show it again.
+    it("leaves a note shown that one batch reports gone and back", async () => {
+        const { block } = await rendered();
+        fireBatch(observers.hide, block, false, true);
+        expect(isHidden(block)).toBe(false);
+    });
+
+    it("hides a note that one batch reports back and gone", async () => {
+        const { block } = await rendered();
+        fireBatch(observers.hide, block, true, false);
+        expect(isHidden(block)).toBe(true);
+    });
+
+    it("keeps a hidden note drawn that one batch reports past the unload margin and back", async () => {
+        const { manager, block } = await rendered();
+        manager.onScroll();
+        fire(observers.hide, block, false);
+
+        fireBatch(observers.unload, block, false, true);
+        await still();
+
+        expect(isRendered(block)).toBe(true);
+    });
+
+    // A safety net for a wrong report: no later report would show the note
+    // again, and the reader sees it blank until they scroll it away and back.
+    it("shows a hidden note inside the hiding distance once the pane is still", async () => {
+        const { block } = await rendered();
+        fire(observers.hide, block, false);
+
+        await still();
+
+        expect(isHidden(block)).toBe(false);
+    });
+
+    it("keeps a note hidden once the pane is still where it is past the hiding distance", async () => {
+        const { block } = await rendered();
+        placeFar(block);
+        fire(observers.hide, block, false);
+
+        await still();
+
+        expect(isHidden(block)).toBe(true);
+    });
+
+    it("draws nothing for a note that one batch reports near and gone", async () => {
+        const renderer = makeRenderer();
+        const { manager } = makeManager(renderer, laidOut);
+        const block = manager.add(FILE);
+        document.body.appendChild(block);
+
+        fireBatch(observers.render, block, true, false);
+        await settle();
+
+        expect(renderer.renderInto).not.toHaveBeenCalled();
+    });
+
     it("does nothing to an unloaded note past the hide margin", () => {
         const { manager } = makeManager();
         const block = manager.add(FILE);
@@ -2782,6 +2858,7 @@ describe("NoteWindowManager hides a far note", () => {
             document.body.appendChild(block);
             fire(observers.render, block, true);
             await vi.advanceTimersByTimeAsync(1); // into the render
+            placeFar(block);
             for (const observer of passed) fire(observers[observer], block, false);
             await vi.advanceTimersByTimeAsync(50);
             return { renderer, block };
@@ -2810,6 +2887,7 @@ describe("NoteWindowManager hides a far note", () => {
             document.body.appendChild(block);
             fire(observers.render, block, true);
             await vi.advanceTimersByTimeAsync(1); // into the render
+            placeFar(block);
             fire(observers.unload, block, false);
             fire(observers.unload, block, true);
             fire(observers.hide, block, false);
@@ -2818,6 +2896,23 @@ describe("NoteWindowManager hides a far note", () => {
             await still();
             expect(isHidden(block)).toBe(true);
             expect(renderer.discard).not.toHaveBeenCalled();
+        });
+
+        // The stream opening: the page is busiest while it draws its first
+        // notes, so their reports come in batches.
+        it("keeps it shown where one batch reported it gone and back", async () => {
+            const renderer = makeSlowRenderer();
+            const { manager } = makeManager(renderer, laidOut);
+            const block = manager.add(FILE);
+            document.body.appendChild(block);
+            fire(observers.render, block, true);
+            await vi.advanceTimersByTimeAsync(1); // into the render
+            fireBatch(observers.render, block, false, true);
+            fireBatch(observers.hide, block, false, true);
+            await vi.advanceTimersByTimeAsync(50);
+
+            expect(isRendered(block)).toBe(true);
+            expect(isHidden(block)).toBe(false);
         });
 
         it("empties it once the scroll is still where it passed the unload margin too", async () => {
@@ -4858,6 +4953,21 @@ describe("NoteWindowManager while its tab is hidden", () => {
 
         expect(isRendered(block)).toBe(true);
         expect(block.hasClass("is-far")).toBe(false);
+    });
+
+    // Every note measures nothing there, so each would seem on screen.
+    it("leaves a note hidden before the tab was, until the tab shows again", async () => {
+        const { manager, scrollRoot } = makeManager();
+        const block = manager.add(FILE);
+        document.body.appendChild(block);
+        fire(observers.render, block, true);
+        await settle();
+        fire(observers.hide, block, false);
+
+        hideTab(scrollRoot);
+        await still();
+
+        expect(block.hasClass("is-far")).toBe(true);
     });
 
     it("keeps an empty note's height when Obsidian reports a resize", async () => {

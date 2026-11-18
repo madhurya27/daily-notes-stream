@@ -4537,3 +4537,22 @@ the current match in the accent color, but `::highlight()` cannot draw a ring.
   other matches would no longer look like Obsidian's.
 - The other matches 1.5 times as strong in dark mode — next to marked text, the
   difference barely showed.
+
+## D-236 — Observers act on each note's last report, and hidden notes on screen are shown once still (2026-11-18)
+
+**Decision:** each of the window manager's observers acts only on the last
+report for each note in a call. Once the pane is still, any hidden note inside
+the hiding distance is shown again
+([ADR 0023](adr/0023-hide-far-content-as-it-leaves.md)).
+
+**Why:** a busy page, such as a stream opening, can deliver a note's "out of
+range" and "back in range" reports in one call. The hiding observer hid the note
+for the first, and no later report showed it: on a Windows desktop, the newest
+notes stayed blank after Back until scrolled away and back. The check once still
+catches any other wrong report, which a reader would not report.
+
+**Rejected:**
+
+- The check alone — it leaves notes blank for 300 ms after a wrong report.
+- Checking every hidden note on each frame — layout reads during a glide, for a
+  case this rare.
