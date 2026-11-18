@@ -1105,6 +1105,18 @@ describe("NoteRenderer draws a note without waiting for its PDF", () => {
         expect(boxes.map((box) => box.getAttribute("src"))).toEqual(["![[a.pdf]]", "![[b.pdf]]"]);
     });
 
+    it("finishes with a PDF inside a line still loading, its box in the line", async () => {
+        renderWithPdfLoading();
+        const app = makeApp({ readResult: "Before ![[Manual.pdf]] after." });
+
+        const block = await renderNote(makeNoteRenderer(app), NOTE);
+
+        const slot = block.querySelector(".daily-note-content .daily-note-pdf")!;
+        expect(slot.tagName).toBe("SPAN");
+        expect(slot.querySelector(".pdf-embed")?.getAttribute("src")).toBe("![[Manual.pdf]]");
+        expect(slot.parentElement!.textContent).toMatch(/^Before .* after\.$/);
+    });
+
     it("draws a PDF with its note's path and component", async () => {
         const render = renderWithPdfLoading();
         const app = makeApp({ readResult: "![[Manual.pdf]]" });

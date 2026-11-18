@@ -726,6 +726,13 @@ body:not(.is-mobile) :is(.daily-note-content, .daily-note-mention-excerpt) :is(t
     pointer-events: none;
 }
 
+/* A PDF inside a line is drawn into a span, inside the paragraph Obsidian
+   gives every embed. Without its box, that paragraph is laid out as Obsidian
+   lays out a PDF inside a line (D-238). */
+.daily-note-block span.daily-note-pdf > p {
+    display: contents;
+}
+
 /* Until it has loaded, a PDF has the shape of a Letter page, not Obsidian's 800
    px, so what is below it barely moves. Then its own height replaces this
    (D-202). */

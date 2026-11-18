@@ -39,13 +39,16 @@ test("a PDF shows its first page without a toolbar, and a tap opens it", async (
 
 const PDF_DAY = FREE_DAYS[0].slice("Journal/".length, -".md".length);
 
+/** A note with a PDF on a line of its own. */
+const PDF_ON_ITS_LINE = "Words first.\n\n![[Manual.pdf]]\n\nWords after.\n";
+
 /**
- * Opens the stream with a note holding a PDF on a free day for `body`, and puts
- * the note back.
+ * Opens the stream with a note holding `text` on a free day for `body`, and
+ * puts the note back.
  */
-async function withPdfNote<T>(phone: Phone, body: () => Promise<T>): Promise<T> {
+async function withPdfNote<T>(phone: Phone, body: () => Promise<T>, text = PDF_ON_ITS_LINE): Promise<T> {
     const path = FREE_DAYS[0];
-    const original = await phone.writeNote(path, "Words first.\n\n![[Manual.pdf]]\n\nWords after.\n");
+    const original = await phone.writeNote(path, text);
     try {
         await phone.openStream();
         return await body();
@@ -55,49 +58,60 @@ async function withPdfNote<T>(phone: Phone, body: () => Promise<T>): Promise<T> 
 }
 
 // The note's text is there at once, and the queue does not wait for the PDF to
-// load (D-202).
-test("a note with a PDF finishes drawing before the PDF has loaded", async ({ phone }) => {
-    await withPdfNote(phone, async () => {
-        const path = FREE_DAYS[0];
-        await phone.run((path: string) => {
-            const { renderer } = window.app.workspace.getLeavesOfType("daily-notes-stream-view")[0]!.view.stream.window;
-            const renderInto = renderer.renderInto;
-            renderer.renderInto = async function (this: unknown, block: HTMLElement, ...rest: unknown[]) {
-                const drawn = await renderInto.call(this, block, ...rest);
-                if (block.dataset.sourcePath === path)
-                    (window as unknown as { pdfAtDrawn: unknown }).pdfAtDrawn = {
-                        words: block.textContent!.includes("Words after."),
-                        box: !!block.querySelector(".pdf-embed"),
-                        canvas: !!block.querySelector("canvas"),
-                        height: block.querySelector(".pdf-embed")!.getBoundingClientRect().height,
+// load, on a line of its own (D-202) or inside a line (D-238).
+for (const [where, text] of [
+    ["", PDF_ON_ITS_LINE],
+    [" inside a line", "Words first ![[Manual.pdf]] words after.\n"],
+]) {
+    test(`a note with a PDF${where} finishes drawing before the PDF has loaded`, async ({ phone }) => {
+        await withPdfNote(
+            phone,
+            async () => {
+                const path = FREE_DAYS[0];
+                await phone.run((path: string) => {
+                    const { renderer } =
+                        window.app.workspace.getLeavesOfType("daily-notes-stream-view")[0]!.view.stream.window;
+                    const renderInto = renderer.renderInto;
+                    renderer.renderInto = async function (this: unknown, block: HTMLElement, ...rest: unknown[]) {
+                        const drawn = await renderInto.call(this, block, ...rest);
+                        if (block.dataset.sourcePath === path)
+                            (window as unknown as { pdfAtDrawn: unknown }).pdfAtDrawn = {
+                                words: /words after\./i.test(block.textContent!),
+                                box: !!block.querySelector(".pdf-embed"),
+                                canvas: !!block.querySelector("canvas"),
+                                height: block.querySelector(".pdf-embed")!.getBoundingClientRect().height,
+                            };
+                        return drawn;
                     };
-                return drawn;
-            };
-        }, path);
+                }, path);
 
-        await phone.jumpTo(PDF_DAY);
+                await phone.jumpTo(PDF_DAY);
 
-        const atDrawn = await phone.run(
-            () =>
-                (
-                    window as unknown as {
-                        pdfAtDrawn: { words: boolean; box: boolean; canvas: boolean; height: number };
-                    }
-                ).pdfAtDrawn
+                const atDrawn = await phone.run(
+                    () =>
+                        (
+                            window as unknown as {
+                                pdfAtDrawn: { words: boolean; box: boolean; canvas: boolean; height: number };
+                            }
+                        ).pdfAtDrawn
+                );
+                expect(atDrawn).toMatchObject({ words: true, box: true, canvas: false });
+                const note = `.daily-note-block[data-source-path="${path}"]`;
+                await expect
+                    .poll(() => phone.run((pdf: string) => !!document.querySelector(pdf), `${note} .pdf-embed canvas`))
+                    .toBe(true);
+                // Starting a page's shape, the text below it barely moves as it
+                // loads.
+                const loaded = await phone.run(
+                    (box: string) => document.querySelector(box)!.getBoundingClientRect().height,
+                    `${note} .pdf-embed`
+                );
+                expect(Math.abs(loaded - atDrawn.height), `from ${atDrawn.height} to ${loaded}`).toBeLessThan(10);
+            },
+            text
         );
-        expect(atDrawn).toMatchObject({ words: true, box: true, canvas: false });
-        const note = `.daily-note-block[data-source-path="${path}"]`;
-        await expect
-            .poll(() => phone.run((pdf: string) => !!document.querySelector(pdf), `${note} .pdf-embed canvas`))
-            .toBe(true);
-        // Starting a page's shape, the text below it barely moves as it loads.
-        const loaded = await phone.run(
-            (box: string) => document.querySelector(box)!.getBoundingClientRect().height,
-            `${note} .pdf-embed`
-        );
-        expect(Math.abs(loaded - atDrawn.height), `from ${atDrawn.height} to ${loaded}`).toBeLessThan(10);
     });
-});
+}
 
 // A PDF now loads outside the queue, so its note can go away first. Every test
 // fails on an error in the console.

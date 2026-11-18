@@ -5,9 +5,6 @@
 Most important first. Problems on iOS that last only a frame or two wait until
 there is a screen recording of them (D-099).
 
-- [ ] Remove the outline Obsidian draws around a property under the pointer: it
-      suggests the property can be edited, which the read-only stream doesn't
-      allow. Check desktop and the phone layout.
 - [ ] As a long note draws from its end, a Base below the pane's top pushes the
       text up, and the anchor holds the text, which moves the tail and the next
       note down: 128 px in 1 of 8 hard flicks (D-203). With its tail on screen,
@@ -20,12 +17,14 @@ there is a screen recording of them (D-099).
       Obsidian's reading view of a long note had 0 in 48
       (`.dev/zcontrol.spec.ts`), but it is not a fair control: a single note
       loads, hides and adds nothing during a glide. Probe: `.dev/zcut.spec.ts`.
-- [ ] A PDF inside a line of text still holds up the queue (D-202).
 - [ ] If the stall error (D-164) doesn't explain the next blank stream after
       Back, add a debug report to copy: a setting records recent loads, renders
       and returns to the stream, and a command copies them with the version
       numbers. Not the console: Obsidian's lint does not allow `console.log`,
       even behind a setting.
+- [ ] Remove the outline Obsidian draws around a property under the pointer: it
+      suggests the property can be edited, which the read-only stream doesn't
+      allow. Check desktop and the phone layout.
 
 ## Flaky tests
 

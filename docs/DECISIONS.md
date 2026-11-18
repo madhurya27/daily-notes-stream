@@ -3803,6 +3803,8 @@ is 193–274 ms.
 
 ## D-202 — A note does not wait for its PDF to load (2026-11-01)
 
+Superseded in part by D-238: a PDF inside a line of text is drawn apart too.
+
 **Decision:** a PDF on a line of its own is taken out of the note's Markdown,
 leaving a slot, and drawn there separately (`pdf-embeds.ts`). The note's draw
 waits only until the PDF's box is in place. On mobile, the box has the shape of
@@ -4577,3 +4579,23 @@ Chromium's phone-sized window left the status bar's band blank.
 - PNG — the same pixels, at three to five times the size.
 - pngquant — lossy, which can show as bands in the blurred page behind the jump
   list.
+
+## D-238 — A PDF inside a line is drawn apart from its note too (2026-11-18)
+
+**Decision:** a PDF inside a line of text, in a paragraph, list item, quote or
+table cell, is replaced by an empty span and drawn there, as D-202 draws one on
+a line of its own. The paragraph Obsidian wraps it in has `display: contents`,
+so the words around it lie as in Obsidian's reading view. A PDF stays in the
+note's Markdown where Obsidian draws none (code, an indented code block, a `%%`
+comment), and in a heading, whose `data-heading` would hold the span's HTML.
+
+**Why:** such a note still waited about 400 ms for its PDF, and held up the
+queue.
+
+**Rejected:**
+
+- Ending the note's draw once each PDF has its box, without taking the PDF out —
+  the rest of `MarkdownRenderer.render` (math, Mermaid, other embeds) may still
+  be running, as in D-202's first rejected option.
+- Moving the PDF's box out of its paragraph — Obsidian's PDF viewer still holds
+  and changes that box as it loads.

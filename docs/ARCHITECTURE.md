@@ -77,8 +77,8 @@ So when a view's own handler runs, the shared indexes are already up to date.
    `far-run-watch.ts` watches them. Hidden notes and hidden parts show again
    when they come back near the screen. Waiting notes draw in the order the
    reader needs them (`draw-order.ts`, D-201), between a long note's slices too
-   (ADR 0020), and a PDF loads after its note is drawn (`pdf-embeds.ts`, D-202).
-   A note's math is drawn without waiting for MathJax's stylesheet
+   (ADR 0020), and a PDF loads after its note is drawn (`pdf-embeds.ts`, D-202,
+   D-238). A note's math is drawn without waiting for MathJax's stylesheet
    (`math-at-once.ts`, D-210). Each rendered note owns a child `Component`,
    which is thrown away when the note is unloaded. When the reader scrolls up
    into a long note, it is drawn from its end
