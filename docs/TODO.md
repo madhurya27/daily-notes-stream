@@ -100,13 +100,6 @@ Each starts when another project ships what it needs.
 - [ ] Once the directory's scorecard lint understands moment's types, go back to
       Obsidian's `moment` and delete `src/notes/moment.ts` (D-152).
 
-## Next release
-
-Done on the release's branch.
-
-- [ ] On the next release's branch, take the README's search screenshots again:
-      the current match is now filled with the accent color (D-235).
-
 ## Known limits
 
 Measured and accepted. Opened again if a reader notices.
