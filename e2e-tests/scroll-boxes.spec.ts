@@ -114,17 +114,27 @@ function scrollBoxes(container: Locator): Promise<string[]> {
 }
 
 /**
+ * Scrolls `el` to the middle of the pane. While its note's content is out of
+ * the layout (ADR 0023), `el` has no box, so this scrolls to the note, which
+ * then shows its content again.
+ */
+function scrollToShown(el: Element): void {
+    (el.closest(".daily-note-block.is-far") ?? el).scrollIntoView({ block: "center" });
+}
+
+/**
  * Scrolls Words.base's text cell in `scope` into view, and returns what `read`
  * finds in it, read while it is drawn. Bases draws a table's rows only while
  * it is on screen, and the Bases above it push it down as they fill in, so the
- * cell may be gone again by the next step.
+ * cell may be gone again by the next step, or its note's content out of the
+ * layout.
  */
 async function readWord<T>(scope: Locator, read: (cell: Element) => T): Promise<T> {
     const words = scope.locator(".daily-note-base").nth(WORDS_SLOT);
     const text = words.locator(".bases-td .metadata-input-longtext");
     let result: T | undefined;
     await expect(async () => {
-        await words.scrollIntoViewIfNeeded();
+        await words.evaluate(scrollToShown);
         await expect(text).toHaveText(/^hello/, { timeout: 1000 });
         result = await text.evaluate(read, undefined, { timeout: 1000 });
     }).toPass();

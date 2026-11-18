@@ -50,6 +50,11 @@ last, once the others are fixed.
       scrolled it to the top and before any setting changed. Seen once in 4 full
       runs in the Linux container. The test retries, and CI warns of each retry.
       It may be the same as Back's 233 px, which is not shown.
+- [ ] Find why `stream.spec.ts`'s "leaves the anchoring to the platform where it
+      has its own" once found the fourth note 520 px above the pane for 15 s, on
+      desktop in CI run 44368644564, after scrolling it to the top and before
+      the note above grew. The notes above had drawn, and Chromium never moved
+      it back. It may be the same as Back's 233 px and the 937 px above.
 - [ ] Find why Chromium sometimes loses the promise of the e2e startup's
       `page.evaluate` that closes settings ("Resulting promise was garbage
       collected"). It failed 2 of about 22 full runs on Linux, each at a run's
