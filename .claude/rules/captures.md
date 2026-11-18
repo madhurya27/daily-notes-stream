@@ -29,6 +29,8 @@ pnpm run capture:listing       # the desktop and mobile images for the plugin di
 - Each desktop screenshot shows the stream's pane in a window 904 px wide and
   960 px tall, scrolled to a date. `scripts/window-still.mjs` draws a window
   frame around it. The desktop recording shows the whole window (D-126).
+- Each phone screenshot is the whole phone screen, with iOS's status bar drawn
+  at its top (D-237).
 - The recordings are animated WebP files. They need `img2webp`
   (`brew install webp`), and the phone's recording needs `swift` (Xcode). D-116
   says why.

@@ -58,6 +58,48 @@ const note = (page: Page, path: string) => page.locator(`[data-source-path="${pa
 type Frame = { from: Locator; to: Locator };
 
 /**
+ * Draws iOS's status bar where a phone shows it, as a recording of the iPhone
+ * shows it (`demo-phone.webp`): 9:41, then signal, Wi-Fi and a full battery.
+ * Chromium leaves that band blank. Returns a function that removes it.
+ */
+async function drawStatusBar(page: Page): Promise<() => Promise<void>> {
+    const bar = await page.evaluateHandle(() => {
+        const signal =
+            '<svg width="18" height="12" viewBox="0 0 18 12">' +
+            [0, 5, 10, 15]
+                .map((x, i) => `<rect x="${x}" y="${9 - i * 3}" width="3" height="${3 + i * 3}" rx="1" />`)
+                .join("") +
+            "</svg>";
+        const wifi =
+            '<svg width="16" height="12" viewBox="0 0 16 12">' +
+            '<path d="M8 2.6c2.4 0 4.6.9 6.3 2.5l1.2-1.3A10.6 10.6 0 0 0 8 .8 10.6 10.6 0 0 0 .5 3.8l1.2 1.3A8.9 8.9 0 0 1 8 2.6Z" />' +
+            '<path d="M8 6c1.5 0 2.8.5 3.9 1.5l1.2-1.3A7.3 7.3 0 0 0 8 4.2c-1.9 0-3.7.7-5.1 2l1.2 1.3C5.2 6.5 6.5 6 8 6Z" />' +
+            '<path d="M8 9.4c.6 0 1.1.2 1.5.5L8 11.6 6.5 9.9c.4-.3.9-.5 1.5-.5Z" />' +
+            "</svg>";
+        const battery =
+            '<svg width="29" height="13" viewBox="0 0 29 13">' +
+            '<rect x="0" y="0" width="26" height="13" rx="4.2" />' +
+            '<rect x="27" y="4.5" width="1.5" height="4" rx="0.75" opacity="0.4" />' +
+            "</svg>";
+        const bar = document.body.appendChild(document.createElement("div"));
+        bar.style.cssText =
+            "position: fixed; inset: 0 0 auto 0; height: 63px; z-index: 2147483647; pointer-events: none;" +
+            "font: 600 17px/1 -apple-system, system-ui; letter-spacing: -0.4px;" +
+            `color: ${document.body.classList.contains("theme-dark") ? "#fff" : "#000"}; fill: currentColor;`;
+        const time = bar.appendChild(document.createElement("div"));
+        time.textContent = "9:41";
+        time.style.cssText = "position: absolute; left: 66px; top: 32px; transform: translate(-50%, -50%);";
+        const icons = bar.appendChild(document.createElement("div"));
+        icons.style.cssText =
+            "position: absolute; left: 329px; top: 32px; transform: translate(-50%, -50%);" +
+            "display: flex; gap: 6px; align-items: center;";
+        icons.innerHTML = signal + wifi + battery;
+        return bar;
+    });
+    return () => bar.evaluate((el) => el.remove());
+}
+
+/**
  * One screenshot for each layout. On desktop, `frame` sets what it shows;
  * otherwise it shows the top of the column.
  */
@@ -66,7 +108,15 @@ async function capture(page: Page, name: string, testInfo: TestInfo, frame?: Fra
     const path = join(OUT, `${name}-${layout}.png`);
     if (frame && layout === "desktop") await toTop(page, frame.from);
     await page.waitForTimeout(1000);
-    if (layout === "phone") return void (await page.screenshot({ path }));
+    if (layout === "phone") {
+        const removeStatusBar = await drawStatusBar(page);
+        try {
+            await page.screenshot({ path });
+        } finally {
+            await removeStatusBar();
+        }
+        return;
+    }
 
     const column = await noteColumn(page);
     if (frame) await fits(column, frame.to);

@@ -4556,3 +4556,18 @@ catches any other wrong report, which a reader would not report.
 - The check alone — it leaves notes blank for 300 ms after a wrong report.
 - Checking every hidden note on each frame — layout reads during a glide, for a
   case this rare.
+
+## D-237 — The phone stills draw iOS's status bar (2026-11-18)
+
+**Decision:** before each phone screenshot, the capture draws iOS's status bar
+in the band above Obsidian's header: 9:41, signal, Wi-Fi and a full battery,
+placed as in the iPhone recording.
+
+**Why:** the stills come from Chromium in a phone-sized window, which leaves
+that band blank, so they did not look like a phone.
+
+**Rejected:**
+
+- Taking the stills on the iPhone — each README update would need the phone on
+  USB, and a terminal with camera access.
+- Cropping the band off — the header would touch the image's top edge.
