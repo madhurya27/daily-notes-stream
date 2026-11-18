@@ -85,7 +85,10 @@ last, once the others are fixed.
       mid-glide", on desktop: the 12,143 px note at the top was never hidden
       during the 1.5 s glide. The glide steps on a 16 ms timer and ends one pane
       past the hiding distance, but 10 runs each on a CPU slowed 6x and 20x
-      passed.
+      passed. It failed the same way on mobile in CI run 44383145164.
+    - `note-links.spec.ts`'s "preview the linked note on mod-hover", on desktop,
+      in CI run 44383145164 only: no preview of "Book 1" showed within 15 s of
+      the hover with Ctrl or Cmd held. The retry showed it in 3 s.
 
 ## Waiting on others
 
