@@ -54,7 +54,11 @@ last, once the others are fixed.
       has its own" once found the fourth note 520 px above the pane for 15 s, on
       desktop in CI run 44368644564, after scrolling it to the top and before
       the note above grew. The notes above had drawn, and Chromium never moved
-      it back. It may be the same as Back's 233 px and the 937 px above.
+      it back. It may be the same as Back's 233 px and the 937 px above. Not
+      seen in 130 runs on the Mac and in the Linux container, alone or after the
+      tests its CI worker ran first. On failure, the test now lists each scroll
+      and each change of the first five notes' heights and classes. Delete that
+      log once this is fixed.
 - [ ] Find why Chromium sometimes loses the promise of the e2e startup's
       `page.evaluate` that closes settings ("Resulting promise was garbage
       collected"). It failed 2 of about 22 full runs on Linux, each at a run's
@@ -92,7 +96,8 @@ last, once the others are fixed.
       passed. It failed the same way on mobile in CI run 44383145164. Locally
       the note is hidden about 80 ms before the glide ends. On failure, the test
       now lists the block's classes at each change and in the 10 frames after
-      the glide: they show whether hiding came late or never.
+      the glide: they show whether hiding came late or never. Delete that log
+      once this is fixed.
     - `note-links.spec.ts`'s "preview the linked note on mod-hover", on desktop,
       in CI run 44383145164 only: no preview of "Book 1" showed within 15 s of
       the hover with Ctrl or Cmd held. The retry showed it in 3 s.

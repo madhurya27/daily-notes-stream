@@ -614,12 +614,55 @@ test.describe("daily notes stream in real Obsidian", () => {
 
     test.describe("a note above the pane changing height", () => {
         /**
+         * Starts logging each scroll of the pane, and each change of size or
+         * classes of the first five notes. It listens, through a scroll event
+         * and a ResizeObserver, rather than measuring each frame: a measurement
+         * would lay the page out, which could hide the failure it looks for.
+         */
+        function startPlaceLog(container: import("@playwright/test").Locator) {
+            return container.evaluate((root) => {
+                const pane = root.parentElement!;
+                const start = performance.now();
+                const log: string[] = [];
+                const at = () => `${Math.round(performance.now() - start)} ms`;
+                const blocks = Array.from(root.querySelectorAll<HTMLElement>(".daily-note-block")).slice(0, 5);
+                const resizes = new ResizeObserver((entries) => {
+                    for (const entry of entries) {
+                        const block = entry.target as HTMLElement;
+                        const height = entry.borderBoxSize[0]!.blockSize.toFixed(1);
+                        log.push(`${at()} note ${blocks.indexOf(block)} ${height} px: ${block.className}`);
+                    }
+                });
+                for (const block of blocks) resizes.observe(block);
+                const scrolled = () => log.push(`${at()} scrollTop ${pane.scrollTop.toFixed(1)}`);
+                pane.addEventListener("scroll", scrolled);
+                (window as unknown as { placeLog: unknown }).placeLog = {
+                    log,
+                    stop: () => {
+                        resizes.disconnect();
+                        pane.removeEventListener("scroll", scrolled);
+                    },
+                };
+            });
+        }
+
+        /** Stops the log startPlaceLog began, and returns its lines. */
+        function stopPlaceLog(container: import("@playwright/test").Locator): Promise<string[]> {
+            return container.evaluate(() => {
+                const { log, stop } = (window as unknown as { placeLog: { log: string[]; stop(): void } }).placeLog;
+                stop();
+                return log;
+            });
+        }
+
+        /**
          * Where the fourth note is, scrolled to the top, before and after a
          * note above it grows 1000px.
          */
         async function growAbove(page: import("@playwright/test").Page, container: import("@playwright/test").Locator) {
             const blocks = container.locator(".daily-note-block");
             await expect(blocks.nth(3)).toBeAttached();
+            await startPlaceLog(container);
             await blocks.nth(3).evaluate((el) => el.scrollIntoView({ block: "start" }));
             await expect(blocks.first()).not.toHaveClass(/is-unloaded/);
             const top = () =>
@@ -630,7 +673,15 @@ test.describe("daily notes stream in real Obsidian", () => {
             // The notes above are rendered as it is scrolled to, and grow
             // taller than their empty blocks. This is the first thing the
             // anchor has to correct.
-            await expect.poll(top).toBeCloseTo(0, 0);
+            const placed = await expect
+                .poll(top)
+                .toBeCloseTo(0, 0)
+                .then(
+                    () => true,
+                    () => false
+                );
+            const log = await stopPlaceLog(container);
+            if (!placed) expect(await top(), `the fourth note's top, after:\n${log.join("\n")}`).toBeCloseTo(0, 0);
             const before = await top();
 
             await blocks.first().evaluate(async (el) => {
