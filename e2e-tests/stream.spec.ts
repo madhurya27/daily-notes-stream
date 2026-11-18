@@ -529,19 +529,38 @@ test.describe("daily notes stream in real Obsidian", () => {
 
         /**
          * Scrolls the top note's bottom five pane heights above the pane, in
-         * small steps.
+         * small steps. `steps` lists the top block's classes at the start, at
+         * each change, at the end of the glide and in up to 10 frames after
+         * it, so a failure shows whether hiding came late or never.
          */
         async function glidePastTop(scroller: import("@playwright/test").Locator) {
             return scroller.evaluate(async (el) => {
                 const top = el.querySelector<HTMLElement>(".daily-note-block")!;
                 const target = top.offsetTop + top.offsetHeight + 5 * el.clientHeight;
+                const start = performance.now();
+                const steps: string[] = [];
+                let classes = "";
+                const record = (when: string) => {
+                    classes = top.className;
+                    const panes = (el.scrollTop - top.offsetTop - top.offsetHeight) / el.clientHeight;
+                    const ms = Math.round(performance.now() - start);
+                    steps.push(`${when} ${ms} ms, bottom ${panes.toFixed(1)} panes above: ${classes}`);
+                };
+                record("start");
                 let hiddenMidGlide = false;
                 while (el.scrollTop < target - 1) {
                     el.scrollBy(0, Math.min(200, target - el.scrollTop));
                     await new Promise((resolve) => setTimeout(resolve, 16));
+                    if (top.className !== classes) record("glide");
                     hiddenMidGlide ||= top.classList.contains("is-far");
                 }
-                return hiddenMidGlide;
+                record("end");
+                for (let frame = 0; frame < 10 && !top.classList.contains("is-far"); frame++) {
+                    await new Promise(requestAnimationFrame);
+                    if (top.className !== classes) record("after");
+                }
+                if (!top.classList.contains("is-far")) record("10 frames later");
+                return { hiddenMidGlide, steps };
             });
         }
 
@@ -554,7 +573,8 @@ test.describe("daily notes stream in real Obsidian", () => {
             await expect(top.locator(".daily-note-content")).toBeVisible();
             const renderedHeight = (await top.boundingBox())!.height;
 
-            expect(await glidePastTop(container.locator("xpath=.."))).toBe(true);
+            const { hiddenMidGlide, steps } = await glidePastTop(container.locator("xpath=.."));
+            expect(hiddenMidGlide, `hidden mid-glide; the top block's states:\n${steps.join("\n")}`).toBe(true);
 
             await expect(top.locator(".daily-note-content")).toBeHidden();
             await expect(top).not.toHaveClass(/is-unloaded/);
