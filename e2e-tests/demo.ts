@@ -1,6 +1,7 @@
 import type { Page } from "@playwright/test";
+import { execFileSync } from "child_process";
 import { mkdirSync } from "fs";
-import { dirname, resolve } from "path";
+import { dirname, join, resolve } from "path";
 import { fileURLToPath } from "url";
 import { demoVault } from "../scripts/demo-vault.mjs";
 
@@ -47,4 +48,13 @@ export async function prepareDemo(page: Page): Promise<void> {
 export async function showLightTheme(page: Page): Promise<void> {
     await page.emulateMedia({ colorScheme: "light" });
     await page.waitForFunction(() => document.body.classList.contains("theme-light"));
+}
+
+/**
+ * Saves the PNG at `png` as `docs/images/<name>.webp`, lossless (D-237). Needs
+ * `cwebp` (`brew install webp`).
+ */
+export function saveWebp(png: string, name: string): void {
+    const args = ["-quiet", "-lossless", "-z", "9", png, "-o", join(OUT, `${name}.webp`)];
+    execFileSync("cwebp", args, { stdio: ["ignore", "ignore", "inherit"] });
 }

@@ -46,7 +46,7 @@ To find the stream waiting each time you start Obsidian, pin its tab: right-clic
 
 Each note is shown in full, as it looks in Obsidian's reading view, with its properties, images, tables, embeds, links, tasks, and Bases. The stream is read-only, so clicking a task's checkbox doesn't tick it. Open the note to edit it. Some content is reshaped so the stream scrolls smoothly, mostly on a phone or tablet. See [Phone and tablet](#phone-and-tablet).
 
-<img src="docs/images/stream-desktop.png" alt="The end of one daily note and the start of the next, its date and properties, in the stream" width="800">
+<img src="docs/images/stream-desktop.webp" alt="The end of one daily note and the start of the next, its date and properties, in the stream" width="800">
 
 ### Empty notes
 
@@ -67,7 +67,7 @@ Templates made with the core Templates plugin or with Templater both work. A pla
 
 The jump list opens on your 62 newest notes, about two months. Type to search the rest: a year, such as `2025`, lists every day of it that has a note. You can type a date in your daily-note format or as `YYYY-MM-DD`. If that day has no note, you go to the closest earlier day that does. The calendar button in the list opens your device's date picker.
 
-<img src="docs/images/jump-desktop.png" alt="The jump-to-date prompt listing the vault's dates" width="800">
+<img src="docs/images/jump-desktop.webp" alt="The jump-to-date prompt listing the vault's dates" width="800">
 
 ### Search
 
@@ -81,19 +81,19 @@ Press Ctrl/Cmd+F, or click the search icon at the top. If you changed Obsidian's
 
 Search looks only at each note's own text. Content that comes from other notes, such as a Base, an embedded note, or linked mentions, isn't searched. If a match is inside a folded section, search unfolds it. If the counter reads `2 / 5 · hidden`, the match is in a part of the note that isn't shown, such as hidden properties or an embed.
 
-<img src="docs/images/search-desktop.png" alt="The search bar stepping through notes that mention Mara" width="800">
+<img src="docs/images/search-desktop.webp" alt="The search bar stepping through notes that mention Mara" width="800">
 
 ### Fold sections
 
 Click the arrow beside a heading or nested list to fold it. The stream remembers what you folded.
 
-<img src="docs/images/collapse-desktop.png" alt="A note with every section folded to its heading" width="800">
+<img src="docs/images/collapse-desktop.webp" alt="A note with every section folded to its heading" width="800">
 
 ### Linked mentions
 
 Each note ends with a list of the notes that link to it, quoting the lines around each link.
 
-<img src="docs/images/mentions-desktop.png" alt="A note's linked mentions: a project note and a project log, each quoting the line that links to it" width="800">
+<img src="docs/images/mentions-desktop.webp" alt="A note's linked mentions: a project note and a project log, each quoting the line that links to it" width="800">
 
 ### Open notes and links
 
@@ -132,11 +132,11 @@ On desktop, wide tables and code blocks scroll sideways in their own box, as the
 <details>
 <summary>Phone layout</summary>
 
-<p><img src="docs/images/stream-phone.png" alt="The stream in Obsidian's phone layout" width="260"> <img src="docs/images/search-phone.png" alt="Search in the phone layout" width="260"> <img src="docs/images/jump-phone.png" alt="Jump to date in the phone layout" width="260"></p>
+<p><img src="docs/images/stream-phone.webp" alt="The stream in Obsidian's phone layout" width="260"> <img src="docs/images/search-phone.webp" alt="Search in the phone layout" width="260"> <img src="docs/images/jump-phone.webp" alt="Jump to date in the phone layout" width="260"></p>
 
-<p><img src="docs/images/collapse-phone.png" alt="Collapsed sections in the phone layout" width="260"> <img src="docs/images/mentions-phone.png" alt="Linked mentions in the phone layout" width="260"> <img src="docs/images/bases-phone.png" alt="A Base drawn as cards in the phone layout" width="260"></p>
+<p><img src="docs/images/collapse-phone.webp" alt="Collapsed sections in the phone layout" width="260"> <img src="docs/images/mentions-phone.webp" alt="Linked mentions in the phone layout" width="260"> <img src="docs/images/bases-phone.webp" alt="A Base drawn as cards in the phone layout" width="260"></p>
 
-<p><img src="docs/images/stream-dark-phone.png" alt="The stream in the dark theme, phone layout" width="260"></p>
+<p><img src="docs/images/stream-dark-phone.webp" alt="The stream in the dark theme, phone layout" width="260"></p>
 
 </details>
 
@@ -155,7 +155,7 @@ Each collapse setting appears only while its section is shown.
 
 The stream follows Obsidian's theme, light or dark.
 
-<img src="docs/images/stream-dark-desktop.png" alt="The stream in Obsidian's dark theme" width="800">
+<img src="docs/images/stream-dark-desktop.webp" alt="The stream in Obsidian's dark theme" width="800">
 
 ## Install
 

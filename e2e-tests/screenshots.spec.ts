@@ -1,14 +1,14 @@
-import type { Locator, Page, TestInfo } from "@playwright/test";
-import { test, expect, openStream, LAYOUT_VIEWPORT } from "./obsidian";
+import type { Locator, Page } from "@playwright/test";
+import { test, expect, openStream } from "./obsidian";
 import { readFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
-import { OUT, prepareDemo, showLightTheme } from "./demo";
+import { prepareDemo, saveWebp, showLightTheme } from "./demo";
 import { windowStill } from "../scripts/window-still.mjs";
 
 /**
- * Takes the README's screenshots from the real app, not a mockup, once for each
- * Playwright project, so both layouts come from the same run. Only runs when
+ * Takes the README's desktop screenshots from the real app, not a mockup. The
+ * phone's are taken on an iPhone, by `ios/screenshots.spec.ts`. Only runs when
  * asked, through `pnpm run capture:screenshots`, because a normal
  * `pnpm run test:e2e` must not replace files in docs/.
  */
@@ -58,65 +58,12 @@ const note = (page: Page, path: string) => page.locator(`[data-source-path="${pa
 type Frame = { from: Locator; to: Locator };
 
 /**
- * Draws iOS's status bar where a phone shows it, as a recording of the iPhone
- * shows it (`demo-phone.webp`): 9:41, then signal, Wi-Fi and a full battery.
- * Chromium leaves that band blank. Returns a function that removes it.
+ * One desktop screenshot. `frame` sets what it shows; otherwise it shows the
+ * top of the column.
  */
-async function drawStatusBar(page: Page): Promise<() => Promise<void>> {
-    const bar = await page.evaluateHandle(() => {
-        const signal =
-            '<svg width="18" height="12" viewBox="0 0 18 12">' +
-            [0, 5, 10, 15]
-                .map((x, i) => `<rect x="${x}" y="${9 - i * 3}" width="3" height="${3 + i * 3}" rx="1" />`)
-                .join("") +
-            "</svg>";
-        const wifi =
-            '<svg width="16" height="12" viewBox="0 0 16 12">' +
-            '<path d="M8 2.6c2.4 0 4.6.9 6.3 2.5l1.2-1.3A10.6 10.6 0 0 0 8 .8 10.6 10.6 0 0 0 .5 3.8l1.2 1.3A8.9 8.9 0 0 1 8 2.6Z" />' +
-            '<path d="M8 6c1.5 0 2.8.5 3.9 1.5l1.2-1.3A7.3 7.3 0 0 0 8 4.2c-1.9 0-3.7.7-5.1 2l1.2 1.3C5.2 6.5 6.5 6 8 6Z" />' +
-            '<path d="M8 9.4c.6 0 1.1.2 1.5.5L8 11.6 6.5 9.9c.4-.3.9-.5 1.5-.5Z" />' +
-            "</svg>";
-        const battery =
-            '<svg width="29" height="13" viewBox="0 0 29 13">' +
-            '<rect x="0" y="0" width="26" height="13" rx="4.2" />' +
-            '<rect x="27" y="4.5" width="1.5" height="4" rx="0.75" opacity="0.4" />' +
-            "</svg>";
-        const bar = document.body.appendChild(document.createElement("div"));
-        bar.style.cssText =
-            "position: fixed; inset: 0 0 auto 0; height: 63px; z-index: 2147483647; pointer-events: none;" +
-            "font: 600 17px/1 -apple-system, system-ui; letter-spacing: -0.4px;" +
-            `color: ${document.body.classList.contains("theme-dark") ? "#fff" : "#000"}; fill: currentColor;`;
-        const time = bar.appendChild(document.createElement("div"));
-        time.textContent = "9:41";
-        time.style.cssText = "position: absolute; left: 66px; top: 32px; transform: translate(-50%, -50%);";
-        const icons = bar.appendChild(document.createElement("div"));
-        icons.style.cssText =
-            "position: absolute; left: 329px; top: 32px; transform: translate(-50%, -50%);" +
-            "display: flex; gap: 6px; align-items: center;";
-        icons.innerHTML = signal + wifi + battery;
-        return bar;
-    });
-    return () => bar.evaluate((el) => el.remove());
-}
-
-/**
- * One screenshot for each layout. On desktop, `frame` sets what it shows;
- * otherwise it shows the top of the column.
- */
-async function capture(page: Page, name: string, testInfo: TestInfo, frame?: Frame): Promise<void> {
-    const layout = testInfo.project.name === "mobile" ? "phone" : "desktop";
-    const path = join(OUT, `${name}-${layout}.png`);
-    if (frame && layout === "desktop") await toTop(page, frame.from);
+async function capture(page: Page, name: string, frame?: Frame): Promise<void> {
+    if (frame) await toTop(page, frame.from);
     await page.waitForTimeout(1000);
-    if (layout === "phone") {
-        const removeStatusBar = await drawStatusBar(page);
-        try {
-            await page.screenshot({ path });
-        } finally {
-            await removeStatusBar();
-        }
-        return;
-    }
 
     const column = await noteColumn(page);
     if (frame) await fits(column, frame.to);
@@ -131,14 +78,16 @@ async function capture(page: Page, name: string, testInfo: TestInfo, frame?: Fra
     // Obsidian greys the titles while its window is in the background. Show
     // them as in use, whether or not the window has the focus.
     await page.evaluate(() => document.body.classList.add("is-focused"));
-    const raw = join(tmpdir(), `${name}-${layout}.png`);
+    const raw = join(tmpdir(), `${name}-desktop.png`);
     try {
         await page.screenshot({ path: raw, clip });
     } finally {
         await cover.evaluate((el) => el.remove());
     }
-    await windowStill(raw, path, clip);
-    expect(await edgeAlpha(page, path), "the window's shadow is cut off at the image's edge").toBe(0);
+    const still = join(tmpdir(), `${name}-desktop-still.png`);
+    await windowStill(raw, still, clip);
+    expect(await edgeAlpha(page, still), "the window's shadow is cut off at the image's edge").toBe(0);
+    saveWebp(still, `${name}-desktop`);
 }
 
 /** The highest alpha, 0 to 255, on the four edges of the PNG at `path`. */
@@ -282,6 +231,7 @@ async function noteColumn(page: Page): Promise<Box> {
 
 test.describe("README screenshots", () => {
     test.skip(process.env.CAPTURE_SCREENSHOTS !== "1", "set CAPTURE_SCREENSHOTS=1 to capture");
+    test.skip(({ mobileLayout }) => mobileLayout, "the phone's are taken on an iPhone");
     test.describe.configure({ mode: "serial" });
 
     test.beforeAll(async ({ obsidian }) => {
@@ -289,21 +239,14 @@ test.describe("README screenshots", () => {
     });
 
     // The window on screen is the size of the page, so the run looks like what
-    // it takes.
-    test.beforeEach(async ({ obsidian, mobileLayout }) => {
-        const { width, height } = mobileLayout ? LAYOUT_VIEWPORT.mobile : WINDOW;
-        await obsidian.page.evaluate(
-            ([w, h]) => window.electron.remote.getCurrentWindow().setContentSize(w, h),
-            [width, height]
-        );
-    });
-
-    // On desktop, a window the size of a screenshot at a Retina screen's scale,
-    // without the status bar, which would be over the notes. The phone's stays
-    // the size of its screen.
-    test.beforeEach(async ({ obsidian, mobileLayout }) => {
-        if (mobileLayout) return;
+    // it takes: a screenshot's size at a Retina screen's scale, without the
+    // status bar, which would be over the notes.
+    test.beforeEach(async ({ obsidian }) => {
         const { page } = obsidian;
+        await page.evaluate(
+            ([w, h]) => window.electron.remote.getCurrentWindow().setContentSize(w, h),
+            [WINDOW.width, WINDOW.height]
+        );
         const cdp = await page.context().newCDPSession(page);
         await cdp.send("Emulation.setDeviceMetricsOverride", { ...WINDOW, deviceScaleFactor: 2, mobile: false });
         await page.addStyleTag({ content: ".status-bar { display: none; }" });
@@ -313,32 +256,30 @@ test.describe("README screenshots", () => {
         await obsidian.page.keyboard.press("Escape");
     });
 
-    test("the stream", async ({ obsidian }, testInfo) => {
+    test("the stream", async ({ obsidian }) => {
         await showStream(obsidian.page);
-        await capture(obsidian.page, "stream", testInfo, streamFrame(obsidian.page));
+        await capture(obsidian.page, "stream", streamFrame(obsidian.page));
     });
 
-    test("the stream in dark mode", async ({ obsidian }, testInfo) => {
+    test("the stream in dark mode", async ({ obsidian }) => {
         const { page } = obsidian;
         await page.emulateMedia({ colorScheme: "dark" });
         try {
             await expect(page.locator("body")).toHaveClass(/theme-dark/);
             await showStream(page);
-            await capture(page, "stream-dark", testInfo, streamFrame(page));
+            await capture(page, "stream-dark", streamFrame(page));
         } finally {
             await showLightTheme(page);
         }
     });
 
-    test("search", async ({ obsidian }, testInfo) => {
+    test("search", async ({ obsidian }) => {
         const { page } = obsidian;
         await openStream(page);
         await page.locator('.view-action[aria-label="Search"]').click();
         const bar = page.locator(".daily-notes-search");
         await bar.locator("input").fill("Mara");
-        // The third note is one the other screenshots don't show. Typing makes
-        // the first match on screen current, but on a phone the navbar covers
-        // the only one, so the count starts at a different step there.
+        // The third note is one the other screenshots don't show.
         const count = bar.locator(".document-search-count");
         await expect(count).toHaveText(/^(1 \/ \d+|\d+ notes)$/);
         for (let text = await count.innerText(); !/^3 \//.test(text); text = await count.innerText()) {
@@ -355,41 +296,32 @@ test.describe("README screenshots", () => {
             line.closest(".daily-note-block")!.setAttribute("data-still-start", "");
         });
         const from = page.locator("[data-still-start] .daily-note-header");
-        // A phone's shot is the screen as it is, but here a step leaves the
-        // date cut in half under the search bar.
-        if (testInfo.project.name === "mobile") {
-            await toTop(page, from);
-            // Off the stream: on a phone, right of the column is its scroll
-            // bar, which stays while the pointer is over it.
-            await page.mouse.move(1, 1);
-            await page.waitForTimeout(1500);
-        }
-        await capture(page, "search", testInfo, { from, to: page.locator("[data-still-end]") });
+        await capture(page, "search", { from, to: page.locator("[data-still-end]") });
     });
 
-    test("jump to date", async ({ obsidian }, testInfo) => {
+    test("jump to date", async ({ obsidian }) => {
         const { page } = obsidian;
         await openStream(page);
         await page.locator('.view-action[aria-label="Jump to date"]').click();
         const prompt = page.locator(".prompt");
         await prompt.locator("input.prompt-input").fill("2026-09-1");
         await expect(prompt.locator(".suggestion-item").first()).toBeVisible();
-        await capture(page, "jump", testInfo);
+        await capture(page, "jump");
     });
 
     // Before the folding screenshot, which folds these footers and leaves them
     // folded.
-    test("linked mentions", async ({ obsidian }, testInfo) => {
+    test("linked mentions", async ({ obsidian }) => {
         const { page } = obsidian;
         const container = await openStream(page);
         const mentions = container.locator(".daily-note-block").first().locator(".daily-note-mentions");
         await expect(mentions.locator(".daily-note-mention").first()).toBeVisible();
         await mentions.evaluate((footer) => footer.scrollIntoView({ block: "center" }));
         const from = container.locator(".daily-note-header").first();
-        await capture(page, "mentions", testInfo, { from, to: mentions });
+        await capture(page, "mentions", { from, to: mentions });
     });
 
-    test("collapsed sections", async ({ obsidian }, testInfo) => {
+    test("collapsed sections", async ({ obsidian }) => {
         const { page } = obsidian;
         const container = await openStream(page);
         // Every section of the first two notes is folded, including linked
@@ -413,20 +345,6 @@ test.describe("README screenshots", () => {
             .evaluate((block) => block.scrollIntoView({ block: "start" }));
         const blocks = container.locator(".daily-note-block");
         const from = blocks.first().locator(".daily-note-header");
-        await capture(page, "collapse", testInfo, { from, to: blocks.nth(1).locator(".daily-note-header") });
-    });
-
-    test("a Base in a Sunday review", async ({ obsidian }, testInfo) => {
-        test.skip(testInfo.project.name === "desktop", "on desktop a Base looks as it does in Obsidian");
-        const { page } = obsidian;
-        const container = await openStream(page);
-        // Only notes near the viewport are rendered, so bring the block into
-        // view, then its heading to the top.
-        const sunday = container.locator('[data-source-path="Notes/2026-09-20.md"]');
-        await sunday.scrollIntoViewIfNeeded();
-        const reading = sunday.locator("h3", { hasText: "Reading" });
-        await reading.evaluate((heading) => heading.scrollIntoView({ block: "start" }));
-        await expect(sunday.locator(".bases-thead, .bases-cards-item").first()).toBeVisible();
-        await capture(page, "bases", testInfo);
+        await capture(page, "collapse", { from, to: blocks.nth(1).locator(".daily-note-header") });
     });
 });

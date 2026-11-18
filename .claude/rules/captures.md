@@ -3,6 +3,7 @@ paths:
     - "docs/images/**"
     - "README.md"
     - "e2e-tests/screenshots.spec.ts"
+    - "e2e-tests/ios/screenshots.spec.ts"
     - "e2e-tests/recording.spec.ts"
     - "e2e-tests/screencast.ts"
     - "e2e-tests/ios/recording.spec.ts"
@@ -15,7 +16,8 @@ paths:
 # README captures
 
 ```bash
-pnpm run capture:screenshots   # take the README's screenshots again, into docs/images/, from the demo vault
+pnpm run capture:screenshots   # take the README's desktop screenshots again, into docs/images/, from the demo vault
+pnpm run capture:screenshots:ios # take the README's phone screenshots again, on the plugged-in, unlocked iPhone
 pnpm run capture:recording     # record only docs/images/demo-desktop.webp again, the README's desktop recording
 pnpm run capture:recording:ios # record only docs/images/demo-phone.webp again, on the plugged-in iPhone
 pnpm run capture:listing       # the desktop and mobile images for the plugin directory, into .dev/listing/cards/ (D-161)
@@ -29,8 +31,12 @@ pnpm run capture:listing       # the desktop and mobile images for the plugin di
 - Each desktop screenshot shows the stream's pane in a window 904 px wide and
   960 px tall, scrolled to a date. `scripts/window-still.mjs` draws a window
   frame around it. The desktop recording shows the whole window (D-126).
-- Each phone screenshot is the whole phone screen, with iOS's status bar drawn
-  at its top (D-237).
+- The screenshots are lossless WebP files, made with `cwebp`
+  (`brew install webp`) (D-237).
+- Each phone screenshot is the whole iPhone screen, status bar included, 520 px
+  wide: twice the width the README shows. The screen is recorded over USB during
+  the run, so iOS draws its clean status bar, at 9:41 (D-237). Recording needs
+  camera access: run it from the app's Terminal panel or your own terminal.
 - The recordings are animated WebP files. They need `img2webp`
   (`brew install webp`), and the phone's recording needs `swift` (Xcode). D-116
   says why.

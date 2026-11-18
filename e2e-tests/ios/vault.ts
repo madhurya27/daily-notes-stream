@@ -8,7 +8,7 @@ import { DEMO as README_DEMO } from "../demo";
 import { testVault } from "../../scripts/seed-test-vault.mjs";
 import type { Phone } from "./phone";
 import { PLUGIN_ID, vaultConfig } from "./vault-config";
-import { recordingAsked } from "../recording-asked";
+import { recordingAsked, screenshotsAsked } from "../recording-asked";
 
 /**
  * The tests' own vault on the phone, stored on the phone, not in iCloud. It
@@ -18,11 +18,11 @@ import { recordingAsked } from "../recording-asked";
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 /**
- * A run for the README recording: the desktop recording's journal, with nothing
- * made for a test.
+ * A run for the README recording or screenshots: the desktop's journal, with
+ * nothing made for a test.
  */
-const RECORDING = recordingAsked();
-export const VAULT = process.env.IOS_VAULT ?? (RECORDING ? "Stream Demo" : "Stream E2E");
+const README = recordingAsked() || screenshotsAsked();
+export const VAULT = process.env.IOS_VAULT ?? (README ? "Stream Demo" : "Stream E2E");
 /**
  * How many days of journal: 21, unless IOS_SEED_DAYS sets another number, such
  * as 1825 for five years.
@@ -200,13 +200,13 @@ const TEST_NOTES = {
     [SHORT_NOTE_WITH_BASE]: "A short day, a board, then the reading list.\n\n![[Kanban.base]]\n\n![[Reading.base]]\n",
 };
 
-const NOTES = RECORDING ? README_DEMO : TEST_NOTES;
+const NOTES = README ? README_DEMO : TEST_NOTES;
 
 /**
  * Everything the vault holds, including configuration and the build, by path.
  */
 function contents(configDir: string): Record<string, string> {
-    const config = vaultConfig({ recording: RECORDING });
+    const config = vaultConfig({ readme: README });
     const build = ["main.js", "manifest.json", "styles.css"].map((name) => [
         `${configDir}/plugins/${PLUGIN_ID}/${name}`,
         readFileSync(join(REPO, name), "utf8"),

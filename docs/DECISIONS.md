@@ -4557,17 +4557,23 @@ catches any other wrong report, which a reader would not report.
 - Checking every hidden note on each frame — layout reads during a glide, for a
   case this rare.
 
-## D-237 — The phone stills draw iOS's status bar (2026-11-18)
+## D-237 — The phone stills are taken on the iPhone (2026-11-18)
 
-**Decision:** before each phone screenshot, the capture draws iOS's status bar
-in the band above Obsidian's header: 9:41, signal, Wi-Fi and a full battery,
-placed as in the iPhone recording.
+**Decision:** `capture:screenshots:ios` takes the README's phone stills on the
+iPhone on USB, with WebDriverAgent's screenshot of the whole screen. Each scene
+is set up by script, as on desktop. The phone's screen is recorded over USB
+during the run, because iOS then draws a clean status bar, at 9:41. Every README
+still, desktop and phone, is a lossless WebP, twice the width the README shows
+it at.
 
-**Why:** the stills come from Chromium in a phone-sized window, which leaves
-that band blank, so they did not look like a phone.
+**Why:** the stills show iOS's real status bar and WebKit's real rendering.
+Chromium's phone-sized window left the status bar's band blank.
 
 **Rejected:**
 
-- Taking the stills on the iPhone — each README update would need the phone on
-  USB, and a terminal with camera access.
+- Drawing the status bar onto Chromium's stills — an imitation, whose Wi-Fi icon
+  was already drawn wrong once.
 - Cropping the band off — the header would touch the image's top edge.
+- PNG — the same pixels, at three to five times the size.
+- pngquant — lossy, which can show as bands in the blurred page behind the jump
+  list.

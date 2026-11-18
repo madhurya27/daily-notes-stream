@@ -7,7 +7,7 @@ import { oneConsoleListener } from "./console-listener";
 import { deviceToDrive } from "./device";
 import { keyboardAfterRun } from "./keyboard";
 import { loadLocalEnv } from "./local-env";
-import { recordingAsked } from "../recording-asked";
+import { recordingAsked, screenshotsAsked } from "../recording-asked";
 import { writeWebp } from "../../scripts/recording.mjs";
 import { FRAMES, startScreenCapture, type Scene } from "./screen-capture";
 import { APPIUM_PORT } from "./session";
@@ -163,9 +163,10 @@ export default async function startAppium(): Promise<() => Promise<void>> {
     });
     process.env.IOS_UDID = connectedPhone(process.env);
     // First, before WebDriverAgent connects, because starting a recording drops
-    // its connection.
+    // its connection. The README's screenshots record too, only because iOS
+    // then draws a clean status bar, at 9:41 (D-237).
     let stopCapture = async () => {};
-    if (recordingAsked()) {
+    if (recordingAsked() || screenshotsAsked()) {
         rmSync(FRAMES, { recursive: true, force: true });
         stopCapture = await startScreenCapture(FRAMES, 600);
     }

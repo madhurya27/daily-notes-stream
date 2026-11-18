@@ -1563,6 +1563,12 @@ export class Phone {
         return (await this.driver.execute("mobile: viewportScreenshot")) as string;
     }
 
+    /** The whole screen as a PNG, iOS's status bar included. */
+    async wholeScreen(): Promise<string> {
+        await this.native();
+        return this.driver.takeScreenshot();
+    }
+
     /** Where `tap` touches for `selector`, once it stops moving. */
     private reach(selector: string): Promise<Point> {
         return this.runAsync(async (sel: string) => {

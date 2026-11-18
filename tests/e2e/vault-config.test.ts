@@ -5,10 +5,10 @@ import { vaultConfig } from "../../e2e-tests/ios/vault-config";
 // mode never shows.
 describe("vaultConfig", () => {
     it("follows the phone's theme in a test run", () => {
-        expect(vaultConfig({ recording: false })["appearance.json"]).toEqual({ theme: "system" });
+        expect(vaultConfig({ readme: false })["appearance.json"]).toEqual({ theme: "system" });
     });
 
-    it("is light in a recording, as the desktop recording is", () => {
-        expect(vaultConfig({ recording: true })["appearance.json"]).toEqual({ theme: "moonstone" });
+    it("is light for the README, as the desktop's pictures are", () => {
+        expect(vaultConfig({ readme: true })["appearance.json"]).toEqual({ theme: "moonstone" });
     });
 });
