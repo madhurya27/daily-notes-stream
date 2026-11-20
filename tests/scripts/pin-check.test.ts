@@ -1,18 +1,56 @@
 import { describe, it, expect, vi } from "vitest";
 import { createHash } from "crypto";
+import { readFileSync } from "fs";
+import { resolve } from "path";
+import { parse } from "yaml";
+import type { Step } from "../repo/workflow";
 import {
+    allPins,
     failureIssueFor,
     findNewReleases,
+    latestObsidianVersion,
     latestVersion,
+    movedSource,
+    moveObsidianPin,
     movePin,
+    obsidianHash,
+    obsidianPin,
     openPullRequest,
     pullRequestFor,
     releaseHashes,
     unreported,
 } from "../../scripts/pin-check.mjs";
 
-const CALENDAR = { id: "calendar", name: "Calendar", repo: "liamcain/obsidian-calendar-plugin", version: "1.5.10" };
-const DATAVIEW = { id: "dataview", name: "Dataview", repo: "blacksmithgu/obsidian-dataview", version: "0.5.70" };
+const CALENDAR = {
+    id: "calendar",
+    name: "Calendar",
+    repo: "liamcain/obsidian-calendar-plugin",
+    version: "1.5.10",
+    kind: "plugin" as const,
+};
+const DATAVIEW = {
+    id: "dataview",
+    name: "Dataview",
+    repo: "blacksmithgu/obsidian-dataview",
+    version: "0.5.70",
+    kind: "plugin" as const,
+};
+const OBSIDIAN = {
+    id: "obsidian",
+    name: "Obsidian",
+    repo: "obsidianmd/obsidian-releases",
+    version: "1.15.0",
+    kind: "app" as const,
+};
+
+const SETUP_FILE = ".github/actions/e2e-setup/action.yml";
+const SETUP = readFileSync(resolve(__dirname, "../..", SETUP_FILE), "utf8");
+
+/** The step of the e2e setup action `source` that installs Obsidian. */
+function installStep(source: string): Step {
+    const { runs } = parse(source) as { runs: { steps: (Step & { name: string })[] } };
+    return runs.steps.find((step) => step.name === "Install Obsidian")!;
+}
 
 /** A fetch that answers `body` with `status`, and records the URL. */
 function fakeFetch(body: unknown, status = 200) {
@@ -45,11 +83,76 @@ describe("latestVersion", () => {
     });
 });
 
-describe("findNewReleases", () => {
-    it("lists each plugin whose repo has another version than its pin", async () => {
-        const latest = async (repo: string) => (repo === CALENDAR.repo ? "1.5.11" : DATAVIEW.version);
+// Obsidian's updater installs the version in this file, which also leaves out
+// the early-access releases.
+describe("latestObsidianVersion", () => {
+    it("reads the version Obsidian's updater installs", async () => {
+        const fetch = fakeFetch({ latestVersion: "1.15.1", beta: { latestVersion: "1.16.0" } });
 
-        expect(await findNewReleases([CALENDAR, DATAVIEW], latest)).toEqual([{ plugin: CALENDAR, latest: "1.5.11" }]);
+        expect(await latestObsidianVersion(OBSIDIAN.repo, fetch)).toBe("1.15.1");
+        expect(fetch).toHaveBeenCalledWith(
+            "https://raw.githubusercontent.com/obsidianmd/obsidian-releases/HEAD/desktop-releases.json"
+        );
+    });
+
+    // The version is written into a workflow, and into a branch name.
+    it("fails when the version is not a version number", async () => {
+        await expect(latestObsidianVersion(OBSIDIAN.repo, fakeFetch({ latestVersion: "1.15; rm" }))).rejects.toThrow(
+            'obsidianmd/obsidian-releases: "1.15; rm" is not a version'
+        );
+    });
+
+    it("fails, naming the repo, when the file cannot be read", async () => {
+        await expect(latestObsidianVersion(OBSIDIAN.repo, fakeFetch({}, 500))).rejects.toThrow(
+            "obsidianmd/obsidian-releases: 500"
+        );
+    });
+});
+
+describe("obsidianPin", () => {
+    it("is the Obsidian that the e2e setup installs", () => {
+        const version = installStep(SETUP).env?.["OBSIDIAN_VERSION"];
+
+        expect(obsidianPin(SETUP)).toEqual({ ...OBSIDIAN, version });
+    });
+
+    it("fails when the setup pins no version", () => {
+        expect(() => obsidianPin("runs: {}")).toThrow(`${SETUP_FILE}: no OBSIDIAN_VERSION`);
+    });
+});
+
+describe("allPins", () => {
+    it("is each plugin, then Obsidian", () => {
+        const { kind: _, ...plugin } = CALENDAR;
+
+        expect(allPins([plugin], SETUP)).toEqual([CALENDAR, obsidianPin(SETUP)]);
+    });
+});
+
+describe("findNewReleases", () => {
+    /**
+     * A fetch that answers each repo with `versions[repo]`, in the file its
+     * kind of pin reads.
+     */
+    const fetchVersions = (versions: Record<string, string>) =>
+        vi.fn(async (url: string) => {
+            const repo = Object.keys(versions).find((r) => url.includes(`/${r}/`))!;
+            const body = url.endsWith("desktop-releases.json")
+                ? { latestVersion: versions[repo] }
+                : { version: versions[repo] };
+            return new Response(JSON.stringify(body));
+        });
+
+    it("lists each pin whose repo has another version than its pin", async () => {
+        const fetch = fetchVersions({ [CALENDAR.repo]: "1.5.11", [DATAVIEW.repo]: DATAVIEW.version });
+
+        expect(await findNewReleases([CALENDAR, DATAVIEW], fetch)).toEqual([{ plugin: CALENDAR, latest: "1.5.11" }]);
+    });
+
+    it("reads Obsidian's version where its updater does", async () => {
+        const fetch = fetchVersions({ [OBSIDIAN.repo]: "1.15.1" });
+
+        expect(await findNewReleases([OBSIDIAN], fetch)).toEqual([{ plugin: OBSIDIAN, latest: "1.15.1" }]);
     });
 });
 
@@ -73,6 +176,26 @@ describe("pullRequestFor", () => {
     it("asks for the device tests before merging", () => {
         expect(pr.body).toContain("pnpm run test:ios");
     });
+
+    describe("for Obsidian", () => {
+        const obsidian = pullRequestFor({ plugin: OBSIDIAN, latest: "1.15.1" }, RUN);
+
+        it("is titled as a commit that moves the pin", () => {
+            expect(obsidian.title).toBe("test: pin Obsidian 1.15.1 in the e2e tests");
+        });
+
+        // Its release tags start with a v.
+        it("links the release, which its updater installs", () => {
+            expect(obsidian.body).toContain(
+                "[Obsidian 1.15.1](https://github.com/obsidianmd/obsidian-releases/releases/tag/v1.15.1) is the version Obsidian's updater installs."
+            );
+        });
+
+        // The devices run the Obsidian they have installed, not the pin.
+        it("asks for no device tests", () => {
+            expect(obsidian.body).not.toContain("test:ios");
+        });
+    });
 });
 
 describe("failureIssueFor", () => {
@@ -87,6 +210,14 @@ describe("failureIssueFor", () => {
         expect(body).toContain("https://github.com/liamcain/obsidian-calendar-plugin/releases/tag/1.5.11");
         expect(body).toContain(RUN);
         expect(body).toContain("1.5.10");
+    });
+
+    it("links Obsidian's release, which its updater installs", () => {
+        const { body } = failureIssueFor({ plugin: OBSIDIAN, latest: "1.15.1" }, [], RUN);
+
+        expect(body).toContain(
+            "[Obsidian 1.15.1](https://github.com/obsidianmd/obsidian-releases/releases/tag/v1.15.1) is the version Obsidian's updater installs."
+        );
     });
 
     // The pin could not move, or the build failed: no test ran.
@@ -238,6 +369,63 @@ describe("movePin", () => {
     });
 });
 
+describe("obsidianHash", () => {
+    it("hashes the Linux build the e2e setup downloads", async () => {
+        const fetch = fakeRelease({ "obsidian-1.15.1.tar.gz": "app" });
+
+        expect(await obsidianHash(OBSIDIAN.repo, "1.15.1", fetch)).toBe(sha("app"));
+        expect(fetch).toHaveBeenCalledWith(
+            "https://github.com/obsidianmd/obsidian-releases/releases/download/v1.15.1/obsidian-1.15.1.tar.gz"
+        );
+    });
+
+    it("fails, naming the file, when the release lacks it", async () => {
+        await expect(obsidianHash(OBSIDIAN.repo, "1.15.1", fakeRelease({}))).rejects.toThrow(
+            "obsidian-1.15.1.tar.gz: 404"
+        );
+    });
+});
+
+describe("moveObsidianPin", () => {
+    const HASH = "f".repeat(64);
+    it("sets the version and the hash the setup checks", () => {
+        const moved = installStep(moveObsidianPin(SETUP, "9.9.9", HASH));
+
+        expect(moved.env?.["OBSIDIAN_VERSION"]).toBe("9.9.9");
+        expect(moved.run).toContain(`echo "${HASH}  $RUNNER_TEMP/obsidian.tar.gz" | sha256sum -c`);
+    });
+
+    it("leaves the rest of the setup alone", () => {
+        const lines = (source: string) => source.split("\n");
+        const changed = lines(moveObsidianPin(SETUP, "9.9.9", HASH)).filter((line, i) => line !== lines(SETUP)[i]);
+
+        expect(changed).toHaveLength(2);
+    });
+
+    it("fails when the setup has no version or no hash to move", () => {
+        expect(() => moveObsidianPin("OBSIDIAN_VERSION: 1.0.0\n", "9.9.9", HASH)).toThrow(
+            `${SETUP_FILE}: no SHA-256 to move`
+        );
+        expect(() => moveObsidianPin("", "9.9.9", HASH)).toThrow(`${SETUP_FILE}: no OBSIDIAN_VERSION to move`);
+    });
+});
+
+describe("movedSource", () => {
+    it("moves a plugin's pin to its release's hashes", async () => {
+        const fetch = fakeRelease({ "main.js": "code", "manifest.json": "{}" });
+
+        expect(await movedSource(PINS, CALENDAR, "1.5.11", fetch)).toBe(
+            movePin(PINS, "calendar", "1.5.11", { "main.js": sha("code"), "manifest.json": sha("{}") })
+        );
+    });
+
+    it("moves Obsidian's pin to its Linux build's hash", async () => {
+        const fetch = fakeRelease({ "obsidian-1.15.1.tar.gz": "app" });
+
+        expect(await movedSource(SETUP, OBSIDIAN, "1.15.1", fetch)).toBe(moveObsidianPin(SETUP, "1.15.1", sha("app")));
+    });
+});
+
 describe("openPullRequest", () => {
     const pr = pullRequestFor(release, RUN);
 
@@ -281,5 +469,14 @@ describe("openPullRequest", () => {
         openPullRequest(release, RUN, { git: () => "", gh, pushUrl: "" });
 
         expect(gh.mock.calls.at(-1)?.[0]).toEqual(["workflow", "run", "ci.yml", "--ref", "pin/calendar-1.5.11"]);
+    });
+
+    it("commits Obsidian's pin, in the e2e setup", () => {
+        const git = vi.fn((_args: string[]) => "");
+
+        openPullRequest({ plugin: OBSIDIAN, latest: "1.15.1" }, RUN, { git, gh: fakeGh(), pushUrl: "" });
+
+        expect(git).toHaveBeenCalledWith(["switch", "-c", "pin/obsidian-1.15.1"]);
+        expect(git).toHaveBeenCalledWith(["add", SETUP_FILE]);
     });
 });

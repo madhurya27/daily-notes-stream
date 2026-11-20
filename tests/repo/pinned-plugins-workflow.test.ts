@@ -10,8 +10,9 @@ const steps = () => jobs().flatMap(stepsOf);
 const job = (name: string) => workflow.jobs[name]!;
 const stepRunning = (j: Job, command: string) => stepsOf(j).find((step) => step.run?.includes(command));
 
-// The e2e tests pin each plugin they install (e2e-tests/pinned-plugin.ts), so
-// a new release reaches users before the tests see it (D-224, D-234).
+// The e2e tests pin each plugin they install (e2e-tests/pinned-plugin.ts), and
+// CI pins Obsidian, so a new release reaches users before the tests see it
+// (D-224, D-234, D-239).
 describe("Pinned plugins workflow", () => {
     // Weekly, so a plugin that releases often opens one pull request a week at
     // most (D-234).
@@ -64,6 +65,16 @@ describe("Pinned plugins workflow", () => {
             expect(e2e).toBeGreaterThan(move);
             expect(all[e2e]?.id).toBe("e2e");
             expect(all[e2e]?.["continue-on-error"]).toBe(true);
+        });
+
+        // The setup installs the Obsidian it pins, so a new Obsidian is tested
+        // only when its pin moved first.
+        it("moves the pin before it sets up the e2e tests", () => {
+            const all = test().steps;
+            const move = all.findIndex((step) => step.run?.includes("scripts/pin-check.mjs move"));
+            const setup = all.findIndex((step) => step.uses === "./.github/actions/e2e-setup");
+            expect(move).toBeGreaterThan(-1);
+            expect(setup).toBeGreaterThan(move);
         });
 
         it("keeps the outcome and the report, even when a step fails", () => {

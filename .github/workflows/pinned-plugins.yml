@@ -1,8 +1,9 @@
 name: Pinned plugins
 
 # Runs the e2e tests against each plugin the e2e tests pin, at the version the
-# community directory installs. Opens a pull request that moves the pin if they
-# pass, and an issue with the failures if not (D-224, D-234).
+# community directory installs, and against the Obsidian CI pins, at the version
+# its updater installs. Opens a pull request that moves the pin if they pass,
+# and an issue with the failures if not (D-224, D-234, D-239).
 on:
     schedule:
         - cron: "17 6 * * 1"
@@ -55,10 +56,15 @@ jobs:
               with:
                   persist-credentials: false
 
-            - uses: ./.github/actions/e2e-setup
+            - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+              with:
+                  node-version: 26
 
+            # Before the setup, which installs the Obsidian it pins.
             - name: Move the pin
               run: node scripts/pin-check.mjs move "$PLUGIN_ID" "$PLUGIN_VERSION"
+
+            - uses: ./.github/actions/e2e-setup
 
             - name: Run every e2e test
               id: e2e

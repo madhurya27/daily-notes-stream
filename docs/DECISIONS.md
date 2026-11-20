@@ -4599,3 +4599,22 @@ queue.
   be running, as in D-202's first rejected option.
 - Moving the PDF's box out of its paragraph — Obsidian's PDF viewer still holds
   and changes that box as it loads.
+
+## D-239 — The pin check moves CI's Obsidian too (2026-11-20)
+
+**Decision:** extends D-234. The weekly workflow also reads `latestVersion` in
+`desktop-releases.json` on `obsidianmd/obsidian-releases`. If it is not the
+version in `.github/actions/e2e-setup/action.yml`, it moves that version and the
+Linux build's SHA-256, runs the e2e tests, and opens a pull request or an issue
+as for a plugin. The test job moves the pin before the setup step, which
+installs the Obsidian it pins. The pull request asks for no device tests: the
+devices run the Obsidian they have installed.
+
+**Why:** CI pinned Obsidian by hand and fell behind: 1.15.1 was out for a week
+while CI tested 1.15.0.
+
+**Rejected:**
+
+- The newest GitHub release — `desktop-releases.json` is what Obsidian's updater
+  reads, so it names the version users get.
+- A second workflow — it would repeat the find, test and report jobs.
