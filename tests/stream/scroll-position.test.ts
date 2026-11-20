@@ -57,11 +57,12 @@ describe("readPlace", () => {
 
 describe("readingPathAt", () => {
     /**
-     * A pane from 0 to 900, so its reading line is at 300, scrolled to
+     * A pane from 0 to 900, so its reading line is at 450, scrolled to
      * `scrollTop` of 5000, holding blocks at `rects`, and the empty element
-     * that loads more after them.
+     * that loads more after them. A block given a `titleTop` is drawn, with
+     * its title there; one without is not drawn yet.
      */
-    function streamOf(scrollTop: number, ...rects: [path: string, top: number, bottom: number][]) {
+    function streamOf(scrollTop: number, ...rects: [path: string, top: number, bottom: number, titleTop?: number][]) {
         const pane = {
             getBoundingClientRect: () => ({ top: 0, bottom: 900 }) as DOMRect,
             scrollTop,
@@ -69,10 +70,13 @@ describe("readingPathAt", () => {
             clientHeight: 900,
         } as HTMLElement;
         const stream = document.createElement("div");
-        for (const [path, blockTop, bottom] of rects) {
+        for (const [path, blockTop, bottom, titleTop] of rects) {
             const block = stream.createDiv();
             block.dataset.sourcePath = path;
             block.getBoundingClientRect = () => ({ top: blockTop, bottom }) as DOMRect;
+            if (titleTop === undefined) continue;
+            block.createDiv({ cls: "daily-note-header" }).getBoundingClientRect = () =>
+                ({ top: titleTop, bottom: titleTop + 40 }) as DOMRect;
         }
         const last = rects.at(-1)?.[2] ?? 0;
         stream.createDiv().getBoundingClientRect = () => ({ top: last, bottom: last + 1 }) as DOMRect;
@@ -82,25 +86,61 @@ describe("readingPathAt", () => {
     const MIDDLE = 2000;
     const END = 5000 - 900;
 
-    it("is the note crossing a line a third of the way down, not the one at the top", () => {
+    it("is the note crossing the pane's middle, though the note above fills the top third", () => {
         const { pane, stream } = streamOf(
             MIDDLE,
-            ["Notes/a.md", -500, 200],
-            ["Notes/b.md", 264, 600],
-            ["Notes/c.md", 664, 1000]
+            ["Notes/a.md", -500, 440],
+            ["Notes/b.md", 440, 800],
+            ["Notes/c.md", 864, 1200]
         );
 
         expect(readingPathAt(stream, pane)).toBe("Notes/b.md");
     });
 
-    it("is the note below when the line is in the gap between two notes", () => {
-        const { pane, stream } = streamOf(MIDDLE, ["Notes/a.md", -500, 280], ["Notes/b.md", 344, 900]);
+    it("is the note above while it still crosses the middle", () => {
+        const { pane, stream } = streamOf(MIDDLE, ["Notes/a.md", -500, 460], ["Notes/b.md", 460, 900]);
+
+        expect(readingPathAt(stream, pane)).toBe("Notes/a.md");
+    });
+
+    it("is the note below when two notes split the pane exactly", () => {
+        const { pane, stream } = streamOf(MIDDLE, ["Notes/a.md", -500, 450], ["Notes/b.md", 450, 900]);
 
         expect(readingPathAt(stream, pane)).toBe("Notes/b.md");
     });
 
+    it("is the note above while the middle is above the next note's title", () => {
+        const { pane, stream } = streamOf(MIDDLE, ["Notes/a.md", -500, 430, 0], ["Notes/b.md", 430, 900, 470]);
+
+        expect(readingPathAt(stream, pane)).toBe("Notes/a.md");
+    });
+
+    it("is the note below once the top of its title reaches the middle", () => {
+        const { pane, stream } = streamOf(MIDDLE, ["Notes/a.md", -500, 430, 0], ["Notes/b.md", 430, 900, 450]);
+
+        expect(readingPathAt(stream, pane)).toBe("Notes/b.md");
+    });
+
+    it("is the note above when the middle is in the gap above a note's title", () => {
+        const { pane, stream } = streamOf(MIDDLE, ["Notes/a.md", -500, 420, 0], ["Notes/b.md", 484, 900, 500]);
+
+        expect(readingPathAt(stream, pane)).toBe("Notes/a.md");
+    });
+
+    it("counts a note not drawn yet from its top, as it has no title", () => {
+        const { pane, stream } = streamOf(MIDDLE, ["Notes/a.md", -500, 420], ["Notes/b.md", 440, 900]);
+
+        expect(readingPathAt(stream, pane)).toBe("Notes/b.md");
+    });
+
+    it("is the first note at the top of the stream, though its title is below the pane's top", () => {
+        const { pane, stream } = streamOf(0, ["Notes/today.md", 0, 120, 20], ["Notes/yesterday.md", 184, 900, 200]);
+
+        expect(readingPathAt(stream, pane)).toBe("Notes/today.md");
+    });
+
     it("measures the line from the pane's own top and height", () => {
-        const { stream } = streamOf(MIDDLE, ["Notes/a.md", 0, 399], ["Notes/b.md", 399, 401], ["Notes/c.md", 401, 900]);
+        const { stream } = streamOf(MIDDLE, ["Notes/a.md", 0, 449], ["Notes/b.md", 449, 451], ["Notes/c.md", 451, 900]);
         const pane = {
             getBoundingClientRect: () => ({ top: 300, bottom: 600 }) as DOMRect,
             scrollTop: MIDDLE,

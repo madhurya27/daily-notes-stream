@@ -33,21 +33,31 @@ export function readPlace(stream: HTMLElement, scrollEl: HTMLElement): StreamPla
 }
 
 /**
- * The path of the note being read in `scrollEl` (D-220): the one crossing a
- * line a third of the way down the pane, or the note below in the gap between
- * two. At the stream's top, the first note; at its end or past every note, the
- * last one. In an empty stream, null.
+ * The path of the note being read in `scrollEl` (D-220, D-241): the one
+ * crossing the pane's middle, where a drawn note starts at the top of its
+ * title, so the note above keeps the gap above a title. At the stream's top,
+ * the first note; at its end or past every note, the last one. In an empty
+ * stream, null.
  */
 export function readingPathAt(stream: HTMLElement, scrollEl: HTMLElement): string | null {
     const pane = scrollEl.getBoundingClientRect();
     const atTop = scrollEl.scrollTop <= 0;
     // A stream that fits in the pane is at its top and its end; the top wins.
     const atEnd = !atTop && scrollEl.scrollTop + scrollEl.clientHeight >= scrollEl.scrollHeight - 1;
-    const line = atTop ? pane.top : pane.top + (pane.bottom - pane.top) / 3;
-    const block = ((!atEnd && blockAt(stream, line)) || stream.lastElementChild) as HTMLElement | null;
+    const line = atTop ? pane.top : (pane.top + pane.bottom) / 2;
+    const crossing = atEnd ? null : blockAt(stream, line);
+    const startsBelow = crossing !== null && titleBelow(crossing, line);
+    const block = ((startsBelow ? (crossing.previousElementSibling ?? crossing) : crossing) ??
+        stream.lastElementChild) as HTMLElement | null;
     // Below the last note is the empty element that loads more notes.
     const note = block?.dataset.sourcePath === undefined ? block?.previousElementSibling : block;
     return (note as HTMLElement | null | undefined)?.dataset.sourcePath ?? null;
+}
+
+/** Whether `block` is drawn, and its title starts below `line`. */
+function titleBelow(block: Element, line: number): boolean {
+    const title = block.querySelector(":scope > .daily-note-header");
+    return title !== null && title.getBoundingClientRect().top > line;
 }
 
 /**

@@ -84,6 +84,39 @@ test("highlights the day being read, below the end of the note above it", async 
     await expect.poll(() => calendarShows(page)).toEqual({ month: "Mar 2026", day: "11" });
 });
 
+/**
+ * Scrolls until the top of `path`'s title stays `by` px below the middle of
+ * the pane, or above it for a negative `by`.
+ */
+async function scrollTitleToMiddle(container: Locator, path: string, by: number) {
+    const title = container.locator(`.daily-note-block[data-source-path="${path}"] > .daily-note-header`);
+    await expect
+        .poll(() =>
+            title.evaluate((el, by) => {
+                const pane = el.closest(".view-content")!;
+                const box = pane.getBoundingClientRect();
+                const off = el.getBoundingClientRect().top - (box.top + box.bottom) / 2 - by;
+                pane.scrollTop += off;
+                return Math.abs(off) < 2;
+            }, by)
+        )
+        .toBe(true);
+}
+
+test("moves to a day once the top of its note's title reaches the middle of the stream", async ({ obsidian }) => {
+    const { page } = obsidian;
+    await showCalendar(page);
+    const container = await openFocusedStream(page);
+    // Draws the note, so it has a title to scroll by.
+    await scrollToNote(container, "Notes/2026-03-11.md");
+
+    await scrollTitleToMiddle(container, "Notes/2026-03-11.md", 20);
+    await expect.poll(() => calendarShows(page)).toEqual({ month: "Mar 2026", day: "12" });
+
+    await scrollTitleToMiddle(container, "Notes/2026-03-11.md", -20);
+    await expect.poll(() => calendarShows(page)).toEqual({ month: "Mar 2026", day: "11" });
+});
+
 // On desktop, opening the sidebar narrows the stream, and its notes grow
 // taller, so what is on screen moves. Calendar is opened before the jump there,
 // and after it in the phone layout, whose drawer covers the stream without

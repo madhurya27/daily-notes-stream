@@ -4198,6 +4198,8 @@ does not conflict with the scroll anchor at the pane's top (D-053).
 - The note taking up the most of the pane — flips between two notes of similar
   height.
 
+Changed by D-241: the line is at the pane's middle.
+
 ## D-221 — The reading-note event stays private (2026-11-04)
 
 **Decision:** the `reading-note` event (ADR 0024) is used only by our Calendar
@@ -4640,3 +4642,25 @@ enough to test them.
 - One pull request per action — the actions are tested together by CI anyway.
 - Letting the types run ahead of `minAppVersion` — the code could call an API
   that the oldest Obsidian it allows lacks, and no check would see it.
+
+## D-241 — The note being read is the one crossing the pane's middle (2026-11-20)
+
+**Decision:** changes D-220. The reading line is at the pane's middle, not a
+third of the way down. A drawn note starts at the top of its title, so the note
+above keeps the gap above a title. A note not drawn yet starts at its top. The
+rules for the stream's top and end stay.
+
+**Why:** with a third, a note filling the top 34% won over the next note filling
+the other 66%, and the edit button opened it. At the middle, of two notes on
+screen, the one with more of the pane wins, title included. The same place
+always gives the same note, scrolling up or down.
+
+**Rejected:**
+
+- A buffer, where a note keeps its place until the next one has 53% of the pane
+  — at a stop near the middle, the note would depend on the direction of the
+  scroll. Nothing flips a line's note while the stream is still.
+- Staying at a third, or 40% — it follows the eye, but a note holding most of
+  the pane loses to the one above.
+- Starting a note below its properties — a note's share would leave out part of
+  it, and its title already shows which note it is.
