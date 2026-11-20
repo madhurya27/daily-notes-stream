@@ -36,6 +36,13 @@ describe("manifest.json — marketplace submission requirements", () => {
         expect(pkg.version).toBe(manifest.version);
     });
 
+    // The API's types would let the code call what an older Obsidian lacks, so
+    // a new obsidian package raises minAppVersion with it (D-240).
+    it("needs the Obsidian whose API types the code is checked against", () => {
+        const devDependencies = pkg.devDependencies as Record<string, string>;
+        expect(manifest.minAppVersion).toBe(devDependencies["obsidian"]);
+    });
+
     // Obsidian installs from the release's files, and npm refuses to publish a
     // private package.
     it("marks package.json private, so it never goes to npm", () => {

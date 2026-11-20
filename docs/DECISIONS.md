@@ -4618,3 +4618,25 @@ while CI tested 1.15.0.
 - The newest GitHub release — `desktop-releases.json` is what Obsidian's updater
   reads, so it names the version users get.
 - A second workflow — it would repeat the find, test and report jobs.
+
+## D-240 — Dependabot moves the pinned actions and the obsidian package (2026-11-20)
+
+**Decision:** `.github/dependabot.yml` checks every Monday for new versions of
+the actions each workflow and `.github/actions/` pins by commit, in one pull
+request, and of the `obsidian` package. Each pull request runs CI.
+`minAppVersion` must equal the `obsidian` package's version, so a pull request
+that moves the package fails until it raises `minAppVersion` too.
+
+**Why:** the pin check (D-234, D-239) covers what the e2e tests install. Nothing
+watched the actions or the API's types, and a pull request that runs CI is
+enough to test them.
+
+**Rejected:**
+
+- Adding them to the pin check — its e2e run and device-test reminder are for
+  what Obsidian loads, not for actions or types.
+- Every npm package — the build and test tools are moved by hand, with their
+  config.
+- One pull request per action — the actions are tested together by CI anyway.
+- Letting the types run ahead of `minAppVersion` — the code could call an API
+  that the oldest Obsidian it allows lacks, and no check would see it.
