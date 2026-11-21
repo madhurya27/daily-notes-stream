@@ -401,15 +401,16 @@ export class Phone {
     }
 
     /**
-     * Quits Obsidian and opens it again, as if from its icon. Returns once the
-     * plugin is loaded.
+     * Quits Obsidian and opens it again, as if from its icon. Returns once its
+     * tabs are back: plugins load before then, and a stream opened in between
+     * can fail.
      */
     async relaunch(): Promise<void> {
         await this.native();
         await this.driver.execute("mobile: terminateApp", { bundleId: OBSIDIAN });
         await this.driver.execute("mobile: activateApp", { bundleId: OBSIDIAN });
         await expect
-            .poll(() => this.run(() => !!window.app?.plugins?.plugins?.["daily-notes-stream"]).catch(() => false), {
+            .poll(() => this.run(() => window.app?.workspace?.layoutReady === true).catch(() => false), {
                 timeout: 30_000,
             })
             .toBe(true);
@@ -529,6 +530,15 @@ export class Phone {
     }
 
     /**
+     * Opens the stream again with nothing measured, so it starts the same in
+     * every run, whatever the tests before it left in the plugin's memory.
+     */
+    async openStreamFresh(): Promise<void> {
+        await this.run(() => window.app.plugins.plugins["daily-notes-stream"].layoutMemory.forgetAll());
+        await this.openStream();
+    }
+
+    /**
      * Writes `markdown` into a lane day, its slot unless `day` says otherwise,
      * or its plain text back, and waits until Obsidian has read it: the stream
      * renders from the metadata cache.
@@ -560,8 +570,7 @@ export class Phone {
      * scrolling through the notes on the way.
      */
     async startInLane(target = "", depth = 300): Promise<void> {
-        await this.run(() => window.app.plugins.plugins["daily-notes-stream"].layoutMemory.forgetAll());
-        await this.openStream();
+        await this.openStreamFresh();
         await this.jumpTo(LANE_SLOT.slice("Journal/".length, -".md".length));
         await this.placeAt(`.daily-note-block[data-source-path="${LANE_SLOT}"] ${target}`.trim(), depth);
     }

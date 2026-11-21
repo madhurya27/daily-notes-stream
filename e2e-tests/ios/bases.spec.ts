@@ -208,7 +208,7 @@ test(
         // down on any screen.
         await phone.fillSlot("![[Reading.base]]");
         try {
-            await phone.openStream();
+            await phone.openStreamFresh();
             await phone.jumpTo(LANE_SLOT.slice("Journal/".length, -".md".length));
             const steps = await phone.runAsync(
                 async (s: string, path: string) => {

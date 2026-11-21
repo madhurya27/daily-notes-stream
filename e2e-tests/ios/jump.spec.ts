@@ -94,6 +94,19 @@ async function recordFrames(phone: Phone): Promise<void> {
     });
 }
 
+/** Each frame that differs from the one before, as `ms top shift finger`. */
+const path = (seen: Frame[]) =>
+    seen
+        .filter(
+            (f, i) =>
+                i === 0 ||
+                f.top !== seen[i - 1]!.top ||
+                f.shift !== seen[i - 1]!.shift ||
+                f.finger !== seen[i - 1]!.finger
+        )
+        .map((f) => `${Math.round(f.at - seen[0]!.at)} ${f.top} ${Math.round(f.shift)}${f.finger ? " finger" : ""}`)
+        .join(", ");
+
 /** Stops recording, and reports each frame recorded. */
 const frames = (phone: Phone) =>
     phone.run(() => {
@@ -377,9 +390,8 @@ test("a hard flick stopped while owing carries on with no finger on it", async (
 // on into empty space.
 test("a glide that reaches the newest note with scroll to spare stops there", async ({ phone }) => {
     const above = ["Journal/2026-09-28.md", "Journal/2026-09-29.md", "Journal/2026-09-30.md"];
-    // Opened again, because an earlier test may have made the notes' empty
-    // heights shorter.
-    await phone.openStream();
+    // So the flick starts the same distance from the top in every run.
+    await phone.openStreamFresh();
     // Edited far from the reader, because a rendered note re-renders short at
     // once, or mid-glide, when its metadata is updated.
     await phone.jumpTo("2026-09-12");
@@ -405,16 +417,22 @@ test("a glide that reaches the newest note with scroll to spare stops there", as
         expect(rendered, "the edited notes are unrendered as the flick starts").toEqual([]);
         await recordFrames(phone);
 
-        await phone.flick("down", 2);
+        await phone.flick("down");
 
         const seen = await frames(phone);
+        // Pulled far past the top, Obsidian opens its command palette, which
+        // the tests after this one would meet.
+        expect(
+            await phone.run(() => document.querySelectorAll(".modal-container").length),
+            "windows opened over Obsidian"
+        ).toBe(0);
         expect(
             seen.some((f) => f.shift > 0),
             "the notes above shrank as they rendered"
         ).toBe(true);
         expect(
             seen.some((f) => f.top === 0),
-            "the glide reached the top"
+            `the glide reached the top; ms, scroll top, shift, finger down at each change: ${path(seen)}`
         ).toBe(true);
         // A bounce draws the stream below the pane's top. Nothing else may.
         const blank = Math.max(...seen.filter((f) => f.top >= 0).map((f) => f.streamTop));
