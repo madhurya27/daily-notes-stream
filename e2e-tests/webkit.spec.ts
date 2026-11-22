@@ -23,6 +23,33 @@ async function paints(page: Page, name: string, index = 0): Promise<boolean> {
     return !highlighted.equals(await page.screenshot({ clip }));
 }
 
+/**
+ * The left edge of the first ink in `box`, or its right edge if there is none.
+ */
+async function inkRight(page: Page, box: { x: number; y: number; width: number; height: number }): Promise<number> {
+    const png = (await page.screenshot({ clip: box })).toString("base64");
+    const column = await page.evaluate(
+        async ({ src, width }) => {
+            const img = new Image();
+            img.src = `data:image/png;base64,${src}`;
+            await img.decode();
+            const canvas = document.createElement("canvas");
+            [canvas.width, canvas.height] = [img.width, img.height];
+            const context = canvas.getContext("2d")!;
+            context.drawImage(img, 0, 0);
+            const { data } = context.getImageData(0, 0, img.width, img.height);
+            for (let x = 0; x < img.width; x++)
+                for (let y = 0; y < img.height; y++) {
+                    const i = (y * img.width + x) * 4;
+                    if (data[i]! + data[i + 1]! + data[i + 2]! < 700) return (x * width) / img.width;
+                }
+            return width;
+        },
+        { src: png, width: box.width }
+    );
+    return box.x + column;
+}
+
 test.describe("in iOS's engine", () => {
     // Playwright's WebKit on Linux is another port, which paints the current
     // match differently. Only the macOS one stands in for iOS (ADR 0009).
@@ -120,6 +147,34 @@ test.describe("in iOS's engine", () => {
             .first()
             .evaluate((el) => getComputedStyle(el).getPropertyValue("--daily-note-pinned-height"));
         expect(inside).toBe("");
+    });
+
+    // iOS's engine draws a bullet about 3 px further left than Chromium does,
+    // so iOS moves the arrow out to match the gap beside a number or checkbox.
+    test("leaves the same gap between a folded bullet and its arrow", async ({ obsidian, inWebKit }) => {
+        const container = await openStream(obsidian.page);
+        const item = container.locator("ul > li.is-collapsible:not(.task-list-item)").first();
+        await item.locator("> .collapse-indicator").click();
+        try {
+            const phone = await inWebKit();
+            await phone.evaluate(() => document.body.classList.add("is-ios"));
+            const arrow = (await phone
+                .locator("ul > li.is-collapsed:not(.task-list-item) > .collapse-indicator path")
+                .first()
+                .boundingBox())!;
+
+            const bullet = await inkRight(phone, {
+                x: arrow.x + arrow.width + 1,
+                y: arrow.y + arrow.height / 2 - 3,
+                width: 30,
+                height: 6,
+            });
+
+            expect(bullet - (arrow.x + arrow.width)).toBeGreaterThanOrEqual(6);
+            expect(bullet - (arrow.x + arrow.width)).toBeLessThanOrEqual(9);
+        } finally {
+            await item.locator("> .collapse-indicator").click();
+        }
     });
 
     // MathJax 3 put each equation on its own layer, only in WebKit. On an

@@ -27,18 +27,21 @@ The checklist below is written for this vault. `pnpm run seed --test` takes
 `--days N`, the number of filler notes (`400` for a long history, `12` for just
 over one batch), and a path to create the vault somewhere else.
 
-- 123 daily notes in `Notes/`: 120 filler notes, and the three the checklist
+- 124 daily notes in `Notes/`: 120 filler notes, and the four the checklist
   names by date.
 - The filler notes repeat eight shapes. Among them: long notes, a wide code
   block, a wide table, tasks and a quote, headings nested from H1 to H6, a note
   with no frontmatter (to test that the properties panel is absent), and Bases
   (so there are Bases all the way down).
-- **2026-08-30**, the newest note: one of each kind of embed the e2e tests
-  cover. Bases that are wide, narrow, too wide only because of their values,
-  resized by hand, with a named view, as a kanban and inline (the Bases are in
-  `Bases/`). Also embedded notes, a PDF, a video in an `iframe`, display math,
-  Mermaid, two SVGs wider than any screen (one written into the note, one
-  embedded) and a wide table.
+- **2026-08-31**, the newest note: every kind of fold arrow. Headings, bullets
+  three levels deep, open and done tasks, numbered items of one, two and three
+  digits, and lists inside lists. Each arrow sits the same small gap left of its
+  bullet, number or checkbox (D-242).
+- **2026-08-30**: one of each kind of embed the e2e tests cover. Bases that are
+  wide, narrow, too wide only because of their values, resized by hand, with a
+  named view, as a kanban and inline (the Bases are in `Bases/`). Also embedded
+  notes, a PDF, a video in an `iframe`, display math, Mermaid, two SVGs wider
+  than any screen (one written into the note, one embedded) and a wide table.
 - **2026-08-29**, the newest filler note: linked mentions of every kind, from a
   nested list item, a paragraph, a wide table and a property. `[[Agenda]]` in
   `Projects/Plan.md` must open `Projects/Agenda.md`, not `Notes/Agenda.md`.

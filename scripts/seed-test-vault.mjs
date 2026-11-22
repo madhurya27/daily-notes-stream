@@ -224,8 +224,63 @@ export function testVault({ days }) {
 
     for (const [name, lines] of Object.entries(BASES)) vault[`Bases/${name}`] = body(...lines);
 
-    // The newest note: one of each kind of embed, each drawn so that nothing
-    // scrolls.
+    // The newest note: one of each kind of fold arrow, with numbers of one, two
+    // and three digits, so each arrow's gap to its marker can be compared.
+    vault[`${NOTES}/2026-08-31.md`] = body(
+        "## Headings",
+        "",
+        "Text under a heading.",
+        "",
+        "### A nested heading",
+        "",
+        "Text under the nested heading.",
+        "",
+        "## Bullets",
+        "",
+        "- Parent bullet",
+        "    - Child bullet",
+        "        - Grandchild bullet",
+        "- A bullet with no children",
+        "",
+        "## Tasks",
+        "",
+        "- [ ] Open task",
+        "    - Sub-item",
+        "- [x] Done task",
+        "    - Sub-item",
+        "- [ ] Task with a nested task",
+        "    - [ ] Nested task",
+        "        - Sub-item",
+        "",
+        "## Numbered lists",
+        "",
+        "1. One digit",
+        "    - Sub-item",
+        "2. Another",
+        "    - Sub-item",
+        "",
+        "Two and three digits:",
+        "",
+        "9. Ninth",
+        "    - Sub-item",
+        "10. Tenth",
+        "    - Sub-item",
+        "",
+        "Later:",
+        "",
+        "100. Hundredth",
+        "     - Sub-item",
+        "",
+        "## Mixed",
+        "",
+        "- Bullet",
+        "    1. Numbered inside a bullet",
+        "        - Sub-item",
+        "    - [ ] Task inside a bullet",
+        "        - Sub-item"
+    );
+
+    // One of each kind of embed, each drawn so that nothing scrolls.
     vault[`${NOTES}/2026-08-30.md`] = body(
         "## Bases",
         "",
@@ -470,7 +525,7 @@ export function main() {
     installBuild(vault);
 
     console.log(
-        `Seeded ${days + 3} daily notes (${fillerDate(days - 1)} to ${fillerDate(0)}, plus the three the docs name).`
+        `Seeded ${days + 4} daily notes (${fillerDate(days - 1)} to ${fillerDate(0)}, plus the four the docs name).`
     );
     console.log(`Installed the plugin into ${vault}`);
 }

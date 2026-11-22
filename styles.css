@@ -386,16 +386,19 @@
 
 /* Bigger tap areas on touch devices. Making the box itself bigger would push
    the arrow into the text next to it, especially a task's checkbox. So the
-   extra area is an overlay that takes no space in the layout. */
+   extra area is an overlay that takes no space in the layout. It stops at the
+   box's right edge, where the text starts, so a tap on the text, or on a link
+   at its start, does not fold. */
 @media (pointer: coarse) {
     .daily-note-content .collapse-indicator {
         position: relative;
     }
 
     .daily-note-content .collapse-indicator::after {
+        --tap-margin: calc((2.75rem - var(--size-4-4, 1rem)) / -2);
         content: "";
         position: absolute;
-        inset: calc((2.75rem - var(--size-4-4, 1rem)) / -2);
+        inset: var(--tap-margin) 0 var(--tap-margin) var(--tap-margin);
     }
 }
 
@@ -413,19 +416,21 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    transition: transform var(--anim-duration-none, 0.1s) ease-in-out;
     color: var(--text-faint);
-    transform: rotate(90deg);
     cursor: pointer;
     touch-action: manipulation;
 }
 
+/* The icon turns, not its box: a box that is not square would change the area
+   a click hits as it turns. */
 .daily-note-content .collapse-indicator svg {
     width: var(--size-4-4);
     height: var(--size-4-4);
+    transition: transform var(--anim-duration-none, 0.1s) ease-in-out;
+    transform: rotate(90deg);
 }
 
-.daily-note-content .is-collapsed > .collapse-indicator {
+.daily-note-content .is-collapsed > .collapse-indicator svg {
     transform: rotate(0deg);
 }
 
@@ -434,18 +439,43 @@
    Reading view gives the arrow the whole line box. A line box and its text have
    the same center, so centering the icon in it centers it on the words. `top`
    skips the item's padding, because absolute positioning measures from inside
-   the padding. */
+   the padding. The box reaches the text, so a click on the bullet folds too,
+   and the icon stays at its start. */
 .daily-note-content li.is-collapsible > .collapse-indicator {
     position: absolute;
     left: calc(-1 * var(--size-4-8, 2rem));
     top: var(--list-spacing, 0);
+    width: var(--size-4-8, 2rem);
     height: calc(var(--line-height-normal, 1.5) * 1em);
+    justify-content: flex-start;
+}
+
+/* iOS draws a bullet about 3 px further left than other platforms, so the
+   arrow moves out to keep the gap a number or checkbox has. */
+.is-ios .daily-note-content ul > li.is-collapsible:not(.task-list-item) > .collapse-indicator {
+    left: calc(-1 * (var(--size-4-8, 2rem) + var(--size-2-2, 4px)));
+    width: calc(var(--size-4-8, 2rem) + var(--size-2-2, 4px));
+}
+
+/* A number grows to the left as it gets longer, so its arrow sits clear of it:
+   one digit's width for each digit (collapsible.ts counts them), and half the
+   font's size for the dot and the space after it. The gap to the number
+   matches a bullet's, and the box still reaches the text, so a click on the
+   number folds too. */
+.daily-note-content ol > li.is-collapsible > .collapse-indicator {
+    --box-width: calc(var(--daily-note-marker-digits, 1) * 1ch + 0.5em + var(--size-2-1, 2px) + var(--size-4-4, 1rem));
+    left: calc(-1 * var(--box-width));
+    width: var(--box-width);
 }
 
 /* A task item puts its checkbox in the same margin as the arrow, so the arrow
-   moves out one more step to make room for it. */
+   sits just left of the checkbox, and its box stops there. Any further out, it
+   leaves the screen on a phone. The checkbox's offset is set further down. The
+   gap matches a bullet's. */
 .daily-note-content li.task-list-item.is-collapsible > .collapse-indicator {
-    left: calc(-1 * var(--size-4-16, 4rem));
+    --arrow-width: calc(var(--size-4-4, 1rem) + var(--size-2-1, 2px));
+    left: calc(-1 * (var(--checkbox-size) + var(--size-2-3, 6px) + var(--arrow-width)));
+    width: var(--arrow-width);
 }
 
 .daily-note-content li.is-collapsed > :is(ul, ol) {

@@ -52,17 +52,28 @@ describe("testVault", () => {
 
     // Grouped by file type, which is wider than a phone in either orientation,
     // so it shows as cards (D-107).
-    it("embeds a kanban grouped by file extension in the newest note", () => {
+    it("embeds a kanban grouped by file extension in 2026-08-30", () => {
         expect(note("Bases/Kanban.base")).toMatch(/type: kanban[\s\S]*groupBy:\n {6}property: file\.ext/);
         expect(note("Notes/2026-08-30.md")).toContain("![[Kanban.base]]");
     });
 
     // docs/TESTING.md, "Mobile": a phone draws page 1, and a tap opens the PDF
     // (D-083).
-    it("embeds a PDF of several pages and a video wider than a phone in the newest note", () => {
+    it("embeds a PDF of several pages and a video wider than a phone in 2026-08-30", () => {
         expect(note("Attachments/Manual.pdf")).toContain("/Count 3");
         expect(note("Notes/2026-08-30.md")).toContain("![[Manual.pdf]]");
         expect(note("Notes/2026-08-30.md")).toMatch(/<iframe [^>]*width="560"/);
+    });
+
+    // docs/TESTING.md: one of each fold arrow, with numbers of one, two and
+    // three digits (D-242).
+    it("puts every kind of fold in the newest note", () => {
+        const folds = note("Notes/2026-08-31.md");
+        expect(folds).toMatch(/^### /m);
+        expect(folds).toMatch(/^- Parent bullet\n {4}- Child bullet\n {8}- /m);
+        expect(folds).toMatch(/^- \[ \] .*\n {4}- /m);
+        expect(folds).toMatch(/^- \[x\] .*\n {4}- /m);
+        for (const number of ["1", "9", "10", "100"]) expect(folds).toMatch(new RegExp(`^${number}\\. .*\\n +- `, "m"));
     });
 
     it("gives 2026-02-01 the frontmatter the checklist lists", () => {

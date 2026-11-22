@@ -86,7 +86,7 @@ export class CollapsibleManager {
     private readonly keyed = new WeakMap<HTMLElement, Fold>();
 
     /**
-     * One pair of listeners for the whole stream, so a fold arrow re-rendered
+     * One set of listeners for the whole stream, so a fold arrow re-rendered
      * needs no listener of its own.
      */
     delegate(component: Component, root: HTMLElement): void {
@@ -104,6 +104,12 @@ export class CollapsibleManager {
             evt.preventDefault(); // Otherwise Space would scroll the stream.
             evt.stopPropagation();
             toggle();
+        });
+
+        // A second press in quick succession would select the word beside the
+        // arrow. The first press keeps its default.
+        component.registerDomEvent(root, "mousedown", (evt) => {
+            if (evt.detail > 1 && this.toggleFor(evt.target)) evt.preventDefault();
         });
     }
 
@@ -312,6 +318,7 @@ export class CollapsibleManager {
                 const sectionKey = keyFor(li, `li-${depth}-${slugify(this.ownText(li))}`);
                 if (this.kept(li, sectionKey)) return sectionKey;
                 li.addClass("is-collapsible");
+                this.markDigits(li);
                 this.attachCollapseToggle(li, {
                     filePath,
                     sectionKey,
@@ -379,6 +386,18 @@ export class CollapsibleManager {
             text += node.textContent;
         }
         return text;
+    }
+
+    /**
+     * Gives a numbered item the number of digits in its number, so its fold
+     * arrow sits clear of the number (styles.css). A tag name, not
+     * `instanceof`: a pop-out window has classes of its own.
+     */
+    private markDigits(li: HTMLElement): void {
+        const list = li.parentElement as HTMLOListElement;
+        if (list.tagName !== "OL") return;
+        const number = list.start + Array.from(list.children).indexOf(li);
+        li.style.setProperty("--daily-note-marker-digits", String(String(number).length));
     }
 
     private getListDepth(li: HTMLElement): number {

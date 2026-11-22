@@ -19,10 +19,14 @@ async function openNote(phone: Phone): Promise<void> {
 }
 
 // A fold arrow's icon is 16 px, and a finger can land anywhere in the 44 px
-// around it (styles.css). 12 px from its middle, the finger misses the icon.
+// around it, up to the text (styles.css). 12 px left of the icon's middle, the
+// finger misses the icon. A list item's box reaches its text, with the icon at
+// its start, 8 px left of the box's middle. The bullet's middle is 5 px right
+// of it.
 for (const [what, section, target, offset] of [
-    ["a heading's chevron", HEADING, `${HEADING} > .collapse-indicator`, { x: 12, y: 0 }],
-    ["a list item's chevron", LIST_ITEM, `${LIST_ITEM} > .collapse-indicator`, { x: -12, y: 0 }],
+    ["a heading's chevron", HEADING, `${HEADING} > .collapse-indicator`, { x: -12, y: 0 }],
+    ["a list item's chevron", LIST_ITEM, `${LIST_ITEM} > .collapse-indicator`, { x: -20, y: 0 }],
+    ["a list item's bullet", LIST_ITEM, `${LIST_ITEM} > .collapse-indicator`, { x: 5, y: 0 }],
     // Its arrow only shows when the pointer is over it, so the whole row is the
     // target.
     ["the properties row", PROPERTIES, `${PROPERTIES} .metadata-properties-heading`, { x: 0, y: 0 }],

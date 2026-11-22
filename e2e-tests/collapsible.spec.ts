@@ -64,6 +64,36 @@ const stored = (page: Page, sectionKey: string) =>
         { path: NOTE, key: sectionKey }
     );
 
+/**
+ * The left edge of the first ink inside `box`, with every fold arrow hidden, or
+ * `box`'s right edge if there is none.
+ */
+async function inkLeft(page: Page, box: { x: number; y: number; width: number; height: number }): Promise<number> {
+    const hide = await page.addStyleTag({ content: ".collapse-indicator { visibility: hidden !important; }" });
+    const png = (await page.screenshot({ clip: box })).toString("base64");
+    await hide.evaluate((el) => (el as Element).remove());
+    const column = await page.evaluate(
+        async ({ src, width }) => {
+            const img = new Image();
+            img.src = `data:image/png;base64,${src}`;
+            await img.decode();
+            const canvas = document.createElement("canvas");
+            [canvas.width, canvas.height] = [img.width, img.height];
+            const context = canvas.getContext("2d")!;
+            context.drawImage(img, 0, 0);
+            const { data } = context.getImageData(0, 0, img.width, img.height);
+            for (let x = 0; x < img.width; x++)
+                for (let y = 0; y < img.height; y++) {
+                    const i = (y * img.width + x) * 4;
+                    if (data[i]! + data[i + 1]! + data[i + 2]! < 700) return (x * width) / img.width;
+                }
+            return width;
+        },
+        { src: png, width: box.width }
+    );
+    return box.x + column;
+}
+
 test.describe("collapsing sections of a note", () => {
     let note: Locator;
 
@@ -115,6 +145,82 @@ test.describe("collapsing sections of a note", () => {
 
         await expect(parent.getByText("Child")).toBeHidden();
         await expect(parent.getByText("Parent")).toBeVisible();
+    });
+
+    test("folds and unfolds a parent bullet with a click on the bullet", async ({ obsidian }) => {
+        const parent = note.locator("li").filter({ hasText: /^Parent/ });
+        const text = (await parent.locator(".daily-note-text-run").first().boundingBox())!;
+        // The default theme draws the bullet's middle 11 px left of the text.
+        const bullet = { x: text.x - 11, y: text.y + text.height / 2 };
+
+        await obsidian.page.mouse.click(bullet.x, bullet.y);
+        await expect(parent.getByText("Child")).toBeHidden();
+
+        await obsidian.page.mouse.click(bullet.x, bullet.y);
+        await expect(parent.getByText("Child")).toBeVisible();
+    });
+
+    test("leaves a heading open on a touch screen when its first letter is tapped", async ({ obsidian }) => {
+        const { page } = obsidian;
+        const host = heading(note, "Outer");
+        // Detaching the session ends the emulation.
+        const cdp = await page.context().newCDPSession(page);
+        try {
+            await cdp.send("Emulation.setTouchEmulationEnabled", { enabled: true });
+            expect(await page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+            const text = await host.evaluate((el) => {
+                const range = document.createRange();
+                range.selectNodeContents(el.lastChild!);
+                return range.getBoundingClientRect();
+            });
+
+            await page.mouse.click(text.left + 2, text.top + text.height / 2);
+
+            await expect(host).not.toHaveClass(/is-collapsed/);
+        } finally {
+            await cdp.detach();
+        }
+    });
+
+    test("puts a task's fold arrow on screen, beside its checkbox", async ({ obsidian }) => {
+        await write(obsidian.page, "- [ ] Task\n    - Sub\n");
+        const task = note.locator("li.task-list-item.is-collapsible");
+        const arrow = (await chevron(task).locator("svg").boundingBox())!;
+        const checkbox = (await task.locator("input").first().boundingBox())!;
+        const pane = (await obsidian.page.locator(`.view-content:has(${STREAM})`).boundingBox())!;
+
+        expect(arrow.x).toBeGreaterThanOrEqual(pane.x);
+        expect(arrow.x + arrow.width).toBeLessThanOrEqual(checkbox.x);
+        expect(checkbox.x - (arrow.x + arrow.width)).toBeLessThan(8);
+    });
+
+    test("puts a numbered item's fold arrow clear of its number", async ({ obsidian }) => {
+        const { page } = obsidian;
+        await write(page, "9. Ninth\n    - Sub\n10. Tenth\n    - Sub\n\nLater:\n\n100. Hundredth\n     - Sub\n");
+        for (const label of ["Ninth", "Tenth", "Hundredth"]) {
+            const item = note.locator("li.is-collapsible").filter({ hasText: new RegExp(`^${label}`) });
+            const arrow = (await chevron(item).locator("svg path").boundingBox())!;
+            const text = (await item.boundingBox())!.x;
+
+            const number = await inkLeft(page, {
+                x: arrow.x + arrow.width,
+                y: arrow.y,
+                width: text - arrow.x - arrow.width,
+                height: arrow.height,
+            });
+
+            expect(number - (arrow.x + arrow.width), label).toBeGreaterThanOrEqual(4);
+        }
+    });
+
+    test("selects no text when an arrow is clicked twice quickly", async ({ obsidian }) => {
+        const { page } = obsidian;
+        for (const host of [heading(note, "Outer"), note.locator("li").filter({ hasText: /^Parent/ })]) {
+            await chevron(host).dblclick();
+
+            expect(await page.evaluate(() => window.getSelection()!.toString())).toBe("");
+            await expect(host).not.toHaveClass(/is-collapsed/);
+        }
     });
 
     test("leaves a heading open when its text is selected", async ({ obsidian }) => {

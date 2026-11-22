@@ -4664,3 +4664,23 @@ always gives the same note, scrolling up or down.
   the pane loses to the one above.
 - Starting a note below its properties — a note's share would leave out part of
   it, and its title already shows which note it is.
+
+## D-242 — A list item's fold arrow sits just left of its marker (2026-11-22)
+
+**Decision:** each list item's arrow sits the same small distance left of its
+bullet, number or checkbox. Beside a bullet or number, its box reaches the text,
+so a click on the marker folds too. A number's arrow moves out one digit width
+for each digit. On iOS, a bullet's arrow moves out 4 px more.
+
+**Why:** the arrow stays clear of numbers of any length, and every gap measures
+6.5–8.5 px on desktop and an iPad. Bullets and numbers are drawn by the browser,
+so their place is estimated: iOS draws a bullet about 3 px further left.
+
+**Rejected:**
+
+- One column per level, as in Obsidian's reading view — a wide gap beside a
+  bullet, and the arrow still collides with "100.".
+- Drawing bullets and numbers in the plugin, for exact gaps — themes that style
+  them would no longer reach the stream.
+- Measuring each number's width with a script — the digit count is close enough,
+  with no layout read.

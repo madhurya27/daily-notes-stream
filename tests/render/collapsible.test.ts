@@ -564,6 +564,38 @@ describe("CollapsibleManager — lists", () => {
         expect(manager.makeCollapsible(content, "file.md")).toEqual(["li-1-item"]);
     });
 
+    it("gives each numbered item the number of digits in its number", () => {
+        const content = document.createElement("div");
+        content.innerHTML =
+            '<ol start="99"><li>Ninety-nine<ol><li>Sub</li></ol></li><li>Hundred<ol><li>Sub</li></ol></li></ol>';
+
+        makeCollapsible(manager, content, "file.md");
+
+        const items = content.querySelectorAll<HTMLElement>("ol[start] > li");
+        expect(items[0]!.style.getPropertyValue("--daily-note-marker-digits")).toBe("2");
+        expect(items[1]!.style.getPropertyValue("--daily-note-marker-digits")).toBe("3");
+    });
+
+    it("numbers a list from 1 when it gives no start", () => {
+        const content = document.createElement("div");
+        content.innerHTML = "<ol><li>One<ol><li>Sub</li></ol></li></ol>";
+
+        makeCollapsible(manager, content, "file.md");
+
+        expect(content.querySelector<HTMLElement>("li")!.style.getPropertyValue("--daily-note-marker-digits")).toBe(
+            "1"
+        );
+    });
+
+    it("gives a bulleted item no digits", () => {
+        const content = document.createElement("div");
+        content.innerHTML = "<ul><li>Bullet<ul><li>Sub</li></ul></li></ul>";
+
+        makeCollapsible(manager, content, "file.md");
+
+        expect(content.querySelector<HTMLElement>("li")!.style.getPropertyValue("--daily-note-marker-digits")).toBe("");
+    });
+
     it("keys a list item by all of its own text, formatting and all", () => {
         const content = document.createElement("div");
         content.innerHTML = "<ul><li><strong>Bold</strong> item<ul><li>Sub</li></ul></li></ul>";
@@ -631,13 +663,35 @@ describe("CollapsibleManager — delegated listeners", () => {
         expect(store.setCollapsed).not.toHaveBeenCalled();
     });
 
-    it("registers one listener pair on the root, whatever the chevron count", () => {
+    it("registers one set of listeners on the root, whatever the chevron count", () => {
         manager.delegate(component, root);
         heading();
         heading();
         heading();
-        expect(registerDomEvent).toHaveBeenCalledTimes(2);
-        expect(registerDomEvent.mock.calls.map((c) => c[1])).toEqual(["click", "keydown"]);
+        expect(registerDomEvent).toHaveBeenCalledTimes(3);
+        expect(registerDomEvent.mock.calls.map((c) => c[1])).toEqual(["click", "keydown", "mousedown"]);
+    });
+
+    function pressMouse(el: HTMLElement, detail: number): MouseEvent {
+        const event = new MouseEvent("mousedown", { detail, bubbles: true, cancelable: true });
+        el.dispatchEvent(event);
+        return event;
+    }
+
+    it("selects no word when a chevron is pressed twice quickly", () => {
+        manager.delegate(component, root);
+        expect(pressMouse(heading(), 2).defaultPrevented).toBe(true);
+    });
+
+    it("leaves a chevron's first press to the browser", () => {
+        manager.delegate(component, root);
+        expect(pressMouse(heading(), 1).defaultPrevented).toBe(false);
+    });
+
+    it("leaves a double press outside any chevron to the browser", () => {
+        manager.delegate(component, root);
+        heading();
+        expect(pressMouse(root, 2).defaultPrevented).toBe(false);
     });
 
     it("toggles the chevron a delegated click landed on", () => {
