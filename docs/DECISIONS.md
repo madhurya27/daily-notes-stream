@@ -2758,8 +2758,9 @@ locally shows the same warnings, and with this change there are none.
 
 ## D-153 — styles.css avoids what the scorecard flags (2026-10-18)
 
-**Decision:** no `:has`, no custom element selected by its tag name, and no
-`!important`. `tests/repo/styles.test.ts` checks all three.
+**Decision:** no `:has`, no custom element selected by its tag name, no
+`!important`, and no `display: contents` (D-238). `tests/repo/styles.test.ts`
+checks all four.
 
 **Why:** the directory's scorecard warns about each. Every override wins by
 being more specific, or, for Bases' sticky summaries, by their inset. The one
@@ -4586,9 +4587,9 @@ Chromium's phone-sized window left the status bar's band blank.
 
 **Decision:** a PDF inside a line of text, in a paragraph, list item, quote or
 table cell, is replaced by an empty span and drawn there, as D-202 draws one on
-a line of its own. The paragraph Obsidian wraps it in has `display: contents`,
-so the words around it lie as in Obsidian's reading view. A PDF stays in the
-note's Markdown where Obsidian draws none (code, an indented code block, a `%%`
+a line of its own. The paragraph Obsidian wraps it in has `display: inline`, so
+the words around it lie as in Obsidian's reading view. A PDF stays in the note's
+Markdown where Obsidian draws none (code, an indented code block, a `%%`
 comment), and in a heading, whose `data-heading` would hold the span's HTML.
 
 **Why:** such a note still waited about 400 ms for its PDF, and held up the
@@ -4601,6 +4602,8 @@ queue.
   be running, as in D-202's first rejected option.
 - Moving the PDF's box out of its paragraph — Obsidian's PDF viewer still holds
   and changes that box as it loads.
+- `display: contents` on the paragraph — the same layout, but the directory's
+  scorecard warns that Obsidian only partly supports it (D-153).
 
 ## D-239 — The pin check moves CI's Obsidian too (2026-11-20)
 
