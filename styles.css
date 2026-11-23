@@ -440,12 +440,14 @@
    the same center, so centering the icon in it centers it on the words. `top`
    skips the item's padding, because absolute positioning measures from inside
    the padding. The box reaches the text, so a click on the bullet folds too,
-   and the icon stays at its start. */
+   and the icon stays at its start. The icon is sized in rem, like Obsidian's;
+   the bullet and the gap beside it grow with the text, so they are 1em. */
 .daily-note-content li.is-collapsible > .collapse-indicator {
+    --box-width: calc(var(--size-4-4, 1rem) + 1em);
     position: absolute;
-    left: calc(-1 * var(--size-4-8, 2rem));
+    left: calc(-1 * var(--box-width));
     top: var(--list-spacing, 0);
-    width: var(--size-4-8, 2rem);
+    width: var(--box-width);
     height: calc(var(--line-height-normal, 1.5) * 1em);
     justify-content: flex-start;
 }
@@ -453,8 +455,7 @@
 /* iOS draws a bullet about 3 px further left than other platforms, so the
    arrow moves out to keep the gap a number or checkbox has. */
 .is-ios .daily-note-content ul > li.is-collapsible:not(.task-list-item) > .collapse-indicator {
-    left: calc(-1 * (var(--size-4-8, 2rem) + var(--size-2-2, 4px)));
-    width: calc(var(--size-4-8, 2rem) + var(--size-2-2, 4px));
+    --box-width: calc(var(--size-4-4, 1rem) + 1.25em);
 }
 
 /* A number grows to the left as it gets longer, so its arrow sits clear of it:

@@ -4673,7 +4673,8 @@ always gives the same note, scrolling up or down.
 **Decision:** each list item's arrow sits the same small distance left of its
 bullet, number or checkbox. Beside a bullet or number, its box reaches the text,
 so a click on the marker folds too. A number's arrow moves out one digit width
-for each digit. On iOS, a bullet's arrow moves out 4 px more.
+for each digit. A bullet's arrow moves out with the text size, as the bullet
+does, and its gap grows with the text. On iOS, it moves out 0.25em more.
 
 **Why:** the arrow stays clear of numbers of any length, and every gap measures
 6.5–8.5 px on desktop and an iPad. Bullets and numbers are drawn by the browser,

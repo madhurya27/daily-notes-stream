@@ -213,6 +213,30 @@ test.describe("collapsing sections of a note", () => {
         }
     });
 
+    // A bigger text size draws the bullet further left, so the arrow must
+    // move out with it, and the gap grows with the text.
+    test("keeps the gap between a bullet and its arrow in proportion to the text size", async ({ obsidian }) => {
+        const { page } = obsidian;
+        const parent = note.locator("li").filter({ hasText: /^Parent/ });
+        const gap = async (size: string) => {
+            await page.evaluate((s) => document.body.style.setProperty("--font-text-size", s), size);
+            const arrow = (await chevron(parent).locator("svg path").boundingBox())!;
+            const text = (await parent.locator(".daily-note-text-run").first().boundingBox())!.x;
+            const bullet = await inkLeft(page, {
+                x: arrow.x + arrow.width,
+                y: arrow.y,
+                width: text - arrow.x - arrow.width,
+                height: arrow.height,
+            });
+            return bullet - (arrow.x + arrow.width);
+        };
+        try {
+            expect(await gap("21px")).toBeCloseTo(((await gap("16px")) * 21) / 16, 0);
+        } finally {
+            await page.evaluate(() => document.body.style.removeProperty("--font-text-size"));
+        }
+    });
+
     test("selects no text when an arrow is clicked twice quickly", async ({ obsidian }) => {
         const { page } = obsidian;
         for (const host of [heading(note, "Outer"), note.locator("li").filter({ hasText: /^Parent/ })]) {
