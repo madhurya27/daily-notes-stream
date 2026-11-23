@@ -99,6 +99,9 @@ Update the docs in the same branch as the change that makes them out of date:
   links to it.
 - `docs/DECISIONS.md` — smaller decisions: the decision, why, and what was
   rejected. Refer to one by its ID, such as `D-023`.
+- A new `D-` entry or ADR takes the next number after the last one on `main`,
+  never after another branch's. When two branches take the same number, the one
+  merged second renumbers its own.
 - `README.md` — features, install and use, for users.
 - `docs/TESTING.md` — a list of things to check by hand.
 - `docs/LISTING.md` — the descriptions in the plugin directory. Copy a change
