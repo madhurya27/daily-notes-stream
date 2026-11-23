@@ -19,11 +19,11 @@ runs:
         - name: Install Obsidian
           shell: bash
           env:
-              OBSIDIAN_VERSION: 1.15.0
+              OBSIDIAN_VERSION: 1.15.1
           run: |
               OBSIDIAN_PATH="$GITHUB_WORKSPACE/.dev/obsidian/obsidian"
               curl -fsSL -o "$RUNNER_TEMP/obsidian.tar.gz" "https://github.com/obsidianmd/obsidian-releases/releases/download/v$OBSIDIAN_VERSION/obsidian-$OBSIDIAN_VERSION.tar.gz"
-              echo "75594ae09914ca0191dde13c0697dee653322287a3a806c15519332d9ada14d3  $RUNNER_TEMP/obsidian.tar.gz" | sha256sum -c
+              echo "09074f0635ecf366307d808d0fec06c01a87a0bcc66da6d34126ceece0eb8519  $RUNNER_TEMP/obsidian.tar.gz" | sha256sum -c
               mkdir -p "$(dirname "$OBSIDIAN_PATH")"
               tar -xzf "$RUNNER_TEMP/obsidian.tar.gz" -C "$(dirname "$OBSIDIAN_PATH")" --strip-components=1
               echo "OBSIDIAN_PATH=$OBSIDIAN_PATH" >> "$GITHUB_ENV"
