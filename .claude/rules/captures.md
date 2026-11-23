@@ -11,6 +11,8 @@ paths:
     - "scripts/recording.mjs"
     - "scripts/capture-iphone.swift"
     - "scripts/draw-touches.swift"
+    - "e2e-tests/listing.spec.ts"
+    - "scripts/listing-cards.mjs"
 ---
 
 # README captures
@@ -20,13 +22,15 @@ pnpm run capture:screenshots   # take the README's desktop screenshots again, in
 pnpm run capture:screenshots:ios # take the README's phone screenshots again, on the plugged-in, unlocked iPhone
 pnpm run capture:recording     # record only docs/images/demo-desktop.webp again, the README's desktop recording
 pnpm run capture:recording:ios # record only docs/images/demo-phone.webp again, on the plugged-in iPhone
-pnpm run capture:listing       # the desktop and mobile images for the plugin directory, into .dev/listing/cards/ (D-161)
+pnpm run capture:listing       # the plugin directory's images, into .dev/listing/cards/ (D-161); run capture:screenshots:ios first (D-243)
 ```
 
 - The directory images are uploaded by hand, under **Edit listing** on the
   directory's dashboard. `scripts/listing-cards.mjs` holds their headlines. It
   takes the raw screenshots in `.dev/listing/raw/` and lays them out as
-  2400x1600 desktop images and 900x1600 mobile ones.
+  2400x1600 desktop images and 900x1600 mobile ones. The desktop screenshots
+  come from `capture:listing`; the phone ones are the iPhone's README
+  screenshots at full size, which `capture:screenshots:ios` saves there.
 
 - Each desktop screenshot shows the stream's pane in a window 904 px wide and
   960 px tall, scrolled to a date. `scripts/window-still.mjs` draws a window

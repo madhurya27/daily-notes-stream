@@ -32,7 +32,7 @@
         "test:ios:explore": "pnpm run build && pnpm run typecheck:e2e && playwright test -c playwright.ios-explore.config.ts",
         "capture:screenshots": "pnpm run build && CAPTURE_SCREENSHOTS=1 E2E_SHOW_WINDOW=1 playwright test screenshots.spec.ts --project=desktop",
         "capture:screenshots:ios": "pnpm run build && pnpm run typecheck:e2e && CAPTURE_SCREENSHOTS=1 playwright test -c playwright.ios.config.ts screenshots.spec.ts",
-        "capture:listing": "pnpm run build && CAPTURE_LISTING=1 E2E_SHOW_WINDOW=1 playwright test listing.spec.ts && node scripts/listing-cards.mjs",
+        "capture:listing": "pnpm run build && CAPTURE_LISTING=1 E2E_SHOW_WINDOW=1 playwright test listing.spec.ts --project=desktop && node scripts/listing-cards.mjs",
         "capture:recording": "pnpm run build && CAPTURE_RECORDING=1 E2E_SHOW_WINDOW=1 playwright test recording.spec.ts --project=desktop",
         "capture:recording:ios": "pnpm run build && pnpm run typecheck:e2e && CAPTURE_RECORDING=1 playwright test -c playwright.ios.config.ts recording.spec.ts",
         "test:memory": "pnpm run build && pnpm run typecheck:e2e && E2E_SEED_DAYS=1825 playwright test memory.spec.ts render-cost.spec.ts edit-cost.spec.ts"

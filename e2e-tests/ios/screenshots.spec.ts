@@ -1,7 +1,7 @@
 import { execFileSync } from "child_process";
-import { writeFileSync } from "fs";
+import { copyFileSync, mkdirSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
-import { join } from "path";
+import { join, resolve } from "path";
 import { saveWebp } from "../demo";
 import { screenshotsAsked } from "../recording-asked";
 import { drivesIPad } from "./device";
@@ -10,8 +10,9 @@ import { test, expect, type Phone } from "./phone";
 /**
  * Takes the README's phone screenshots on a real iPhone, so they show iOS's
  * own status bar and WebKit's rendering. Each scene is set up by script, as on
- * desktop in `screenshots.spec.ts`. Only runs when asked, through
- * `pnpm run capture:screenshots:ios`.
+ * desktop in `screenshots.spec.ts`. The full-size screenshots also go to
+ * .dev/, for the plugin directory's images (D-243). Only runs when asked,
+ * through `pnpm run capture:screenshots:ios`.
  */
 
 const STREAM = ".daily-notes-stream-container";
@@ -24,10 +25,12 @@ const note = (path: string) => `${STREAM} [data-source-path="${path}"]`;
  * them at, for high-resolution screens.
  */
 const WIDTH = 520;
+/** Where `scripts/listing-cards.mjs` reads the directory's screenshots. */
+const LISTING = resolve(import.meta.dirname, "..", "..", ".dev", "listing", "raw");
 
 /**
- * Saves the whole screen as `docs/images/<name>-phone.webp`, with no keyboard
- * and the stream still.
+ * Saves the whole screen as `docs/images/<name>-phone.webp`, and at full size
+ * for the directory, with no keyboard and the stream still.
  */
 async function capture(phone: Phone, name: string): Promise<void> {
     await phone.run(() => (document.activeElement as HTMLElement | null)?.blur());
@@ -37,8 +40,11 @@ async function capture(phone: Phone, name: string): Promise<void> {
     await phone.rest();
     // iOS's scroll bar fades a second after scrolling stops.
     await new Promise((resolve) => setTimeout(resolve, 1500));
+    const full = join(LISTING, `${name}-phone.png`);
+    mkdirSync(LISTING, { recursive: true });
+    writeFileSync(full, Buffer.from(await phone.wholeScreen(), "base64"));
     const raw = join(tmpdir(), `${name}-phone.png`);
-    writeFileSync(raw, Buffer.from(await phone.wholeScreen(), "base64"));
+    copyFileSync(full, raw);
     execFileSync("sips", ["--resampleWidth", String(WIDTH), raw], { stdio: "ignore" });
     saveWebp(raw, `${name}-phone`);
 }

@@ -4684,3 +4684,20 @@ so their place is estimated: iOS draws a bullet about 3 px further left.
   them would no longer reach the stream.
 - Measuring each number's width with a script — the digit count is close enough,
   with no layout read.
+
+## D-243 — The directory's phone images use the iPhone's README screenshots (2026-11-23)
+
+**Decision:** changes D-161. `capture:screenshots:ios` also saves each
+screenshot at full size in `.dev/listing/raw/`, and `listing-cards.mjs` lays out
+the directory's phone images from those. `capture:listing` takes only the
+desktop screenshots.
+
+**Why:** the directory showed Chromium's phone-sized window, without iOS's
+status bar or WebKit's rendering, while the README showed the real iPhone
+(D-237). One run now gives both.
+
+**Rejected:**
+
+- Keeping Chromium's phone screenshots for the directory — two ways to show the
+  same phone, and the directory's looks less like what users see.
+- Laying out the README's 520 px copies — too small for the 900x1600 images.

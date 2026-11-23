@@ -49,13 +49,14 @@ On a branch, raise the version with
 `pnpm version <patch|minor|major> --no-git-tag-version` and commit it as
 `chore: release <version>`. On that branch, and never before, take the README
 screenshots that show what the release changes again, so they match what users
-install. After the squash merge, tag `main` with
-`git tag -a <version> -m <version>` and push the tag (D-214). The workflow then
-drafts the release with its files. Since `1.0.0`, write each release's notes
-from `git log --first-parent <last tag>..`: in plain words, say what a reader
-will notice. Show me the notes, and publish the release only once I approve them
-(D-115). They follow the rules for users' text in **Documentation**; start a bug
-fix with "Fixed an issue where…".
+install. If any directory image shows what changed, take them all again with
+`capture:screenshots:ios` and `capture:listing`, and ask me to upload them.
+After the squash merge, tag `main` with `git tag -a <version> -m <version>` and
+push the tag (D-214). The workflow then drafts the release with its files. Since
+`1.0.0`, write each release's notes from `git log --first-parent <last tag>..`:
+in plain words, say what a reader will notice. Show me the notes, and publish
+the release only once I approve them (D-115). They follow the rules for users'
+text in **Documentation**; start a bug fix with "Fixed an issue where…".
 
 To clear warnings in the directory's scorecard, the user first runs **Review
 branch → Run preview scan** on the branch or tag, in the plugin's listing. After

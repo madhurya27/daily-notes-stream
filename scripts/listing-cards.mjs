@@ -61,7 +61,7 @@ export const DESKTOP_CARDS = [
         headline: "In your *pocket*, too.",
         subtitle: "The same stream on your phone, in light or dark.",
         layout: "phones",
-        shots: ["stream-phone.png", "dark-phone.png"],
+        shots: ["stream-phone.png", "stream-dark-phone.png"],
     },
 ];
 
@@ -82,7 +82,7 @@ export const PHONE_CARDS = [
         headline: "Easy on the eyes *at night*.",
         subtitle: "The stream follows Obsidian's dark theme.",
         layout: "phone",
-        shots: ["dark-phone.png"],
+        shots: ["stream-dark-phone.png"],
     },
 ];
 
