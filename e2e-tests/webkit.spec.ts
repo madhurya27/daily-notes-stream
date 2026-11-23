@@ -1,6 +1,6 @@
 import type { Page } from "@playwright/test";
 import { SEEDED_DAYS, openStream } from "./obsidian";
-import { test, expect } from "./webkit";
+import { test, expect, painted } from "./webkit";
 
 /** A day after the newest test note, so the stream opens on it. */
 const MATH_NOTE = "Notes/2026-03-15.md";
@@ -20,6 +20,7 @@ async function paints(page: Page, name: string, index = 0): Promise<boolean> {
     );
     const highlighted = await page.screenshot({ clip });
     await page.evaluate(() => CSS.highlights.clear());
+    await painted(page);
     return !highlighted.equals(await page.screenshot({ clip }));
 }
 

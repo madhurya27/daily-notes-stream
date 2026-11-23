@@ -81,6 +81,16 @@ async function capture(page: Page): Promise<Snapshot> {
     }, MARK);
 }
 
+/**
+ * Waits until WebKit has painted the page's last change. A screenshot taken
+ * sooner, with the machine busy, can miss highlights that were just set or
+ * cleared. A frame's callback runs before its paint, so the second one runs
+ * after it.
+ */
+export async function painted(page: Page): Promise<void> {
+    await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+}
+
 /** Runs in WebKit: puts back what the markup could not hold. */
 async function restore(page: Page, snapshot: Snapshot): Promise<void> {
     await page.evaluate(
@@ -108,6 +118,7 @@ async function restore(page: Page, snapshot: Snapshot): Promise<void> {
         },
         { mark: MARK, ...snapshot }
     );
+    await painted(page);
 }
 
 /**
