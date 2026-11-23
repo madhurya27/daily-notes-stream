@@ -114,9 +114,6 @@ Each starts when another project ships what it needs.
       dismissed until then: only dev tools use it, on our own globs.
 - [ ] Once the directory's scorecard lint understands moment's types, go back to
       Obsidian's `moment` and delete `src/notes/moment.ts` (D-152).
-- [ ] Delete the 13 PNG screenshots in `docs/images/` once the directory's
-      listing shows a README that uses the WebP ones. The listing shows the
-      1.3.2 README, and loads its images from `main`.
 
 ## Known limits
 
