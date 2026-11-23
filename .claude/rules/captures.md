@@ -28,9 +28,10 @@ pnpm run capture:listing       # the plugin directory's images, into .dev/listin
 - The directory images are uploaded by hand, under **Edit listing** on the
   directory's dashboard. `scripts/listing-cards.mjs` holds their headlines. It
   takes the raw screenshots in `.dev/listing/raw/` and lays them out as
-  2400x1600 desktop images and 900x1600 mobile ones. The desktop screenshots
-  come from `capture:listing`; the phone ones are the iPhone's README
-  screenshots at full size, which `capture:screenshots:ios` saves there.
+  2400x1600 desktop images and 900x1600 mobile ones, as lossless WebP files
+  (D-244). The desktop screenshots come from `capture:listing`; the phone ones
+  are the iPhone's README screenshots at full size, which
+  `capture:screenshots:ios` saves there.
 
 - Each desktop screenshot shows the stream's pane in a window 904 px wide and
   960 px tall, scrolled to a date. `scripts/window-still.mjs` draws a window

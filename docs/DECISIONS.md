@@ -4704,3 +4704,16 @@ status bar or WebKit's rendering, while the README showed the real iPhone
 - Keeping Chromium's phone screenshots for the directory — two ways to show the
   same phone, and the directory's looks less like what users see.
 - Laying out the README's 520 px copies — too small for the 900x1600 images.
+
+## D-244 — The directory's images are lossless WebP files (2026-11-23)
+
+**Decision:** `listing-cards.mjs` saves each directory image as a lossless WebP,
+made with `cwebp`, as the README's screenshots are (D-237).
+
+**Why:** the directory takes JPEG, PNG or WebP up to 5 MB. WebP holds the same
+pixels in less space, and keeps one format for every screenshot.
+
+**Rejected:**
+
+- PNG — the same pixels, larger. The biggest image was 2.9 MB, near the limit.
+- JPEG, or lossy WebP — can blur text and leave bands in the backgrounds.

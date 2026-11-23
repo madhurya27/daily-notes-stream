@@ -6,6 +6,7 @@
  * with macOS; on other systems the headline uses sans-serif.
  */
 import { webkit } from "@playwright/test";
+import { execFileSync } from "child_process";
 import { mkdirSync, writeFileSync } from "fs";
 import { join, resolve } from "path";
 import { isMain } from "./is-main.mjs";
@@ -157,8 +158,19 @@ ${shown}
 }
 
 /**
- * Renders `cards` from the screenshots in `rawDir` into `outDir`, at twice
- * their size.
+ * `cwebp`'s arguments to save the card `png` as a lossless WebP, as the
+ * README's screenshots are (D-237).
+ * @param {string} png
+ * @param {string} output
+ * @returns {string[]}
+ */
+export function cardWebpArgs(png, output) {
+    return ["-quiet", "-lossless", "-z", "9", png, "-o", output];
+}
+
+/**
+ * Renders `cards` from the screenshots in `rawDir` into `outDir` as WebP files,
+ * at twice their size. Needs `cwebp` (`brew install webp`).
  * @param {Card[]} cards
  * @param {string} rawDir
  * @param {string} outDir
@@ -177,8 +189,12 @@ export async function renderCards(cards, rawDir, outDir) {
             await page.evaluate(() =>
                 Promise.all([document.fonts.ready, ...[...document.images].map((img) => img.decode())])
             );
-            await page.screenshot({ path: join(outDir, `${card.name}.png`) });
+            const png = join(rawDir, `${card.layout}-${card.name}.png`);
+            await page.screenshot({ path: png });
             await page.close();
+            execFileSync("cwebp", cardWebpArgs(png, join(outDir, `${card.name}.webp`)), {
+                stdio: ["ignore", "ignore", "inherit"],
+            });
         }
     } finally {
         await browser.close();

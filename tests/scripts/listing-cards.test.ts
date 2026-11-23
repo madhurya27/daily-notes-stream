@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { cardTextHtml, DESKTOP_CARDS, PHONE_CARDS } from "../../scripts/listing-cards.mjs";
+import { cardTextHtml, cardWebpArgs, DESKTOP_CARDS, PHONE_CARDS } from "../../scripts/listing-cards.mjs";
 
 describe("cardTextHtml", () => {
     it("colours the words between asterisks", () => {
@@ -32,5 +32,14 @@ describe("the cards' phone screenshots", () => {
 
     it("pair the light and dark stream on desktop", () => {
         expect(phoneShots(DESKTOP_CARDS)).toEqual(["stream-phone.png", "stream-dark-phone.png"]);
+    });
+});
+
+describe("cardWebpArgs", () => {
+    it("encodes a card lossless, at the smallest size cwebp finds", () => {
+        expect(cardWebpArgs("raw/phone-5-dark.png", "cards/phone/5-dark.webp")).toEqual([
+            ...["-quiet", "-lossless", "-z", "9"],
+            ...["raw/phone-5-dark.png", "-o", "cards/phone/5-dark.webp"],
+        ]);
     });
 });
