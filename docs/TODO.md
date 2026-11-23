@@ -122,17 +122,17 @@ Each starts when another project ships what it needs.
 
 Measured and accepted. Opened again if a reader notices.
 
-- [ ] A hard flick up on the iPhone scrolls faster than notes can be rendered: a
-      note waits its turn in the render queue (ADR 0004) while the page moves
-      200–800 px a frame. On 2026-10-16, four-stroke flicks showed a note not
-      yet rendered for 1–4 frames, up to 293 px. That happened in 6 of 6 scrolls
-      with heights remembered, and 3 of 6 with them forgotten. Rendering notes
-      up to 3 panes away was not clearly better. Other blank moments are over
-      text already rendered, and Obsidian's own reading view shows those too (up
-      to 185 ms). A note not yet drawn shows nothing at all; its date in the
-      empty box might look less like a failure, with no drawing cost.
-- [ ] On the iPad, a glide that renders a note with many Bases leaves part of
-      the screen black for about 0.3 s. Longest late frame (2026-10-26):
+- A hard flick up on the iPhone scrolls faster than notes can be rendered: a
+  note waits its turn in the render queue (ADR 0004) while the page moves
+  200–800 px a frame. On 2026-10-16, four-stroke flicks showed a note not yet
+  rendered for 1–4 frames, up to 293 px. That happened in 6 of 6 scrolls with
+  heights remembered, and 3 of 6 with them forgotten. Rendering notes up to 3
+  panes away was not clearly better. Other blank moments are over text already
+  rendered, and Obsidian's own reading view shows those too (up to 185 ms). A
+  note not yet drawn shows nothing at all; its date in the empty box might look
+  less like a failure, with no drawing cost.
+- On the iPad, a glide that renders a note with many Bases leaves part of the
+  screen black for about 0.3 s. Longest late frame (2026-10-26):
     - eight Bases: 359 ms, filmed black for 280 ms. Three: 124 ms. One or two:
       none over 100 ms.
     - The target phone is half the iPad's speed (D-131), so expect about double.
