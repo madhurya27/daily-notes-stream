@@ -1,6 +1,7 @@
 import type { Page } from "@playwright/test";
 import { SEEDED_DAYS, openStream } from "./obsidian";
 import { test, expect, painted } from "./webkit";
+import { inkLeft } from "./ink";
 
 /** A day after the newest test note, so the stream opens on it. */
 const MATH_NOTE = "Notes/2026-03-15.md";
@@ -22,33 +23,6 @@ async function paints(page: Page, name: string, index = 0): Promise<boolean> {
     await page.evaluate(() => CSS.highlights.clear());
     await painted(page);
     return !highlighted.equals(await page.screenshot({ clip }));
-}
-
-/**
- * The left edge of the first ink in `box`, or its right edge if there is none.
- */
-async function inkRight(page: Page, box: { x: number; y: number; width: number; height: number }): Promise<number> {
-    const png = (await page.screenshot({ clip: box })).toString("base64");
-    const column = await page.evaluate(
-        async ({ src, width }) => {
-            const img = new Image();
-            img.src = `data:image/png;base64,${src}`;
-            await img.decode();
-            const canvas = document.createElement("canvas");
-            [canvas.width, canvas.height] = [img.width, img.height];
-            const context = canvas.getContext("2d")!;
-            context.drawImage(img, 0, 0);
-            const { data } = context.getImageData(0, 0, img.width, img.height);
-            for (let x = 0; x < img.width; x++)
-                for (let y = 0; y < img.height; y++) {
-                    const i = (y * img.width + x) * 4;
-                    if (data[i]! + data[i + 1]! + data[i + 2]! < 700) return (x * width) / img.width;
-                }
-            return width;
-        },
-        { src: png, width: box.width }
-    );
-    return box.x + column;
 }
 
 test.describe("in iOS's engine", () => {
@@ -164,7 +138,7 @@ test.describe("in iOS's engine", () => {
                 .first()
                 .boundingBox())!;
 
-            const bullet = await inkRight(phone, {
+            const bullet = await inkLeft(phone, {
                 x: arrow.x + arrow.width + 1,
                 y: arrow.y + arrow.height / 2 - 3,
                 width: 30,

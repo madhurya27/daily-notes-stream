@@ -1,5 +1,6 @@
 import type { Locator, Page } from "@playwright/test";
 import { test, expect, openStream, STREAM } from "./obsidian";
+import { inkLeft } from "./ink";
 
 /** Newer than every test note, so it is first in the stream. */
 const NOTE = "Notes/2026-03-20.md";
@@ -63,36 +64,6 @@ const stored = (page: Page, sectionKey: string) =>
         },
         { path: NOTE, key: sectionKey }
     );
-
-/**
- * The left edge of the first ink inside `box`, with every fold arrow hidden, or
- * `box`'s right edge if there is none.
- */
-async function inkLeft(page: Page, box: { x: number; y: number; width: number; height: number }): Promise<number> {
-    const hide = await page.addStyleTag({ content: ".collapse-indicator { visibility: hidden !important; }" });
-    const png = (await page.screenshot({ clip: box })).toString("base64");
-    await hide.evaluate((el) => (el as Element).remove());
-    const column = await page.evaluate(
-        async ({ src, width }) => {
-            const img = new Image();
-            img.src = `data:image/png;base64,${src}`;
-            await img.decode();
-            const canvas = document.createElement("canvas");
-            [canvas.width, canvas.height] = [img.width, img.height];
-            const context = canvas.getContext("2d")!;
-            context.drawImage(img, 0, 0);
-            const { data } = context.getImageData(0, 0, img.width, img.height);
-            for (let x = 0; x < img.width; x++)
-                for (let y = 0; y < img.height; y++) {
-                    const i = (y * img.width + x) * 4;
-                    if (data[i]! + data[i + 1]! + data[i + 2]! < 700) return (x * width) / img.width;
-                }
-            return width;
-        },
-        { src: png, width: box.width }
-    );
-    return box.x + column;
-}
 
 test.describe("collapsing sections of a note", () => {
     let note: Locator;
