@@ -4753,9 +4753,15 @@ bullet or number grew by about 3.5 px from 16 to 24 px text, while a task's and
 a heading's stayed put. The browser places a marker on a whole pixel, so the
 gaps still differ by up to 1.5 px.
 
+The marker's widths are measured in macOS's font, and the test runs only on
+macOS. Linux's font draws "9. " wider: at 24 px text its arrow is about 1.5 px
+from the number. Right on macOS and iOS was judged enough.
+
 **Rejected:**
 
 - `--size-2-2` (4 px) for headings — a folded arrow, 10 px out, looked apart
   from its heading.
 - A gap that grows with the text, as bullets had — the arrows no longer matched
   each other.
+- Allowing for the widest font — the gap on macOS grows with the text again.
+- Measuring the number's width in code — more code for fonts other than macOS's.

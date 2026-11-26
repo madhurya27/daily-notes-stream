@@ -210,8 +210,9 @@ test.describe("collapsing sections of a note", () => {
     });
 
     // A bigger text size draws the bullet further left, so the arrow must
-    // move out with it, and the gap grows with the text.
+    // move out with it, keeping the same gap (D-246).
     test("keeps every arrow the same distance from what follows it, at any text size", async ({ obsidian }) => {
+        test.skip(process.platform !== "darwin", "the gaps are measured in macOS's font (D-246)");
         const { page } = obsidian;
         await write(
             page,
