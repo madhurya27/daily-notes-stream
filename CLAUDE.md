@@ -51,7 +51,8 @@ On a branch, raise the version with
 screenshots that show what the release changes again, so they match what users
 install. If any directory image shows what changed, take them all again with
 `capture:screenshots:ios` and `capture:listing`, and ask me to upload them.
-After the squash merge, tag `main` with `git tag -a <version> -m <version>` and
+After the squash merge, push `main` and wait for its CI run to pass; a failure
+stops the release. Then tag `main` with `git tag -a <version> -m <version>` and
 push the tag (D-214). The workflow then drafts the release with its files. Since
 `1.0.0`, write each release's notes from `git log --first-parent <last tag>..`:
 in plain words, say what a reader will notice. Show me the notes, and publish
