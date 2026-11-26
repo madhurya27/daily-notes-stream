@@ -56,7 +56,10 @@ push the tag (D-214). The workflow then drafts the release with its files. Since
 `1.0.0`, write each release's notes from `git log --first-parent <last tag>..`:
 in plain words, say what a reader will notice. Show me the notes, and publish
 the release only once I approve them (D-115). They follow the rules for users'
-text in **Documentation**; start a bug fix with "Fixed an issue where…".
+text in **Documentation**. List them under `### Changes`, then `### Fixes`,
+leaving out a heading with nothing under it. Start each fix with "Fixed an issue
+where…". Leave out what a user can't see, such as a change only to how the code
+is written.
 
 To clear warnings in the directory's scorecard, the user first runs **Review
 branch → Run preview scan** on the branch or tag, in the plugin's listing. After
