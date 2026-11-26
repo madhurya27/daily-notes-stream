@@ -4670,6 +4670,8 @@ always gives the same note, scrolling up or down.
 
 ## D-242 — A list item's fold arrow sits just left of its marker (2026-11-22)
 
+Superseded in part by D-246: no gap grows with the text.
+
 **Decision:** each list item's arrow sits the same small distance left of its
 bullet, number or checkbox. Beside a bullet or number, its box reaches the text,
 so a click on the marker folds too. A number's arrow moves out one digit width
@@ -4718,3 +4720,42 @@ pixels in less space, and keeps one format for every screenshot.
 
 - PNG — the same pixels, larger. The biggest image was 2.9 MB, near the limit.
 - JPEG, or lossy WebP — can blur text and leave bands in the backgrounds.
+
+## D-245 — A long number's fold arrow stops 6 px from the pane's edge (2026-11-25)
+
+**Decision:** a top-level numbered item's arrow keeps D-242's gap from its
+number, unless that puts the arrow closer than about 6 px to the pane's edge.
+There it stops, and the gap to the number is smaller, as beside "100." on a
+phone.
+
+**Why:** D-242's arrow beside "100." was about 3 px from a phone's edge, with
+its icon's box past it. The pane's margin and Obsidian's indent are the only
+space left of the number.
+
+**Rejected:**
+
+- More indent for lists with long numbers — the text in those lists would move
+  right.
+- 8 px measured to the icon's box — the arrow itself then touched the number.
+- The limit on phones only — a narrow desktop pane has the same problem with
+  longer numbers.
+
+## D-246 — Every fold arrow keeps about 6 px from what follows it, at any text size (2026-11-25)
+
+**Decision:** an open arrow sits about 6 px from a heading's words, a bullet, a
+number or a checkbox, from 12 to 30 px text. A heading's column is its arrow's
+box and `--size-2-1`. "Properties" and "Linked mentions" share that rule. A
+bullet's or number's box reaches as far as the browser draws the marker: part
+grows with the text and part is fixed, measured across that range.
+
+**Why:** headings' arrows were 4 px from their words, and the gap beside a
+bullet or number grew by about 3.5 px from 16 to 24 px text, while a task's and
+a heading's stayed put. The browser places a marker on a whole pixel, so the
+gaps still differ by up to 1.5 px.
+
+**Rejected:**
+
+- `--size-2-2` (4 px) for headings — a folded arrow, 10 px out, looked apart
+  from its heading.
+- A gap that grows with the text, as bullets had — the arrows no longer matched
+  each other.

@@ -36,7 +36,9 @@ over one batch), and a path to create the vault somewhere else.
 - **2026-08-31**, the newest note: every kind of fold arrow. Headings, bullets
   three levels deep, open and done tasks, numbered items of one, two and three
   digits, and lists inside lists. Each arrow sits the same small gap left of its
-  bullet, number or checkbox (D-242).
+  heading, bullet, number or checkbox, at any text size (D-246). Where the
+  margin has no room for that gap, as beside "100." on a phone, the arrow sits
+  about 6 px from the edge (D-245).
 - **2026-08-30**: one of each kind of embed the e2e tests cover. Bases that are
   wide, narrow, too wide only because of their values, resized by hand, with a
   named view, as a kanban and inline (the Bases are in `Bases/`). Also embedded

@@ -95,6 +95,22 @@ test.describe("linked mentions", () => {
         await expect(footer.locator('[data-link-source="Trip.md"] .daily-note-mention-excerpt')).toHaveText(/^day: /);
     });
 
+    test("sets its arrow as far from its words as a heading's arrow", async ({ obsidian }) => {
+        const footer = await footerOfNewest(obsidian.page);
+        const block = footer.locator("xpath=ancestor::*[contains(@class, 'daily-note-block')]");
+
+        const gaps = await block.evaluate((el) => {
+            const box = (node: Element) => node.getBoundingClientRect();
+            const heading = el.querySelector(".daily-note-content h2.is-collapsible")!;
+            const mentions = el.querySelector(".daily-note-mentions-heading")!;
+            const textOf = (node: Element) => box(node).left + parseFloat(getComputedStyle(node).paddingLeft);
+            const arrowOf = (node: Element) => box(node.querySelector(":scope > .collapse-indicator")!).right;
+            return { heading: textOf(heading) - arrowOf(heading), mentions: textOf(mentions) - arrowOf(mentions) };
+        });
+
+        expect(Math.abs(gaps.mentions - gaps.heading)).toBeLessThan(1);
+    });
+
     // The note's own bottom border is the stream's only divider. A second line
     // above the footer looked like the end of a note.
     test("draws no line of its own, leaving the note's end the only one", async ({ obsidian }) => {

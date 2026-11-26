@@ -241,16 +241,12 @@
     margin-bottom: 0;
 }
 
-/* "Properties" is a heading of the note like any other. It gets the same
-   negative margin and padding as the content headings, so its word starts where
-   `## Morning` does, and its arrow is in the same margin. As a block box, it
-   also loses the space for descenders that Obsidian's inline-block heading
-   keeps below it. */
+/* "Properties" is a heading of the note like any other, in the same column as
+   the content headings (below). As a block box, it also loses the space for
+   descenders that Obsidian's inline-block heading keeps below it. */
 .daily-notes-stream-container .metadata-properties-heading {
     display: block;
     width: fit-content;
-    margin-left: calc(-1 * var(--size-4-4));
-    padding-left: var(--size-4-4);
 }
 
 /* The same size and position as a content heading's arrow, in the margin the
@@ -307,16 +303,14 @@
     margin-top: var(--size-4-8);
 }
 
-/* In the note's margin, like the properties heading, so its arrow lines up with
-   the headings' arrows. */
+/* In the same column as the content headings (below), so its arrow lines up
+   with theirs. */
 .daily-note-mentions-heading {
     position: relative;
     display: flex;
     align-items: center;
     gap: var(--size-4-2);
     width: fit-content;
-    margin-left: calc(-1 * var(--size-4-4));
-    padding-left: var(--size-4-4);
     color: var(--text-muted);
     font-size: var(--font-ui-small);
     font-weight: var(--font-semibold);
@@ -440,10 +434,11 @@
    the same center, so centering the icon in it centers it on the words. `top`
    skips the item's padding, because absolute positioning measures from inside
    the padding. The box reaches the text, so a click on the bullet folds too,
-   and the icon stays at its start. The icon is sized in rem, like Obsidian's;
-   the bullet and the gap beside it grow with the text, so they are 1em. */
+   and the icon stays at its start. The gap to the bullet stays the same at any
+   text size: the box reaches as far as the browser draws the bullet, part of it
+   growing with the text and part fixed, measured from 12 to 30 px. */
 .daily-note-content li.is-collapsible > .collapse-indicator {
-    --box-width: calc(var(--size-4-4, 1rem) + 1em);
+    --box-width: calc(var(--size-4-4, 1rem) + 0.625em + var(--size-2-3, 6px));
     position: absolute;
     left: calc(-1 * var(--box-width));
     top: var(--list-spacing, 0);
@@ -452,21 +447,33 @@
     justify-content: flex-start;
 }
 
-/* iOS draws a bullet about 3 px further left than other platforms, so the
+/* iOS draws a bullet about 0.25em further left than other platforms, so the
    arrow moves out to keep the gap a number or checkbox has. */
 .is-ios .daily-note-content ul > li.is-collapsible:not(.task-list-item) > .collapse-indicator {
-    --box-width: calc(var(--size-4-4, 1rem) + 1.25em);
+    --box-width: calc(var(--size-4-4, 1rem) + 0.875em + var(--size-2-3, 6px));
 }
 
 /* A number grows to the left as it gets longer, so its arrow sits clear of it:
-   one digit's width for each digit (collapsible.ts counts them), and half the
-   font's size for the dot and the space after it. The gap to the number
-   matches a bullet's, and the box still reaches the text, so a click on the
-   number folds too. */
+   one digit's width for each digit (collapsible.ts counts them), then the dot,
+   the space and the browser's fixed padding, measured as 0.25em + 6px. The
+   gap to the number matches a bullet's at any text size, and the box still
+   reaches the text, so a click on the number folds too. */
 .daily-note-content ol > li.is-collapsible > .collapse-indicator {
-    --box-width: calc(var(--daily-note-marker-digits, 1) * 1ch + 0.5em + var(--size-2-1, 2px) + var(--size-4-4, 1rem));
+    --number-box-width: calc(
+        var(--daily-note-marker-digits, 1) * 1ch + 0.25em + var(--size-2-3, 6px) + var(--size-4-4, 1rem)
+    );
+    --box-width: var(--number-box-width);
     left: calc(-1 * var(--box-width));
     width: var(--box-width);
+}
+
+/* The arrow keeps the usual gap from a top-level number, unless its box would
+   then reach past the pane's edge (D-245). The item is 3ch, Obsidian's indent,
+   plus the pane's margin from that edge. The arrow is drawn 6 px into its box,
+   so it stops 6 px from the edge. */
+.daily-note-content > ol > li.is-collapsible > .collapse-indicator {
+    --space-to-edge: calc(3ch + var(--file-margins-x));
+    --box-width: min(var(--number-box-width), var(--space-to-edge));
 }
 
 /* A task item puts its checkbox in the same margin as the arrow, so the arrow
@@ -483,10 +490,19 @@
     display: none;
 }
 
-/* Fold arrow position for headings */
-.daily-note-content :is(h1, h2, h3, h4, h5, h6).is-collapsible {
-    margin-left: calc(-1 * var(--size-4-4));
-    padding-left: var(--size-4-4);
+/* Fold arrow position for headings: the note's own, "Properties" and "Linked
+   mentions", in one rule so they stay alike. Each takes a column of the margin,
+   so its words start where the note's text does. The column is the arrow's box
+   and a gap of --size-2-1: about 6 px between an open arrow and the words, as
+   beside a list's marker. */
+.daily-notes-stream-container
+    :is(
+        .daily-note-content :is(h1, h2, h3, h4, h5, h6).is-collapsible,
+        .metadata-properties-heading,
+        .daily-note-mentions-heading
+    ) {
+    margin-left: calc(-1 * (var(--size-4-4) + var(--size-2-1)));
+    padding-left: calc(var(--size-4-4) + var(--size-2-1));
 }
 
 /* A heading sets the space around it. Under another heading, the half above

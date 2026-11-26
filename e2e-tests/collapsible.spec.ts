@@ -153,6 +153,19 @@ test.describe("collapsing sections of a note", () => {
         }
     });
 
+    test("leaves a gap between an open heading and its arrow", async () => {
+        const host = heading(note, "Outer");
+        const arrow = (await chevron(host).locator("svg path").boundingBox())!;
+        const text = await host.evaluate((el) => {
+            const range = document.createRange();
+            range.selectNodeContents(el.lastChild!);
+            return range.getBoundingClientRect().left;
+        });
+
+        expect(text - (arrow.x + arrow.width)).toBeGreaterThanOrEqual(5);
+        expect(text - (arrow.x + arrow.width)).toBeLessThanOrEqual(6);
+    });
+
     test("puts a task's fold arrow on screen, beside its checkbox", async ({ obsidian }) => {
         await write(obsidian.page, "- [ ] Task\n    - Sub\n");
         const task = note.locator("li.task-list-item.is-collapsible");
@@ -184,25 +197,67 @@ test.describe("collapsing sections of a note", () => {
         }
     });
 
+    test("keeps a long number's fold arrow inside the pane", async ({ obsidian }) => {
+        await write(obsidian.page, "1000. Thousandth\n      - Sub\n");
+        const item = note.locator("ol > li.is-collapsible").filter({ hasText: /^Thousandth/ });
+        await chevron(item).click();
+        await expect(item).toHaveClass(/is-collapsed/);
+        const arrow = (await chevron(item).locator("svg path").boundingBox())!;
+        const pane = (await obsidian.page.locator(`.view-content:has(${STREAM})`).boundingBox())!;
+
+        expect(arrow.x - pane.x).toBeGreaterThanOrEqual(5);
+        expect(arrow.x + arrow.width).toBeLessThanOrEqual((await item.boundingBox())!.x);
+    });
+
     // A bigger text size draws the bullet further left, so the arrow must
     // move out with it, and the gap grows with the text.
-    test("keeps the gap between a bullet and its arrow in proportion to the text size", async ({ obsidian }) => {
+    test("keeps every arrow the same distance from what follows it, at any text size", async ({ obsidian }) => {
         const { page } = obsidian;
-        const parent = note.locator("li").filter({ hasText: /^Parent/ });
-        const gap = async (size: string) => {
-            await page.evaluate((s) => document.body.style.setProperty("--font-text-size", s), size);
-            const arrow = (await chevron(parent).locator("svg path").boundingBox())!;
-            const text = (await parent.locator(".daily-note-text-run").first().boundingBox())!.x;
-            const bullet = await inkLeft(page, {
-                x: arrow.x + arrow.width,
-                y: arrow.y,
-                width: text - arrow.x - arrow.width,
-                height: arrow.height,
+        await write(
+            page,
+            "## Heading\n\nText.\n\n- Bullet\n    - Sub\n\n9. Number\n    - Sub\n\n- [ ] Task\n    - Sub\n"
+        );
+        const items = {
+            bullet: note.locator("ul > li.is-collapsible:not(.task-list-item)").filter({ hasText: /^Bullet/ }),
+            number: note.locator("ol > li.is-collapsible").filter({ hasText: /^Number/ }),
+            task: note.locator("li.task-list-item.is-collapsible").filter({ hasText: /^Task/ }),
+        };
+        const host = heading(note, "Heading");
+        await expect(items.task).toBeVisible();
+
+        const gaps = async () => {
+            const result: Record<string, number> = {};
+            for (const [kind, item] of Object.entries(items)) {
+                const arrow = (await chevron(item).locator("svg path").boundingBox())!;
+                const text = (await item.boundingBox())!.x;
+                const ink = await inkLeft(page, {
+                    x: arrow.x + arrow.width,
+                    y: arrow.y,
+                    width: text - arrow.x - arrow.width,
+                    height: arrow.height,
+                });
+                result[kind] = ink - (arrow.x + arrow.width);
+            }
+            const arrow = (await chevron(host).locator("svg path").boundingBox())!;
+            const words = await host.evaluate((el) => {
+                const range = document.createRange();
+                range.selectNodeContents(el.lastChild!);
+                return range.getBoundingClientRect().left;
             });
-            return bullet - (arrow.x + arrow.width);
+            result.heading = words - (arrow.x + arrow.width);
+            return result;
         };
         try {
-            expect(await gap("21px")).toBeCloseTo(((await gap("16px")) * 21) / 16, 0);
+            for (const size of ["12px", "16px", "24px", "30px"]) {
+                await page.evaluate((s) => document.body.style.setProperty("--font-text-size", s), size);
+                const measured = await gaps();
+                // The browser puts a marker on a whole pixel, so its gap moves
+                // by up to a pixel and a half from one text size to the next.
+                for (const [kind, gap] of Object.entries(measured)) {
+                    expect(gap, `${kind} at ${size}`).toBeGreaterThanOrEqual(measured.heading! - 1.5);
+                    expect(gap, `${kind} at ${size}`).toBeLessThanOrEqual(measured.heading! + 1.5);
+                }
+            }
         } finally {
             await page.evaluate(() => document.body.style.removeProperty("--font-text-size"));
         }

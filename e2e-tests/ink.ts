@@ -3,7 +3,8 @@ import type { Page } from "@playwright/test";
 type Box = { x: number; y: number; width: number; height: number };
 
 /**
- * The left edge of the first text, bullet or number drawn in `box`, or the
+ * The left edge of the first text, bullet, number or checkbox drawn in `box`,
+ * or the
  * box's right edge if there is none. Fold arrows are hidden. Ink is whatever
  * changes when list items are made clear, so it is found in a light theme or a
  * dark one.
@@ -12,7 +13,9 @@ export async function inkLeft(page: Page, box: Box): Promise<number> {
     const hide = await page.addStyleTag({ content: ".collapse-indicator { visibility: hidden !important; }" });
     const drawn = await page.screenshot({ clip: box });
     const clear = await page.addStyleTag({
-        content: ".daily-note-content li, .daily-note-content li::marker { color: transparent !important; }",
+        content:
+            ".daily-note-content li, .daily-note-content li::marker { color: transparent !important; }" +
+            ".daily-note-content li input { visibility: hidden !important; }",
     });
     const background = await page.screenshot({ clip: box });
     await clear.evaluate((el) => (el as Element).remove());
